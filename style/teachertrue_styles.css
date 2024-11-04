@@ -1,0 +1,315 @@
+body {
+    font-family: Arial, sans-serif; /* ページ全体のフォントをArial, sans-serifに設定 */
+    margin: 0; /* ページ全体の余白をなしにする */
+    padding: 0; /* ページ全体の内側余白をなしにする */
+}
+
+header {
+    display: flex; /* ヘッダーを横方向に並べるフレックスボックスに設定 */
+    justify-content: space-between; /* ロゴとナビゲーションメニューを左右に配置 */
+    align-items: center; /* アイテムを縦方向で中央に配置 */
+    padding: 10px 20px; /* ヘッダーの内側余白を設定 */
+    background-color: #f8f8f8; /* ヘッダーの背景色を設定 */
+    border-bottom: 1px solid #ddd; /* ヘッダーの下に薄いボーダーを追加 */
+}
+
+header .logo {
+    font-size: 1.5em; /* ロゴのフォントサイズを1.5emに設定 */
+    font-weight: bold; /* ロゴを太字にする */
+}
+
+header nav ul {
+    list-style: none; /* リストのマーカーを非表示にする */
+    padding: 0; /* リストの内側余白をなしにする */
+    margin: 0; /* リストの外側余白をなしにする */
+    display: flex; /* リスト項目を横方向に並べる */
+}
+
+header nav ul li {
+    margin: 0 15px; /* リスト項目同士の間に15pxの余白を作る */
+}
+
+header nav ul li a {
+    text-decoration: none; /* リンクの下線を除去 */
+    color: #333; /* リンクの文字色を濃い灰色に設定 */
+}
+
+header .profile {
+    font-size: 1em; /* プロフィール部分のフォントサイズを1emに設定 */
+}
+
+.container {
+    display: flex; /* メインコンテンツとサイドバーを横に並べるためのフレックスボックスを使用 */
+}
+
+aside {
+    width: 200px; /* サイドバーの幅を200pxに固定 */
+    min-width: 200px; /* サイドバーの最小幅を200pxに設定し、画面が狭くなってもこれ以下にはならないようにする */
+    background-color: #f1f1f1; /* サイドバーの背景色を薄いグレーに設定 */
+    padding: 20px; /* サイドバー内の要素に20pxの内側余白を設定 */
+    border-right: 1px solid #ddd; /* サイドバーの右に薄いボーダーを追加 */
+}
+
+aside ul {
+    list-style: none; /* サイドバーのリストのマーカーを非表示にする */
+    padding: 0; /* リストの内側余白をなしにする */
+}
+
+aside ul li {
+    margin-bottom: 10px; /* リスト項目の下に10pxの余白を追加 */
+}
+
+aside ul li a {
+    text-decoration: none; /* サイドバーのリンクの下線を除去 */
+    color: #333; /* サイドバーのリンクの文字色を濃い灰色に設定 */
+}
+
+main {
+    flex-grow: 1; /* メインコンテンツがサイドバー以外の余ったスペースを埋めるようにする */
+    padding: 20px; /* メインコンテンツの内側余白を20pxに設定 */
+}
+
+main section {
+    margin-bottom: 20px; /* 各セクションの下に20pxの余白を追加 */
+}
+
+.notifications, .class-overview, .all-overview, .create-new,.content-class{
+    display: flex;
+    flex-direction: column; /* 子要素を縦方向に並べる */
+    justify-content: center;/*水平方向の中央揃え*/
+    align-items: center; /* 水平方向の中央揃え */
+    width: 100%;
+    margin: 10px 5px;
+    border: 2px solid aqua; /* 枠の太さ、スタイル、色を指定 */
+    background-color: #e7f7ff; /* セクションの背景色を追加 */
+    padding: 20px; /* 内側余白を増やして読みやすくする */
+    border-radius: 10px; /* 角丸を追加して視覚的に柔らかい印象に */
+}
+/* 各セクションのタイトルの視覚的な強調 */
+.notifications h2, .class-overview h2, .all-overview h2, .create-new h2 {
+    font-size: 1.6em; /* タイトルのフォントサイズを大きくする */
+    color: #333; /* タイトルの文字色を濃いグレーに */
+    margin-bottom: 10px; /* タイトルの下に少し余白を追加 */
+}
+
+/*テーブルのスタイル*/
+/* テーブルのスタイルを追加 */
+table {
+    width: 100%; /* テーブル幅を100%に拡張 */
+    border-collapse: collapse; /* テーブルボーダーを重ならせて表示 */
+}
+
+table th, table td {
+    padding: 10px; /* テーブルセルの内側余白を設定 */
+    text-align: left; /* セル内テキストを左揃えに */
+    border-bottom: 1px solid #ddd; /* 下にボーダーを追加 */
+}
+
+table th {
+    background-color: #f2f2f2; /* テーブルヘッダーに薄いグレー背景 */
+    font-weight: bold; /* ヘッダーを太字に */
+}
+
+table tr:nth-child(even) {
+    background-color: #f9f9f9; /* 偶数行に背景色を設定し、行を区別しやすく */
+}
+
+table tr:hover {
+    background-color: #e7f7ff; /* 行にホバーしたときの背景色 */
+}
+
+
+/*ボタンのスタイル*/
+.button1 a {
+    background: #eee;
+    border-radius: 3px;
+    position: relative;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin: 0 auto;
+    max-width: 250px;
+    padding: 10px 25px;
+    font-family: "Noto Sans Japanese";
+    color: #333;
+    line-height: 1.8;
+    text-decoration: none;
+    transition: 0.3s ease-in-out;
+    font-weight: 500;
+}
+.button1 a:hover {
+    background: #333;
+    color: #FFF;
+    padding-left: 35px; /* ホバー時にリンクが少し右に移動する */
+}
+.button1 a:after {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-top: 3px solid #333;
+    border-right: 3px solid #333;
+    transform: rotate(45deg) translateY(-50%);
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    border-radius: 1px;
+    transition: 0.3s ease-in-out;
+}
+.button1 a:hover:after {
+    border-color: #FFF;
+}
+
+/*お知らせフォームのスタイル*/
+#notify-form {
+    width: 100%;
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+
+#notify-form div {
+    margin-bottom: 15px;
+}
+
+#notify-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#notify-form input[type="text"],
+#notify-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#notify-form button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#notify-form button:hover {
+    background-color: #45a049;
+}
+/*お知らせ表示のスタイル*/
+.notify{
+    width: 100%;
+    margin: 0 auto;
+    border: 2px solid gray;
+}
+.notification-item{
+    margin: 0 auto;
+    text-align: center;
+}
+
+/*学生グループ作成のスタイル*/
+.student-list{
+    list-style: none;
+    padding: 0;
+}
+
+.student-list li{
+    margin: 5px 0;
+}
+
+
+
+/*モーダルウィンドウのスタイル*/
+.modal{
+    display: none; /* デフォルトでは非表示 */
+    position: fixed; /* 画面に固定 */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    /*overflow: auto; /* スクロール可能に */
+    background: rgba(0, 0, 0, 0.7);
+}
+.modal-content {
+    position: relative;
+    text-align: center;
+    background: #fff;
+    width: 80%;
+    height: 80%;
+    max-height: 800px;
+    max-width: 1000px;
+    margin: 50px auto;
+    padding: 20px;
+    border-radius: 10px;
+}
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* 親コンテナを横並びにする */
+.all-data-chart {
+    display: flex;
+    justify-content: space-around;
+    align-items: stretch; /* 高さを揃えて親要素にフィットさせる */
+    width: 100%;
+}
+
+.all-data-accuracy-chart, .all-data-hesitate-chart {
+    flex-grow: 1; /* 各コンテナが等しくスペースを使う */
+    min-width: 450px; /* 最小幅を設定 */
+    min-height: 350px; /* 最小高さを設定 */
+    margin: 0 20px; /* 左右にスペースを確保 */
+}
+
+.all-data-accuracy-chart h3, .all-data-hesitate-chart h3 {
+    text-align: center; /* 見出しを中央に配置 */
+}
+
+canvas {
+    width: 100% !important; /* グラフの幅を100%に固定 */
+    height: 350px !important; /* 高さを自動調整 */
+}
+
+/*class-dataのフレックス*/
+.class-data {
+    display: grid;
+    grid-template-columns:1fr;    /*自動的に列の数を調整*/
+    gap: 20px;  /*各カード間のスペース*/
+}
+.class-card {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+.chart-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px; /* グラフ間のスペース */
+}
+.class-card h3 {
+    font-size: 24px; /* クラス名の文字サイズを大きく */
+    font-weight: bold; /* 太字 */
+}
+
+.class-card p {
+    font-size: 18px; /* 学生数と進捗の文字サイズを大きく */
+    font-weight: bold; /* 太字 */
+}

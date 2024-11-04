@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教師用ダッシュボード</title>
+    <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+    <?php
+        session_start();
+        require "../dbc.php";
+    ?>
+    <header>
+        <div class="logo">英単語並べ替え問題LMS</div>
+        <nav>
+            <ul>
+                <li><a href="teachertrue.php">ホーム</a></li>
+                <li><a href="#">コース管理</a></li>
+                <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
+                <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
+                <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="container">
+        <aside>
+            <ul>
+                <li><a href="teachertrue.php">ホーム</a></li>
+                <li><a href="#">コース管理</a></li>
+                <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
+                <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
+                <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+            </ul>
+        </aside>
+        <main>
+            <!-- ここにコンテンツを入れる -->
+             <?php
+                // POSTリクエストが送信されたか確認
+                if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                    // テスト名と選択された問題IDを取得
+                    $test_name = $_POST['test_name'];
+                    $selected_questions = isset($_POST['WID']) ? $_POST['WID'] : [];
+
+                    // テスト名が空でないか、問題が選択されているかをチェック
+                    if (!empty($test_name) && !empty($selected_questions)) {
+                        
+                        // 1. テスト名を`tests`テーブルに保存
+                        $stmt = $conn->prepare("INSERT INTO tests (test_name) VALUES (?)");
+                        $stmt->bind_param('s', $test_name);
+                        $stmt->execute();
+                        $test_id = $stmt->insert_id; // 挿入されたテストIDを取得
+                        $stmt->close();
+
+                        // 2. 選択された問題を`test_questions`に保存
+                        foreach ($selected_questions as $WID) {
+                            // 2.1. 現在の test_id における最大 OID を取得
+                            $query = "SELECT MAX(OID) AS max_oid FROM test_questions WHERE test_id = ?";
+                            $stmt = $conn->prepare($query);
+                            $stmt->bind_param('i', $test_id);
+                            $stmt->execute();
+                            $result = $stmt->get_result();
+                            $row = $result->fetch_assoc();
+                            $max_oid = $row['max_oid'];
+                            $stmt->close();
+
+                            // 2.2. 次の OID を決定（最大OIDがあれば+1、なければ1から開始）
+                            $next_oid = $max_oid ? $max_oid + 1 : 1;
+
+                            // 2.3. test_questions テーブルにデータを挿入
+                            $insert_query = "INSERT INTO test_questions (test_id, OID, WID) VALUES (?, ?, ?)";
+                            $insert_stmt = $conn->prepare($insert_query);
+                            $insert_stmt->bind_param('iii', $test_id, $next_oid, $WID);
+                            $insert_stmt->execute();
+                            $insert_stmt->close();
+                        }
+
+                        // 完了メッセージ
+                        echo "テストが正常に作成されました！";
+                    } else {
+                        // エラーメッセージ
+                        echo "テスト名または問題が選択されていません。";
+                    }
+                } else {
+                    // 無効なリクエストへの対応
+                    echo "無効なリクエストです。";
+                }
+
+                // データベース接続を閉じる
+                $conn->close();
+            ?>
+        </main>
+    </div>
+</body>
+</html>

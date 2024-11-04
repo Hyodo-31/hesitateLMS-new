@@ -1,0 +1,37 @@
+body {
+    background-color: #E0E0E0;
+    display: flex;
+    justify-content: center;  /* 水平方向の中央揃え */
+    align-items: center;      /* 垂直方向の中央揃え */
+    height: 100vh;            /* ビューポート全体の高さを指定 */
+    margin: 0;
+}
+
+.login-container {
+    background-color: #F5F5F5;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: auto; /* 画像の幅に合わせて自動調整 */
+}
+
+img#log {
+    max-width: 100%; /* 画像の幅を親要素に合わせて縮小する */
+    height: auto; /* 高さを画像の比率に基づいて調整 */
+}
+
+
+
+.input {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+.button {
+    padding: 10px 20px;
+    width: 100%;
+}
