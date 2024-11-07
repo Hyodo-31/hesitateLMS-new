@@ -116,6 +116,7 @@
 
                                     //学生ごとの正解数を格納
                                     $group_students[] = [
+                                        'student_id' => $students_id,
                                         'name' => $name,
                                         'accuracy' => $accuracy_rate,
                                         'notaccuracy' => $notaccuracy_rate,
@@ -347,7 +348,7 @@
                         groupContainer.classList.add('class-card');
                         groupContainer.innerHTML = `
                             <h3>${group.group_name}
-                                <button onclic = "openFeatureModal(${index})">グラフ描画特徴量</button></h3>
+                                <button onclick = "openFeatureModal(${index})">グラフ描画特徴量</button></h3>
                             <div class="chart-row">
                                 <canvas id="dual-axis-chart-${index}"></canvas>
                             </div>
@@ -378,6 +379,7 @@
                 let selectedGroupIndex;
                 //モーダルを開く
                 function openFeatureModal(index) {
+                    console.log('index:' + index);
                     selectedGroupIndex = index;
                     document.getElementById('feature-modal').style.display = 'block';
                 }
@@ -391,15 +393,56 @@
                 function applySelectedFeatures() {
                     const selectedFeatures = Array.from(document.querySelectorAll('#feature-form input[type="checkbox"]:checked'))
                         .map(input => input.value);
+                    console.log("applySelectedFeatures:" + selectedFeatures);
 
                     if (selectedFeatures.length === 2) {
                         const group = groupData[selectedGroupIndex];
-                        renderChart(selectedGroupIndex, group, selectedFeatures[0], selectedFeatures[1]);
-                        closeFeatureModal();
+                        // URLエンコードされたデータ
+                        const params = new URLSearchParams({
+                            features: selectedFeatures.join(','), // 選択した特徴量をカンマ区切りで結合
+                            studentIDs: group.students.map(student => student.student_id).join(',') // 学生IDもカンマ区切りで結合
+                        });
+
+                        fetch('fetch_feature_data.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: params.toString()
+                        })
+                        .then(response => response.text()) // JSONではなくtextで取得
+                        .then(text => {
+                            console.log("サーバーレスポンス:", text); // サーバーのレスポンス内容を確認
+                            const data = JSON.parse(text); // JSONに変換
+                            if (data.error) {
+                                console.error('サーバーエラー:', data.error);
+                                alert(data.error); // サーバーエラーがあれば表示
+                                return;
+                            }
+                            const labels = data.map(item => item.name);
+                            const featureAData = data.map(item => item.featureA_avg);
+                            const featureBData = data.map(item => item.featureB_avg);
+
+                            createDualAxisChart(
+                                document.getElementById(`dual-axis-chart-${selectedGroupIndex}`).getContext('2d'),
+                                labels,
+                                featureAData,
+                                featureBData,
+                                `${selectedFeatures[0]} 平均`,
+                                `${selectedFeatures[1]} 平均`,
+                                'rgba(54, 162, 235, 0.6)',
+                                'rgba(255, 99, 132, 0.6)',
+                                `${selectedFeatures[0]} 平均`,
+                                `${selectedFeatures[1]} 平均`
+                            );
+                            closeFeatureModal();
+                        })
+
                     } else {
                         alert("2つの特徴量を選択してください。");
                     }
                 }
+
             </script>
 
             <div class = "all-overview">
