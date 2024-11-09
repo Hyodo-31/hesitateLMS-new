@@ -21,6 +21,7 @@ print_r($studentIDs);
 echo "</pre>";
 */
 
+
 if (empty($features) || count($features) !== 2) {
     echo json_encode(['error' => 'Invalid features']);
     exit;

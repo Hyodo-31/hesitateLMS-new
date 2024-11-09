@@ -182,75 +182,25 @@
                         <label><input type="checkbox" name="feature" value="xUturnCountDD"> x軸UターンDD回数</label><br>
                         <label><input type="checkbox" name="feature" value="yUturnCountDD">y軸UターンDD回数</label><br>
                         <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"> レジスタ外➡レジスタへの移動有無DD</label><br>
-                        <button type="button" onclick="applySelectedFeatures()">適用</button>
+                        <button type="button" id="apply-features-btn">適用</button>
                     </form>
                 </div>
             </div>
 
             <script>
+                // クラス別グラフを管理する配列
+                let existingClassCharts = [];
+                // 全体の成績グラフを管理する配列
+                let existingOverallCharts = [];
 
-                // 正解率グラフ生成関数
-                
-                function createChart(ctx, labels, data, label, color, ytext) {
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: label,
-                                data: data,
-                                backgroundColor: color,
-                                borderColor: color,
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            scales: {
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'ユーザー名',
-                                        font: {
-                                            size: 30 // x軸ラベルの文字サイズ
-                                        }
-                                    },
-                                    ticks: {
-                                        font: {
-                                            size: 26 // x軸目盛の文字サイズ
-                                        }
-                                    }
-                                },
-                                y: {
-                                    title: {
-                                        display: true,
-                                        text: ytext,
-                                        font: {
-                                            size: 30 // y軸ラベルの文字サイズ
-                                        }
-                                    },
-                                    ticks: {
-                                        font: {
-                                            size: 26 // y軸目盛の文字サイズ
-                                        }
-                                    },
-                                    beginAtZero: true
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    labels: {
-                                        font: {
-                                            size: 30 // 凡例の文字サイズ
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
+                function createDualAxisChart(ctx, labels, data1, data2, label1, label2, color1, color2, yText1, yText2, chartArray, chartIndex) {
+                    // 既存のチャートがある場合は破棄
+                    if (chartArray[chartIndex]) {
+                        chartArray[chartIndex].destroy();
+                    }
 
-                function createDualAxisChart(ctx, labels, data1, data2, label1, label2, color1, color2, yText1, yText2) {
-                    new Chart(ctx, {
+                    // 新しいチャートを作成し、指定された配列に保存
+                    chartArray[chartIndex] = new Chart(ctx, {
                         type: 'bar',
                         data: {
                             labels: labels,
@@ -338,30 +288,29 @@
                 }
 
 
+
+
                 // 各グループのデータに基づいてグラフを作成
                 document.addEventListener("DOMContentLoaded", function () {
                     const container = document.getElementById('group-data-container');
 
                     groupData.forEach((group, index) => {
-                        // グループのコンテナ要素を生成
                         const groupContainer = document.createElement('div');
                         groupContainer.classList.add('class-card');
                         groupContainer.innerHTML = `
                             <h3>${group.group_name}
-                                <button onclick = "openFeatureModal(${index})">グラフ描画特徴量</button></h3>
+                                <button onclick="openFeatureModal(${index}, false)">グラフ描画特徴量</button></h3>
                             <div class="chart-row">
                                 <canvas id="dual-axis-chart-${index}"></canvas>
                             </div>
                         `;
                         container.appendChild(groupContainer);
 
-                        // 正解率のデータを取得
                         const labels = group.students.map(student => student.name);
-                        const accuracyData = group.students.map(student => student.accuracy);
                         const notaccuracyData = group.students.map(student => student.notaccuracy);
                         const timeData = group.students.map(student => student.time);
 
-                       createDualAxisChart(
+                        createDualAxisChart(
                             document.getElementById(`dual-axis-chart-${index}`).getContext('2d'),
                             labels,
                             notaccuracyData,
@@ -371,18 +320,34 @@
                             'rgba(54, 162, 235, 0.6)',
                             'rgba(255, 99, 132, 0.6)',
                             '不正解率(%)',
-                            '解答時間(秒)'
+                            '解答時間(秒)',
+                            existingClassCharts,  // クラス別グラフ用の配列
+                            index
                         );
                     });
                 });
 
+
+
                 let selectedGroupIndex;
                 //モーダルを開く
-                function openFeatureModal(index) {
-                    console.log('index:' + index);
+                // モーダルを開く - クラス別データ用
+                function openFeatureModal(index, isOverall) {
+                    console.log('index:', index);
                     selectedGroupIndex = index;
                     document.getElementById('feature-modal').style.display = 'block';
+
+                    // 特徴量選択後の適用ボタンに対して適切な配列とインデックスを設定
+                    document.getElementById('apply-features-btn').onclick = function() {
+                        applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
+                    };
                 }
+
+                // 全体の成績に対しても `openClassFeatureModal` 関数を同様に適用
+                function openClassFeatureModal(index) {
+                    openFeatureModal(index, true);
+                }
+
                 //モーダルを閉じる
                 function closeFeatureModal() {
                     document.getElementById('feature-modal').style.display = 'none';
@@ -390,17 +355,32 @@
                 }
 
                 //選択した特徴量でグラフを再描画
-                function applySelectedFeatures() {
+                function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     const selectedFeatures = Array.from(document.querySelectorAll('#feature-form input[type="checkbox"]:checked'))
                         .map(input => input.value);
-                    console.log("applySelectedFeatures:" + selectedFeatures);
+                    console.log("applySelectedFeatures:", selectedFeatures);
+                    console.log("ChartArray:", chartArray);
+                    console.log("ChartIndex:", chartIndex);
 
                     if (selectedFeatures.length === 2) {
-                        const group = groupData[selectedGroupIndex];
-                        // URLエンコードされたデータ
+                        // isOverall フラグによって `group` の参照先を変更
+                        let group = isOverall ? classData[chartIndex] : groupData[chartIndex];
+
+                        // group の存在と構造を確認
+                        if (!group || (!isOverall && !group.students)) {
+                            console.error("Error: group or group.students is undefined.");
+                            alert("グラフを再描画するためのデータが見つかりません。");
+                            return;
+                        }
+
+                        // studentIDs の設定を isOverall に応じて変更
+                        const studentIDs = isOverall 
+                            ? group.class_students.map(student => student.student_id).join(',')
+                            : group.students.map(student => student.student_id).join(',');
+
                         const params = new URLSearchParams({
-                            features: selectedFeatures.join(','), // 選択した特徴量をカンマ区切りで結合
-                            studentIDs: group.students.map(student => student.student_id).join(',') // 学生IDもカンマ区切りで結合
+                            features: selectedFeatures.join(','), 
+                            studentIDs: studentIDs
                         });
 
                         fetch('fetch_feature_data.php', {
@@ -410,21 +390,28 @@
                             },
                             body: params.toString()
                         })
-                        .then(response => response.text()) // JSONではなくtextで取得
+                        .then(response => response.text())
                         .then(text => {
-                            console.log("サーバーレスポンス:", text); // サーバーのレスポンス内容を確認
-                            const data = JSON.parse(text); // JSONに変換
+                            console.log("サーバーレスポンス:", text); 
+                            const data = JSON.parse(text); 
                             if (data.error) {
                                 console.error('サーバーエラー:', data.error);
-                                alert(data.error); // サーバーエラーがあれば表示
+                                alert(data.error);
                                 return;
                             }
+
                             const labels = data.map(item => item.name);
                             const featureAData = data.map(item => item.featureA_avg);
                             const featureBData = data.map(item => item.featureB_avg);
 
+                            // `isOverall` によってキャンバスのIDを条件分岐
+                            const canvasId = isOverall 
+                                ? `class-dual-axis-chart-${chartIndex}` 
+                                : `dual-axis-chart-${chartIndex}`;
+
+                            // `chartArray` と `chartIndex` を使用して `createDualAxisChart` に渡す
                             createDualAxisChart(
-                                document.getElementById(`dual-axis-chart-${selectedGroupIndex}`).getContext('2d'),
+                                document.getElementById(canvasId).getContext('2d'),
                                 labels,
                                 featureAData,
                                 featureBData,
@@ -433,15 +420,18 @@
                                 'rgba(54, 162, 235, 0.6)',
                                 'rgba(255, 99, 132, 0.6)',
                                 `${selectedFeatures[0]} 平均`,
-                                `${selectedFeatures[1]} 平均`
+                                `${selectedFeatures[1]} 平均`,
+                                chartArray,  // ここで `existingClassCharts` または `existingOverallCharts` を渡す
+                                chartIndex   // グラフのインデックス
                             );
                             closeFeatureModal();
                         })
-
+                        .catch(error => console.error('エラー:', error));
                     } else {
                         alert("2つの特徴量を選択してください。");
                     }
                 }
+
 
             </script>
 
@@ -498,6 +488,7 @@
                         
                                             // 学生ごとの正解率データを追加
                                             $class_students[] = [
+                                                'student_id' => $student_id,  // student_id を uid に対応させる
                                                 'name' => $name,
                                                 'accuracy' => $accuracy_rate,
                                                 'notaccuracy' => $notaccuracy_rate,
@@ -531,24 +522,24 @@
 
                         // コンテナの生成
                         classData.forEach((classInfo, index) => {
-                            // クラスのコンテナ要素を生成
                             const classContainer = document.createElement('div');
                             classContainer.classList.add('class-card');
                             classContainer.innerHTML = `
-                                <h3>${classInfo.class_name}</h3>
+                                <h3>${classInfo.class_name}
+                                    <button onclick="openClassFeatureModal(${index})">グラフ描画特徴量</button>
+                                </h3>
+
                                 <div class="chart-row">
                                     <canvas id="class-dual-axis-chart-${index}"></canvas>
                                 </div>
                             `;
                             class_container.appendChild(classContainer);
 
-                            // クラスのデータを取得
                             const class_labels = classInfo.class_students.map(student => student.name);
                             const class_accuracyData = classInfo.class_students.map(student => student.accuracy);
                             const class_notaccuracyData = classInfo.class_students.map(student => student.notaccuracy);
                             const class_timeData = classInfo.class_students.map(student => student.time);
 
-                            // クラスのグラフを生成
                             createDualAxisChart(
                                 document.getElementById(`class-dual-axis-chart-${index}`).getContext('2d'),
                                 class_labels,
@@ -559,9 +550,12 @@
                                 'rgba(54, 162, 235, 0.6)',
                                 'rgba(255, 99, 132, 0.6)',
                                 '不正解率(%)',
-                                '解答時間(秒)'
-                            )
+                                '解答時間(秒)',
+                                existingOverallCharts,  // 全体の成績グラフ用の配列
+                                index
+                            );
                         });
+
                     </script>
                 </div>
             </div>
