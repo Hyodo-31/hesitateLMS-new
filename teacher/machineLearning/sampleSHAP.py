@@ -315,33 +315,57 @@ class Classify:
         jsonfinename = './featurejson/featuredict.json'
         with open(jsonfinename, 'w') as f:
             json.dump(self.featuresdict, f)
-        #self.featuresdictを降順に並べ替えて表示
-        #self.featuresdict = sorted(self.featuresdict.items(), key=lambda x: x[1], reverse=True)
-        #sorted_featuresdict = {k: v for k, v in sorted(self.featuresdict.items(), key=lambda item: item[1], reverse=True)}
-        #print(self.featuresdict)
 
-        # 全SHAP値をまとめてプロット
-        #merged_shap_values = np.concatenate(all_shap_values, axis=0)  # すべてのSHAP値を結合
-        #merged_test_x = pd.concat(all_test_x) # すべてのテストデータを結合
+        # 評価指標をJSONに保存
+        metrics = {
+            "mean_accuracy": self.mean_accuracy,
+            "precision_y": self.precision_y,
+            "recall_y": self.recall_y,
+            "f1score_y": self.f1score_y,
+            "precision_n": self.precision_n,
+            "recall_n": self.recall_n,
+            "f1score_n": self.f1score_n
+        }
 
-        # 最終的なSHAPサマリープロット
-        #shap.summary_plot(merged_shap_values, merged_test_x, plot_type="bar")
-        #shap.summary_plot(merged_shap_values, merged_test_x)
+        metrics_file = './machineLearning/evaluation_metrics.json'
+        with open(metrics_file, 'w') as f:
+            json.dump(metrics, f)
 
-        # 最終的な精度、再現率、F値を出力
-        """
-        print("Mean Accuracy:", self.mean_accuracy)
-        print("Mean Precision_y:", self.precision_y)
-        print("Mean Recall_y:", self.recall_y)
-        print("Mean F1score_y:", self.f1score_y)
-        print("Mean Precision_n:", self.precision_n)
-        print("Mean Recall_n:", self.recall_n)
-        print("Mean F1score_n:", self.f1score_n)
-        """
-        #feedback = generate_hesitation_feedback(merged_shap_values, self.features)
-        #print(feedback)
-        # 特徴量の重要度を横棒グラフとしてプロット
-        #self.plot_feature_importance()
+
+     
+
+
+    def ActuallyRandomForestClassify(self, testdata):
+        # `UID`, `WID` を除外し、特徴量リストを作成
+        trainingdata = self.classifydf.drop(["UID", "WID", "Understand"], axis=1)
+        self.Actuallyfeatures = trainingdata.columns.tolist()
+
+        # 訓練データとテストデータの設定
+        X_train = self.classifydf[self.Actuallyfeatures]
+        y_train = self.classifydf["Understand"].to_numpy().ravel()
+        X_test = testdata[self.Actuallyfeatures]
+        UID_WID_data = testdata[['UID', 'WID']]
+
+        # ランダムフォレストモデルの作成と学習
+        model = RandomForestClassifier(n_estimators=100, random_state=0)
+        model.fit(X_train, y_train)
+        pred = model.predict(X_test)
+
+        # UID, WID, 予測結果を格納
+        results = []
+        for i in range(len(X_test)):
+            results.append({
+                "UID": UID_WID_data.iloc[i]["UID"],
+                "WID": UID_WID_data.iloc[i]["WID"],
+                "Predicted_Understand": pred[i]
+            })
+
+        # 結果をDataFrameに変換し、UID, WIDでソートして保存
+        result_df = pd.DataFrame(results).sort_values(by=["UID", "WID"])
+        result_df.to_csv('./machineLearning/results_actual.csv', index=False)
+
+        # 結果の出力完了メッセージ
+        print("予測結果が './machineLearning/results_actual.csv' に保存されました。")
 
 
     def plot_feature_importance(self):
@@ -414,12 +438,21 @@ def main():
     inputfilename = 'pydata/test.csv'
     df = pd.read_csv(inputfilename)
     datamarge=Classify(df)
+
+    #テストデータセット作成
+    inputfilename_test  = 'pydata/testdata.csv'
+    df_test = pd.read_csv(inputfilename_test)
+    datamarge_test = Classify(df_test)
+
     #データを分割
-    return_df = datamarge.binary()
-    datamarge.countUnderstand(return_df)
+    return_df = datamarge.binary()      #全データの中から迷い有りと無しのみ抽出
+    datamarge.countUnderstand(return_df)    #迷い有りと無しの数を数える
 
     datamarge.makingclassifydf()        #ここで迷い無しとありが1:1のデータセットができている．
     datamarge.RandomForestClassify()
+    datamarge.ActuallyRandomForestClassify(df_test)
+
+    
 
 
 

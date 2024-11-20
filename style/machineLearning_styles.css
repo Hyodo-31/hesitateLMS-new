@@ -431,3 +431,38 @@ main .individual-details .student-details {
     border: 1px solid #ccc;
     padding: 5px;
 }
+
+canvas {
+    width: 100% !important; /* グラフの幅を100%に固定 */
+    height: 350px !important; /* 高さを自動調整 */
+}
+
+/*class-dataのフレックス*/
+.class-data {
+    display: grid;
+    grid-template-columns:1fr;    /*自動的に列の数を調整*/
+    gap: 20px;  /*各カード間のスペース*/
+}
+.class-card {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+.chart-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px; /* グラフ間のスペース */
+    width: 100%;
+    min-height: 400px;
+}
+.class-card h3 {
+    font-size: 24px; /* クラス名の文字サイズを大きく */
+    font-weight: bold; /* 太字 */
+}
+
+.class-card p {
+    font-size: 18px; /* 学生数と進捗の文字サイズを大きく */
+    font-weight: bold; /* 太字 */
+}

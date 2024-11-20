@@ -186,8 +186,80 @@
                     </form>
                 </div>
             </div>
+            <!-- クラスタリング特徴量選択モーダル -->
+            <div id="clustering-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeClusteringModal()">&times;</span>
+                    <h3>クラスタリング特徴量を選択してください</h3>
+                    <form id="clustering-feature-form">
+                        <label><input type="checkbox" name="feature" value="notaccuracy"> 不正解率 (%)</label><br>
+                        <label><input type="checkbox" name="feature" value="Time"> 解答時間 (秒)</label><br>
+                        <label><input type="checkbox" name="feature" value="distance"> 距離</label><br>
+                        <label><input type="checkbox" name="feature" value="averageSpeed"> 平均速度</label><br>
+                        <label><input type="checkbox" name="feature" value="maxSpeed"> 最高速度</label><br>
+                        <label><input type="checkbox" name="feature" value="thinkingTime"> 考慮時間</label><br>
+                        <label><input type="checkbox" name="feature" value="answeringTime"> 第一ドロップ後解答時間</label><br>
+                        <label><input type="checkbox" name="feature" value="totalStopTime"> 合計静止時間</label><br>
+                        <label><input type="checkbox" name="feature" value="maxStopTime"> 最大静止時間</label><br>
+                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime"> 合計DD間時間</label><br>
+                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime"> 最大DD間時間</label><br>
+                        <label><input type="checkbox" name="feature" value="maxDDTime"> 合計DD時間</label><br>
+                        <label><input type="checkbox" name="feature" value="minDDTime"> 最小DD時間</label><br>
+                        <label><input type="checkbox" name="feature" value="DDCount"> 合計DD回数</label><br>
+                        <label><input type="checkbox" name="feature" value="groupingDDCount"> グループ化DD回数</label><br>
+                        <label><input type="checkbox" name="feature" value="groupingCountbool"> グループ化有無</label><br>
+                        <label><input type="checkbox" name="feature" value="xUturnCount"> x軸Uターン回数</label><br>
+                        <label><input type="checkbox" name="feature" value="yUturnCount"> y軸Uターン回数</label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count1"> レジスタ➡レジスタへの移動回数</label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count2"> レジスタ➡レジスタ外への移動回数</label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count3"> レジスタ外➡レジスタへの移動回数</label><br>
+                        <label><input type="checkbox" name="feature" value="register01count1"> レジスタ➡レジスタへの移動有無</label><br>
+                        <label><input type="checkbox" name="feature" value="register01count2"> レジスタ外➡レジスタへの移動有無</label><br>
+                        <label><input type="checkbox" name="feature" value="register01count3"> レジスタ外➡レジスタへの移動有無</label><br>
+                        <label><input type="checkbox" name="feature" value="registerDDCount"> レジスタ外➡レジスタへの移動有無</label><br>
+                        <label><input type="checkbox" name="feature" value="xUturnCountDD"> x軸UターンDD回数</label><br>
+                        <label><input type="checkbox" name="feature" value="yUturnCountDD">y軸UターンDD回数</label><br>
+                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"> レジスタ外➡レジスタへの移動有無DD</label><br>
+                        <!-- 必要な特徴量を追加 -->
+                        <button type="button" id="apply-clustering-btn">適用</button>
+                    </form>
+                </div>
+            </div>
+
 
             <script>
+                // グループの学習者情報をURLパラメータとして渡す
+                function openEstimatePage(groupIndex) {
+                    const group = groupData[groupIndex];
+                    if (!group || !group.students) {
+                        alert("グループに学習者が登録されていません。");
+                        return;
+                    }
+
+                    // 学習者IDをカンマ区切りで結合してURLパラメータとして追加
+                    const studentIds = group.students.map(student => student.student_id).join(',');
+                    const url = `machineLearning_sample.php?students=${encodeURIComponent(studentIds)}`;
+
+                    // machineLearning_sample.php にリダイレクト
+                    window.location.href = url;
+                }
+                // 全体の成績グラフの学習者情報をURLパラメータとして渡す
+                function openClassEstimatePage(classIndex) {
+                    const classInfo = classData[classIndex];
+                    if (!classInfo || !classInfo.class_students) {
+                        alert("クラスに学習者が登録されていません。");
+                        return;
+                    }
+
+                    // 学習者IDをカンマ区切りで結合してURLパラメータとして追加
+                    const studentIds = classInfo.class_students.map(student => student.student_id).join(',');
+                    const url = `machineLearning_sample.php?students=${encodeURIComponent(studentIds)}`;
+
+                    // machineLearning_sample.php にリダイレクト
+                    window.location.href = url;
+                }
+
+                
                 // クラス別グラフを管理する配列
                 let existingClassCharts = [];
                 // 全体の成績グラフを管理する配列
@@ -299,11 +371,16 @@
                         groupContainer.classList.add('class-card');
                         groupContainer.innerHTML = `
                             <h3>${group.group_name}
-                                <button onclick="openFeatureModal(${index}, false)">グラフ描画特徴量</button></h3>
+                                <button onclick="openFeatureModal(${index}, false)">グラフ描画特徴量</button>
+                                <button onclick="openEstimatePage(${index})">迷い推定</button>
+
+                            </h3>
                             <div class="chart-row">
                                 <canvas id="dual-axis-chart-${index}"></canvas>
                             </div>
                         `;
+                        
+
                         container.appendChild(groupContainer);
 
                         const labels = group.students.map(student => student.name);
@@ -433,6 +510,8 @@
                 }
 
 
+
+
             </script>
 
             <div class = "all-overview">
@@ -516,6 +595,7 @@
                         const classData = <?php echo json_encode($classes); ?>;
                     </script>
                 </div>
+                <div id = "cluster-data"></div>
             </div>
                     <script>
                         const class_container = document.getElementById('class-data-container');
@@ -527,6 +607,8 @@
                             classContainer.innerHTML = `
                                 <h3>${classInfo.class_name}
                                     <button onclick="openClassFeatureModal(${index})">グラフ描画特徴量</button>
+                                    <button onclick="openClassEstimatePage(${index})">迷い推定</button>
+                                    <button onclick="openClusteringModal(${index})">クラスタリング</button>
                                 </h3>
 
                                 <div class="chart-row">
@@ -555,6 +637,75 @@
                                 index
                             );
                         });
+
+                        //クラスタリング関連
+                        let selectedClassIndex; // 現在選択中のクラスインデックス
+
+                        // クラスタリングモーダルを開く
+                        function openClusteringModal(index) {
+                            selectedClassIndex = index;
+                            document.getElementById('clustering-modal').style.display = 'block';
+                        }
+
+                        // クラスタリングモーダルを閉じる
+                        function closeClusteringModal() {
+                            document.getElementById('clustering-modal').style.display = 'none';
+                            document.getElementById('clustering-feature-form').reset();
+                        }
+                        // 特徴量を送信してクラスタリングを実行
+                        document.getElementById('apply-clustering-btn').onclick = function () {
+                            const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
+                                .map(input => input.value);
+                            if (selectedFeatures.length === 0) {
+                                alert("少なくとも1つの特徴量を選択してください。");
+                                return;
+                            }
+
+                            const classInfo = classData[selectedClassIndex];
+                            const studentIds = classInfo.class_students.map(student => student.student_id).join(',');
+
+                            const params = new URLSearchParams({
+                                features: selectedFeatures.join(','),
+                                studentIDs: studentIds
+                            });
+
+                            fetch('perform_clustering.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: params.toString()
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.error) {
+                                        alert(data.error);
+                                        return;
+                                    }
+                                    displayClusteringResults(data);
+                                    closeClusteringModal();
+                                })
+                                .catch(error => console.error('エラー:', error));
+                        };
+
+                        // クラスタリング結果を表示
+                        function displayClusteringResults(data) {
+                            console.log("display");
+                            const container = document.getElementById('cluster-data'); // 結果表示用コンテナ
+                            container.innerHTML = ''; // 以前の結果をクリア
+
+                            data.clusters.forEach((cluster, index) => {
+                                const clusterContainer = document.createElement('div');
+                                clusterContainer.classList.add('cluster-card');
+                                clusterContainer.innerHTML = `
+                                    <h4>クラスタ ${index + 1}</h4>
+                                    <ul>
+                                        ${cluster.map(student => `<li>${student.name} (${student.id})</li>`).join('')}
+                                    </ul>
+                                `;
+                                container.appendChild(clusterContainer);
+                            });
+                        }
 
                     </script>
                 </div>

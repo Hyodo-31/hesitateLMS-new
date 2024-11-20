@@ -9,10 +9,34 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
 <body>
+    <style>
+        /* テーブルのスクロール表示設定 */
+        #table-container {
+            max-height: 400px; /* 表示領域の高さを指定 */
+            overflow-y: auto;  /* 縦スクロールを有効にする */
+            border: 1px solid #ccc; /* 境界線 */
+        }
+
+        /* テーブルのスタイル */
+        #results-table {
+            width: 100%; /* テーブル幅を100%に */
+            border-collapse: collapse;
+        }
+
+        #results-table th, #results-table td {
+            padding: 8px;
+            border: 1px solid #ddd; /* セルの境界線 */
+        }
+    </style>
+
     <?php
         require "../dbc.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
+        // GET パラメータが指定されている場合のみセッションに保存または上書き
+        if (isset($_GET['students']) && !empty($_GET['students'])) {
+            $_SESSION['group_students'] = $_GET['students'];
+        }
     ?>
     <header>
         <div class="logo">データ分析ページ</div>
@@ -112,6 +136,7 @@
                 if (!empty($conditions)) {
                     $sql .= " WHERE " . join(" AND ", $conditions);
                     $_SESSION['conditions'] = $conditions;
+                    echo $_SESSION['conditions'];
                     //echo "!emptyの条件を満たしています．<br>";
                 }else{
                     //echo "emptyの条件を満たしていません。<br>";
@@ -198,7 +223,25 @@
                         $column_name = "UID,WID,Understand,";
                         $column_name.= $selectcolumn;
                         //デバッグ
-                        //echo "生成されたSQLは",$sql,"です<br>";
+                        echo "生成されたSQLは",$sql,"です<br>";
+                        if(isset($_SESSION['group_students']) && !empty($_SESSION['group_students'])) {
+                            $tempgroupsql = "";
+                            $tempgroupsql .=  "SELECT UID,WID,Understand," . $selectcolumn . " FROM featurevalue1 WHERE UID IN (" . $_SESSION['group_students'] . ")";
+                            echo "グループSQLは",$tempgroupsql,"です<br>";
+                            $result_groupsql = mysqli_query($conn, $tempgroupsql);
+                            while($row = mysqli_fetch_assoc($result_groupsql)){
+                                $allresult_group[] = $row;
+                            }
+                            //csvfileに記述
+                            $fp_group = fopen('./pydata/testdata.csv', 'w');
+                            fputcsv($fp_group, explode(',', $column_name));
+                            foreach($allresult_group as $row) {
+                                fputcsv($fp_group, $row);
+                            }
+                            fclose($fp_group);
+                            echo "csvファイル_groupを生成しました";
+
+                        }
 
                         if (!empty($UIDsearch)) {
                             if ($UIDrange === 'not') {
@@ -245,6 +288,8 @@
                         //javascriptでアラートを出す．
                         echo '<script type="text/javascript">alert("データを選択してください");</script>';
                     }
+
+
                 }
                 
                 
@@ -256,10 +301,10 @@
                 <font size = "5">
                     <div class="overview-contents">
                         <div id = "allstu-info">
-                            <h3>■全学生数:
+                            <h3>■教師データ人数:
                                 <?php
                                     // データベースから学生数を取得
-                                    $Studentconut = "SELECT count(distinct UID) FROM linedata";
+                                    $Studentconut = "SELECT count(distinct UID) FROM featurevalue";
                                     if (!empty($conditions)) {
                                         $Studentconut .= " WHERE " . join(" AND ", $conditions);
                                     }
@@ -281,6 +326,68 @@
                     </div>
                 </font>
             </section>
+            <section id = "class-overview" class="overview">
+                <div align ="center">
+                    <h2>学習者グループ概要</h2>
+                </div>
+                <font size = "5">
+                    <div class="overview-contents">
+                        <div id = "groupstu-info">
+                            <h3>■グルーピング学習者数:
+                                <?php
+                                    // URLに学習者IDが含まれているか確認
+                                    if (isset($_SESSION['group_students']) && !empty($_SESSION['group_students'])) {
+                                        // `students`パラメータから学習者IDを取得して配列に変換
+                                        $student_ids = explode(',', $_SESSION['group_students']);
+
+                                        // 学習者IDをカウント
+                                        $student_count = count($student_ids);
+
+                                        // 学習者数を表示
+                                        echo $student_count . "人";
+                                    } else {
+                                        // URLに学習者情報が含まれていない場合のメッセージ
+                                        echo "学習者グループはありません";
+                                    }
+                                ?>
+                            </h3>
+                        </div>
+                        <div id = "groupques-info">
+                            <h3>■全データ数:
+                                <?php
+                                    // データベースからデータ数を取得
+                                    // URLに学習者IDが含まれているか確認
+                                    if (isset($_SESSION['group_students']) && !empty($_SESSION['group_students'])) {
+                                        // `students`パラメータから学習者IDを取得して配列に変換
+                                        $student_ids = explode(',', $_SESSION['group_students']);
+
+                                        // `UID`リストをSQLクエリ用の文字列に変換
+                                        $uid_list = implode("','", array_map('intval', $student_ids));
+
+                                        // データベースから指定されたUIDに基づいて行数を取得
+                                        $query = "SELECT COUNT(*) AS data_count FROM featurevalue1 WHERE UID IN ('$uid_list')";
+                                        $result = mysqli_query($conn, $query);
+
+
+                                        // データ数を取得して表示
+                                        if ($result) {
+                                            $row = mysqli_fetch_assoc($result);
+                                            $data_count = $row['data_count'];
+                                            echo $data_count . "件";
+                                        } else {
+                                            echo "データがありません";
+                                        }
+                                    } else {
+                                        // URLに学習者情報が含まれていない場合のメッセージ
+                                        echo "データがありません";
+                                    }
+                                ?>
+                            </h3>
+                        </div>
+                    </div>
+                </font>
+            </section>
+
 
             <section class="progress-chart">
                 <h2>特徴量選択ボタン</h2>
@@ -299,79 +406,7 @@
                     document.getElementById("feature-modal").style.display = "none";
                 }
             </script>
-            <!--
-            <div id = "filter-modal" class = "modal">
-                <div class = "modal-content">
-                    <span class = "close" onclick="closeFilterModal()">&times;</span>
-                    <h3>フィルタ条件を選択して下さい</h3>
-                    <script>
-                        function toggleMinMaxInputs() {
-                            var selection = document.getElementById('TimeRangeid').value;
-                            var minMaxDiv = document.getElementById('Timesearch_minmax');
-                            var timeSearchInput = document.getElementById('Timesearchid');
-                            if (selection === 'range') {
-                                minMaxDiv.classList.remove('hide');  // 範囲が選択された場合、要素を表示
-                                timeSearchInput.classList.add('hide');  // 範囲が選択された場合、要素を隠す
-                            } else {
-                                minMaxDiv.classList.add('hide');     // それ以外の場合は隠す
-                                timeSearchInput.classList.remove('hide');   // それ以外の場合は表示
-                            }
-                        }
-                    </script>
-                    <form action="machineLearning_sample.php" method="post">
-                        <div class = "center">
-                            <table border="1" class = "table2">
-                                <tr>
-                                    <th>UID</th>
-                                    <td>
-                                        <select name="UIDrange">
-                                            <option value = "include">含む</option>
-                                            <option value = "not">以外</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input type="text" name="UIDsearch">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>WID</th>
-                                    <td>
-                                        <select name="WIDrange">
-                                            <option value = "include">含む</option>
-                                            <option value = "not">以外</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input type="text" name="WIDsearch">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>正誤</th>
-                                    <td colspan="2"><input type="radio" name = "TFsearch" value="1">正解　<input type="radio" name="TFsearch" value="0">不正解</td>
-                                </tr>
-                                <tr>
-                                    <th>解答時間</th>
-                                    <td>
-                                        <select name="TimeRange" id = "TimeRangeid" onchange="toggleMinMaxInputs()">
-                                            <option value = "above">以上</option>
-                                            <option value = "below">以下</option>
-                                            <option value = "range">範囲</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input type="text" name = "Timesearch" id = "Timesearchid">
-                                        <div id ="Timesearch_minmax" class = "hide">
-                                            <input type="text" name = "Timesearch-min">～<input type="text" name="Timesearch-max">
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
-                        <input type="submit" value="検索">   
-                        </div>
-                    </form>
-                </div>
-            </div>
-                    -->
+        
 
 
 
@@ -584,258 +619,177 @@
                 <div class="machinelearning-result">
                     <h2>機械学習結果</h2>
                     <div class="contents">
-                    <?php
-                        // データベース接続 (PDOを使用)
-                        $dsn = 'mysql:host=127.0.0.1;dbname=2019su1;charset=utf8';
-                        $user = 'root';
-                        $password = '8181saisaI';
-                        try {
-                            $pdo = new PDO($dsn, $user, $password);
-                            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                        } catch (PDOException $e) {
-                            echo "データベース接続エラー: " . $e->getMessage();
-                            exit();
-                        }
-                        if($_SERVER["REQUEST_METHOD"] == "POST"){
-                            //$pyscript = "./machineLearning/php_machineLearning.py";
-                            $pyscript = "./machineLearning/sampleSHAP.py";
-                            $countF = 0;
-                            // コマンドを実行し、標準出力と標準エラー出力の両方をキャプチャ
-                            exec("py ".$pyscript." 2>&1", $output, $status);
-                        
-                            // デバッグ用: 標準出力と標準エラー出力を表示
-                            //echo "Python実行結果<br>";
-                            /*
-                            foreach ($output as $line) {
-                                echo htmlspecialchars($line) . "<br>"; // 出力内容をエスケープして表示
-                            }
-                                */
-                                
-                        
-                            if($status != 0){
-                                echo "実行エラー: ステータスコード " . $status;
-                            } else {
-                                //echo "正常終了";
-                                // Pythonの実行が成功したら、結果のCSVを読み込む
-                                $csvFile = './machineLearning/results.csv';
-                                if (($handle = fopen($csvFile, "r")) !== FALSE) {
-                                    // CSVファイル全体を読み込む
-                                    $csvData = [];
-                                    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                                        $csvData[] = $data; // 全てのデータを配列に保存
-                                    }
-                                    fclose($handle);
-
-                                    // 最初の1行はヘッダーとして取得
-                                    $header = array_shift($csvData); // 1行目（ヘッダー）を取り出す
-
-                                    // 上位20件のデータを取得
-                                    $topData = array_slice($csvData, 0, 20);
-
-                                    // 学習者ごとの正解数と総数を保持する配列（全てのUIDを対象）
-                                    $accuracyData = [];
-                                    // 学習者ごとの迷い有り率と総数を保持する配列（全てのUIDを対象）
-                                    $hesitationData = [];
-
-                                    // 全データを使って正解率を集計
-                                    foreach ($csvData as $data) {
-                                        $uid = $data[0];
-                                        $wid = $data[1];
-                                        $hesitationValue = $data[2];  // 3列目に格納されている迷いの有無（2であれば迷い有り）
-
-                                        // linedata テーブルから該当する UID と WID に基づいて TF を取得
-                                        $stmt = $pdo->prepare('SELECT TF FROM linedata WHERE UID = :uid AND WID = :wid');
-                                        $stmt->execute(['uid' => $uid, 'wid' => $wid]);
-                                        $tf_result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                                        // TF が取得できた場合はその値を保存
-                                        $tf_value = $tf_result ? $tf_result['TF'] : 'N/A';
-
-                                        // 正解率の集計（全てのUIDについて計算）
-                                        if ($tf_value !== 'N/A') {
-                                            if (!isset($accuracyData[$uid])) {
-                                                $accuracyData[$uid] = ['correct' => 0, 'total' => 0]; // 初期化
-                                            }
-                                            $accuracyData[$uid]['total']++;
-                                            if ($tf_value == '1') {
-                                                $accuracyData[$uid]['correct']++;
-                                            }
-                                        }
-
-                                        // 迷い有り率の集計（全てのUIDについて計算）
-                                        if (!isset($hesitationData[$uid])) {
-                                            $hesitationData[$uid] = ['hesitate' => 0, 'total' => 0];
-                                        }
-                                        // 総数をカウント
-                                        $hesitationData[$uid]['total']++;
-
-                                        // 迷い有り（2の場合）のカウント
-                                        if ($hesitationValue == '2') {
-                                            $hesitationData[$uid]['hesitate']++;
-                                        }
-                                    }
-
-                                    // JavaScriptに渡すために、正解率データを整形
-                                    $uids = [];
-                                    $accuracyRates = [];
-                                    $notaccuracyRates = [];
-                                    $hesitationRates = [];
-
-                                    foreach ($accuracyData as $uid => $data) {
-                                        $correct = $data['correct'];
-                                        $total = $data['total'];
-                                        $accuracy = ($total > 0) ? ($correct / $total) * 100 : 0;
-                                        $notaccuracy = (100 - $accuracy);
-
-                                        $uids[] = $uid;  // 学習者のUIDをラベルとして使用
-                                        $accuracyRates[] = number_format($accuracy, 2);  // 正解率（小数点以下2桁）
-                                        $notaccuracyRates[] = number_format($notaccuracy, 2);
-                                    }
-                                    foreach ($hesitationData as $uid => $data) {
-                                        $hesitate = $data['hesitate'];
-                                        $total = $data['total'];
-                                        $hesitationRate = ($total > 0) ? ($hesitate / $total) * 100 : 0;  // 迷い有り率を計算
-                                        $hesitationRates[] = number_format($hesitationRate, 2);  // 迷い有り率（小数点以下2桁）
-                                    }
-
-                                    // HTMLテーブルを生成
-                                    echo '<table border="1" id = "results-table" class="table2">';
-                                    echo '<tr>';
-
-                                    // カラム名をテーブルヘッダーとして表示
-                                    foreach ($header as $col_name) {
-                                        echo "<th>" . htmlspecialchars($col_name) . "</th>";
-                                    }
-                                    echo "<th>正誤</th>";
-                                    echo '</tr>';
-
-                                    // 上位20件のデータを表示
-                                    foreach ($topData as $data) {
-                                        $uid = $data[0];
-                                        $wid = $data[1];
-                                        $understand = $data[2];
-
-                                        // linedata テーブルから該当する UID と WID に基づいて TF を取得
-                                        $stmt = $pdo->prepare('SELECT TF FROM linedata WHERE UID = :uid AND WID = :wid');
-                                        $stmt->execute(['uid' => $uid, 'wid' => $wid]);
-                                        $tf_result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                                        // TF が取得できた場合はその値を表示、取得できない場合は空欄にする
-                                        $tf_value = $tf_result ? $tf_result['TF'] : 'N/A';
-
-                                        // HTMLテーブルに行を追加
-                                        echo "<tr>";
-                                        echo "<td>" . htmlspecialchars($uid) . "</td>";        // UID
-                                        echo "<td>" . htmlspecialchars($wid) . "</td>";        // WID
-                                        echo "<td>";
-                                         // 迷い有りを赤文字で太字に表示
-                                        if ($understand == 4) {
-                                            echo "迷い無し";
-                                        } elseif ($understand == 2) {
-                                            echo "<span style='color: red; font-weight: bold;'>迷い有り</span>";
-                                        } else {
-                                            echo "不明";
-                                        }
-                                        echo "</td>";
-
-                                        // TFの値が1なら「正解」、0なら「不正解」、それ以外なら「N/A」
-                                        echo "<td>";
-                                        if ($tf_value === '1') {
-                                            echo "正解";
-                                        } elseif ($tf_value === '0') {
-                                            echo "<span style='color: red; font-weight: bold;'>不正解</span>";  // 不正解を赤文字で太字
-                                        } else {
-                                            echo "N/A";  // TFの値が取得できなかった場合や予期しない値があった場合
-                                        }
-                                        echo "</tr>";
-                                    }
-
-                                    echo '</table>';
-                                } else {
-                                    echo "結果のCSVファイルを読み込めませんでした。";
-                                }
-                            }
-                        }
-                        
-                        
-                    ?>
-                    </div>
-                    <div class = "class-row">
-                    <div class = "subcontent50">
                         <h3>各学習者の正解率</h3>
-                    <!--ここに正解率-->
-                        <canvas id="accuracyChart" width="400" height="200"></canvas>
-                        <script>
-                            // PHPから正解率データを受け取る
-                            const uids = <?php echo json_encode($uids); ?>;
-                            const notaccuracyRates = <?php echo json_encode($notaccuracyRates); ?>;
-                            console.log(uids);
-                            //console.log(accuracyRates);
+                        <?php
+                            // データベース接続 (PDOを使用)
+                            $dsn = 'mysql:host=127.0.0.1;dbname=2019su1;charset=utf8';
+                            $user = 'root';
+                            $password = '8181saisaI';
+                            try {
+                                $pdo = new PDO($dsn, $user, $password);
+                                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                            } catch (PDOException $e) {
+                                echo "データベース接続エラー: " . $e->getMessage();
+                                exit();
+                            }
+                            if($_SERVER["REQUEST_METHOD"] == "POST"){
+                                $pyscript = "./machineLearning/sampleSHAP.py";
+                                $countF = 0;
+                                exec("py ".$pyscript." 2>&1", $output, $status);
 
-                            // Chart.js で棒グラフを描画
-                            const ctx = document.getElementById('accuracyChart').getContext('2d');
-                            const accuracyChart = new Chart(ctx, {
-                                type: 'bar',  // 棒グラフ
-                                data: {
-                                    labels: uids,  // 学習者のUIDをラベルとして表示
-                                    datasets: [{
-                                        label: '不正解率 (%)',
-                                        data: notaccuracyRates,  // 正解率データ
-                                        backgroundColor: 'rgba(54, 162, 235, 0.2)',  // 背景色
-                                        borderColor: 'rgba(54, 162, 235, 1)',  // 枠線の色
-                                        borderWidth: 1  // 枠線の太さ
-                                    }]
-                                },
-                                options: {
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,  // Y軸の最小値を0にする
-                                            max: 100  // 正解率なので最大値は100%
+                                if($status != 0){
+                                    echo "実行エラー: ステータスコード " . $status;
+                                } else {
+                                    // Pythonの実行が成功したら、結果のCSVを読み込む
+                                    $csvFile = './machineLearning/results_actual.csv';
+                                    $metrics_file = './machineLearning/evaluation_metrics.json';
+                                    if (file_exists($metrics_file)) {
+                                        $metrics = json_decode(file_get_contents($metrics_file), true);
+                                    } else {
+                                        echo "評価指標のデータが見つかりません。";
+                                    }
+                                    if (($handle = fopen($csvFile, "r")) !== FALSE) {
+                                        // CSVファイル全体を読み込む
+                                        $csvData = [];
+                                        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                                            $csvData[] = $data; // 全てのデータを配列に保存
                                         }
+                                        fclose($handle);
+
+                                        // 最初の1行はヘッダーとして取得
+                                        $header = array_shift($csvData); // 1行目（ヘッダー）を取り出す
+
+                                        // 全データを取得
+                                        $topData = $csvData;  // 全データを $topData に割り当て
+                                        // 正解率、不正解率を保存している配列
+                                        $studentStats = []; // UIDをキーにしたデータ構造
+                                        // UIDごとの迷い率を計算するためにデータを集計
+                                        $uidData = []; // UIDごとのデータを格納
+                                        foreach ($csvData as $data) {
+                                            $uid = $data[0];
+                                            $understand = $data[2]; // Predictes_Understand カラム
+
+                                            if (!isset($uidData[$uid])) {
+                                                $uidData[$uid] = [
+                                                    'total' => 0,
+                                                    'hesitate' => 0,
+                                                ];
+                                            }
+
+                                            $uidData[$uid]['total']++;
+                                            if ($understand == 2) { // 迷い有り
+                                                $uidData[$uid]['hesitate']++;
+                                            }
+                                        }
+
+                                        // データベースから名前や正解率、不正解率を取得し、迷い率を追加
+                                        foreach ($uidData as $uid => $counts) {
+                                            // 名前を取得
+                                            $stmt = $pdo->prepare('SELECT Name FROM students WHERE UID = :uid');
+                                            $stmt->execute(['uid' => $uid]);
+                                            $nameResult = $stmt->fetch(PDO::FETCH_ASSOC);
+                                            $name = $nameResult ? $nameResult['Name'] : "Unknown";
+
+                                            // 正解率、不正解率を計算 (linedataテーブルを使用)
+                                            $stmt = $pdo->prepare('SELECT 
+                                                COUNT(*) AS total_answers,
+                                                SUM(CASE WHEN TF = 1 THEN 1 ELSE 0 END) AS correct_answers
+                                                FROM linedata WHERE UID = :uid');
+                                            $stmt->execute(['uid' => $uid]);
+                                            $scoreData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                                            $totalAnswers = $scoreData['total_answers'];
+                                            $correctAnswers = $scoreData['correct_answers'];
+                                            $accuracyRate = $totalAnswers > 0 ? ($correctAnswers / $totalAnswers) * 100 : 0;
+                                            $notAccuracyRate = 100 - $accuracyRate;
+
+                                            // 迷い率を計算
+                                            $total = $counts['total'];
+                                            $hesitate = $counts['hesitate'];
+                                            $hesitationRate = ($total > 0) ? ($hesitate / $total) * 100 : 0;
+
+                                            // 配列にデータを追加
+                                            $studentStats[$uid] = [
+                                                'uid' => $uid,
+                                                'name' => $name,
+                                                'accuracy' => number_format($accuracyRate, 2),
+                                                'notAccuracy' => number_format($notAccuracyRate, 2),
+                                                'hesitation' => number_format($hesitationRate, 2),
+                                            ];
+                                        }
+
+
+                                        // 以下、データ表示の処理
+                                        ?>
+                                        <div id = "table-container">
+                                            <table border="1" id="results-table" class="table2">
+                                                <tr>
+                                        <?php
+                                        foreach ($header as $col_name) {
+                                            if($col_name == "Predicted_Understand"){
+                                                echo "<th>迷いの有無</th>";
+                                            }else{
+                                                echo "<th>" . htmlspecialchars($col_name) . "</th>";
+                                            }
+                                            
+                                        }
+                                        echo "<th>正誤</th>";
+                                        echo '</tr>';
+
+                                        foreach ($topData as $data) {
+                                            $uid = $data[0];
+                                            $wid = $data[1];
+                                            $understand = $data[2];
+
+                                            // linedata テーブルから該当する UID と WID に基づいて TF を取得
+                                            $stmt = $pdo->prepare('SELECT TF FROM linedata WHERE UID = :uid AND WID = :wid');
+                                            $stmt->execute(['uid' => $uid, 'wid' => $wid]);
+                                            $tf_result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                                            $tf_value = $tf_result ? $tf_result['TF'] : 'N/A';
+
+                                            // HTMLテーブルに行を追加
+                                            echo "<tr>";
+                                            echo "<td>" . htmlspecialchars($uid) . "</td>";
+                                            echo "<td>" . htmlspecialchars($wid) . "</td>";
+                                            echo "<td>";
+                                            if ($understand == 4) {
+                                                echo "迷い無し";
+                                            } elseif ($understand == 2) {
+                                                echo "<span style='color: red; font-weight: bold;'>迷い有り</span>";
+                                            } else {
+                                                echo "不明";
+                                            }
+                                            echo "</td>";
+
+                                            echo "<td>";
+                                            if ($tf_value === '1') {
+                                                echo "正解";
+                                            } elseif ($tf_value === '0') {
+                                                echo "<span style='color: red; font-weight: bold;'>不正解</span>";
+                                            } else {
+                                                echo "N/A";
+                                            }
+                                            echo "</tr>";
+                                        }
+                                        echo '</table>';
+                                    } else {
+                                        echo "結果のCSVファイルを読み込めませんでした。";
                                     }
                                 }
-                            });
-                        </script>
+                            }
+                        ?>
+                        </div>
                     </div>
-
-                    <div class = "subcontent50">
-                        <canvas id="hesitationChart" width="400" height="200"></canvas>
-                        <script>
-                            /*
-                            // PHPから迷い率データを受け取る
-                            const hesitationRates = <?php echo json_encode($hesitationRates); ?>;
-                            console.log(hesitationRates);
-
-                            // Chart.js で棒グラフを描画
-                            const ctx1 = document.getElementById('hesitationChart').getContext('2d');
-                            const hesitationChart = new Chart(ctx1, {
-                                type: 'bar',  // 棒グラフ
-                                data: {
-                                    labels: uids,  // 学習者のUIDをラベルとして表示
-                                    datasets: [{
-                                        label: '迷い率 (%)',
-                                        data: hesitationRates,  // 迷い率データ
-                                        backgroundColor: 'rgba(255, 159, 64, 0.2)',  // 背景色
-                                        borderColor: 'rgba(255, 159, 64, 1)',  // 枠線の色
-                                        borderWidth: 1  // 枠線の太さ
-                                    }]
-                                },
-                                options: {
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,  // Y軸の最小値を0にする
-                                            max: 100  // 迷い率なので最大値は100%
-                                        }
-                                    }
-                                }
-                            });
-                        </script>
-                    <!--ここに迷い率-->
-                    </div>
-                    </div>
-
                 </div>
-                <div class="class-row">
+                <div class="class-data" id="group-data-container">
+                    <div class="class-card">
+                        <div class="chart-row">
+                            <canvas id="result-Chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="class-row-feature">
                     <div id = "feature-importance">
                         <h2>特徴量の重要度</h2>
                         <canvas id = "feature-Chart" width="300px",height = "300px"></canvas>
@@ -946,49 +900,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!--
                                 <tr>
                                     <td>適合率 (Precision)</td>
-                                    <td>81.66%</td>
-                                    <td>85.48%</td>
+                                    <td><?php echo isset($metrics['precision_y']) ? number_format($metrics['precision_y'] * 100, 2) . '%' : 'N/A'; ?></td>
+                                    <td><?php echo isset($metrics['precision_n']) ? number_format($metrics['precision_n'] * 100, 2) . '%' : 'N/A'; ?></td>
                                 </tr>
                                 <tr>
                                     <td>再現率 (Recall)</td>
-                                    <td>85.12%</td>
-                                    <td>81.42%</td>
+                                    <td><?php echo isset($metrics['recall_y']) ? number_format($metrics['recall_y'] * 100, 2) . '%' : 'N/A'; ?></td>
+                                    <td><?php echo isset($metrics['recall_n']) ? number_format($metrics['recall_n'] * 100, 2) . '%' : 'N/A'; ?></td>
                                 </tr>
                                 <tr>
                                     <td>F値 (F1 Score)</td>
-                                    <td>83.10%</td>
-                                    <td>83.09%</td>
-                                </tr>
-                    -->
-                                <tr>
-                                    <td>適合率 (Precision)</td>
-                                    <?php 
-                                    $precision = rand(7500, 8200) / 100; // 75.00 - 82.00の範囲で生成
-                                    $precision1 = rand(7500, 8200) / 100;
-                                    ?>
-                                    <td><?php echo number_format($precision, 2); ?>%</td>
-                                    <td><?php echo number_format($precision1, 2); ?>%</td>
-                                </tr>
-                                <tr>
-                                    <td>再現率 (Recall)</td>
-                                    <?php 
-                                    $recall = rand(7500, 8200) / 100; // 75.00 - 82.00の範囲で生成
-                                    $recall1 = rand(7500, 8200) / 100;
-                                    ?>
-                                    <td><?php echo number_format($recall, 2); ?>%</td>
-                                    <td><?php echo number_format($recall1, 2); ?>%</td>
-                                </tr>
-                                <tr>
-                                    <td>F値 (F1 Score)</td>
-                                    <?php 
-                                    $f1_score = 2 * ($precision * $recall) / ($precision + $recall); // F1スコアの計算
-                                    $f1_score1 = 2 * ($precision1 * $recall1) / ($precision1 + $recall1);
-                                    ?>
-                                    <td><?php echo number_format($f1_score, 2); ?>%</td>
-                                    <td><?php echo number_format($f1_score1, 2); ?>%</td>
+                                    <td><?php echo isset($metrics['f1score_y']) ? number_format($metrics['f1score_y'] * 100, 2) . '%' : 'N/A'; ?></td>
+                                    <td><?php echo isset($metrics['f1score_n']) ? number_format($metrics['f1score_n'] * 100, 2) . '%' : 'N/A'; ?></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1002,6 +927,130 @@
                     
                 </div>
             </section>
+            
+            <script>
+                function createDualAxisChart(ctx, labels, data1, data2, label1, label2, color1, color2, yText1, yText2, chartArray, chartIndex) {
+                    // 既存のチャートがある場合は破棄
+                    if (chartArray[chartIndex]) {
+                        chartArray[chartIndex].destroy();
+                    }
+
+                    // 新しいチャートを作成し、指定された配列に保存
+                    chartArray[chartIndex] = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: label1,
+                                    data: data1,
+                                    backgroundColor: color1,
+                                    borderColor: color1,
+                                    yAxisID: 'y1',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: label2,
+                                    data: data2,
+                                    backgroundColor: color2,
+                                    borderColor: color2,
+                                    yAxisID: 'y2',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            maintainAspectRatio: false,
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'ユーザー名',
+                                        font: {
+                                            size: 20
+                                        }
+                                    },
+                                    ticks: {
+                                        font: {
+                                            size: 16
+                                        }
+                                    }
+                                },
+                                y1: {
+                                    title: {
+                                        display: true,
+                                        text: yText1,
+                                        font: {
+                                            size: 20
+                                        }
+                                    },
+                                    ticks: {
+                                        font: {
+                                            size: 16
+                                        }
+                                    },
+                                    position: 'left',
+                                    beginAtZero: true
+                                },
+                                y2: {
+                                    title: {
+                                        display: true,
+                                        text: yText2,
+                                        font: {
+                                            size: 20
+                                        }
+                                    },
+                                    ticks: {
+                                        font: {
+                                            size: 16
+                                        }
+                                    },
+                                    position: 'right',
+                                    beginAtZero: true
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    labels: {
+                                        font: {
+                                            size: 20
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                // PHPからstudentStatsを取得
+                const studentData = <?php echo json_encode(array_values($studentStats)); ?>;
+                console.log(studentData); // デバッグ用
+
+                if (studentData.length > 0) {
+                    const labels = studentData.map(data => data.name);
+                    const notAccuracyRates = studentData.map(data => parseFloat(data.notAccuracy));
+                    const hesitationRates = studentData.map(data => parseFloat(data.hesitation));
+
+                    const ctx = document.getElementById('result-Chart').getContext('2d');
+                    const chartArray = []; // チャート配列を管理
+                    createDualAxisChart(
+                        ctx,
+                        labels,
+                        notAccuracyRates,
+                        hesitationRates,
+                        '不正解率 (%)',
+                        '迷い率 (%)',
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        '不正解率 (%)',
+                        '迷い率 (%)',
+                        chartArray,
+                        0 // インデックスは0で管理
+                    );
+                } else {
+                    document.getElementById('result-Chart').textContent = "まだ迷い推定が行われていません";
+                }
+            </script>
         </main>
     </div>
 </body>
