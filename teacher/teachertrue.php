@@ -22,9 +22,13 @@
             <ul>
                 <li><a href="#">ホーム</a></li>
                 <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
+                <!--
                 <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
                 <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+-->
                 <li><a href="register-student.php">新規学生登録</a></li>
+                <li><a href="../logout.php">ログアウト</a></li>
+
             </ul>
         </nav>
     </header>
@@ -33,36 +37,38 @@
             <ul>
                 <li><a href="#">ホーム</a></li>
                 <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
+                <!--
                 <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
                 <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+-->
                 <li><a href="register-student.php">新規学生登録</a></li>
             </ul>
         </aside>
         <main>
 
-            <div class="notifications">
-                <h2>お知らせ</h2>
-                <div class = "notify">
-                    <?php
-                        $result = $conn->query("SELECT id, subject, content FROM notifications ORDER BY created_at DESC LIMIT 5");
-                        while ($row = $result->fetch_assoc()) {
-                            echo "<div class='notification-item' data-id='{$row['id']}'>";
-                            echo "<p>{$row['subject']}</p>";
-                            echo "</div>";
-                        }
-                        $result->free();
-                        $conn->close();
-                    ?>
-                </div>
-                <script src="notification-script.js"></script>
-                <button id="loadMore">さらに読み込む</button>
-                <div id = "notifymake-botton" class = "button1">
-                    <a href='create-notification.php'>お知らせ作成</a>
-                </div>
+        <div class="notifications">
+            <h2>お知らせ</h2>
+            <div class="notify-scroll">
+                <?php
+                    // 最新5件ではなく、すべてのお知らせを取得
+                    $result = $conn->query("SELECT id, subject, content FROM notifications ORDER BY created_at DESC");
+                    while ($row = $result->fetch_assoc()) {
+                        echo "<div class='notification-item' data-id='{$row['id']}'>";
+                        echo "<h3 class='notification-title'>{$row['subject']}</h3>";
+                        echo "<p class='notification-content' style='display: none;'>{$row['content']}</p>";
+                        echo "</div>";
+                    }
+                    $result->free();
+                    $conn->close();
+                ?>
             </div>
+            <div id="notifymake-botton" class="button1">
+                <a href='create-notification.php'>お知らせ作成</a>
+            </div>
+        </div>
 
             <div class="class-overview">
-                <h2>クラス別データ</h2>
+                <h2>グループ別データ</h2>
                 <div id= "button-groupstudent-making" class="button1">
                     <a href='create-student-group.php'>学習者グルーピング作成</a>
                 </div>
@@ -70,10 +76,18 @@
                     <?php
                         require "../dbc.php";
                         $teacher_id = $_SESSION['MemberID'];
-                        $stmt = $conn->prepare("SELECT * FROM groups WHERE TID = ?");
+
+                        $stmt = $conn->prepare("SELECT * FROM `groups` WHERE TID = ?");
+                        if (!$stmt) {
+                            die("prepare() failed: " . $conn->error);
+                        }
                         $stmt->bind_param("i", $teacher_id);
                         $stmt->execute();
+                        if (!$stmt) {
+                            die("prepare() failed: " . $conn->error);
+                        }
                         $result = $stmt->get_result();
+                        
                         $groups = [];
                         if($result->num_rows > 0) {
                             //学習者グループがある場合
@@ -105,6 +119,9 @@
                                     $notaccuracy_rate = 100 - $accuracy_rate;
                                     $accuracy_time = $total_answers > 0 ? number_format(($total_time / 1000) / $total_answers,2) : 0;
 
+                                    $stmt_scores->close();
+                                    $result_scores->free(); // メモリ解放
+
                                     //学生ごとの名前を取得
                                     $stmt_name = $conn->prepare("SELECT Name FROM students WHERE uid = ?");
                                     $stmt_name->bind_param("i", $students_id);
@@ -113,6 +130,7 @@
                                     $name_data = $result_name->fetch_assoc();
                                     $name = $name_data['Name'];
                                     $stmt_name->close();
+                                    $result_name->free();
 
                                     //学生ごとの正解数を格納
                                     $group_students[] = [
@@ -122,14 +140,15 @@
                                         'notaccuracy' => $notaccuracy_rate,
                                         'time' => $accuracy_time
                                     ];
-                                    $stmt_scores->close();
                                 }
                                 // グループデータを配列に追加
                                 $groups[] = [
                                     'group_name' => $group_name,
+                                    'group_id' => $group_id,
                                     'students' => $group_students
                                 ];
                                 $stmt_groupmember->close();
+                                $result_groupmember->free();
                             }
                         }else{
                             // 学習者グループがない場合
@@ -190,36 +209,46 @@
             <div id="clustering-modal" class="modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeClusteringModal()">&times;</span>
-                    <h3>クラスタリング特徴量を選択してください</h3>
                     <form id="clustering-feature-form">
-                        <label><input type="checkbox" name="feature" value="notaccuracy"> 不正解率 (%)</label><br>
-                        <label><input type="checkbox" name="feature" value="Time"> 解答時間 (秒)</label><br>
-                        <label><input type="checkbox" name="feature" value="distance"> 距離</label><br>
-                        <label><input type="checkbox" name="feature" value="averageSpeed"> 平均速度</label><br>
-                        <label><input type="checkbox" name="feature" value="maxSpeed"> 最高速度</label><br>
-                        <label><input type="checkbox" name="feature" value="thinkingTime"> 考慮時間</label><br>
-                        <label><input type="checkbox" name="feature" value="answeringTime"> 第一ドロップ後解答時間</label><br>
-                        <label><input type="checkbox" name="feature" value="totalStopTime"> 合計静止時間</label><br>
-                        <label><input type="checkbox" name="feature" value="maxStopTime"> 最大静止時間</label><br>
-                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime"> 合計DD間時間</label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime"> 最大DD間時間</label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDTime"> 合計DD時間</label><br>
-                        <label><input type="checkbox" name="feature" value="minDDTime"> 最小DD時間</label><br>
-                        <label><input type="checkbox" name="feature" value="DDCount"> 合計DD回数</label><br>
-                        <label><input type="checkbox" name="feature" value="groupingDDCount"> グループ化DD回数</label><br>
-                        <label><input type="checkbox" name="feature" value="groupingCountbool"> グループ化有無</label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCount"> x軸Uターン回数</label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCount"> y軸Uターン回数</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count1"> レジスタ➡レジスタへの移動回数</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count2"> レジスタ➡レジスタ外への移動回数</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count3"> レジスタ外➡レジスタへの移動回数</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count1"> レジスタ➡レジスタへの移動有無</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count2"> レジスタ外➡レジスタへの移動有無</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count3"> レジスタ外➡レジスタへの移動有無</label><br>
-                        <label><input type="checkbox" name="feature" value="registerDDCount"> レジスタ外➡レジスタへの移動有無</label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCountDD"> x軸UターンDD回数</label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCountDD">y軸UターンDD回数</label><br>
-                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"> レジスタ外➡レジスタへの移動有無DD</label><br>
+                    <h3 style = "display : none;">クラスタ数を入力してください</h3>
+                        <input type="number" id="clustering-input" min="1" max="10" value="2" style = "display: none;">
+                    <h3 style = "display : none;">クラスタリング手法を選択してください</h3>
+                    <label for="clustering-method" style = "display: none;">クラスタリング手法:</label>
+                        <select id="clustering-method" style = "display: none;">
+                            <option value="kmeans">K-Means</option>
+                            <option value="xmeans">X-Means</option>
+                            <option value="gmeans">G-Means</option>
+                        </select>
+                    <h3>クラスタリング特徴量を選択してください</h3>
+                    
+                        <!--<label><input type="checkbox" name="feature" value="notaccuracy"> 不正解率 (%)</label><br>-->
+                        <label title = "問題解答にかかった時間"><input type="checkbox" name="feature" value="Time"> 解答時間 (秒)</label><br>
+                        <label title = "問題解答中にマウスカーソルを移動した距離（ピクセル単位）"><input type="checkbox" name="feature" value="distance"> 距離</label><br>
+                        <label title = "問題解答中のマウスカーソルの速度の平均"><input type="checkbox" name="feature" value="averageSpeed"> 平均速度</label><br>
+                        <label title = "問題解答中のマウスカーソルの速度の最大値"><input type="checkbox" name="feature" value="maxSpeed"> 最大速度</label><br>
+                        <label title = "解答開始から最初のドラッグが行われるまでの時間"><input type="checkbox" name="feature" value="thinkingTime"> 第一ドラッグ前時間</label><br>
+                        <label title = "最初のドラッグから解答終了までの時間"><input type="checkbox" name="feature" value="answeringTime"> 第一ドラッグ後時間</label><br>
+                        <label title = "マウスカーソルが静止していた時間の合計値"><input type="checkbox" name="feature" value="totalStopTime"> 合計静止時間</label><br>
+                        <label title = "マウスカーソルが静止していた時間の最大値"><input type="checkbox" name="feature" value="maxStopTime"> 最大静止時間</label><br>
+                        <label title = "D&Dから次のD&Dまでの時間の合計値"><input type="checkbox" name="feature" value="totalDDIntervalTime"> 合計D&D間時間</label><br>
+                        <label title = "D&Dから次のD&Dまでの時間の最大値"><input type="checkbox" name="feature" value="maxDDIntervalTime"> 最大D&D間時間</label><br>
+                        <label title = "D&D中の時間の合計値"><input type="checkbox" name="feature" value="maxDDTime"> 合計D&D時間</label><br>
+                        <label title = "D&D中の時間の最小値"><input type="checkbox" name="feature" value="minDDTime"> 最小D&D時間</label><br>
+                        <label title = "D&Dが行われた回数"><input type="checkbox" name="feature" value="DDCount"> 合計D&D回数</label><br>
+                        <label title = "グルーピングが使用された回数"><input type="checkbox" name="feature" value="groupingDDCount"> グループ化回数</label><br>
+                        <label title = "グルーピング機能の使用の有無"><input type="checkbox" name="feature" value="groupingCountbool"> グループ化有無</label><br>
+                        <label title = "横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCount"> x軸Uターン回数</label><br>
+                        <label title = "縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCount"> y軸Uターン回数</label><br>
+                        <label title = "マウスカーソルがレジスタからレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count1"> レジスタ➡レジスタへの移動回数</label><br>
+                        <label title = "マウスカーソルがレジスタからレジスタ外に移動した回数"><input type="checkbox" name="feature" value="register_move_count2"> レジスタ➡レジスタ外への移動回数</label><br>
+                        <label title = "マウスカーソルがレジスタ外からレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count3"> レジスタ外➡レジスタへの移動回数</label><br>
+                        <label title = "マウスカーソルがレジスタからレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count1"> レジスタ➡レジスタへの移動有無</label><br>
+                        <label title = "マウスカーソルがレジスタからレジスタ外に移動したかの有無"><input type="checkbox" name="feature" value="register01count2"> レジスタ➡レジスタ外への移動有無</label><br>
+                        <label title = "マウスカーソルがレジスタ外からレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count3"> レジスタ外➡レジスタへの移動有無</label><br>
+                        <label title = "レジスタを触れた移動回数の合計"><input type="checkbox" name="feature" value="registerDDCount"> レジスタに関する合計の移動回数</label><br>
+                        <label title = "D&D中に横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCountDD"> x軸UターンD&D回数</label><br>
+                        <label title = "D&D中に縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCountDD">y軸UターンD&D回数</label><br>
+                        <label title = "最終ドロップから解答終了までの時間"><input type="checkbox" name="feature" value="FromlastdropToanswerTime"> 最終ドロップ後時間</label><br>
                         <!-- 必要な特徴量を追加 -->
                         <button type="button" id="apply-clustering-btn">適用</button>
                     </form>
@@ -431,7 +460,6 @@
                     document.getElementById('feature-form').reset();
                 }
 
-                //選択した特徴量でグラフを再描画
                 function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     const selectedFeatures = Array.from(document.querySelectorAll('#feature-form input[type="checkbox"]:checked'))
                         .map(input => input.value);
@@ -439,24 +467,125 @@
                     console.log("ChartArray:", chartArray);
                     console.log("ChartIndex:", chartIndex);
 
-                    if (selectedFeatures.length === 2) {
-                        // isOverall フラグによって `group` の参照先を変更
-                        let group = isOverall ? classData[chartIndex] : groupData[chartIndex];
+                    // `notaccuracy`が選択されているか確認
+                    if (selectedFeatures.includes('notaccuracy')) {
+                        const otherFeature = selectedFeatures.find(feature => feature !== 'notaccuracy');
 
-                        // group の存在と構造を確認
-                        if (!group || (!isOverall && !group.students)) {
-                            console.error("Error: group or group.students is undefined.");
-                            alert("グラフを再描画するためのデータが見つかりません。");
+                        // クライアント側のデータから不正解率データを取得
+                        let group = isOverall ? classData[chartIndex] : groupData[chartIndex];
+                        //追加分
+                        const groupId = group.group_id;  // グループIDを取得
+                        console.log("groupId:", groupId);
+                        const labels = group.students.map(student => student.name);
+                        const notaccuracyData = group.students.map(student => student.notaccuracy);
+
+                        if (!otherFeature) {
+                            alert("不正解率と一緒にもう1つの特徴量を選択してください。");
                             return;
                         }
 
-                        // studentIDs の設定を isOverall に応じて変更
-                        const studentIDs = isOverall 
+                        // サーバーにリクエストするパラメータを設定（`notaccuracy`は含めない）
+                        const studentIDs = isOverall
                             ? group.class_students.map(student => student.student_id).join(',')
                             : group.students.map(student => student.student_id).join(',');
 
                         const params = new URLSearchParams({
-                            features: selectedFeatures.join(','), 
+                            features: otherFeature,
+                            studentIDs: studentIDs
+                        });
+                        // ログ用のデータを準備
+                        //追加分
+                        /*
+                        const logDetails = JSON.stringify(selectedFeatures);
+                        const logResults = JSON.stringify({
+                            groupId: groupId,
+                            chartIndex: chartIndex,
+                            isOverall: isOverall
+                        });
+                        */
+                        //ここまで
+                        // ログ保存用のfetchリクエスト
+                        /*
+                        fetch('save_graph_feature_log.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: new URLSearchParams({
+                                details: logDetails,
+                                results: logResults
+                            })
+                        })
+                        .then(response => response.text())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                console.log('ログ保存成功:', data);
+                            } else {
+                                console.error('ログ保存エラー:', data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('ログ保存中にエラーが発生しました:', error);
+                        });
+                        */
+
+                        // もう1つの特徴量のデータをfetchで取得
+                        fetch('fetch_feature_data.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: params.toString()
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                console.error('サーバーエラー:', data.error);
+                                alert(data.error);
+                                return;
+                            }
+
+                            const otherFeatureData = data.map(item => item.featureA_avg);
+
+                            const canvasId = isOverall
+                                ? `class-dual-axis-chart-${chartIndex}`
+                                : `dual-axis-chart-${chartIndex}`;
+
+                            createDualAxisChart(
+                                document.getElementById(canvasId).getContext('2d'),
+                                labels,
+                                notaccuracyData,
+                                otherFeatureData,
+                                '不正解率(%)',
+                                `${otherFeature} 平均`,
+                                'rgba(54, 162, 235, 0.6)',
+                                'rgba(255, 99, 132, 0.6)',
+                                '不正解率(%)',
+                                `${otherFeature} 平均`,
+                                chartArray,
+                                chartIndex
+                            );
+
+                            closeFeatureModal();
+                        })
+                        .catch(error => {
+                            console.error('エラー:', error);
+                        });
+                    } else {
+                        // 通常の2つの特徴量での処理
+                        if (selectedFeatures.length !== 2) {
+                            alert("2つの特徴量を選択してください。");
+                            return;
+                        }
+
+                        let group = isOverall ? classData[chartIndex] : groupData[chartIndex];
+
+                        const studentIDs = isOverall
+                            ? group.class_students.map(student => student.student_id).join(',')
+                            : group.students.map(student => student.student_id).join(',');
+
+                        const params = new URLSearchParams({
+                            features: selectedFeatures.join(','),
                             studentIDs: studentIDs
                         });
 
@@ -467,10 +596,8 @@
                             },
                             body: params.toString()
                         })
-                        .then(response => response.text())
-                        .then(text => {
-                            console.log("サーバーレスポンス:", text); 
-                            const data = JSON.parse(text); 
+                        .then(response => response.json())
+                        .then(data => {
                             if (data.error) {
                                 console.error('サーバーエラー:', data.error);
                                 alert(data.error);
@@ -481,12 +608,10 @@
                             const featureAData = data.map(item => item.featureA_avg);
                             const featureBData = data.map(item => item.featureB_avg);
 
-                            // `isOverall` によってキャンバスのIDを条件分岐
-                            const canvasId = isOverall 
-                                ? `class-dual-axis-chart-${chartIndex}` 
+                            const canvasId = isOverall
+                                ? `class-dual-axis-chart-${chartIndex}`
                                 : `dual-axis-chart-${chartIndex}`;
 
-                            // `chartArray` と `chartIndex` を使用して `createDualAxisChart` に渡す
                             createDualAxisChart(
                                 document.getElementById(canvasId).getContext('2d'),
                                 labels,
@@ -498,16 +623,18 @@
                                 'rgba(255, 99, 132, 0.6)',
                                 `${selectedFeatures[0]} 平均`,
                                 `${selectedFeatures[1]} 平均`,
-                                chartArray,  // ここで `existingClassCharts` または `existingOverallCharts` を渡す
-                                chartIndex   // グラフのインデックス
+                                chartArray,
+                                chartIndex
                             );
+
                             closeFeatureModal();
                         })
-                        .catch(error => console.error('エラー:', error));
-                    } else {
-                        alert("2つの特徴量を選択してください。");
+                        .catch(error => {
+                            console.error('エラー:', error);
+                        });
                     }
                 }
+
 
 
 
@@ -515,12 +642,12 @@
             </script>
 
             <div class = "all-overview">
-                <h2>全体の成績</h2>
+                <h2>クラス単位のデータ</h2>
                 <div class = "class-data">
                     <!--ここは自身が受け持つクラスの全ての学習者のデータ表示-->
                     <?php
                         require "../dbc.php";
-                        $stmt = $conn->prepare("SELECT * FROM classes WHERE TID = ?");
+                        $stmt = $conn->prepare("SELECT * FROM ClassTeacher WHERE TID = ?");
                         $stmt->bind_param("i", $teacher_id);
                         $stmt->execute();
                         $result = $stmt->get_result();
@@ -528,6 +655,16 @@
                         if ($result->num_rows > 0) {
                             while ($row_class = $result->fetch_assoc()) {
                                 $class_id = $row_class['ClassID'];
+                                // ClassNameを取得するためにclassesテーブルを参照
+                                $stmt_classname = $conn->prepare("SELECT ClassName FROM classes WHERE ClassID = ?");
+                                $stmt_classname->bind_param("i", $class_id);
+                                $stmt_classname->execute();
+                                $result_classname = $stmt_classname->get_result();
+                                $class_name_data = $result_classname->fetch_assoc();
+                                $class_name = $class_name_data['ClassName'] ?? 'Unknown';
+                                $stmt_classname->close();
+
+                                //クラスごとの学生データを取得
                                 $stmt_classstu = $conn->prepare("SELECT * FROM students WHERE ClassID = ?");
                                 $stmt_classstu->bind_param("i", $class_id);
                                 $stmt_classstu->execute();
@@ -558,12 +695,7 @@
                                             $accuracy_time = $total_answers > 0 ? number_format(($total_time / 1000) / $total_answers, 2) : 0;
                         
                                             // 学生ごとの名前を取得
-                                            $stmt_name = $conn->prepare("SELECT Name FROM students WHERE uid = ?");
-                                            $stmt_name->bind_param("i", $student_id);
-                                            $stmt_name->execute();
-                                            $result_name = $stmt_name->get_result();
-                                            $name_data = $result_name->fetch_assoc();
-                                            $name = $name_data['Name'];
+                                            $name = $row_student['Name'];
                         
                                             // 学生ごとの正解率データを追加
                                             $class_students[] = [
@@ -573,8 +705,6 @@
                                                 'notaccuracy' => $notaccuracy_rate,
                                                 'time' => $accuracy_time
                                             ];
-                        
-                                            $stmt_name->close();
                                         }
                                         $stmt_scores->close();
                                     }
@@ -583,12 +713,13 @@
                         
                                 // クラスごとの学生データを追加
                                 $classes[] = [
-                                    'class_name' => $row_class['ClassName'],
+                                    'class_name' => $class_name,
                                     'class_students' => $class_students
                                 ];
                             }
                         }
-                        
+                        $stmt->close();
+                        $conn->close();
                     ?>
                     <div class="class-data" id="class-data-container"></div>
                     <script>
@@ -598,6 +729,9 @@
                 <div id = "cluster-data"></div>
             </div>
                     <script>
+                        // 現在のChartインスタンスを管理する変数
+                        let currentChart = null;
+
                         const class_container = document.getElementById('class-data-container');
 
                         // コンテナの生成
@@ -660,14 +794,22 @@
                                 alert("少なくとも1つの特徴量を選択してください。");
                                 return;
                             }
+                            // クラスタ数を取得
+                            const clusterCount = document.getElementById('clustering-input').value;
+                            // ★ ここで手法を取得
+                            const method = document.getElementById('clustering-method').value; 
 
                             const classInfo = classData[selectedClassIndex];
                             const studentIds = classInfo.class_students.map(student => student.student_id).join(',');
 
                             const params = new URLSearchParams({
                                 features: selectedFeatures.join(','),
-                                studentIDs: studentIds
+                                studentIDs: studentIds,
+                                clusterCount: clusterCount,  // クラスタ数を追加
+                                method : method             // クラスタリング手法を追加
                             });
+
+                            let jsonData
 
                             fetch('perform_clustering.php', {
                                 method: 'POST',
@@ -676,44 +818,262 @@
                                 },
                                 body: params.toString()
                             })
+                                /*
                                 .then(response => response.json())
                                 .then(data => {
                                     if (data.error) {
                                         alert(data.error);
                                         return;
                                     }
-                                    displayClusteringResults(data);
+                                    console.log("サーバーからのレスポンス:", data); // 詳細なデバッグログ
                                     closeClusteringModal();
+                                    displayClusteringResultsFromJSON(data);
                                 })
+                                    */
+                                    .then(response => response.text()) // JSON の代わりにテキストとして受け取る
+                                    .then(data => {
+                                        //console.log("サーバーからのレスポンス:", data); // レスポンスを確認
+                                        try {
+                                            jsonData = JSON.parse(data); // JSON に変換
+                                            if (jsonData.error) {
+                                                alert(jsonData.error);
+                                                return;
+                                            }
+                                            closeClusteringModal();
+                                            displayClusteringResultsFromJSON(jsonData);
+                                            displayClusteringResults_groupFromJSON(jsonData);
+                                        } catch (e) {
+                                            console.error('JSON 解析エラー:', e);
+                                            console.error('レスポンス内容:', data);
+                                        }
+                                    })
                                 .catch(error => console.error('エラー:', error));
                         };
+                        // JSONファイルのデータを可視化
 
-                        // クラスタリング結果を表示
-                        function displayClusteringResults(data) {
-                            console.log("display");
-                            const container = document.getElementById('cluster-data'); // 結果表示用コンテナ
-                            container.innerHTML = ''; // 以前の結果をクリア
+                        function displayClusteringResults_groupFromJSON(jsonData) {
+                            const container = document.getElementById('cluster-data');
+                            if (!container) {
+                                console.error('クラスタコンテナが見つかりません。');
+                                return;
+                            }
+                            //clustersヲ取得
+                            const clusters = jsonData.clusters?.clusters;
+                            if (!clusters) {
+                                console.error('クラスターデータが見つかりません。');
+                                return;
+                            }
 
-                            data.clusters.forEach((cluster, index) => {
-                                const clusterContainer = document.createElement('div');
-                                clusterContainer.classList.add('cluster-card');
-                                clusterContainer.innerHTML = `
-                                    <h4>クラスタ ${index + 1}</h4>
-                                    <ul>
-                                        ${cluster.map(student => `<li>${student.name} (${student.id})</li>`).join('')}
-                                    </ul>
-                                `;
-                                container.appendChild(clusterContainer);
+
+                            // クラスタごとに表示
+                            Object.keys(clusters).forEach(clusterKey => {
+                                console.log('clusterKey:', clusterKey);
+                                const clusterPoints = clusters[clusterKey];
+
+                                // クラスタ情報のコンテナを作成
+                                const clusterDiv = document.createElement('div');
+                                clusterDiv.className = 'cluster-group';
+                                // チェックボックスとクラスタタイトル
+                                const clusterHeader = document.createElement('h3');
+                                const checkbox = document.createElement('input');
+                                checkbox.type = 'checkbox';
+                                checkbox.value = clusterKey;
+                                checkbox.className = 'cluster-checkbox';
+
+                                clusterHeader.textContent = `クラスタ ${clusterKey}`;
+                                clusterHeader.prepend(checkbox);
+
+                                clusterDiv.appendChild(clusterHeader);
+
+                                // 学生リストを表示
+                                const studentList = document.createElement('ul');
+                                console.log('clusterPointsの型:', typeof clusterPoints);
+                                Object.keys(clusterPoints).forEach(groupIndex => {
+                                    console.log('groupIndex:', groupIndex);
+                                    const listItem = document.createElement('li');
+                                    listItem.textContent = `学生:${clusterPoints[groupIndex].name}`;
+                                    console.log('listItem:', listItem);
+                                    studentList.appendChild(listItem);
+                                });
+                                clusterDiv.appendChild(studentList);
+                                
+                                /*
+                                // グループ化ボタンを追加
+                                const groupButton = document.createElement('button');
+                                groupButton.textContent = 'グループ化';
+                                groupButton.onclick = () => {
+                                    groupStudents(clusterKey, clusterPoints);
+                                };
+                                clusterDiv.appendChild(groupButton);
+                                */
+
+                                // コンテナにクラスタ情報を追加
+                                container.appendChild(clusterDiv);
+                            });
+                            // グループ化ボタンを作成
+                            const groupButton = document.createElement('button');
+                            groupButton.textContent = 'グループ化';
+                            groupButton.onclick = () => {
+                                groupSelectedClusters(clusters);
+                            };
+                            container.appendChild(groupButton);
+                            
+                        }
+                        function groupSelectedClusters(clusters) {
+                            const selectedCheckboxes = document.querySelectorAll('.cluster-checkbox:checked');
+
+                            if (selectedCheckboxes.length === 0) {
+                                alert('少なくとも1つのクラスタを選択してください。');
+                                return;
+                            }
+
+                            // 選択されたクラスタごとのデータを収集
+                            const clustersData = [];
+                            selectedCheckboxes.forEach(checkbox => {
+                                const clusterKey = checkbox.value;
+                                const clusterName = `クラスタ ${clusterKey}`;
+                                const clusterData = clusters[clusterKey];
+                                const studentIds = clusterData.map(student => student.id);
+
+                                clustersData.push({
+                                    group_name: clusterName,
+                                    students: studentIds
+                                });
+                            });
+
+                            // サーバーにリクエストを送信
+                            fetch('group_students.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(clustersData)  // JSON形式で送信
+                            })
+                            .then(response => response.text())
+                            .then(data => {
+                                alert('選択されたクラスタのグループ化が完了しました。');
+                                console.log(data);
+                                //ページ再読み込み
+                                window.location.reload();
+                            })
+                            .catch(error => {
+                                console.error('エラー:', error);
                             });
                         }
 
+
+                        
+                        function displayClusteringResultsFromJSON(jsonData) {
+                            const container = document.getElementById('cluster-data');
+                            if (!container) {
+                                console.error('cluster-data コンテナが見つかりません。');
+                                return;
+                            }
+                            container.innerHTML = ''; // 前の内容をクリア
+                            // *** ポップアップメッセージの追加 ***
+                            alert("クラスタリング機能によりグルーピングされた学習者群は、ベータ機能のため誤ったグルーピングが行われている可能性があります。クラスタリング結果のグラフを確認し，明らかに誤ったグルーピングがある場合は，特徴量を変更し，再度クラスタリングを実行してください。");
+
+                            // 新しい Canvas を作成
+                            const canvas = document.createElement('canvas');
+                            canvas.id = 'cluster-visualization';
+                            canvas.width = 800;
+                            canvas.height = 400;
+                            container.appendChild(canvas);
+
+                            
+
+                            const ctx = canvas.getContext('2d');
+
+                            // clusters を取得
+                            const clusterData = jsonData.clusters;
+                            //console.log('Cluster Data:', clusterData);
+                            // データセットを生成
+                            const clusterColors = [
+                                'rgba(255, 0, 0, 0.7)',  // クラスタ0の色(赤)
+                                'rgba(0, 255, 0, 0.7)', // クラスタ1の色（青）
+                                'rgba(0, 0, 255, 0.7)', // クラスタ2の色（緑）
+                                'rgba(255, 255, 0, 0.7)', // クラスタ3の色（黄）
+                                'rgba(255, 0, 255, 0.7)', // クラスタ4の色（紫）
+                                // 必要に応じて色を追加
+                            ];
+                            
+                            const datasets = Object.keys(clusterData).flatMap(clusterKey => {
+                                const clusterPoints = clusterData[clusterKey]; // クラスタごとのデータポイントを取得
+                                //console.log(`Cluster ${clusterKey} Points:`, clusterPoints);
+
+                                // クラスタの色を取得
+                                const color = clusterColors[parseInt(clusterKey)] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`;
+
+                                // クラスタ内の各ポイントを処理
+                                return clusterPoints.flatMap((pointGroup, groupIndex) =>
+                                    pointGroup.map((point, pointIndex) => {
+                                        //console.log(`Cluster ${clusterKey}, Group ${groupIndex}, Point ${pointIndex}:`, point);
+
+                                        return {
+                                            label: `Cluster ${groupIndex}`, // クラスタ名
+                                            data: [{ x: point.pca1, y: point.pca2 }], // 散布図データ形式
+                                            backgroundColor: clusterColors[groupIndex] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`, // クラスタの色を設定
+                                            borderColor: 'rgba(0, 0, 0, 1)',
+                                            borderWidth: 1,
+                                            pointRadius: 5
+                                        };
+                                    })
+                                );
+                            });
+                        
+
+                            //console.log('Datasets:', datasets);
+
+
+                            // 既存のチャートを破棄
+                            if (currentChart) {
+                                currentChart.destroy();
+                            }
+
+                            // Chart.js を使って散布図を作成
+                            currentChart = new Chart(ctx, {
+                                type: 'scatter',
+                                data: {
+                                    datasets: datasets,
+                                },
+                                options: {
+                                    plugins: {
+                                        title: {
+                                            display: true,
+                                            text: 'クラスタリング結果 (PCA可視化)',
+                                        },
+                                    },
+                                    scales: {
+                                        x: {
+                                            title: {
+                                                display: true,
+                                                text: '次元1',
+                                            },
+                                        },
+                                        y: {
+                                            title: {
+                                                display: true,
+                                                text: '次元2',
+                                            },
+                                        },
+                                    },
+                                },
+                            });
+                            
+                        }
+                        
+ 
+
+
+
+                        
                     </script>
                 </div>
             </div>
             <div class = "create-new">
-                <h2>新規課題・テスト作成</h2>
+                <h2>新規問題・テスト作成</h2>
                 <div id = "createassignment-botton" class = "button1">
-                    <a href='create-assignment.php'>新規課題作成</a>
+                    <a href='./create/new.php?mode=0'>新規問題作成</a>
                 </div>
                 <div id = "createtest-botton" class = "button1">
                     <a href='create-test.php'>新規テスト作成</a>

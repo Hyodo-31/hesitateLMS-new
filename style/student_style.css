@@ -1,0 +1,349 @@
+/* student_style.css の先頭あたりに追加 */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+/* ページ全体のスタイル */
+body {
+    font-family: Arial, sans-serif; /* ページ全体のフォントをArial, sans-serifに設定 */
+    margin: 0; /* ページ全体の余白をなしにする */
+    padding: 0; /* ページ全体の内側余白をなしにする */
+    background-color: #f5f5f5; /* 背景色を薄いグレーに設定 */
+}
+
+/* ヘッダーのスタイル */
+header {
+    display: flex; /* ヘッダーを横方向に並べるフレックスボックスに設定 */
+    justify-content: space-between; /* ロゴとナビゲーションメニューを左右に配置 */
+    align-items: center; /* アイテムを縦方向で中央に配置 */
+    padding: 10px 20px; /* ヘッダーの内側余白を設定 */
+    background-color: #ffffff; /* ヘッダーの背景色を白に設定 */
+    border-bottom: 1px solid #ddd; /* ヘッダーの下に薄いボーダーを追加 */
+}
+
+header .logo {
+    font-size: 1.5em; /* ロゴのフォントサイズを1.5emに設定 */
+    font-weight: bold; /* ロゴを太字にする */
+    white-space: nowrap; /* ロゴが改行されないようにする */
+}
+
+header nav ul {
+    list-style: none; /* リストのマーカーを非表示にする */
+    padding: 0; /* リストの内側余白をなしにする */
+    margin: 0; /* リストの外側余白をなしにする */
+    display: flex; /* リスト項目を横方向に並べる */
+}
+
+header nav ul li {
+    margin: 0 10px; /* リスト項目同士の間に10pxの余白を作る */
+}
+
+header nav ul li a {
+    text-decoration: none; /* リンクの下線を除去 */
+    color: #333; /* リンクの文字色を濃い灰色に設定 */
+    font-size: 1em; /* リンクのフォントサイズを標準に設定 */
+}
+
+header nav ul li a:hover {
+    color: #007bff; /* ホバー時にリンクを青色に設定 */
+}
+
+/* メインレイアウト */
+.container {
+    display: flex; /* メインコンテンツとサイドバーを横に並べる */
+}
+
+/* サイドバーのスタイル */
+aside {
+    width: 200px; /* サイドバーの幅を200pxに固定 */
+    min-width: 200px; /* サイドバーの最小幅を設定 */
+    background-color: #f1f1f1; /* サイドバーの背景色を薄いグレーに設定 */
+    padding: 20px; /* サイドバー内の要素に余白を設定 */
+    border-right: 1px solid #ddd; /* サイドバーの右に薄いボーダーを追加 */
+}
+
+aside ul {
+    list-style: none; /* サイドバーのリストのマーカーを非表示にする */
+    padding: 0; /* リストの内側余白をなしにする */
+}
+
+aside ul li {
+    margin-bottom: 10px; /* リスト項目の下に10pxの余白を追加 */
+}
+
+aside ul li a {
+    text-decoration: none; /* サイドバーのリンクの下線を除去 */
+    color: #333; /* サイドバーのリンクの文字色を濃い灰色に設定 */
+}
+
+aside ul li a:hover {
+    color: #007bff; /* ホバー時にリンクを青色に設定 */
+}
+
+/* 選択中のリンクを強調 */
+aside ul li a.active {
+    font-weight: bold; /* 選択中のリンクを太字にする */
+    color: #007bff; /* 選択中のリンクの文字色を青に設定 */
+    border-left: 4px solid #007bff; /* 左に青いラインを追加 */
+    padding-left: 10px; /* 左に余白を追加 */
+}
+
+/* メインコンテンツのスタイル */
+main {
+    flex-grow: 1; /* メインコンテンツがサイドバー以外の余ったスペースを埋める */
+    padding: 20px; /* メインコンテンツの内側余白を設定 */
+}
+
+main section {
+    margin-bottom: 20px; /* 各セクションの下に余白を追加 */
+}
+
+/* コンテンツエリア */
+.content {
+    display: flex; /* ボタンを横方向に並べる */
+    justify-content: space-around; /* 各ボタン間のスペースを均等に配置 */
+    align-items: center; /* ボタンを縦方向で中央に揃える */
+    flex-wrap: wrap; /* ボタンが多い場合に折り返しを許可 */
+    margin-top: 20px; /* 上部に余白を追加 */
+    padding: 20px; /* 内側余白を追加 */
+    background-color: #ffffff; /* 背景色を白に設定 */
+    border: 1px solid #ddd; /* コンテンツ領域に薄い枠線を追加 */
+    border-radius: 8px; /* コーナーを丸くする */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 軽い影を追加 */
+}
+
+.content form {
+    margin: 10px; /* 各ボタンの周囲に余白を追加 */
+}
+
+.content button {
+    padding: 10px 20px; /* ボタン内の余白を設定 */
+    font-size: 16px; /* ボタン文字のサイズを調整 */
+    border: 2px solid #007bff; /* ボタンの枠線を青に設定 */
+    border-radius: 5px; /* ボタンの角を少し丸くする */
+    background-color: #007bff; /* ボタンの背景色を青に設定 */
+    color: white; /* ボタン文字の色を白に設定 */
+    cursor: pointer; /* ホバー時にカーソルをポインターに設定 */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* ホバー時のアニメーション */
+}
+
+.content button:hover {
+    background-color: #0056b3; /* ホバー時の背景色を暗い青に変更 */
+    transform: scale(1.05); /* ホバー時に少し拡大 */
+}
+
+/* レスポンシブデザイン対応 */
+@media screen and (max-width: 768px) {
+    header {
+        flex-direction: column; /* ヘッダーを縦方向に並べる */
+        align-items: flex-start; /* 左揃えにする */
+    }
+
+    header nav ul {
+        flex-direction: column; /* ナビゲーションを縦に並べる */
+    }
+
+    .container {
+        flex-direction: column; /* サイドバーとメインコンテンツを縦に並べる */
+    }
+
+    aside {
+        width: 100%; /* サイドバーの幅を画面幅いっぱいにする */
+        border-right: none; /* ボーダーを削除 */
+        border-bottom: 1px solid #ddd; /* 下部にボーダーを追加 */
+    }
+
+    .content {
+        flex-direction: column; /* コンテンツを縦に並べる */
+    }
+
+    .content button {
+        width: 100%; /* ボタンを幅いっぱいにする */
+        max-width: 300px; /* ボタンの最大幅を設定 */
+    }
+}
+
+
+/*
+20250510追加
+*/
+/* 正解率・解答問題数の表示 */
+.stats-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.stats-info canvas {
+    max-width: 300px;
+    height: auto;
+}
+
+.stats-info p {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 0 10px;
+}
+
+/* 解答済み問題一覧のスタイル */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+}
+
+table th, table td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+table th {
+    background-color: #f8f8f8;
+    font-weight: bold;
+}
+
+table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+table .status-unanswered {
+    color: red;
+    font-weight: bold;
+}
+
+table .status-in-progress {
+    color: orange;
+    font-weight: bold;
+}
+
+table .status-completed {
+    color: black;
+    font-weight: bold;
+}
+
+/* 問題の詳細表示エリア */
+.question-details {
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+}
+
+.question-details p {
+    font-size: 1em;
+    margin: 10px 0;
+}
+
+.question-details ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.question-details ul li {
+    margin: 5px 0;
+    padding: 5px;
+    border-bottom: 1px solid #ddd;
+}
+
+.question-details ul li:last-child {
+    border-bottom: none;
+}
+
+.card {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 1em;
+    max-width: 600px; /* お好みで調整 */
+  }
+.card-title {
+font-weight: bold;
+margin-bottom: 8px;
+font-size: 1.2em;
+}
+.card-body > div {
+margin-bottom: 6px;
+}
+
+/* =========================
+   お知らせ一覧のスタイル
+   ========================= */
+
+.news {
+    margin-bottom: 20px;
+}
+.news h2 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+/* スクロール領域 */
+.news-scroll {
+    width: 100%;
+    max-height: 200px; /* スクロール可能な最大高さを設定 */
+    overflow-y: auto;  /* 縦スクロールを有効化 */
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background-color: #f9f9f9;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+}
+
+/* 件名だけを表示するカード */
+.news-item {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #fff;
+    margin: 10px 0;
+    padding: 10px;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+.news-item:hover {
+    background-color: #f0f8ff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.news-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+    color: #333;
+}
+
+/* =========================
+   お知らせ詳細ページのスタイル
+   ========================= */
+
+   .notify {
+    width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background-color: #fafafa;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.notification-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+}
+.notification-content {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 15px;
+}
+.notification-time {
+    font-size: 14px;
+    color: #999;
+}

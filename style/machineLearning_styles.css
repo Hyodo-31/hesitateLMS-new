@@ -223,6 +223,7 @@ main .individual-details .student-details {
     height: 80%;
     max-height: 800px;
     max-width: 1000px;
+    overflow-y : auto;
     margin: 50px auto;
     padding: 20px;
     border-radius: 10px;
@@ -434,11 +435,13 @@ main .individual-details .student-details {
 
 canvas {
     width: 100% !important; /* グラフの幅を100%に固定 */
-    height: 350px !important; /* 高さを自動調整 */
+    height: 450px !important; /* 高さを自動調整 */
 }
 
 /*class-dataのフレックス*/
 .class-data {
+    /*上に空白*/
+    margin-top: 20px;
     display: grid;
     grid-template-columns:1fr;    /*自動的に列の数を調整*/
     gap: 20px;  /*各カード間のスペース*/
@@ -465,4 +468,36 @@ canvas {
 .class-card p {
     font-size: 18px; /* 学生数と進捗の文字サイズを大きく */
     font-weight: bold; /* 太字 */
+}
+
+
+/* ボタン全体のスタイル */
+.feature-button {
+    display: inline-flex; /* アイコンとテキストを横並びに配置 */
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px; /* ボタンの内側の余白 */
+    background-color: #007bff; /* ボタンの背景色 */
+    color: white; /* ボタンの文字色 */
+    border: none; /* ボーダーを削除 */
+    border-radius: 5px; /* ボタンの角を丸める */
+    font-size: 16px; /* フォントサイズ */
+    cursor: pointer; /* マウスホバー時にポインターを表示 */
+    transition: background-color 0.3s ease; /* 背景色の変化をアニメーション化 */
+}
+
+/* ボタンのホバー時のスタイル */
+.feature-button:hover {
+    background-color: #0056b3; /* ホバー時の背景色 */
+}
+
+/* アイコンのスタイル */
+.feature-button .icon {
+    margin-right: 10px; /* テキストとの間隔 */
+    font-size: 18px; /* アイコンサイズ */
+}
+
+#grammarChart{
+    max-width: 800px;
+    max-height: 500px;
 }

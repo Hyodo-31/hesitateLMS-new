@@ -11,7 +11,10 @@
 <span style="line-height:20px">         <!--行間隔指定-->
 
 <?php
+    
     require "dbc.php";
+    
+    
 ?>
 <?php
     //idとpassの検証
@@ -27,7 +30,7 @@
         //$_SESSION["URL"]="http://localhost/";
         //データを取り出す
         $sqlteacher = "SELECT TID FROM teachers WHERE (Tname = '".$id."' && Pass = '".$pass."' )";
-        $sqlstu = "SELECT UID FROM member WHERE (Name = '".$id."' && Pass = '".$pass."')";
+        $sqlstu = "SELECT UID FROM students WHERE (Name = '".$id."' AND Pass = '".$pass."')";
         $resteach = mysqli_query($conn,$sqlteacher);
         $numteach = mysqli_num_rows($resteach);
         
@@ -54,6 +57,7 @@
             // ログイン成功ログを記録
             logLogin($conn, $_SESSION["MemberID"]);
             echo "上のif文に入りました";
+
             //echo "$resteach<br>";
             //header("location: ./teacher.php");
             header("location: ./teacher/teachertrue.php");
@@ -61,9 +65,35 @@
             $rowstu = mysqli_fetch_array($resstu);
             $_SESSION["MemberID"] = $rowstu['UID'];
             $_SESSION["MemberName"] = $id;
+            //ここでClassID取得
+            $get_classID_sql = "SELECT ClassID FROM students WHERE UID = ?";
+            $stmt = $conn->prepare($get_classID_sql);
+            $stmt->bind_param('i', $_SESSION["MemberID"]);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $_SESSION["ClassID"] = $row['ClassID'];
             //現在時刻の取得
             $AccessDate = date('Y-m-d H:i:s');
             $_SESSION["AccessDate"] = $AccessDate;
+            //ここで所属する全てのグループIDを取得
+            // 学習者が所属するグループIDを取得する
+            $group_ids = array();
+            $sql_groups = "SELECT group_id FROM group_members WHERE uid = ?";
+            $stmt_groups = $conn->prepare($sql_groups);
+            $stmt_groups->bind_param("i", $_SESSION["MemberID"]);
+            $stmt_groups->execute();
+            $result_groups = $stmt_groups->get_result();
+            while ($row = $result_groups->fetch_assoc()) {
+                $group_ids[] = $row['group_id'];
+            }
+
+            // グループに所属していない場合の対応（テスト取得時にマッチしない値を入れる）
+            if(empty($group_ids)){
+                // 存在しないグループID（例えば 0）を入れておく
+                $group_ids[] = 0;
+            }
+            $_SESSION["GroupIDs"] = $group_ids;
             // ログイン成功ログを記録
             logLogin($conn, $_SESSION["MemberID"]);
             echo "下のif文に入りました<br>";
@@ -73,7 +103,10 @@
             echo "<p> ID[ $id ]が存在しないか、IDとパスワードの組み合わせが不正です。<br>";
         }
     }
+    // メモリ解放
     mysqli_close($conn);
+
+    
 ?>
 <div class = "login-container">
     <img id = "log" src = "logo.png">

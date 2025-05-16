@@ -49,7 +49,7 @@
                 echo "教師ID: " . $teacher_id . "<br>";
                 
                 // グループを作成
-                $stmt = $conn->prepare("INSERT INTO groups (group_name, TID) VALUES (?, ?)");
+                $stmt = $conn->prepare("INSERT INTO `groups` (group_name, TID) VALUES (?, ?)");
                 $stmt->bind_param("ss", $group_name, $teacher_id);
                 if($stmt->execute()) {
                     echo "グループが正常に作成されました<br>";                    

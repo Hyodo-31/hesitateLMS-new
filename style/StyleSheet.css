@@ -1,0 +1,322 @@
+body {
+	background-image: url('image.gif');
+}
+.button{
+   display: inline-block;
+   width: 200px;
+   height: 54px;
+   text-align: center;
+   text-decoration: none;
+   line-height: 54px;
+   outline: none;
+   position: relative;
+   background-color: #f7d034;
+   border-radius: 4px;
+   color: #000;
+   line-height: 52px;
+   -webkit-transition: none;
+   transition: none;
+   box-shadow: 0 3px 0 #f7ba59;
+   text-shadow: 0 1px 1px rgba(0, 0, 0, .4);
+}
+.button::before,
+.button::after {
+   position: absolute;
+   z-index: -1;
+   display: block;
+   content: '';
+   -webkit-box-sizing: border-box;
+   -moz-box-sizing: border-box;
+   box-sizing: border-box;
+   -webkit-transition: all .3s;
+   transition: all .3s;
+}
+.button:hover {
+   top: -4px;
+   box-shadow: 0 7px 0 #f7ba59;
+}
+.button:active {
+   top: 3px;
+   box-shadow: none;
+}
+
+.input{
+   border:0;
+   padding:10px;
+   font-size:1.3em;
+   font-family:Arial, sans-serif;
+   color:#aaa;
+   border:solid 1px #ccc;
+   margin:0 0 20px;
+   width:300px;
+   -webkit-border-radius: 3px;
+-moz-border-radius: 3px;
+border-radius: 3px;
+   -webkit-box-shadow: 0px 1px rgba(255, 255, 255, 0.5);
+-moz-box-shadow: 0px 1px rgba(255, 255, 255, 0.5);
+box-shadow: 0px 1px rgba(255, 255, 255, 0.5);
+-webkit-border-radius: 3px;
+-moz-border-radius: 3px;
+border-radius: 3px;
+}
+   input:focus {
+   border:solid 1px #EEA34A;
+}
+
+.btn_mini{
+   display: inline-block;
+   width: 150px;
+   height: 40px;
+   text-align: center;
+   text-decoration: none;
+   line-height: 40px;
+   outline: none;
+   position: relative;
+   background-color: #f7d034;
+   border-radius: 4px;
+   color: #000;
+   line-height: 38px;
+   -webkit-transition: none;
+   transition: none;
+   box-shadow: 0 3px 0 #f7ba59;
+   text-shadow: 0 1px 1px rgba(0, 0, 0, .4);
+}
+.btn_mini::before,
+.btn_mini::after {
+   position: absolute;
+   z-index: -1;
+   display: block;
+   content: '';
+   -webkit-box-sizing: border-box;
+   -moz-box-sizing: border-box;
+   box-sizing: border-box;
+   -webkit-transition: all .3s;
+   transition: all .3s;
+}
+.btn_mini:hover {
+   top: -4px;
+   box-shadow: 0 7px 0 #f7ba59;
+}
+.btn_mini:active {
+   top: 3px;
+   box-shadow: none;
+}
+
+.btn_yellow{
+   display: inline-block;
+   width: 150px;
+   height: 40px;
+   text-align: center;
+   text-decoration: none;
+   line-height: 40px;
+   outline: none;
+   position: relative;
+   background-color: #fff000;
+   border-radius: 4px;
+   color: #000;
+   line-height: 38px;
+   -webkit-transition: none;
+   transition: none;
+   box-shadow: 0 3px 0 #ffd000;
+   text-shadow: 0 1px 1px rgba(0, 0, 0, .4);
+}
+.btn_yellow::before,
+.btn_yellow::after {
+   position: absolute;
+   z-index: -1;
+   display: block;
+   content: '';
+   -webkit-box-sizing: border-box;
+   -moz-box-sizing: border-box;
+   box-sizing: border-box;
+   -webkit-transition: all .3s;
+   transition: all .3s;
+}
+.btn_yellow:hover {
+   top: -4px;
+   box-shadow: 0 7px 0 #ffd000;
+}
+.btn_yellow:active {
+   top: 3px;
+   box-shadow: none;
+}
+
+.btn_blue{
+   display: inline-block;
+   width: 150px;
+   height: 40px;
+   text-align: center;
+   text-decoration: none;
+   line-height: 40px;
+   outline: none;
+   position: relative;
+   background-color: #0011ff;
+   border-radius: 4px;
+   color: #000;
+   line-height: 38px;
+   -webkit-transition: none;
+   transition: none;
+   box-shadow: 0 3px 0 #0011ffc5;
+   text-shadow: 0 1px 1px rgba(0, 0, 0, .4);
+}
+.btn_blue::before,
+.btn_blue::after {
+   position: absolute;
+   z-index: -1;
+   display: block;
+   content: '';
+   -webkit-box-sizing: border-box;
+   -moz-box-sizing: border-box;
+   box-sizing: border-box;
+   -webkit-transition: all .3s;
+   transition: all .3s;
+}
+.btn_blue:hover {
+   top: -4px;
+   box-shadow: 0 7px 0 #0011ffc5;
+}
+.btn_blue:active {
+   top: 3px;
+   box-shadow: none;
+}
+
+.btn_mini2{
+   display: inline-block;
+   width: 100px;
+   height: 27px;
+   text-align: center;
+   text-decoration: none;
+   line-height: 27px;
+   outline: none;
+   position: relative;
+   background-color: #f7d034;
+   border-radius: 3px;
+   color: #000;
+   line-height: 25px;
+   -webkit-transition: none;
+   transition: none;
+   box-shadow: 0 2px 0 #f7ba59;
+   text-shadow: 0 1px 1px rgba(0, 0, 0, .4);
+}
+.btn_mini2::before,
+.btn_mini2::after {
+   position: absolute;
+   z-index: -1;
+   display: block;
+   content: '';
+   -webkit-box-sizing: border-box;
+   -moz-box-sizing: border-box;
+   box-sizing: border-box;
+   -webkit-transition: all .3s;
+   transition: all .3s;
+}
+.btn_mini2:hover {
+   top: -4px;
+   box-shadow: 0 5px 0 #f7ba59;
+}
+.btn_mini2:active {
+   top: 3px;
+   box-shadow: none;
+}
+
+.scroll {
+	   overflow:auto;
+	   width:300px; height:100px;
+	   padding:5px;
+	   border:2px dotted red;
+	   color:#e8e8e8;
+	   background-color:#ffdb79;
+	   line-height:1.5em;
+   }
+.check input{
+	   display: none;
+   }
+   .check label{
+	   display: block;
+	   float: left;
+	   cursor: pointer;
+	   width: auto;
+	   margin: 0;
+	   padding: 4px 2px;
+	   border-right: 1px solid #abb2b7;
+	   background: #bdc3c7;
+	   color: #555e64;
+	   font-size: 20px;
+	   text-align: center;
+	   line-height: 1;
+	   transition: .2s;
+	   font-weight:bold;
+   }
+   .check label:first-of-type{
+	   border-radius: 3px 0 0 3px;
+   }
+   .check label:last-of-type{
+	   border-right: 0px;
+	   border-radius: 0 3px 3px 0;
+   }
+   .check label[s="1"] {
+	   background-color:#ffee00;
+	   color:black
+   }
+   .check label[s="2"] {
+	   background-color:#ff0000;
+	   color:black
+   }
+
+   .check input[type="checkbox"]:checked + label {
+	   background-color:#ffffff;
+	   color: black;
+   }
+   
+.table_1{
+border-collapse: separate;
+border-spacing: 0px;
+border-top: 1px solid #ccc;
+border-left: 1px solid #ccc;
+}
+.table_1 th{
+padding:4px;
+text-align: left;
+vertical-align: top;
+color: #444;
+background-color: #feedf3;
+border-left: 1px solid #ccc;
+border-top: 1px solid #fff;
+border-right: 1px solid #ccc;
+border-bottom: 3px double #ccc;
+}
+.table_1 td{
+padding:4px;
+background-color: #fafafa;
+border-right: 1px solid #ccc;
+border-bottom: 1px solid #ccc;
+}
+
+
+/*
+2023/10/22山川追加
+div id = memberp
+*/
+
+#memberp{
+   height:250px;
+	width: 450px;
+
+	overflow-y:auto;
+
+	position: relative;
+
+}
+
+
+#questionq{
+   height:250px;
+	width: 450px;
+   
+	overflow-y:auto;
+
+	position: relative;
+}
+
+
+

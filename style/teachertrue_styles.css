@@ -200,26 +200,109 @@ table tr:hover {
 #notify-form button:hover {
     background-color: #45a049;
 }
-/*お知らせ表示のスタイル*/
-.notify{
-    width: 100%;
+/*お知らせのスタイル*/
+.notify-scroll {
+    width: 90%;
     margin: 0 auto;
-    border: 2px solid gray;
+    max-height: 350px; /* スクロール可能な最大高さを設定 */
+    overflow-y: auto;  /* 縦方向のスクロールを有効化 */
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-.notification-item{
+.notify {
+    width: 90%;
     margin: 0 auto;
-    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/*学生グループ作成のスタイル*/
-.student-list{
-    list-style: none;
+.notification-item {
+    margin: 10px auto;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #fff;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+
+.notification-item:hover {
+    background-color: #f0f8ff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.notification-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0;
+    color: #333;
+}
+
+.notification-content {
+    font-size: 16px;
+    color: #555;
+    margin-top: 5px;
+}
+
+
+
+/* リスト全体のスタイル */
+.student-list {
+    display: grid; /* グリッドレイアウトを使用 */
+    grid-template-columns: repeat(4, 1fr); /* 1行に必ず4列表示 */
+    gap: 15px; /* 各アイテム間の余白 */
     padding: 0;
+    margin: 0;
+    list-style: none; /* デフォルトのリストスタイルを無効化 */
 }
 
-.student-list li{
-    margin: 5px 0;
+
+/* 各リスト項目のスタイル */
+.student-item {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column; /* 各情報を縦方向に配置 */
+    gap: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 視覚的に区別 */
 }
+
+
+/* チェックボックスのスタイル */
+.student-item label {
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* 各データのスタイル */
+.student-detail {
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+}
+
+/* 強調するラベル */
+.student-detail .label {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+/* ホバー効果 */
+.student-item:hover {
+    background-color: #e6f7ff; /* ホバー時の背景色 */
+}
+
+
 
 
 
@@ -244,6 +327,7 @@ table tr:hover {
     height: 80%;
     max-height: 800px;
     max-width: 1000px;
+    overflow-y : auto;
     margin: 50px auto;
     padding: 20px;
     border-radius: 10px;
@@ -313,3 +397,94 @@ canvas {
     font-size: 18px; /* 学生数と進捗の文字サイズを大きく */
     font-weight: bold; /* 太字 */
 }
+
+
+/* 検索フォームのスタイル */
+#search-form {
+    display: flex;
+    flex-direction: column; /* 縦方向に要素を配置 */
+    align-items: center; /* 要素を中央揃え */
+    gap: 15px; /* 各要素間の余白 */
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    margin-bottom: 20px;
+    max-width: 1000px; /* フォーム全体の最大幅を設定 */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#search-form label {
+    width: 100%; /* ラベルをフォーム全体の幅に */
+    font-weight: bold;
+    text-align: left; /* 左揃えにして見やすく */
+}
+
+#search-form input,
+#search-form button {
+    width: 100%; /* 入力フィールドとボタンをフォーム全体の幅に */
+    max-width: 400px; /* 最大幅を設定 */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+#search-form button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+#search-form button:hover {
+    background-color: #0056b3;
+}
+
+/* コンテナのスタイル */
+.list-container {
+    display: grid; /* グリッドレイアウトを使用 */
+    grid-template-columns: repeat(6, 1fr); /* 4列表示 */
+    gap: 15px; /* 要素間の余白 */
+    margin-top: 20px;
+}
+
+/* 各項目のスタイル */
+.list-item {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center; /* 内容を中央揃え */
+}
+
+.list-item label {
+    display: flex; /* フレックスボックスで横並びにする */
+    justify-content: center; /* 内容を中央揃え */
+    align-items: center; /* 垂直方向を中央揃え */
+    gap: 5px; /* 「名前:」と名前の間の余白 */
+    font-size: 14px;
+}
+
+.list-item input[type="checkbox"] {
+    margin-top: 10px; /* チェックボックスの余白 */
+}
+
+/* 絞り込みフォームのタイトル */
+.filter-form-title {
+    font-size: 24px; /* サイズを指定 */
+    font-weight: bold; /* 太文字 */
+    text-align: center; /* 中央揃え */
+    margin-bottom: 15px; /* 下に余白 */
+}
+
+.label-text {
+    white-space: nowrap; /* 改行を禁止 */
+    font-weight: bold; /* 強調 */
+}
+
+
+
+

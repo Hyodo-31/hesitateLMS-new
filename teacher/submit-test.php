@@ -37,19 +37,35 @@
         </aside>
         <main>
             <!-- ここにコンテンツを入れる -->
-             <?php
+            <?php
                 // POSTリクエストが送信されたか確認
                 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                    // テスト名と選択された問題IDを取得
+                    // セッションから教師IDを取得
+                    $teacher_id = $_SESSION['MemberID'];
+                    // テスト名を取得
                     $test_name = $_POST['test_name'];
+
+                    // ★ 追加：対象の種類を取得（'class'または'group'）
+                    $target_type = $_POST['target_type'];
+
+                    // ★ 修正：選択された対象に応じて、対象IDを決定する
+                    if ($target_type == 'class') {
+                        $target_group = $_POST['class_id'];
+                    } elseif ($target_type == 'group') {
+                        $target_group = $_POST['group_id'];
+                    } else {
+                        $target_group = null; // エラー処理など
+                    }
+                    
                     $selected_questions = isset($_POST['WID']) ? $_POST['WID'] : [];
 
-                    // テスト名が空でないか、問題が選択されているかをチェック
-                    if (!empty($test_name) && !empty($selected_questions)) {
-                        
-                        // 1. テスト名を`tests`テーブルに保存
-                        $stmt = $conn->prepare("INSERT INTO tests (test_name) VALUES (?)");
-                        $stmt->bind_param('s', $test_name);
+                    // テスト名、対象ID、及び選択された問題があるかチェック
+                    if (!empty($test_name) && !empty($selected_questions) && $target_group !== null) {
+
+                        // ★ 修正：テスト作成時に対象の種類も一緒に保存するため、INSERT文にtarget_typeを追加
+                        // ※ これに伴い、testsテーブルには target_type カラム（例：ENUM('class','group')）を追加しておく必要があります。
+                        $stmt = $conn->prepare("INSERT INTO tests (test_name, teacher_id, target_group, target_type) VALUES (?, ?, ?, ?)");
+                        $stmt->bind_param('ssis', $test_name, $teacher_id, $target_group, $target_type);
                         $stmt->execute();
                         $test_id = $stmt->insert_id; // 挿入されたテストIDを取得
                         $stmt->close();
@@ -67,7 +83,7 @@
                             $stmt->close();
 
                             // 2.2. 次の OID を決定（最大OIDがあれば+1、なければ1から開始）
-                            $next_oid = $max_oid ? $max_oid + 1 : 1;
+                            $next_oid = ($max_oid !== null) ? $max_oid + 1 : 1;
 
                             // 2.3. test_questions テーブルにデータを挿入
                             $insert_query = "INSERT INTO test_questions (test_id, OID, WID) VALUES (?, ?, ?)";
@@ -81,7 +97,7 @@
                         echo "テストが正常に作成されました！";
                     } else {
                         // エラーメッセージ
-                        echo "テスト名または問題が選択されていません。";
+                        echo "テスト名、対象、または問題が選択されていません。";
                     }
                 } else {
                     // 無効なリクエストへの対応
@@ -92,6 +108,7 @@
                 $conn->close();
             ?>
         </main>
+
     </div>
 </body>
 </html>

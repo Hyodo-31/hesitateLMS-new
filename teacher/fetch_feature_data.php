@@ -22,7 +22,7 @@ echo "</pre>";
 */
 
 
-if (empty($features) || count($features) !== 2) {
+if (empty($features) || count($features) !== 2 && count($features) !== 1) {
     echo json_encode(['error' => 'Invalid features']);
     exit;
 }
@@ -45,7 +45,7 @@ foreach ($studentIDs as $id) {
     foreach ($features as $feature) {
         // 特徴量（カラム名）を直接変数に代入し、SQLインジェクションを防ぎます。
         $feature = $conn->real_escape_string($feature);
-        $stmt = $conn->prepare("SELECT AVG($feature) AS average FROM featurevalue WHERE UID = ?");
+        $stmt = $conn->prepare("SELECT AVG($feature) AS average FROM test_featurevalue WHERE UID = ?");
         if ($stmt) {
             $stmt->bind_param("i", $id);
             $stmt->execute();
@@ -61,12 +61,23 @@ foreach ($studentIDs as $id) {
         }
     }
 
-    $response[] = [
-        'student_id' => $id,
-        'name' => $student_name,
-        'featureA_avg' => $feature_values[$features[0]],
-        'featureB_avg' => $feature_values[$features[1]]
-    ];
+
+    // 特徴量が1つの場合は 'featureA_avg' のみ含める
+    if (count($features) === 1) {
+        $response[] = [
+            'student_id' => $id,
+            'name' => $student_name,
+            'featureA_avg' => $feature_values[$features[0]]
+        ];
+    } else {
+        // 特徴量が2つの場合は 'featureA_avg' と 'featureB_avg' を含める
+        $response[] = [
+            'student_id' => $id,
+            'name' => $student_name,
+            'featureA_avg' => $feature_values[$features[0]],
+            'featureB_avg' => $feature_values[$features[1]]
+        ];
+    }
 }
 
 $conn->close();

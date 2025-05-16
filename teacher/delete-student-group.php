@@ -50,7 +50,7 @@
                 $stmt->close();
 
                 // `groups`から該当するグループを削除
-                $stmt = $conn->prepare("DELETE FROM groups WHERE group_id = ?");
+                $stmt = $conn->prepare("DELETE FROM `groups` WHERE group_id = ?");
                 $stmt->bind_param("i", $group_id);
                 $stmt->execute();
                 $stmt->close();

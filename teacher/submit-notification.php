@@ -62,18 +62,73 @@
                     // 挿入された通知IDを取得
                     $notification_id = $stmt->insert_id;
                     $stmt->close();
+                    // 2. 宛先に応じて notification_recipients にINSERTするための学生ID一覧を作る
+                    $recipient_students = []; // ここに学生IDを集める
 
-                    // 特定の学生向けの場合
-                    if ($recipient_type == "specific" && !empty($_POST['students'])) {
-                        $students = $_POST['students'];
-
-                        // 宛先情報を保存
-                        $stmt = $conn->prepare("INSERT INTO notification_recipients (notification_id, student_id) VALUES (?, ?)");
-                        foreach ($students as $student_id) {
-                            $stmt->bind_param("ii", $notification_id, $student_id);
-                            $stmt->execute();
+                    if ($recipient_type === "all") {
+                        // 全学生を取得 (例)
+                        $sqlAll = "SELECT uid FROM students";
+                        $resAll = $conn->query($sqlAll);
+                        while ($row = $resAll->fetch_assoc()) {
+                            $recipient_students[] = $row['uid'];
                         }
-                        $stmt->close();
+                    } elseif ($recipient_type === "class" && isset($_POST['students'])) {
+                        // 選択されたクラスIDをもとに、所属する学生IDを取得
+                        $class_ids = $_POST['students'];  // 例: [1, 2] など
+                        foreach ($class_ids as $class_id) {
+                            // studentsテーブルや中間テーブルから「クラスIDが $class_id の学生ID」を取得
+                            $sqlClass = "
+                                SELECT s.uid
+                                FROM students s
+                                WHERE classID= ?";
+                            $stmtClass = $conn->prepare($sqlClass);
+                            $stmtClass->bind_param("i", $class_id);
+                            $stmtClass->execute();
+                            $resClass = $stmtClass->get_result();
+                            while ($row = $resClass->fetch_assoc()) {
+                                $recipient_students[] = $row['uid'];
+                            }
+                            $stmtClass->close();
+                        }
+
+                    } elseif ($recipient_type === "group" && isset($_POST['students'])) {
+                        // 選択されたグループIDをもとに、所属する学生IDを取得
+                        $group_ids = $_POST['students'];
+                        foreach ($group_ids as $group_id) {
+                            // こちらもDB設計に合わせて書き換え
+                            $sqlGroup = "
+                                SELECT uid
+                                FROM group_members
+                                WHERE group_id = ?";
+                            $stmtGroup = $conn->prepare($sqlGroup);
+                            $stmtGroup->bind_param("i", $group_id);
+                            $stmtGroup->execute();
+                            $resGroup = $stmtGroup->get_result();
+                            while ($row = $resGroup->fetch_assoc()) {
+                                $recipient_students[] = $row['uid'];
+                            }
+                            $stmtGroup->close();
+                        }
+
+                    } elseif ($recipient_type === "specific" && isset($_POST['students'])) {
+                        // 特定の学生が配列でPOSTされる
+                        $recipient_students = $_POST['students']; 
+                    }
+
+                    // 3. 重複を取り除く（同じ学生が複数クラスやグループに所属する場合など）
+                    // 必要に応じて
+                    $recipient_students = array_unique($recipient_students);
+
+                    // 4. notification_recipients にINSERT
+                    if (!empty($recipient_students)) {
+                        $stmtRecipient = $conn->prepare("
+                            INSERT INTO notification_recipients (notification_id, student_id)
+                            VALUES (?, ?)");
+                        foreach ($recipient_students as $student_id) {
+                            $stmtRecipient->bind_param("ii", $notification_id, $student_id);
+                            $stmtRecipient->execute();
+                        }
+                        $stmtRecipient->close();
                     }
 
                     echo "お知らせが保存されました！";

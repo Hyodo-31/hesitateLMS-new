@@ -20,10 +20,7 @@
         <nav>
             <ul>
                 <li><a href="teachertrue.php">ホーム</a></li>
-                <li><a href="#">コース管理</a></li>
                 <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-                <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
-                <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
                 <li><a href="register-student.php">新規学生登録</a></li>
             </ul>
         </nav>
@@ -32,10 +29,8 @@
         <aside>
             <ul>
                 <li><a href="teachertrue.php">ホーム</a></li>
-                <li><a href="#">コース管理</a></li>
                 <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-                <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
-                <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+                <li><a href="register-student.php">新規学生登録</a></li>
             </ul>
         </aside>
         <main>
@@ -64,8 +59,23 @@
                         <label for="class_id">授業クラス:</label>
                         <select id="class_id" name="class_id" required>
                             <!-- ここに教師のデータベースから取得した授業IDを表示する -->
-                            <option value="1">授業ID: 1 - クラスA</option>
-                            <option value="2">授業ID: 2 - クラスB</option>
+                            <?php 
+                                $teacher_id = $_SESSION['MemberID'];
+                                $sql = "SELECT ct.ClassID,c.ClassName
+                                        FROM ClassTeacher ct
+                                        JOIN classes c ON ct.ClassID = c.ClassID
+                                        WHERE ct.TID = ?";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bind_param("s", $teacher_id);
+                                $stmt->execute();
+                                $result = $stmt->get_result();
+                                while ($row = $result->fetch_assoc()) {
+                                    $class_id = $row['ClassID'];
+                                    $class_name = $row['ClassName'];
+                                    echo "<option value='{$class_id}'>授業ID: {$class_id} - {$class_name}</option>";
+                                }
+                                $stmt->close();
+                            ?>
                             <!-- 他のクラスも追加 -->
                         </select>
                     </div>

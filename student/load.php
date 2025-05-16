@@ -1,0 +1,122 @@
+<?php
+/**
+ * Error reporting level
+ */
+//error_reporting(E_ALL);   // デバッグ時
+error_reporting(0);   // 運用時
+session_start();
+
+require "../dbc.php";
+
+$linedataTableName = "linedata";
+$linedatamouseTableName = "linedatamouse";
+$MemberID = $_SESSION["MemberID"];
+$Qid = $_SESSION["Qid"];
+
+/*
+if($_GET['param1']=="a")
+{
+    //ユーザが解答した問題のOIDの最大値を算出 linedata
+	$SQLForMaxOIDFromLineData = "SELECT MAX(tq.OID) as MAX 
+								FROM test_questions tq
+								JOIN linedata ld ON tq.WID = ld.WID
+								WHERE tq.test_id = ? and ld.UID = ?";
+	$stmt = $conn->prepare($SQLForMaxOIDFromLineData);
+	$stmt-> bind_param('ii', $Qid, $MemberID);
+	$stmt->execute();
+	$tableMaxOIDFromLineData = $stmt->get_result();
+	//データが抽出できたとき
+	if($tableMaxOIDFromLineData->num_rows > 0){
+		$row = $tableMaxOIDFromLineData -> fetch_assoc();
+		$maxOIDInLineData = $row['MAX'];
+		//mysql_free_result($tableMaxOID)
+	}
+	else
+	{
+		echo "OIDエラー";
+	}
+	//ユーザが解答した問題のOIDの最大値を算出 linedatamouse
+	$SQLForMaxOIDFromLineDataMouse = "SELECT MAX(tq.OID) as MAX 
+								FROM test_questions tq
+								JOIN linedatamouse ldm ON tq.OID = ldm.OID
+								WHERE tq.test_id = ? and ldm.UID = ?";
+	$stmt = $conn->prepare($SQLForMaxOIDFromLineDataMouse);
+	$stmt-> bind_param('ii', $Qid, $MemberID);
+	$stmt->execute();
+	$tableMaxOIDFromLineDataMouse = $stmt->get_result();
+	//データが抽出できたとき
+	if($tableMaxOIDFromLineDataMouse->num_rows > 0){
+	    $row = $tableMaxOIDFromLineDataMouse -> fetch_assoc();
+		$maxOIDInLineDataMouse = $row['MAX']; 
+	}
+	else
+	{
+		echo "OIDエラー";
+	}
+
+	if($maxOIDInLineData < $maxOIDInLineDataMouse)
+	{
+		echo $maxOIDInLineDataMouse;
+	}
+	else
+	{
+		echo $maxOIDInLineDataMouse;
+    }
+}
+else if($_GET['param1']=="w")
+{
+    $sql_wid="select WID from test_questions where oid=".$_GET['param2']."";
+    $res_wid = mysql_query($sql_wid, $conn) or die("WID抽出エラー");
+    $cnt_wid = mysql_num_rows($res_wid);
+    if($cnt_wid ==1)
+    {
+        $row_wid = mysql_fetch_array($res_wid);
+		$WID = $row_wid['WID'];
+        echo $WID;
+    }
+    else 
+    {
+        echo "WID抽出エラー";
+    }
+}*/
+if($_GET['param1']=="a"){
+
+	//ユーザが解答した問題のOIDの最大値を算出 
+	$sql = "SELECT MAX(uq.current_oid) AS max_oid
+		FROM user_progress uq
+		JOIN test_questions tq ON uq.test_id = tq.test_id AND uq.current_oid = tq.OID
+		WHERE uq.uid = ? AND uq.test_id = ?";
+	$stmt = $conn->prepare($sql);
+	$stmt->bind_param('ii', $MemberID, $Qid);
+	$stmt->execute();
+	$tableMaxOID = $stmt->get_result();
+
+	// データが抽出できたとき
+	if ($tableMaxOID->num_rows > 0) {
+	$row = $tableMaxOID->fetch_assoc();
+	$maxOID = $row['max_oid']; // 修正: 'max_oid' を使用
+
+	if (is_null($maxOID)) {
+		$maxOID = "これは最初の問題です．";
+	}
+	} else {
+	$maxOID = "データが見つかりませんでした．";
+	}
+
+	echo $maxOID;
+
+	
+}else if($_GET['param1']=="w"){
+	$sql_wid="select WID from test_questions where oid=".$_GET['param2']."";
+    $res_wid = mysql_query($sql_wid, $conn) or die("WID抽出エラー");
+    $cnt_wid = mysql_num_rows($res_wid);
+    if($cnt_wid ==1){
+        $row_wid = mysql_fetch_array($res_wid);
+		$WID = $row_wid['WID'];
+        echo $WID;
+    }
+    else {
+        echo "WID抽出エラー";
+	}
+}
+?>

@@ -65,6 +65,10 @@
 
         // 検索条件を初期化
         $conditions = [];
+        if(isset($_GET['WID'])) {
+            $WID = implode(",", array_map('intval', $_GET['WID']));
+            $conditions[] = "WID IN ($WID)";
+        }
 
         // 検索フォームから送信されたデータがあるかチェック
         if (isset($_GET['level'])) {
@@ -115,6 +119,20 @@
             <form action = "create-test.php" method = "GET">
                 <div class = "create-test-table-content">
                     <table border="1" class = "table1">
+                        <tr>
+                            <th>問題ID</th>
+                            <!--問題IDをデータベースから取得しチェックボックスで表示-->
+                            <?php
+                                $sql = "SELECT WID FROM question_info";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->execute();
+                                $result_WID = $stmt->get_result();
+                                echo "<td>";
+                                while($row = $result_WID->fetch_assoc()) {
+                                    echo "<label><input type='checkbox' name='WID[]' value='" . $row['WID'] . "'>" . $row['WID'] . "</label>";
+                                }
+                                echo "</td>";
+                            ?>
                         <tr>
                             <th>難易度</th>
                             <td>
@@ -225,14 +243,94 @@
             <div class = "search" align = "center">
                 <h2 onclick="openFilterModal()">検索フィルタ</h2>
             </div>
-             <div class = "create-test">
+            <div class = "create-test">
                 <h2>テストに追加する問題を選択してください</h2>
                 <form action="submit-test.php" method="POST">
-                    <label for="test_name">テスト名</label>
-                    <input type="text" name="test_name" required><br>
+                    <div class = "create-test-table-content">
+                        <label for="test_name">テスト名</label>
+                        <input type="text" name="test_name" required><br>
+                    </div>
+                    <div class = "create-test-table-content">
+                        <label>対象選択：</label>
+                        <input type="radio" id="class_radio" name="target_type" value="class" checked>
+                        <label for="class_radio">クラス</label>
+                        <input type="radio" id="group_radio" name="target_type" value="group">
+                        <label for="group_radio">グループ</label>
+                    </div>
+                    <div class = "create-test-table-content" id = "class_select_wrapper">
+                        <label for = "class_select">対象クラス</label>
+                        <select id = "class_select" name = "class_id" required>
+                            <!--PHPでクラス名を動的に追加-->
+                            <?php
+                                
+                                //教師のTIDを取得
+                                $teacher_id = $_SESSION['MemberID'];
+                                //ClassTeacherとclassesを結合して対象クラス名を取得
+                                $sql = "SELECT c.ClassID, c.ClassName 
+                                        FROM ClassTeacher ct JOIN classes c ON ct.ClassID = c.ClassID
+                                        WHERE ct.TID = ?";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bind_param("s", $teacher_id);
+                                $stmt->execute();
+                                $result_class = $stmt->get_result();
+                                
+                                //結果をプルダウンに表示
+                                while($row = $result_class->fetch_assoc()) {
+                                    echo "<option value = '{$row['ClassID']}'>{$row['ClassName']}</option>";
+                                }
+                                    
+                            ?>
+                        </select>
+                    </div>
+                    <!-- グループ用セレクトボックス（初期状態は非表示） -->
+                    <div class="create-test-table-content" id="group_select_wrapper" style="display:none;">
+                        <label for="group_select">対象グループ</label>
+                        <select id="group_select" name="group_id">
+                            <?php
+                            // groupsテーブルから、ログイン中の教師に紐づくグループを取得
+                            $sql_group = "SELECT groups.group_id,groups.group_name
+                                FROM `groups`
+                                WHERE TID = ?
+                            ";
+                            $stmt_group = $conn->prepare($sql_group);
+                            $stmt_group->bind_param("s", $teacher_id);
+                            $stmt_group->execute();
+                            $result_group = $stmt_group->get_result();
+                            
+                            while($row = $result_group->fetch_assoc()) {
+                                echo "<option value='{$row['group_id']}'>{$row['group_name']}</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    <script>
+                        const classRadio = document.getElementById('class_radio');
+                        const groupRadio = document.getElementById('group_radio');
+                        const classSelectWrapper = document.getElementById('class_select_wrapper');
+                        const groupSelectWrapper = document.getElementById('group_select_wrapper');
+
+                        // ラジオボタンが切り替わったときに呼ばれる関数
+                        function toggleSelectBox() {
+                            if (classRadio.checked) {
+                                classSelectWrapper.style.display = 'block';
+                                groupSelectWrapper.style.display = 'none';
+                            } else {
+                                classSelectWrapper.style.display = 'none';
+                                groupSelectWrapper.style.display = 'block';
+                            }
+                        }
+
+                        // 初期ロード時にも反映させる
+                        toggleSelectBox();
+
+                        // ラジオボタン変更時のイベント
+                        classRadio.addEventListener('change', toggleSelectBox);
+                        groupRadio.addEventListener('change', toggleSelectBox);
+                    </script>
                     <table>
                         <tr>
                             <th>選択</th>
+                            <th>WID</th>
                             <th>日本語</th>
                             <th>英文</th>
                             <th>難易度</th>
@@ -247,6 +345,7 @@
                                 while($row = $result->fetch_assoc()) {
                                     echo "<tr>";
                                     echo "<td><input type='checkbox' name='WID[]' value='" . $row['WID'] . "'></td>";
+                                    echo "<td>" . htmlspecialchars($row['WID']) . "</td>";
                                     echo "<td>" . htmlspecialchars($row['Japanese']) . "</td>";
                                     echo "<td>" . htmlspecialchars($row['Sentence']) . "</td>";
                                     if($row['level'] == 1) {

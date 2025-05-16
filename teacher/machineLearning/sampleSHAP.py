@@ -1,9 +1,9 @@
 import sys
-sys.path.append('c:\\users\\tomoya\\anaconda3\\lib\\site-packages')
+#sys.path.append('c:\\users\\tomoya\\anaconda3\\lib\\site-packages')
 import io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -13,13 +13,13 @@ from sklearn.metrics import precision_score, recall_score, f1_score, classificat
 import numpy as np
 import json
 import mysql.connector
-import shap
-import matplotlib.font_manager as fm
+#import shap
+#import matplotlib.font_manager as fm
 
 # フォントの設定
 #plt.rcParams['font.family'] = 'IPAexGothic'  # フォント名を指定
 # 利用可能な日本語フォントを指定
-plt.rcParams['font.family'] = 'Meiryo'  # 'Meiryo', 'Yu Gothic', 'MS Gothic' などから選択
+#plt.rcParams['font.family'] = 'Meiryo'  # 'Meiryo', 'Yu Gothic', 'MS Gothic' などから選択
 
 
 # 利用可能なフォントを確認
@@ -28,6 +28,7 @@ plt.rcParams['font.family'] = 'Meiryo'  # 'Meiryo', 'Yu Gothic', 'MS Gothic' な
 
 # 必要なパートを含む上記のコードをインポートまたは実装
 
+"""
 def plot_feature_importance_comparison(featuresdict, shap_values, features):
     # ジニ係数の特徴量の重要度
     gini_importances = pd.DataFrame(list(featuresdict), columns=['Feature', 'Importance'])
@@ -55,7 +56,7 @@ def plot_feature_importance_comparison(featuresdict, shap_values, features):
 
     plt.tight_layout()
     plt.show()
-
+"""
 def generate_hesitation_feedback(shap_values, feature_names):
     # SHAP値が重要な順に特徴量をソート
     #絶対値をとる
@@ -171,8 +172,11 @@ def generate_hesitation_feedback(shap_values, feature_names):
     return " ".join(feedback)
 """
 class Classify:
-    def __init__(self,df):
-        self.df = df
+    def __init__(self,df,testdf,results_csv,metrics_json):
+        self.df = df                #教師データ
+        self.testdf = testdf        #実際の未知のデータ
+        self.results_csv = results_csv
+        self.metrics_json = metrics_json
         self.Understand1_count = 0
         self.Understand2_count = 0
         self.Understand3_count = 0
@@ -209,11 +213,10 @@ class Classify:
 
         self.classifydf = pd.concat([sampledf_2,sampledf_4])
         #print(self.classifydf)
-    
-    def RandomForestClassify(self):
-        count = 0
-        tmpdf = self.classifydf
-        tmpdf = tmpdf.drop(["UID","WID","Understand"], axis=1)
+    def train_model(self):
+        #データの準備
+        tmpdf = self.classifydf     #これは教師データ（モデル学習用）
+        tmpdf = tmpdf.drop(["UID","WID","Understand","attempt"], axis=1)
         self.features = tmpdf.columns.tolist()
         self.featuresdict = {}
         objective = ['Understand']
@@ -221,176 +224,41 @@ class Classify:
         for i in self.features:
             self.featuresdict[i] = 0
 
-        kf = KFold(n_splits=10, shuffle=True, random_state=0)
-        X_data = self.classifydf[self.features]
-        Y_data = self.classifydf[objective]
-        UID_WID_data = self.classifydf[['UID', 'WID']]
-        accuracies = []
-        precisions_y = []   # 迷い有り適合率
-        recalls_y = []      # 迷い有り再現率
-        f1s_y = []          # 迷い有りF1スコア
-        precisions_n = []   # 迷い無し適合率
-        recalls_n = []      # 迷い無し再現率
-        f1s_n = []          # 迷い無しF1スコア
-        all_shap_values = []
-        all_test_x = []
-        results = []  # UID, WID, 予測されたUnderstandの結果を保存
-
-        #10分割して交差検証
-        for train_index, test_index in kf.split(X_data):
-            train_x = X_data.iloc[train_index]
-            train_y = Y_data.iloc[train_index].to_numpy().ravel()
-            test_x = X_data.iloc[test_index]
-            test_y = Y_data.iloc[test_index].to_numpy().ravel()
-
-            # UID, WIDの情報をtest setから取得
-            test_UID_WID = UID_WID_data.iloc[test_index]
-
-            model = RandomForestClassifier(n_estimators=100, random_state=0)
-            model.fit(train_x, train_y)
-            pred = model.predict(test_x)
-            Feature_importances = model.feature_importances_
-            indices = np.argsort(Feature_importances)[::-1]
-            #結果の保持
-            for i in range(len(test_x)):
-                results.append({
-                    "UID": test_UID_WID.iloc[i]["UID"],
-                    "WID": test_UID_WID.iloc[i]["WID"],
-                    "Predicted_Understand": pred[i]
-                })
-
-            accuracy = accuracy_score(test_y, pred)
-            accuracies.append(accuracy)
-
-            if 2 in test_y:
-                precision_y = precision_score(test_y, pred, pos_label=2)
-                recall_y = recall_score(test_y, pred, pos_label=2)
-                f1_y = f1_score(test_y, pred, pos_label=2)
-                precisions_y.append(precision_y)
-                recalls_y.append(recall_y)
-                f1s_y.append(f1_y)
-
-            if 4 in test_y:
-                precision_n = precision_score(test_y, pred, pos_label=4)
-                recall_n = recall_score(test_y, pred, pos_label=4)
-                f1_n = f1_score(test_y, pred, pos_label=4)
-                precisions_n.append(precision_n)
-                recalls_n.append(recall_n)
-                f1s_n.append(f1_n)
-
-            # SHAP値の計算
-            explainer = shap.TreeExplainer(model)
-            shap_values = explainer.shap_values(test_x)
-            
-            # 迷い有りのSHAP値を使用
-            all_shap_values.append(shap_values[0])
-            all_test_x.append(test_x)
-
-            # 特徴量の重要度を累積
-            for i in range(len(self.features)):
-                self.featuresdict[self.features[indices[i]]] += Feature_importances[indices[i]]
-
-            count += 1
-
-        # 特徴量の重要度の平均を計算
-        for i in self.features:
-            self.featuresdict[i] = self.featuresdict[i] / count
-
-        # 平均評価指標を計算
-        self.mean_accuracy = np.mean(accuracies)
-        self.precision_y = np.mean(precisions_y)
-        self.recall_y = np.mean(recalls_y)
-        self.f1score_y = np.mean(f1s_y)
-        self.precision_n = np.mean(precisions_n)
-        self.recall_n = np.mean(recalls_n)
-        self.f1score_n = np.mean(f1s_n)
-        # UID, WID, 予測結果を出力（UID, WIDで昇順にソート）
-        result_df = pd.DataFrame(results)
-        result_df = result_df.sort_values(by=["UID", "WID"], ascending=[True, True])
-        print(result_df)
-        # CSVとして保存
-        result_df.to_csv('./machineLearning/results.csv', index=False)
-
-        # 特徴量の重要度をJSONファイルに保存
-        jsonfinename = './featurejson/featuredict.json'
-        with open(jsonfinename, 'w') as f:
-            json.dump(self.featuresdict, f)
-
-        # 評価指標をJSONに保存
-        metrics = {
-            "mean_accuracy": self.mean_accuracy,
-            "precision_y": self.precision_y,
-            "recall_y": self.recall_y,
-            "f1score_y": self.f1score_y,
-            "precision_n": self.precision_n,
-            "recall_n": self.recall_n,
-            "f1score_n": self.f1score_n
-        }
-
-        metrics_file = './machineLearning/evaluation_metrics.json'
-        with open(metrics_file, 'w') as f:
-            json.dump(metrics, f)
-
-
-     
-
-
-    def ActuallyRandomForestClassify(self, testdata):
-        # `UID`, `WID` を除外し、特徴量リストを作成
-        trainingdata = self.classifydf.drop(["UID", "WID", "Understand"], axis=1)
-        self.Actuallyfeatures = trainingdata.columns.tolist()
-
-        # 訓練データとテストデータの設定
-        X_train = self.classifydf[self.Actuallyfeatures]
-        y_train = self.classifydf["Understand"].to_numpy().ravel()
-        X_test = testdata[self.Actuallyfeatures]
-        UID_WID_data = testdata[['UID', 'WID']]
-
-        # ランダムフォレストモデルの作成と学習
-        model = RandomForestClassifier(n_estimators=100, random_state=0)
-        model.fit(X_train, y_train)
-        pred = model.predict(X_test)
+        X_data = self.classifydf[self.features]             #モデル作成用の教師データ（特徴量）
+        Y_data = self.classifydf[objective]                 #モデル作成用の教師データ（目的変数）
+        self.model = RandomForestClassifier(n_estimators=100, random_state=0)
+        self.model.fit(X_data, Y_data)
+        print("モデル学習完了")
+    def predict_new_data(self):
+        """
+        新しいデータを予測する関数
+        :param new_data:新規データ(dataframe)
+        :return :　予測結果
+        """
+        print("教師データの個数" + str(self.classifydf.shape[0]))
+        print("予測データの個数" + str(self.testdf.shape[0]))
+        if self.model is None:
+            print("モデルが学習されていません。")
+        
+        new_data_preprocessed = self.testdf[self.features]
+        #予測の実行
+        predictions = self.model.predict(new_data_preprocessed)
 
         # UID, WID, 予測結果を格納
-        results = []
-        for i in range(len(X_test)):
-            results.append({
-                "UID": UID_WID_data.iloc[i]["UID"],
-                "WID": UID_WID_data.iloc[i]["WID"],
-                "Predicted_Understand": pred[i]
-            })
+        results = pd.DataFrame({
+            "UID": self.testdf["UID"],
+            "WID": self.testdf["WID"],
+            "Understand": predictions,
+            "attempt": self.testdf["attempt"]
+        })
+        #結果をcsvファイルに保存
+        results.to_csv(self.results_csv, index=False)
 
-        # 結果をDataFrameに変換し、UID, WIDでソートして保存
-        result_df = pd.DataFrame(results).sort_values(by=["UID", "WID"])
-        result_df.to_csv('./machineLearning/results_actual.csv', index=False)
 
         # 結果の出力完了メッセージ
         print("予測結果が './machineLearning/results_actual.csv' に保存されました。")
+        
 
-
-    def plot_feature_importance(self):
-        feature_name_map = {
-            'answeringTime': '第一ドラッグ後時間',  
-            'distance': '総移動距離',   
-            'yUTurnCount': 'Y軸Uターン回数',
-            # 他の特徴量も必要に応じて追加
-        }
-        # 特徴量の重要度をDataFrameに変換
-        #importance_df = pd.DataFrame(self.featuresdict.items(), columns=['Feature', 'Importance'])
-        importance_df = pd.DataFrame(list(self.featuresdict.items()), columns=['Feature', 'Importance'])
-        importance_df = importance_df.sort_values(by='Importance', ascending=False)  # 値が高い順にソート
-        # 特徴量名を日本語に変換
-        importance_df['Feature'] = importance_df['Feature'].map(feature_name_map).fillna(importance_df['Feature'])
-
-
-
-        # グラフを作成
-        plt.figure(figsize=(10, 6))
-        plt.barh(importance_df['Feature'], importance_df['Importance'], color='skyblue')
-        plt.xlabel('ジニ係数')
-        plt.title('特徴量重要度')
-        plt.gca().invert_yaxis()  # 重要度が高い順に表示
-        plt.show()
 class DBaction:
     def __init__(self,host,user,password,dbname):
         self.host = host
@@ -435,27 +303,37 @@ class DBaction:
 
 def main():
     #データセット作成
-    inputfilename = 'pydata/test.csv'
-    df = pd.read_csv(inputfilename)
-    datamarge=Classify(df)
+    # コマンドライン引数からファイルパスを取得
+    #input_csv:学習データ
+    #input_csv_test:実際の未知のデータ
+    #results_csv:学習データの予測結果
+    #matrics_json:評価指標
+    if len(sys.argv) != 5:
+        print("引数の個数は" + str(len(sys.argv)) + "個")
+        print("Usage: python script.py <input_csv> <input_csv_test> <results_csv> <metrics_json>")
+        sys.exit(1)
 
-    #テストデータセット作成
-    inputfilename_test  = 'pydata/testdata.csv'
-    df_test = pd.read_csv(inputfilename_test)
-    datamarge_test = Classify(df_test)
+    inputfilename = sys.argv[1]
+    testfilename = sys.argv[2]
+    results_csv = sys.argv[3]
+    metrics_json = sys.argv[4]
+
+    df = pd.read_csv(inputfilename)
+    testdf = pd.read_csv(testfilename)
+    datamarge=Classify(df,testdf,results_csv,metrics_json)
 
     #データを分割
     return_df = datamarge.binary()      #全データの中から迷い有りと無しのみ抽出
     datamarge.countUnderstand(return_df)    #迷い有りと無しの数を数える
 
     datamarge.makingclassifydf()        #ここで迷い無しとありが1:1のデータセットができている．
-    datamarge.RandomForestClassify()
-    datamarge.ActuallyRandomForestClassify(df_test)
+    datamarge.train_model()             #モデル学習
+    datamarge.predict_new_data()
 
     
 
 
-
+    """
     #データベース接続
     db = DBaction(host="127.0.0.1",user="root",password="8181saisaI",dbname="2019su1")
     db.connectDB()
@@ -472,6 +350,7 @@ def main():
     f1_score_n = datamarge.f1score_n
 
     #db.insertDB(model_name,featurename,gini_results,accuracy,precision_y,precision_n,recall_y,recall_n,f1_score_y,f1_score_n)
+    """
     
 
 
