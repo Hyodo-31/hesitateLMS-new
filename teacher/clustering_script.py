@@ -39,6 +39,8 @@ aggregated_data = pd.merge(
 scaler = MinMaxScaler()
 scaled_features = scaler.fit_transform(aggregated_data[feature_columns])
 
+print(scaled_features)
+
 # PCA (2次元) 
 if scaled_features.shape[1] > 2:
     pca = PCA(n_components=2)

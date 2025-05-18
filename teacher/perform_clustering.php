@@ -1,3 +1,4 @@
+
 <?php
 require "../dbc.php";
 //require "log_write.php";
@@ -8,6 +9,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $clusterCount = isset($_POST['clusterCount']) ? intval($_POST['clusterCount']) : 2;
     // ★ 追加: method
     $method = isset($_POST['method']) ? $_POST['method'] : 'kmeans';
+    
 
 
     if (empty($features) || empty($studentIDs)) {
@@ -103,7 +105,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         fputcsv($fp, $csvRow);
     }
     fclose($fp);
-    $command = escapeshellcmd("python3 clustering_script.py $inputFile $outputFile 2 xmeans");
+    $command = escapeshellcmd("python clustering_script.py $inputFile $outputFile 2 xmeans"); //python3をpythonに変更
     //exec($command, $output, $status);
     //2025/01/25 修正
     //exec("python3 clustering_script.py $inputFile $outputFile $clusterCount", $output, $status);

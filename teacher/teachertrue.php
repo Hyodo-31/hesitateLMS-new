@@ -832,7 +832,7 @@
                                     */
                                     .then(response => response.text()) // JSON の代わりにテキストとして受け取る
                                     .then(data => {
-                                        //console.log("サーバーからのレスポンス:", data); // レスポンスを確認
+                                        console.log("サーバーからのレスポンス:", data); // レスポンスを確認
                                         try {
                                             jsonData = JSON.parse(data); // JSON に変換
                                             if (jsonData.error) {
