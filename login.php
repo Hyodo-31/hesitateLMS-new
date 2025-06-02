@@ -1,7 +1,9 @@
-<?php
-    session_start()
+<?php include 'lang.php'; 
+    session_start()  //ここら辺の部分の元のやつはスマホの研究タブに写真有　1-5行目のところ
 ?>
-<html>
+<!DOCTYPE html>
+<html lang="<?= $lang ?>">  
+
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <link rel="stylesheet" href="style/login_style.css" type="text/css" />  
@@ -108,6 +110,14 @@
 
     
 ?>
+
+<div class="language-buttons"> 
+     <!-- 言語選択ボタンの設定 -->
+    <p><?= translate('select_language') ?>:</p>
+    <a href="?lang=ja">日本語</a>
+    <a href="?lang=en">English</a>
+</div>
+
 <div class = "login-container">
     <img id = "log" src = "logo.png">
     <form method="POST" action="<?php echo $_SERVER["PHP_SELF"]; ?>">

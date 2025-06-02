@@ -7,6 +7,20 @@ body {
     margin: 0;
 }
 
+
+.language-buttons a { /* 言語選択ボタン追加 */
+    margin: 0 10px; 
+    text-decoration: none;
+    padding: 5px 10px;
+    background: #007BFF;
+    color: white;
+    border-radius: 5px;
+}
+
+.language-buttons a:hover {  /* 同じく言語選択ボタン追加 */
+    background: #0056b3;
+}
+
 .login-container {
     background-color: #F5F5F5;
     padding: 20px;
