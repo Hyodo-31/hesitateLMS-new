@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) { //ほかにセッション開始するところがなければセッション開始、現状login.phpの方のセッション消したので最初
+    session_start();
+}
 
 // 言語選択（URLパラメータから）
 if (isset($_GET['lang'])) {

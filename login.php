@@ -1,5 +1,5 @@
 <?php include 'lang.php'; 
-    session_start()  //ここら辺の部分の元のやつはスマホの研究タブに写真有　1-5行目のところ
+    //session_start()  ここら辺の部分の元のやつはスマホの研究タブに写真有　1-5行目のところ
 ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">  
