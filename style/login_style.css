@@ -8,18 +8,28 @@ body {
 }
 
 
-.language-buttons a { /* 言語選択ボタン追加 */
-    margin: 0 10px; 
+.language-buttons {
+    display: flex;
+    justify-content: center; /* 中央揃え */
+    margin-bottom: 15px;      /* フォームとの間に余白をつける */
+    gap: 10px;                /* ボタン間の間隔 */
+    flex-wrap: wrap;          /* 画面が狭いときに折り返す */
+}
+
+.language-buttons a {
     text-decoration: none;
-    padding: 5px 10px;
+    padding: 15px 13px;
     background: #007BFF;
     color: white;
     border-radius: 5px;
+    transition: background 0.3s;
+    font-size: 14px;
 }
 
-.language-buttons a:hover {  /* 同じく言語選択ボタン追加 */
+.language-buttons a:hover {
     background: #0056b3;
 }
+
 
 .login-container {
     background-color: #F5F5F5;
