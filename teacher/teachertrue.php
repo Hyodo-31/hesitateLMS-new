@@ -262,7 +262,9 @@
                 function openEstimatePage(groupIndex) {
                     const group = groupData[groupIndex];
                     if (!group || !group.students) {
-                        alert("<?= translate('teachertrue.php_265行目_グループに学習者が登録されていません。') ?>");
+                        //alert("<?= translate('teachertrue.php_265行目_グループに学習者が登録されていません。') ?>")
+                        const message = <?= json_encode(translate('teachertrue.php_265行目_グループに学習者が登録されていません。')) ?>;
+                        alert(message);
                         return;
                     }
 
@@ -277,7 +279,9 @@
                 function openClassEstimatePage(classIndex) {
                     const classInfo = classData[classIndex];
                     if (!classInfo || !classInfo.class_students) {
-                        alert("クラスに学習者が登録されていません。");
+                        //alert("クラスに学習者が登録されていません。");
+                        const message = <?= json_encode(translate('teachertrue.php_283行目_クラスに学習者が登録されていません。')) ?>;
+                        alert(message);
                         return;
                     }
 
@@ -332,7 +336,7 @@
                                 x: {
                                     title: {
                                         display: true,
-                                        text: 'ユーザー名',
+                                        text: <?= json_encode(translate('teachertrue.php_339行目_ユーザー名')) ?>,
                                         font: {
                                             size: 20
                                         }
@@ -422,12 +426,12 @@
                             labels,
                             notaccuracyData,
                             timeData,
-                            '不正解率(%)',
-                            '解答時間(秒)',
+                            <?= json_encode(translate('teachertrue.php_429行目_不正解率(%)')) ?>,
+                            <?= json_encode(translate('teachertrue.php_430行目_解答時間(秒)')) ?>,
                             'rgba(54, 162, 235, 0.6)',
                             'rgba(255, 99, 132, 0.6)',
-                            '不正解率(%)',
-                            '解答時間(秒)',
+                            <?= json_encode(translate('teachertrue.php_433行目_不正解率(%)')) ?>,
+                            <?= json_encode(translate('teachertrue.php_434行目_解答時間(秒)')) ?>,
                             existingClassCharts,  // クラス別グラフ用の配列
                             index
                         );
@@ -481,7 +485,8 @@
                         const notaccuracyData = group.students.map(student => student.notaccuracy);
 
                         if (!otherFeature) {
-                            alert("不正解率と一緒にもう1つの特徴量を選択してください。");
+                            const message = <?= json_encode(translate('teachertrue.php_488行目_不正解率と一緒にもう1つの特徴量を選択してください。')) ?>;
+                            alert(message);
                             return;
                         }
 

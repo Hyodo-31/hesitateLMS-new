@@ -13,8 +13,7 @@ return [
     'logout.php_37行目_ログイン画面へ戻る' => 'a',   
 
     //teacher関係
-    'create-assignment.php_7行目_教育用ダッシュボード' => 'a',    //ログイン後のタブ名
-    'teachertrue.php_7行目_教育用ダッシュボード' => 'a',
+    'teachertrue.php_7行目_教育用ダッシュボード' => 'a', //ログイン後のタブ名
     'teachertrue.php_21行目_英単語並べ替え問題LMS' => 'a',
     'teachertrue.php_24行目_ホーム' => 'a',
     'teachertrue.php_25行目_迷い推定・機械学習' => 'a',
@@ -93,9 +92,16 @@ return [
     'teachertrue.php_251行目_y軸UターンD&D回数' => 'a',
     'teachertrue.php_252行目_最終ドロップ後時間' => 'a',
     'teachertrue.php_254行目_適用' => 'a',
-    'teachertrue.php_265行目_グループに学習者が登録されていません。' => 'a',
+    'teachertrue.php_266行目_グループに学習者が登録されていません。' => 'a',
+    'teachertrue.php_283行目_クラスに学習者が登録されていません。' =>  'a', 
+    'teachertrue.php_339行目_ユーザー名' => 'a',
     'teachertrue.php_404行目_グラフ描画特徴量' => 'a',
     'teachertrue.php_405行目_迷い推定' => 'a',
+    'teachertrue.php_429行目_不正解率(%)' => 'a',
+    'teachertrue.php_430行目_解答時間(秒)' => 'a',
+    'teachertrue.php_433行目_不正解率(%)' => 'a',
+    'teachertrue.php_434行目_解答時間(秒)' => 'a',
+    'teachertrue.php_488行目_不正解率と一緒にもう1つの特徴量を選択してください。' => 'a',
     'teachertrue.php_646行目_クラス単位のデータ' => 'a',
     'teachertrue.php_744行目_グラフ描画特徴量' => 'a',
     'teachertrue.php_745行目_迷い推定' => 'a',
@@ -103,4 +109,6 @@ return [
     'teachertrue.php_1075行目_新規問題・テスト作成' => 'a',
     'teachertrue.php_1077行目_新規問題作成' => 'a',
     'teachertrue.php_1080行目_新規テスト作成' => 'a',
+
+    'create-assignment.php_7行目_教育用ダッシュボード' => 'a',    //ログイン後のタブ名
 ];
