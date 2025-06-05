@@ -485,7 +485,8 @@
                         const notaccuracyData = group.students.map(student => student.notaccuracy);
 
                         if (!otherFeature) {
-                            const message = <?= json_encode(translate('teachertrue.php_488行目_不正解率と一緒にもう1つの特徴量を選択してください。')) ?>;
+                            //alert("不正解率と一緒にもう1つの特徴量を選択してください。");
+                            const message = <?= json_encode(translate('teachertrue.php_489行目_不正解率と一緒にもう1つの特徴量を選択してください。')) ?>;
                             alert(message);
                             return;
                         }

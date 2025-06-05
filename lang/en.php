@@ -101,7 +101,7 @@ return [
     'teachertrue.php_430行目_解答時間(秒)' => 'a',
     'teachertrue.php_433行目_不正解率(%)' => 'a',
     'teachertrue.php_434行目_解答時間(秒)' => 'a',
-    'teachertrue.php_488行目_不正解率と一緒にもう1つの特徴量を選択してください。' => 'a',
+    'teachertrue.php_489行目_不正解率と一緒にもう1つの特徴量を選択してください。' => 'a',
     'teachertrue.php_646行目_クラス単位のデータ' => 'a',
     'teachertrue.php_744行目_グラフ描画特徴量' => 'a',
     'teachertrue.php_745行目_迷い推定' => 'a',
