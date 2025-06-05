@@ -1,11 +1,11 @@
-<?php
-    session_start()
+<?php include 'lang.php'; 
+    //session_start()  ログインの奴と同じ
 ?>
-<html>
+<html lang="<?= $lang ?>">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <link rel="stylesheet" href="style/login_style.css" type="text/css" />  
-<title>英単語並べ替え問題LMS</title>
+<title><?= translate('logout.php_8行目_英単語並べ替え問題LMS') ?></title>
 </head>
 <body>
 <span style="line-height:20px">         <!--行間隔指定-->
@@ -33,8 +33,8 @@
 ?>
 <div class = "login-container">
     <img id = "log" src = "logo.png">
-    <h2>正常にログアウトしました</h2>
-    <a href="login.php">ログイン画面へ戻る</a>
+    <h2><?= translate('logout.php_36行目_正常にログアウトしました') ?></h2>
+    <a href="login.php"><?= translate('logout.php_37行目_ログイン画面へ戻る') ?></a>
 
 </div>
 

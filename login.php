@@ -7,7 +7,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <link rel="stylesheet" href="style/login_style.css" type="text/css" />  
-<title>英単語並べ替え問題LMS</title>
+<title><?= translate('login.php_10行目_英単語並べ替え問題LMS') ?></title>
 </head>
 <body>
 <span style="line-height:20px">         <!--行間隔指定-->
@@ -113,7 +113,7 @@
 
 <div class="language-buttons"> 
      <!-- 言語選択ボタンの設定 -->
-    <p><?= translate('select_language') ?>:</p>
+    <p><?= translate('言語を選択してください') ?>:</p>
     <a href="?lang=ja">日本語</a>
     <a href="?lang=en">English</a>
 </div>
@@ -123,15 +123,15 @@
     <form method="POST" action="<?php echo $_SERVER["PHP_SELF"]; ?>">
         <table>
             <tr>
-                <td>ユーザーID</td>
+                <td><?= translate('login.php_126行目_ユーザーID') ?></td>
                 <td><input type="text" name="idtxt" class="input"></td>
             </tr>
             <tr>
-                <td>パスワード</td>
+                <td><?= translate('login.php_130行目_パスワード') ?></td>
                 <td><input type="password" name="passtxt" class="input"></td>
             </tr>
             <tr>
-                <td><input type="submit" name="b1" value="ログイン" class="button"></td>
+                <td><input type="submit" name="b1" value=<?= translate('login.php_134行目_ログイン') ?> class="button"></td>
             </tr>
         </table>
     </form>

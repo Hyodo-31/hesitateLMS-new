@@ -1,9 +1,10 @@
+<?php include 'lang.php'; ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= $lang ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教師用ダッシュボード</title>
+    <title><?= translate('create-assignment.php_7行目_教育用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
