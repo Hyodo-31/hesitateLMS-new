@@ -23,13 +23,8 @@
             <ul>
                 <li><a href="#"><?= translate('teachertrue.php_24行目_ホーム') ?></a></li>
                 <li><a href="machineLearning_sample.php"><?= translate('teachertrue.php_25行目_迷い推定・機械学習') ?></a></li>
-                <!--
-                <li><a href="Analytics/studentAnalytics.php"><?= translate('teachertrue.php_27行目_学生分析') ?></a></li>
-                <li><a href="Analytics/questionAnalytics.php"><?= translate('teachertrue.php_28行目_問題分析') ?></a></li>
--->
                 <li><a href="register-student.php"><?= translate('teachertrue.php_30行目_新規学生登録') ?></a></li>
                 <li><a href="../logout.php"><?= translate('teachertrue.php_31行目_ログアウト') ?></a></li>
-
             </ul>
         </nav>
     </header>
@@ -38,10 +33,6 @@
             <ul>
                 <li><a href="#"><?= translate('teachertrue.php_39行目_ホーム') ?></a></li>
                 <li><a href="machineLearning_sample.php"><?= translate('teachertrue.php_40行目_迷い推定・機械学習') ?></a></li>
-                <!--
-                <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
-                <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
--->
                 <li><a href="register-student.php"><?= translate('teachertrue.php_45行目_新規学生登録') ?></a></li>
             </ul>
         </aside>
@@ -153,14 +144,13 @@
                             }
                         }else{
                             // 学習者グループがない場合
-                            echo "<p>><?= translate('teachertrue.php_156行目_学習者グループがありません') ?><</p>";
+                            echo "<p>" . translate('teachertrue.php_156行目_学習者グループがありません') . "</p>";
                         }
 
                         $stmt->close();
                         $conn->close();
                        
                     ?>
-                    <!-- PHPからJavaScriptへグループデータを渡す -->
                     <script>
                         const groupData = <?php echo json_encode($groups); ?>;
                     </script>
@@ -168,45 +158,43 @@
                     <div class="class-data" id="group-data-container"></div>
                 </div>
             </div>
-            <!-- 特徴量選択モーダル -->
             <div id="feature-modal" class="modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeFeatureModal()">&times;</span>
                     <h3><?= translate('teachertrue.php_175行目_特徴量を選択してください') ?></h3>
                     <form id="feature-form">
-                        <label><input type="checkbox" name="feature" value="notaccuracy">><?= translate('teachertrue.php_177行目_不正解率 (%)') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="Time">><?= translate('teachertrue.php_178行目_解答時間 (秒)') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="distance">><?= translate('teachertrue.php_179行目_距離') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="averageSpeed">><?= translate('teachertrue.php_180行目_平均速度') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="maxSpeed">><?= translate('teachertrue.php_181行目_最高速度') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="thinkingTime">><?= translate('teachertrue.php_182行目_考慮時間') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="answeringTime">><?= translate('teachertrue.php_183行目_第一ドロップ後解答時間') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="totalStopTime">><?= translate('teachertrue.php_184行目_合計静止時間') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="maxStopTime">><?= translate('teachertrue.php_185行目_最大静止時間') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime">><?= translate('teachertrue.php_186行目_合計DD間時間') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime">><?= translate('teachertrue.php_187行目_最大DD間時間') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDTime">><?= translate('teachertrue.php_188行目_合計DD時間') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="minDDTime">><?= translate('teachertrue.php_189行目_最小DD時間') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="DDCount">><?= translate('teachertrue.php_190行目_合計DD回数') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="groupingDDCount">><?= translate('teachertrue.php_191行目_グループ化DD回数') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="groupingCountbool">><?= translate('teachertrue.php_192行目_グループ化有無') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCount">><?= translate('teachertrue.php_193行目_x軸Uターン回数') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCount">><?= translate('teachertrue.php_194行目_y軸Uターン回数') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count1">><?= translate('teachertrue.php_195行目_レジスタ➡レジスタへの移動回数') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count2">><?= translate('teachertrue.php_196行目_レジスタ➡レジスタ外への移動回数') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count3">><?= translate('teachertrue.php_197行目_レジスタ外➡レジスタへの移動回数') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count1">><?= translate('teachertrue.php_198行目_レジスタ➡レジスタへの移動有無') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count2">><?= translate('teachertrue.php_199行目_レジスタ外➡レジスタへの移動有無') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count3">><?= translate('teachertrue.php_200行目_レジスタ外➡レジスタへの移動有無') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="registerDDCount">><?= translate('teachertrue.php_201行目_レジスタ外➡レジスタへの移動有無') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCountDD">><?= translate('teachertrue.php_202行目_x軸UターンDD回数') ?><</label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('teachertrue.php_203行目_y軸UターンDD回数') ?></label><br>
-                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime">><?= translate('teachertrue.php_204行目_レジスタ外➡レジスタへの移動有無DD') ?><</label><br>
+                        <label><input type="checkbox" name="feature" value="notaccuracy"><?= translate('teachertrue.php_177行目_不正解率 (%)') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="Time"><?= translate('teachertrue.php_178行目_解答時間 (秒)') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="distance"><?= translate('teachertrue.php_179行目_距離') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="averageSpeed"><?= translate('teachertrue.php_180行目_平均速度') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="maxSpeed"><?= translate('teachertrue.php_181行目_最高速度') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="thinkingTime"><?= translate('teachertrue.php_182行目_考慮時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="answeringTime"><?= translate('teachertrue.php_183行目_第一ドロップ後解答時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="totalStopTime"><?= translate('teachertrue.php_184行目_合計静止時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="maxStopTime"><?= translate('teachertrue.php_185行目_最大静止時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime"><?= translate('teachertrue.php_186行目_合計DD間時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime"><?= translate('teachertrue.php_187行目_最大DD間時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="maxDDTime"><?= translate('teachertrue.php_188行目_合計DD時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="minDDTime"><?= translate('teachertrue.php_189行目_最小DD時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="DDCount"><?= translate('teachertrue.php_190行目_合計DD回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="groupingDDCount"><?= translate('teachertrue.php_191行目_グループ化DD回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="groupingCountbool"><?= translate('teachertrue.php_192行目_グループ化有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="xUturnCount"><?= translate('teachertrue.php_193行目_x軸Uターン回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="yUturnCount"><?= translate('teachertrue.php_194行目_y軸Uターン回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count1"><?= translate('teachertrue.php_195行目_レジスタ➡レジスタへの移動回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count2"><?= translate('teachertrue.php_196行目_レジスタ➡レジスタ外への移動回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count3"><?= translate('teachertrue.php_197行目_レジスタ外➡レジスタへの移動回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count1"><?= translate('teachertrue.php_198行目_レジスタ➡レジスタへの移動有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_199行目_レジスタ外➡レジスタへの移動有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count3"><?= translate('teachertrue.php_200行目_レジスタ外➡レジスタへの移動有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="registerDDCount"><?= translate('teachertrue.php_201行目_レジスタに関する合計の移動回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="xUturnCountDD"><?= translate('teachertrue.php_202行目_x軸UターンD&D回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('teachertrue.php_203行目_y軸UターンD&D回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"><?= translate('teachertrue.php_204行目_最終ドロップ後時間') ?></label><br>
                         <button type="button" id="apply-features-btn"><?= translate('teachertrue.php_205行目_適用') ?></button>
                     </form>
                 </div>
             </div>
-            <!-- クラスタリング特徴量選択モーダル -->
             <div id="clustering-modal" class="modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeClusteringModal()">&times;</span>
@@ -214,7 +202,7 @@
                     <h3 style = "display : none;"><?= translate('teachertrue.php_214行目_クラスタ数を入力してください') ?></h3>
                         <input type="number" id="clustering-input" min="1" max="10" value="2" style = "display: none;">
                     <h3 style = "display : none;"><?= translate('teachertrue.php_216行目_クラスタリング手法を選択してください') ?></h3>
-                    <label for="clustering-method" style = "display: none;"><?= translate('teachertrue.php_217行目_クラスタリング手法:') ?></label>
+                    <label for="clustering-method" style = "display: none;"><?= translate('teachertrue.php_217行目_クラスタリング手法') ?></label>
                         <select id="clustering-method" style = "display: none;">
                             <option value="kmeans">K-Means</option>
                             <option value="xmeans">X-Means</option>
@@ -222,35 +210,33 @@
                         </select>
                     <h3><?= translate('teachertrue.php_223行目_クラスタリング特徴量を選択してください') ?></h3>
                     
-                        <!--<label><input type="checkbox" name="feature" value="notaccuracy">><?= translate('teachertrue.php_225行目_不正解率 (%)') ?><</label><br>-->
-                        <label title = "問題解答にかかった時間"><input type="checkbox" name="feature" value="Time">><?= translate('teachertrue.php_226行目_解答時間 (秒)') ?><</label><br>
-                        <label title = "問題解答中にマウスカーソルを移動した距離（ピクセル単位）"><input type="checkbox" name="feature" value="distance">><?= translate('teachertrue.php_227行目_距離') ?><</label><br>
-                        <label title = "問題解答中のマウスカーソルの速度の平均"><input type="checkbox" name="feature" value="averageSpeed">><?= translate('teachertrue.php_228行目_平均速度') ?><</label><br>
-                        <label title = "問題解答中のマウスカーソルの速度の最大値"><input type="checkbox" name="feature" value="maxSpeed">><?= translate('teachertrue.php_229行目_最大速度') ?><</label><br>
-                        <label title = "解答開始から最初のドラッグが行われるまでの時間"><input type="checkbox" name="feature" value="thinkingTime">><?= translate('teachertrue.php_230行目_第一ドラッグ前時間') ?><</label><br>
-                        <label title = "最初のドラッグから解答終了までの時間"><input type="checkbox" name="feature" value="answeringTime">><?= translate('teachertrue.php_231行目_第一ドラッグ後時間') ?><</label><br>
-                        <label title = "マウスカーソルが静止していた時間の合計値"><input type="checkbox" name="feature" value="totalStopTime">><?= translate('teachertrue.php_232行目_合計静止時間') ?><</label><br>
-                        <label title = "マウスカーソルが静止していた時間の最大値"><input type="checkbox" name="feature" value="maxStopTime">><?= translate('teachertrue.php_233行目_最大静止時間') ?><</label><br>
-                        <label title = "D&Dから次のD&Dまでの時間の合計値"><input type="checkbox" name="feature" value="totalDDIntervalTime">><?= translate('teachertrue.php_234行目_合計D&D間時間') ?><</label><br>
-                        <label title = "D&Dから次のD&Dまでの時間の最大値"><input type="checkbox" name="feature" value="maxDDIntervalTime">><?= translate('teachertrue.php_235行目_最大D&D間時間') ?><</label><br>
-                        <label title = "D&D中の時間の合計値"><input type="checkbox" name="feature" value="maxDDTime">><?= translate('teachertrue.php_236行目_合計D&D時間') ?><</label><br>
-                        <label title = "D&D中の時間の最小値"><input type="checkbox" name="feature" value="minDDTime">><?= translate('teachertrue.php_237行目_最小D&D時間') ?><</label><br>
-                        <label title = "D&Dが行われた回数"><input type="checkbox" name="feature" value="DDCount">><?= translate('teachertrue.php_238行目_合計D&D回数') ?><</label><br>
-                        <label title = "グルーピングが使用された回数"><input type="checkbox" name="feature" value="groupingDDCount">><?= translate('teachertrue.php_239行目_グループ化回数') ?><</label><br>
-                        <label title = "グルーピング機能の使用の有無"><input type="checkbox" name="feature" value="groupingCountbool">><?= translate('teachertrue.php_240行目_グループ化有無') ?><</label><br>
-                        <label title = "横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCount">><?= translate('teachertrue.php_241行目_x軸Uターン回数') ?><</label><br>
-                        <label title = "縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCount">><?= translate('teachertrue.php_242行目_y軸Uターン回数') ?><</label><br>
-                        <label title = "マウスカーソルがレジスタからレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count1">><?= translate('teachertrue.php_243行目_レジスタ➡レジスタへの移動回数') ?><</label><br>
-                        <label title = "マウスカーソルがレジスタからレジスタ外に移動した回数"><input type="checkbox" name="feature" value="register_move_count2">><?= translate('teachertrue.php_244行目_レジスタ➡レジスタ外への移動回数') ?><</label><br>
-                        <label title = "マウスカーソルがレジスタ外からレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count3">><?= translate('teachertrue.php_245行目_レジスタ外➡レジスタへの移動回数') ?><</label><br>
-                        <label title = "マウスカーソルがレジスタからレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count1">><?= translate('teachertrue.php_246行目_レジスタ➡レジスタへの移動有無') ?><</label><br>
-                        <label title = "マウスカーソルがレジスタからレジスタ外に移動したかの有無"><input type="checkbox" name="feature" value="register01count2">><?= translate('teachertrue.php_247行目_レジスタ➡レジスタ外への移動有無') ?><</label><br>
-                        <label title = "マウスカーソルがレジスタ外からレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count3">><?= translate('teachertrue.php_248行目_レジスタ外➡レジスタへの移動有無') ?><</label><br>
-                        <label title = "レジスタを触れた移動回数の合計"><input type="checkbox" name="feature" value="registerDDCount">><?= translate('teachertrue.php_249行目_レジスタに関する合計の移動回数') ?><</label><br>
-                        <label title = "D&D中に横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCountDD">><?= translate('teachertrue.php_250行目_x軸UターンD&D回数') ?><</label><br>
+                        <label title = "問題解答にかかった時間"><input type="checkbox" name="feature" value="Time"><?= translate('teachertrue.php_226行目_解答時間 (秒)') ?></label><br>
+                        <label title = "問題解答中にマウスカーソルを移動した距離（ピクセル単位）"><input type="checkbox" name="feature" value="distance"><?= translate('teachertrue.php_227行目_距離') ?></label><br>
+                        <label title = "問題解答中のマウスカーソルの速度の平均"><input type="checkbox" name="feature" value="averageSpeed"><?= translate('teachertrue.php_228行目_平均速度') ?></label><br>
+                        <label title = "問題解答中のマウスカーソルの速度の最大値"><input type="checkbox" name="feature" value="maxSpeed"><?= translate('teachertrue.php_229行目_最大速度') ?></label><br>
+                        <label title = "解答開始から最初のドラッグが行われるまでの時間"><input type="checkbox" name="feature" value="thinkingTime"><?= translate('teachertrue.php_230行目_第一ドラッグ前時間') ?></label><br>
+                        <label title = "最初のドラッグから解答終了までの時間"><input type="checkbox" name="feature" value="answeringTime"><?= translate('teachertrue.php_231行目_第一ドラッグ後時間') ?></label><br>
+                        <label title = "マウスカーソルが静止していた時間の合計値"><input type="checkbox" name="feature" value="totalStopTime"><?= translate('teachertrue.php_232行目_合計静止時間') ?></label><br>
+                        <label title = "マウスカーソルが静止していた時間の最大値"><input type="checkbox" name="feature" value="maxStopTime"><?= translate('teachertrue.php_233行目_最大静止時間') ?></label><br>
+                        <label title = "D&Dから次のD&Dまでの時間の合計値"><input type="checkbox" name="feature" value="totalDDIntervalTime"><?= translate('teachertrue.php_234行目_合計D&D間時間') ?></label><br>
+                        <label title = "D&Dから次のD&Dまでの時間の最大値"><input type="checkbox" name="feature" value="maxDDIntervalTime"><?= translate('teachertrue.php_235行目_最大D&D間時間') ?></label><br>
+                        <label title = "D&D中の時間の合計値"><input type="checkbox" name="feature" value="maxDDTime"><?= translate('teachertrue.php_236行目_合計D&D時間') ?></label><br>
+                        <label title = "D&D中の時間の最小値"><input type="checkbox" name="feature" value="minDDTime"><?= translate('teachertrue.php_237行目_最小D&D時間') ?></label><br>
+                        <label title = "D&Dが行われた回数"><input type="checkbox" name="feature" value="DDCount"><?= translate('teachertrue.php_238行目_合計D&D回数') ?></label><br>
+                        <label title = "グルーピングが使用された回数"><input type="checkbox" name="feature" value="groupingDDCount"><?= translate('teachertrue.php_239行目_グループ化回数') ?></label><br>
+                        <label title = "グルーピング機能の使用の有無"><input type="checkbox" name="feature" value="groupingCountbool"><?= translate('teachertrue.php_240行目_グループ化有無') ?></label><br>
+                        <label title = "横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCount"><?= translate('teachertrue.php_241行目_x軸Uターン回数') ?></label><br>
+                        <label title = "縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCount"><?= translate('teachertrue.php_242行目_y軸Uターン回数') ?></label><br>
+                        <label title = "マウスカーソルがレジスタからレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count1"><?= translate('teachertrue.php_243行目_レジスタ➡レジスタへの移動回数') ?></label><br>
+                        <label title = "マウスカーソルがレジスタからレジスタ外に移動した回数"><input type="checkbox" name="feature" value="register_move_count2"><?= translate('teachertrue.php_244行目_レジスタ➡レジスタ外への移動回数') ?></label><br>
+                        <label title = "マウスカーソルがレジスタ外からレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count3"><?= translate('teachertrue.php_245行目_レジスタ外➡レジスタへの移動回数') ?></label><br>
+                        <label title = "マウスカーソルがレジスタからレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count1"><?= translate('teachertrue.php_246行目_レジスタ➡レジスタへの移動有無') ?></label><br>
+                        <label title = "マウスカーソルがレジスタからレジスタ外に移動したかの有無"><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_247行目_レジスタ➡レジスタ外への移動有無') ?></label><br>
+                        <label title = "マウスカーソルがレジスタ外からレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count3"><?= translate('teachertrue.php_248行目_レジスタ外➡レジスタへの移動有無') ?></label><br>
+                        <label title = "レジスタを触れた移動回数の合計"><input type="checkbox" name="feature" value="registerDDCount"><?= translate('teachertrue.php_249行目_レジスタに関する合計の移動回数') ?></label><br>
+                        <label title = "D&D中に横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCountDD"><?= translate('teachertrue.php_250行目_x軸UターンD&D回数') ?></label><br>
                         <label title = "D&D中に縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('teachertrue.php_251行目_y軸UターンD&D回数') ?></label><br>
-                        <label title = "最終ドロップから解答終了までの時間"><input type="checkbox" name="feature" value="FromlastdropToanswerTime">><?= translate('teachertrue.php_252行目_最終ドロップ後時間') ?><</label><br>
-                        <!-- 必要な特徴量を追加 -->
+                        <label title = "最終ドロップから解答終了までの時間"><input type="checkbox" name="feature" value="FromlastdropToanswerTime"><?= translate('teachertrue.php_252行目_最終ドロップ後時間') ?></label><br>
                         <button type="button" id="apply-clustering-btn"><?= translate('teachertrue.php_254行目_適用') ?></button>
                     </form>
                 </div>
@@ -262,7 +248,6 @@
                 function openEstimatePage(groupIndex) {
                     const group = groupData[groupIndex];
                     if (!group || !group.students) {
-                        //alert("<?= translate('teachertrue.php_265行目_グループに学習者が登録されていません。') ?>")
                         const message = <?= json_encode(translate('teachertrue.php_265行目_グループに学習者が登録されていません。')) ?>;
                         alert(message);
                         return;
@@ -279,7 +264,6 @@
                 function openClassEstimatePage(classIndex) {
                     const classInfo = classData[classIndex];
                     if (!classInfo || !classInfo.class_students) {
-                        //alert("クラスに学習者が登録されていません。");
                         const message = <?= json_encode(translate('teachertrue.php_283行目_クラスに学習者が登録されていません。')) ?>;
                         alert(message);
                         return;
@@ -405,8 +389,8 @@
                         groupContainer.classList.add('class-card');
                         groupContainer.innerHTML = `
                             <h3>${group.group_name}
-                                <button onclick="openFeatureModal(${index}, false)"><?= translate('teachertrue.php_404行目_グラフ描画特徴量') ?></button>
-                                <button onclick="openEstimatePage(${index})"><?= translate('teachertrue.php_405行目_迷い推定') ?></button>
+                                <button onclick="openFeatureModal(${index}, false)">${ <?= json_encode(translate('teachertrue.php_404行目_グラフ描画特徴量')) ?>}</button>
+                                <button onclick="openEstimatePage(${index})">${ <?= json_encode(translate('teachertrue.php_405行目_迷い推定')) ?>}</button>
 
                             </h3>
                             <div class="chart-row">
@@ -485,7 +469,6 @@
                         const notaccuracyData = group.students.map(student => student.notaccuracy);
 
                         if (!otherFeature) {
-                            //alert("不正解率と一緒にもう1つの特徴量を選択してください。");
                             const message = <?= json_encode(translate('teachertrue.php_489行目_不正解率と一緒にもう1つの特徴量を選択してください。')) ?>;
                             alert(message);
                             return;
@@ -557,18 +540,21 @@
                             const canvasId = isOverall
                                 ? `class-dual-axis-chart-${chartIndex}`
                                 : `dual-axis-chart-${chartIndex}`;
+                            
+                            const label1_text = <?= json_encode(translate('teachertrue.php_567行目_不正解率(%)')) ?>;
+                            const label2_text = `${otherFeature} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
 
                             createDualAxisChart(
                                 document.getElementById(canvasId).getContext('2d'),
                                 labels,
                                 notaccuracyData,
                                 otherFeatureData,
-                                '不正解率(%)',
-                                `${otherFeature} 平均`,
+                                label1_text,
+                                label2_text,
                                 'rgba(54, 162, 235, 0.6)',
                                 'rgba(255, 99, 132, 0.6)',
-                                '不正解率(%)',
-                                `${otherFeature} 平均`,
+                                label1_text,
+                                label2_text,
                                 chartArray,
                                 chartIndex
                             );
@@ -581,7 +567,7 @@
                     } else {
                         // 通常の2つの特徴量での処理
                         if (selectedFeatures.length !== 2) {
-                            alert("2つの特徴量を選択してください。");
+                            alert(<?= json_encode(translate('teachertrue.php_598行目_2つの特徴量を選択してください。')) ?>);
                             return;
                         }
 
@@ -620,17 +606,20 @@
                                 ? `class-dual-axis-chart-${chartIndex}`
                                 : `dual-axis-chart-${chartIndex}`;
 
+                            const label1_text = `${selectedFeatures[0]} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
+                            const label2_text = `${selectedFeatures[1]} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
+
                             createDualAxisChart(
                                 document.getElementById(canvasId).getContext('2d'),
                                 labels,
                                 featureAData,
                                 featureBData,
-                                `${selectedFeatures[0]} 平均`,
-                                `${selectedFeatures[1]} 平均`,
+                                label1_text,
+                                label2_text,
                                 'rgba(54, 162, 235, 0.6)',
                                 'rgba(255, 99, 132, 0.6)',
-                                `${selectedFeatures[0]} 平均`,
-                                `${selectedFeatures[1]} 平均`,
+                                label1_text,
+                                label2_text,
                                 chartArray,
                                 chartIndex
                             );
@@ -650,9 +639,8 @@
             </script>
 
             <div class = "all-overview">
-                <h2><?= translate('teachertrue.php_646行目_クラス単位のデータ') ?></h2>
+                <h2><?= translate('teachertrue.php_671行目_クラス単位のデータ') ?></h2>
                 <div class = "class-data">
-                    <!--ここは自身が受け持つクラスの全ての学習者のデータ表示-->
                     <?php
                         require "../dbc.php";
                         $stmt = $conn->prepare("SELECT * FROM ClassTeacher WHERE TID = ?");
@@ -748,9 +736,9 @@
                             classContainer.classList.add('class-card');
                             classContainer.innerHTML = `
                                 <h3>${classInfo.class_name}
-                                    <button onclick="openClassFeatureModal(${index})"><?= translate('teachertrue.php_744行目_グラフ描画特徴量') ?></button>
-                                    <button onclick="openClassEstimatePage(${index})"><?= translate('teachertrue.php_745行目_迷い推定') ?></button>
-                                    <button onclick="openClusteringModal(${index})"><?= translate('teachertrue.php_746行目_クラスタリング') ?></button>
+                                    <button onclick="openClassFeatureModal(${index})">${ <?= json_encode(translate('teachertrue.php_769行目_グラフ描画特徴量')) ?>}</button>
+                                    <button onclick="openClassEstimatePage(${index})">${ <?= json_encode(translate('teachertrue.php_770行目_迷い推定')) ?>}</button>
+                                    <button onclick="openClusteringModal(${index})">${ <?= json_encode(translate('teachertrue.php_771行目_クラスタリング')) ?>}</button>
                                 </h3>
 
                                 <div class="chart-row">
@@ -769,12 +757,12 @@
                                 class_labels,
                                 class_notaccuracyData,
                                 class_timeData,
-                                '不正解率(%)',
-                                '解答時間(秒)',
+                                <?= json_encode(translate('teachertrue.php_791行目_不正解率(%)')) ?>,
+                                <?= json_encode(translate('teachertrue.php_792行目_解答時間(秒)')) ?>,
                                 'rgba(54, 162, 235, 0.6)',
                                 'rgba(255, 99, 132, 0.6)',
-                                '不正解率(%)',
-                                '解答時間(秒)',
+                                <?= json_encode(translate('teachertrue.php_795行目_不正解率(%)')) ?>,
+                                <?= json_encode(translate('teachertrue.php_796行目_解答時間(秒)')) ?>,
                                 existingOverallCharts,  // 全体の成績グラフ用の配列
                                 index
                             );
@@ -799,7 +787,7 @@
                             const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
                                 .map(input => input.value);
                             if (selectedFeatures.length === 0) {
-                                alert("少なくとも1つの特徴量を選択してください。");
+                                alert(<?= json_encode(translate('teachertrue.php_822行目_少なくとも1つの特徴量を選択してください。')) ?>);
                                 return;
                             }
                             // クラスタ数を取得
@@ -826,35 +814,23 @@
                                 },
                                 body: params.toString()
                             })
-                                /*
-                                .then(response => response.json())
+                                .then(response => response.text()) // JSON の代わりにテキストとして受け取る
                                 .then(data => {
-                                    if (data.error) {
-                                        alert(data.error);
-                                        return;
-                                    }
-                                    console.log("サーバーからのレスポンス:", data); // 詳細なデバッグログ
-                                    closeClusteringModal();
-                                    displayClusteringResultsFromJSON(data);
-                                })
-                                    */
-                                    .then(response => response.text()) // JSON の代わりにテキストとして受け取る
-                                    .then(data => {
-                                        console.log("サーバーからのレスポンス:", data); // レスポンスを確認
-                                        try {
-                                            jsonData = JSON.parse(data); // JSON に変換
-                                            if (jsonData.error) {
-                                                alert(jsonData.error);
-                                                return;
-                                            }
-                                            closeClusteringModal();
-                                            displayClusteringResultsFromJSON(jsonData);
-                                            displayClusteringResults_groupFromJSON(jsonData);
-                                        } catch (e) {
-                                            console.error('JSON 解析エラー:', e);
-                                            console.error('レスポンス内容:', data);
+                                    console.log("サーバーからのレスポンス:", data); // レスポンスを確認
+                                    try {
+                                        jsonData = JSON.parse(data); // JSON に変換
+                                        if (jsonData.error) {
+                                            alert(jsonData.error);
+                                            return;
                                         }
-                                    })
+                                        closeClusteringModal();
+                                        displayClusteringResultsFromJSON(jsonData);
+                                        displayClusteringResults_groupFromJSON(jsonData);
+                                    } catch (e) {
+                                        console.error('JSON 解析エラー:', e);
+                                        console.error('レスポンス内容:', data);
+                                    }
+                                })
                                 .catch(error => console.error('エラー:', error));
                         };
                         // JSONファイルのデータを可視化
@@ -888,7 +864,7 @@
                                 checkbox.value = clusterKey;
                                 checkbox.className = 'cluster-checkbox';
 
-                                clusterHeader.textContent = `クラスタ ${clusterKey}`;
+                                clusterHeader.textContent = <?= json_encode(translate('teachertrue.php_907行目_クラスタ')) ?> + ` ${clusterKey}`;
                                 clusterHeader.prepend(checkbox);
 
                                 clusterDiv.appendChild(clusterHeader);
@@ -899,28 +875,17 @@
                                 Object.keys(clusterPoints).forEach(groupIndex => {
                                     console.log('groupIndex:', groupIndex);
                                     const listItem = document.createElement('li');
-                                    listItem.textContent = `学生:${clusterPoints[groupIndex].name}`;
+                                    listItem.textContent = <?= json_encode(translate('teachertrue.php_918行目_学生')) ?> + `:${clusterPoints[groupIndex].name}`;
                                     console.log('listItem:', listItem);
                                     studentList.appendChild(listItem);
                                 });
                                 clusterDiv.appendChild(studentList);
                                 
-                                /*
-                                // グループ化ボタンを追加
-                                const groupButton = document.createElement('button');
-                                groupButton.textContent = 'グループ化';
-                                groupButton.onclick = () => {
-                                    groupStudents(clusterKey, clusterPoints);
-                                };
-                                clusterDiv.appendChild(groupButton);
-                                */
-
-                                // コンテナにクラスタ情報を追加
                                 container.appendChild(clusterDiv);
                             });
                             // グループ化ボタンを作成
                             const groupButton = document.createElement('button');
-                            groupButton.textContent = 'グループ化';
+                            groupButton.textContent = <?= json_encode(translate('teachertrue.php_929行目_グループ化')) ?>;
                             groupButton.onclick = () => {
                                 groupSelectedClusters(clusters);
                             };
@@ -931,7 +896,7 @@
                             const selectedCheckboxes = document.querySelectorAll('.cluster-checkbox:checked');
 
                             if (selectedCheckboxes.length === 0) {
-                                alert('少なくとも1つのクラスタを選択してください。');
+                                alert(<?= json_encode(translate('teachertrue.php_941行目_少なくとも1つのクラスタを選択してください。')) ?>);
                                 return;
                             }
 
@@ -939,7 +904,7 @@
                             const clustersData = [];
                             selectedCheckboxes.forEach(checkbox => {
                                 const clusterKey = checkbox.value;
-                                const clusterName = `クラスタ ${clusterKey}`;
+                                const clusterName = <?= json_encode(translate('teachertrue.php_907行目_クラスタ')) ?> + ` ${clusterKey}`;
                                 const clusterData = clusters[clusterKey];
                                 const studentIds = clusterData.map(student => student.id);
 
@@ -959,7 +924,7 @@
                             })
                             .then(response => response.text())
                             .then(data => {
-                                alert('選択されたクラスタのグループ化が完了しました。');
+                                alert(<?= json_encode(translate('teachertrue.php_971行目_選択されたクラスタのグループ化が完了しました。')) ?>);
                                 console.log(data);
                                 //ページ再読み込み
                                 window.location.reload();
@@ -969,7 +934,6 @@
                             });
                         }
 
-
                         
                         function displayClusteringResultsFromJSON(jsonData) {
                             const container = document.getElementById('cluster-data');
@@ -978,8 +942,8 @@
                                 return;
                             }
                             container.innerHTML = ''; // 前の内容をクリア
-                            // *** ポップアップメッセージの追加 ***
-                            alert("クラスタリング機能によりグルーピングされた学習者群は、ベータ機能のため誤ったグルーピングが行われている可能性があります。クラスタリング結果のグラフを確認し，明らかに誤ったグルーピングがある場合は，特徴量を変更し，再度クラスタリングを実行してください。");
+                            
+                            alert(<?= json_encode(translate('teachertrue.php_990行目_クラスタリング機能によりグルーピングされた学習者群は...')) ?>);
 
                             // 新しい Canvas を作成
                             const canvas = document.createElement('canvas');
@@ -988,39 +952,28 @@
                             canvas.height = 400;
                             container.appendChild(canvas);
 
-                            
-
                             const ctx = canvas.getContext('2d');
 
-                            // clusters を取得
                             const clusterData = jsonData.clusters;
-                            //console.log('Cluster Data:', clusterData);
-                            // データセットを生成
+                            
                             const clusterColors = [
                                 'rgba(255, 0, 0, 0.7)',  // クラスタ0の色(赤)
                                 'rgba(0, 255, 0, 0.7)', // クラスタ1の色（青）
                                 'rgba(0, 0, 255, 0.7)', // クラスタ2の色（緑）
                                 'rgba(255, 255, 0, 0.7)', // クラスタ3の色（黄）
                                 'rgba(255, 0, 255, 0.7)', // クラスタ4の色（紫）
-                                // 必要に応じて色を追加
                             ];
                             
                             const datasets = Object.keys(clusterData).flatMap(clusterKey => {
-                                const clusterPoints = clusterData[clusterKey]; // クラスタごとのデータポイントを取得
-                                //console.log(`Cluster ${clusterKey} Points:`, clusterPoints);
-
-                                // クラスタの色を取得
+                                const clusterPoints = clusterData[clusterKey]; 
                                 const color = clusterColors[parseInt(clusterKey)] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`;
 
-                                // クラスタ内の各ポイントを処理
                                 return clusterPoints.flatMap((pointGroup, groupIndex) =>
                                     pointGroup.map((point, pointIndex) => {
-                                        //console.log(`Cluster ${clusterKey}, Group ${groupIndex}, Point ${pointIndex}:`, point);
-
                                         return {
-                                            label: `Cluster ${groupIndex}`, // クラスタ名
-                                            data: [{ x: point.pca1, y: point.pca2 }], // 散布図データ形式
-                                            backgroundColor: clusterColors[groupIndex] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`, // クラスタの色を設定
+                                            label: `Cluster ${groupIndex}`,
+                                            data: [{ x: point.pca1, y: point.pca2 }],
+                                            backgroundColor: clusterColors[groupIndex] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`,
                                             borderColor: 'rgba(0, 0, 0, 1)',
                                             borderWidth: 1,
                                             pointRadius: 5
@@ -1029,16 +982,10 @@
                                 );
                             });
                         
-
-                            //console.log('Datasets:', datasets);
-
-
-                            // 既存のチャートを破棄
                             if (currentChart) {
                                 currentChart.destroy();
                             }
 
-                            // Chart.js を使って散布図を作成
                             currentChart = new Chart(ctx, {
                                 type: 'scatter',
                                 data: {
@@ -1048,20 +995,20 @@
                                     plugins: {
                                         title: {
                                             display: true,
-                                            text: 'クラスタリング結果 (PCA可視化)',
+                                            text: <?= json_encode(translate('teachertrue.php_1049行目_クラスタリング結果 (PCA可視化)')) ?>,
                                         },
                                     },
                                     scales: {
                                         x: {
                                             title: {
                                                 display: true,
-                                                text: '次元1',
+                                                text: <?= json_encode(translate('teachertrue.php_1056行目_次元1')) ?>,
                                             },
                                         },
                                         y: {
                                             title: {
                                                 display: true,
-                                                text: '次元2',
+                                                text: <?= json_encode(translate('teachertrue.php_1062行目_次元2')) ?>,
                                             },
                                         },
                                     },
@@ -1069,12 +1016,6 @@
                             });
                             
                         }
-                        
- 
-
-
-
-                        
                     </script>
                 </div>
             </div>
