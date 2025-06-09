@@ -1,5 +1,6 @@
 <?php
-session_start();
+include '../lang.php'; // 多言語対応
+// session_start(); // lang.phpでセッションが開始されるため不要
 require "../dbc.php";
 
 // フォームからの入力を取得（GETメソッド）
@@ -43,7 +44,7 @@ if (!empty($uids)) {
 $sql .= " AND COALESCE(acc.accuracy, 0) BETWEEN ? AND ?";
 $params[] = $accuracy_min;
 $params[] = $accuracy_max;
-$types .= 'ii';
+$types .= 'dd'; // 小数点を含む可能性があるため 'd' (double) を使用
 
 // 回答数での絞り込み
 $sql .= " AND COALESCE(acc.total_answers, 0) BETWEEN ? AND ?";
@@ -53,18 +54,26 @@ $types .= 'ii';
 
 // クエリの実行
 $stmt = $conn->prepare($sql);
+if ($stmt === false) {
+    // prepare() が失敗した場合のエラーハンドリング
+    die("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+}
 $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
 
 // HTMLを生成して返す
 while ($row = $result->fetch_assoc()) {
-    echo "<li class = 'student-item'>
+    $name_label = translate('search-students.php_71行目_名前');
+    $accuracy_label = translate('search-students.php_72行目_正解率');
+    $answers_label = translate('search-students.php_73行目_回答数');
+
+    echo "<li class='student-item'>
             <label>
                 <input type='checkbox' name='students[]' value='{$row['uid']}'> 
-                <p class='student-detail'><span class='label'>名前:</span> {$row['Name']}</p>
-                <p class='student-detail'><span class='label'>正解率:</span> {$row['accuracy']}%</p>
-                <p class='student-detail'><span class='label'>回答数:</span> {$row['total_answers']}</p>
+                <p class='student-detail'><span class='label'>{$name_label}:</span> {$row['Name']}</p>
+                <p class='student-detail'><span class='label'>{$accuracy_label}:</span> " . round($row['accuracy'], 2) . "%</p>
+                <p class='student-detail'><span class='label'>{$answers_label}:</span> {$row['total_answers']}</p>
             </label>
           </li>";
 }

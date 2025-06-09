@@ -2,6 +2,10 @@
 // エラーレポートの設定
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
+
+// lang.phpをインクルードして多言語対応機能を利用可能にする
+include '../lang.php'; 
+
 require "../dbc.php";
 require "log_write.php";
 
@@ -38,7 +42,8 @@ if ($output) {
     logActivity($conn, $_SESSION['MemberID'], 'clustering_completed', ['features' => $features, 'cluster_count' => $clusterCount], $output);
     echo $output;
 } else {
-    echo json_encode(['error' => 'クラスタリング処理中にエラーが発生しました。']);
+    // エラーメッセージを多言語対応させる
+    echo json_encode(['error' => translate('perform_clustering_hesitate_accuracy.php_38行目_クラスタリング処理中にエラーが発生しました')]);
 }
 
 // 一時ファイルを削除

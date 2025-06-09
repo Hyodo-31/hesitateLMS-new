@@ -1,42 +1,42 @@
+<?php include '../lang.php'; ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= $lang ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教師用ダッシュボード</title>
+    <title><?= translate('submit-test.php_5行目_教師用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
 <body>
     <?php
-        session_start();
+        // session_start(); // lang.phpでセッションスタート
         require "../dbc.php";
     ?>
     <header>
-        <div class="logo">英単語並べ替え問題LMS</div>
+        <div class="logo"><?= translate('submit-test.php_18行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php">ホーム</a></li>
-                <li><a href="#">コース管理</a></li>
-                <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-                <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
-                <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+                <li><a href="teachertrue.php"><?= translate('submit-test.php_21行目_ホーム') ?></a></li>
+                <li><a href="#"><?= translate('submit-test.php_22行目_コース管理') ?></a></li>
+                <li><a href="machineLearning_sample.php"><?= translate('submit-test.php_23行目_迷い推定・機械学習') ?></a></li>
+                <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-test.php_24行目_学生分析') ?></a></li>
+                <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-test.php_25行目_問題分析') ?></a></li>
             </ul>
         </nav>
     </header>
     <div class="container">
         <aside>
             <ul>
-                <li><a href="teachertrue.php">ホーム</a></li>
-                <li><a href="#">コース管理</a></li>
-                <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-                <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
-                <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+                <li><a href="teachertrue.php"><?= translate('submit-test.php_31行目_ホーム') ?></a></li>
+                <li><a href="#"><?= translate('submit-test.php_32行目_コース管理') ?></a></li>
+                <li><a href="machineLearning_sample.php"><?= translate('submit-test.php_33行目_迷い推定・機械学習') ?></a></li>
+                <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-test.php_34行目_学生分析') ?></a></li>
+                <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-test.php_35行目_問題分析') ?></a></li>
             </ul>
         </aside>
         <main>
-            <!-- ここにコンテンツを入れる -->
             <?php
                 // POSTリクエストが送信されたか確認
                 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -94,14 +94,14 @@
                         }
 
                         // 完了メッセージ
-                        echo "テストが正常に作成されました！";
+                        echo translate('submit-test.php_103行目_テストが正常に作成されました');
                     } else {
                         // エラーメッセージ
-                        echo "テスト名、対象、または問題が選択されていません。";
+                        echo translate('submit-test.php_106行目_テスト名対象または問題が選択されていません');
                     }
                 } else {
                     // 無効なリクエストへの対応
-                    echo "無効なリクエストです。";
+                    echo translate('submit-test.php_109行目_無効なリクエストです');
                 }
 
                 // データベース接続を閉じる

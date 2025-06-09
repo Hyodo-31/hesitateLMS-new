@@ -1,31 +1,32 @@
 <?php
+include '../lang.php';
 require "../dbc.php";
 //GET受け取り
 $uid = $_GET['uid'] ? $_GET['uid'] : null;
 $wid = $_GET['wid'] ? $_GET['wid'] : null;
 
 $grammarMap = [
-    '1'  => '仮定法，命令法',
-    '2'  => 'It, There',
-    '3'  => '無生物主語',
-    '4'  => '接続詞',
-    '5'  => '倒置',
-    '6'  => '関係詞',
-    '7'  => '間接話法',
-    '8'  => '前置詞(句)',
-    '9'  => '分詞',
-    '10' => '動名詞',
-    '11' => '不定詞',
-    '12' => '受動態',
-    '13' => '助動詞',
-    '14' => '比較',
-    '15' => '否定',
-    '16' => '後置修飾',
-    '17' => '完了形，時制',
-    '18' => '句動詞(群動詞)',
-    '19' => '挿入',
-    '20' => '使役',
-    '21' => '補語/二重目的語',
+    '1'  => translate('get_answer_info.php_8行目_仮定法, 命令法'),
+    '2'  => translate('get_answer_info.php_9行目_It, There'),
+    '3'  => translate('get_answer_info.php_10行目_無生物主語'),
+    '4'  => translate('get_answer_info.php_11行目_接続詞'),
+    '5'  => translate('get_answer_info.php_12行目_倒置'),
+    '6'  => translate('get_answer_info.php_13行目_関係詞'),
+    '7'  => translate('get_answer_info.php_14行目_間接話法'),
+    '8'  => translate('get_answer_info.php_15行目_前置詞(句)'),
+    '9'  => translate('get_answer_info.php_16行目_分詞'),
+    '10' => translate('get_answer_info.php_17行目_動名詞'),
+    '11' => translate('get_answer_info.php_18行目_不定詞'),
+    '12' => translate('get_answer_info.php_19行目_受動態'),
+    '13' => translate('get_answer_info.php_20行目_助動詞'),
+    '14' => translate('get_answer_info.php_21行目_比較'),
+    '15' => translate('get_answer_info.php_22行目_否定'),
+    '16' => translate('get_answer_info.php_23行目_後置修飾'),
+    '17' => translate('get_answer_info.php_24行目_完了形, 時制'),
+    '18' => translate('get_answer_info.php_25行目_句動詞(群動詞)'),
+    '19' => translate('get_answer_info.php_26行目_挿入'),
+    '20' => translate('get_answer_info.php_27行目_使役'),
+    '21' => translate('get_answer_info.php_28行目_補語二重目的語'),
 ];
 
 // WIDに対応するstart列を取得
@@ -116,9 +117,9 @@ $widinfo = [];
 
 while($row = $result->fetch_assoc()){
     //TFとUnderstandの値を日本語に変換
-    $tfText = $row['TF'] == 1 ? '正解' : '不正解';
-    $understandText = $row['Understand'] == 4 ? '迷い無し' 
-                    : ($row['Understand'] == 2 ? '迷い有り' : '不明');
+    $tfText = $row['TF'] == 1 ? translate('get_answer_info.php_149行目_正解') : translate('get_answer_info.php_149行目_不正解');
+    $understandText = $row['Understand'] == 4 ? translate('get_answer_info.php_150行目_迷い無し')
+                    : ($row['Understand'] == 2 ? translate('get_answer_info.php_151行目_迷い有り') : translate('get_answer_info.php_151行目_不明'));
 
     // grammar の #区切り → 日本語ラベル 例: "#6#7#" → "6#7" → ["6","7"] → ["関係詞","間接話法"]
     $rawGrammar = trim($row['grammar'], '#');   
@@ -131,7 +132,7 @@ while($row = $result->fetch_assoc()){
         if (isset($grammarMap[$gid])) {
             $translatedGrammarList[] = $grammarMap[$gid];
         } else {
-            $translatedGrammarList[] = '未定義:' . $gid;
+            $translatedGrammarList[] = translate('get_answer_info.php_163行目_未定義') . ':' . $gid;
         }
     }
     $grammarText = implode('，', $translatedGrammarList);
@@ -157,7 +158,7 @@ while($row = $result->fetch_assoc()){
                     $convertedOneGroup[] = $startWords[$idx];
                 } else {
                     // インデックスが範囲外の場合の処理(??にするなど)
-                    $convertedOneGroup[] = '??';
+                    $convertedOneGroup[] = translate('get_answer_info.php_186行目_不明な単語');
                 }
             }
             // 例: ["apple","banana"] → "apple banana"

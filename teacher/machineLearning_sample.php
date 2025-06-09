@@ -1,9 +1,10 @@
+<?php include '../lang.php'; ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= $lang ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教師用ダッシュボード</title>
+    <title><?= translate('machineLearning_sample.php_5行目_教師用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/machineLearning_styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
@@ -50,21 +51,21 @@
         $timestamp = date('YmdHis');
     ?>
     <header>
-        <div class="logo">データ分析ページ</div>
+        <div class="logo"><?= translate('machineLearning_sample.php_58行目_データ分析ページ') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php">ホーム</a></li>
-                <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-                <li><a href="register-student.php">新規学生登録</a></li>
+                <li><a href="teachertrue.php"><?= translate('machineLearning_sample.php_61行目_ホーム') ?></a></li>
+                <li><a href="machineLearning_sample.php"><?= translate('machineLearning_sample.php_62行目_迷い推定・機械学習') ?></a></li>
+                <li><a href="register-student.php"><?= translate('machineLearning_sample.php_63行目_新規学生登録') ?></a></li>
             </ul>
         </nav>
     </header>
     <div class="container">
         <aside>
             <ul>
-                <li><a href="#">ダッシュボード</a></li>
-                <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-                <li><a href="register-student.php">新規学生登録</a></li>
+                <li><a href="#"><?= translate('machineLearning_sample.php_69行目_ダッシュボード') ?></a></li>
+                <li><a href="machineLearning_sample.php"><?= translate('machineLearning_sample.php_70行目_迷い推定・機械学習') ?></a></li>
+                <li><a href="register-student.php"><?= translate('machineLearning_sample.php_71行目_新規学生登録') ?></a></li>
             </ul>
         </aside>
         <main>
@@ -73,7 +74,7 @@
             window.addEventListener('load', function() {
                 var loadTime = performance.now();
                 console.log('ページの表示時間: ' + loadTime.toFixed(2) + 'ミリ秒');
-                document.getElementById('loadTime').textContent = 'ページの表示時間: ' + loadTime.toFixed(2) + 'ミリ秒';
+                document.getElementById('loadTime').textContent = <?= json_encode(translate('machineLearning_sample.php_77行目_ページの表示時間')) ?> + ': ' + loadTime.toFixed(2) + <?= json_encode(translate('machineLearning_sample.php_77行目_ミリ秒')) ?>;
             });
         </script>
         <?php
@@ -155,7 +156,7 @@
                             }
                         }else{
                             // 学習者グループがない場合
-                            echo "<p>学習者グループがありません</p>";
+                            echo "<p>" . translate('machineLearning_sample.php_196行目_学習者グループがありません') . "</p>";
                         }
 
                         $stmt->close();
@@ -186,10 +187,10 @@
                 if ($useData === 'groupdata') {
                     if (empty($selectedGroup)) {
                         // グループが選択されていない場合の処理
-                        echo "<script>alert('作成したグループを選択してください。あああ');</script>";
+                        echo "<script>alert('" . translate('machineLearning_sample.php_225行目_作成したグループを選択してください') . "');</script>";
                     } else {
                         // グループが選択されている場合の処理
-                        echo "選択されたグループID: " . htmlspecialchars($selectedGroup, ENT_QUOTES, 'UTF-8');
+                        echo translate('machineLearning_sample.php_223行目_選択されたグループID') . ": " . htmlspecialchars($selectedGroup, ENT_QUOTES, 'UTF-8');
                         // ここで、データベースクエリや他の処理を追加
                         $sql_getUID = "SELECT uid FROM group_members WHERE group_id = ?";
                         $stmt = $conn->prepare($sql_getUID);
@@ -210,13 +211,13 @@
                         $conditions[] = "UID IN ('" . $UIDlist . "')";
                 } elseif ($useData === 'alalldata') {
                     // 2019年度のA大学全データが選択された場合の処理
-                    echo "2019年度のA大学全データが選択されました。";
+                    echo translate('machineLearning_sample.php_236行目_2019年度のA大学全データが選択されました');
                 } else {
                     // その他の場合
-                    echo "選択が無効です。";
+                    // echo translate('machineLearning_sample.php_239行目_選択が無効です'); // POST時以外も表示されてしまうためコメントアウト
                 }
                 //$conditionの中身を確認
-                echo "conditions: " . implode(", ", $conditions);
+                // echo "conditions: " . implode(", ", $conditions);
                 /*
                 if (!empty($UIDsearch)) {
                     // UID配列をカンマ区切りの文字列に変換
@@ -285,7 +286,7 @@
                 }
                     */
                 $_SESSION['sql'] = $sql;
-                echo $_SESSION['sql'];
+                // echo $_SESSION['sql'];
 
 
 
@@ -298,7 +299,7 @@
                 //デバッグ用のコード
                 // フォームがPOSTされた場合
                 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-                    echo "<h2>POSTされたデータ:</h2>";
+                    // echo "<h2>POSTされたデータ:</h2>";
 
                     
                     // UIDの選択値を表示
@@ -394,7 +395,7 @@
                                 fputcsv($fp_group, $row);
                             }
                             fclose($fp_group);
-                            echo "csvファイル_groupを生成しました";
+                            // echo "csvファイル_groupを生成しました";
 
                         }
 
@@ -409,8 +410,8 @@
                         }
 
                         // 最終的なSQLをデバッグ用に出力
-                        echo "最終的な生成されたSQL(教師データ)は " . $sql . " です<br>";
-                        echo "最終的な生成されたSQL(テストデータ)は " . $sql_test . " です<br>";
+                        // echo "最終的な生成されたSQL(教師データ)は " . $sql . " です<br>";
+                        // echo "最終的な生成されたSQL(テストデータ)は " . $sql_test . " です<br>";
                         // ここでSQLを実行する
                         $result = mysqli_query($conn, $sql);
                         //データベースの行数取得
@@ -448,10 +449,10 @@
                         }
                         fclose($fp_test);
 
-                        echo "csvファイルを生成しました" . "ファイル名:" . $test_filename;
+                        // echo "csvファイルを生成しました" . "ファイル名:" . $test_filename;
                     }else{
                         //javascriptでアラートを出す．
-                        echo '<script type="text/javascript">alert("データを選択してください");</script>';
+                        echo '<script type="text/javascript">alert("' . translate('machineLearning_sample.php_424行目_データを選択してください') . '");</script>';
                     }
 
 
@@ -525,7 +526,7 @@
             </section>
                                 -->
             <section class="group-chart">
-        <h2>作成したグループの成績</h2>
+        <h2><?= translate('machineLearning_sample.php_569行目_作成したグループの成績') ?></h2>
         <div id="group-chart-container"></div>
     </section>
 
@@ -556,7 +557,7 @@
             groupContainer.classList.add('class-card');
             groupContainer.innerHTML = `
                 <h3>${group.group_name}
-                    <button onclick="openFeatureModalgraph(${index}, false)">グラフ描画特徴量</button>
+                    <button onclick="openFeatureModalgraph(${index}, false)"><?= translate('machineLearning_sample.php_584行目_グラフ描画特徴量') ?></button>
                 </h3>
                 <div class="chart-row">
                     <canvas id="dual-axis-chart-${index}"></canvas>
@@ -577,12 +578,12 @@
             labels,
             notaccuracyData,
             timeData,
-            '不正解率(%)',
-            '解答時間(秒)',
+            <?= json_encode(translate('machineLearning_sample.php_600行目_不正解率(%)')) ?>,
+            <?= json_encode(translate('machineLearning_sample.php_601行目_解答時間(秒)')) ?>,
             'rgba(54, 162, 235, 0.6)',
             'rgba(255, 99, 132, 0.6)',
-            '不正解率(%)',
-            '解答時間(秒)',
+            <?= json_encode(translate('machineLearning_sample.php_604行目_不正解率(%)')) ?>,
+            <?= json_encode(translate('machineLearning_sample.php_605行目_解答時間(秒)')) ?>,
             existingClassCharts,  // クラス別グラフ用の配列
             index
         );
@@ -630,7 +631,7 @@
                 x: {
                     title: {
                         display: true,
-                        text: 'ユーザー名',
+                        text: <?= json_encode(translate('machineLearning_sample.php_630行目_ユーザー名')) ?>,
                         font: {
                             size: 20
                         }
@@ -697,7 +698,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     // `notaccuracy`が選択されているか確認
                     if (selectedFeatures.includes('notaccuracy')) {
                         if (selectedFeatures.length !== 2) {
-                            alert("2つの特徴量を選択してください。");
+                            alert(<?= json_encode(translate('machineLearning_sample.php_699行目_2つの特徴量を選択してください')) ?>);
                             return;
                         }
                         const otherFeature = selectedFeatures.find(feature => feature !== 'notaccuracy');
@@ -709,7 +710,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                         const notaccuracyData = group.students.map(student => student.notaccuracy);
 
                         if (!otherFeature) {
-                            alert("不正解率と一緒にもう1つの特徴量を選択してください。");
+                            alert(<?= json_encode(translate('machineLearning_sample.php_710行目_不正解率と一緒にもう1つの特徴量を選択してください')) ?>);
                             return;
                         }
 
@@ -750,12 +751,12 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                 labels,
                                 notaccuracyData,
                                 otherFeatureData,
-                                '不正解率(%)',
-                                `${otherFeature} 平均`,
+                                <?= json_encode(translate('machineLearning_sample.php_734行目_不正解率(%)')) ?>,
+                                `${otherFeature} ` + <?= json_encode(translate('machineLearning_sample.php_735行目_平均')) ?>,
                                 'rgba(54, 162, 235, 0.6)',
                                 'rgba(255, 99, 132, 0.6)',
-                                '不正解率(%)',
-                                `${otherFeature} 平均`,
+                                <?= json_encode(translate('machineLearning_sample.php_739行目_不正解率(%)')) ?>,
+                                `${otherFeature} ` + <?= json_encode(translate('machineLearning_sample.php_740行目_平均')) ?>,
                                 chartArray,
                                 chartIndex
                             );
@@ -768,7 +769,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     } else {
                         // 通常の2つの特徴量での処理
                         if (selectedFeatures.length !== 2) {
-                            alert("2つの特徴量を選択してください。");
+                            alert(<?= json_encode(translate('machineLearning_sample.php_752行目_2つの特徴量を選択してください')) ?>);
                             return;
                         }
 
@@ -811,12 +812,12 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                 labels,
                                 featureAData,
                                 featureBData,
-                                `${selectedFeatures[0]} 平均`,
-                                `${selectedFeatures[1]} 平均`,
+                                `${selectedFeatures[0]} ` + <?= json_encode(translate('machineLearning_sample.php_777行目_平均')) ?>,
+                                `${selectedFeatures[1]} ` + <?= json_encode(translate('machineLearning_sample.php_778行目_平均')) ?>,
                                 'rgba(54, 162, 235, 0.6)',
                                 'rgba(255, 99, 132, 0.6)',
-                                `${selectedFeatures[0]} 平均`,
-                                `${selectedFeatures[1]} 平均`,
+                                `${selectedFeatures[0]} ` + <?= json_encode(translate('machineLearning_sample.php_782行目_平均')) ?>,
+                                `${selectedFeatures[1]} ` + <?= json_encode(translate('machineLearning_sample.php_783行目_平均')) ?>,
                                 chartArray,
                                 chartIndex
                             );
@@ -832,10 +833,10 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
 
 
             <section class="progress-chart">
-                <h2>特徴量選択</h2>
+                <h2><?= translate('machineLearning_sample.php_794行目_特徴量選択') ?></h2>
                 <div id="feature-modal-area">
                     <button class="feature-button" onclick="openFeatureModal()">
-                        <span class="icon">🔍</span> 特徴量を選択
+                        <span class="icon">🔍</span> <?= translate('machineLearning_sample.php_797行目_特徴量を選択') ?>
                     </button>
                 </div>
             </section>
@@ -854,37 +855,37 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
         <div id="feature-modal-graph" class = "modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeFeatureModalgraph()">&times;</span>
-                    <h3>特徴量を選択してください</h3>
+                    <h3><?= translate('machineLearning_sample.php_810行目_特徴量を選択してください') ?></h3>
                     <form id="feature-form">
-                        <label><input type="checkbox" name="feature" value="notaccuracy"> 不正解率 (%)</label><br>
-                        <label><input type="checkbox" name="feature" value="Time"> 解答時間 (秒)</label><br>
-                        <label><input type="checkbox" name="feature" value="distance"> 距離</label><br>
-                        <label><input type="checkbox" name="feature" value="averageSpeed"> 平均速度</label><br>
-                        <label><input type="checkbox" name="feature" value="maxSpeed"> 最高速度</label><br>
-                        <label><input type="checkbox" name="feature" value="thinkingTime"> 考慮時間</label><br>
-                        <label><input type="checkbox" name="feature" value="answeringTime"> 第一ドロップ後解答時間</label><br>
-                        <label><input type="checkbox" name="feature" value="totalStopTime"> 合計静止時間</label><br>
-                        <label><input type="checkbox" name="feature" value="maxStopTime"> 最大静止時間</label><br>
-                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime"> 合計DD間時間</label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime"> 最大DD間時間</label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDTime"> 合計DD時間</label><br>
-                        <label><input type="checkbox" name="feature" value="minDDTime"> 最小DD時間</label><br>
-                        <label><input type="checkbox" name="feature" value="DDCount"> 合計DD回数</label><br>
-                        <label><input type="checkbox" name="feature" value="groupingDDCount"> グループ化DD回数</label><br>
-                        <label><input type="checkbox" name="feature" value="groupingCountbool"> グループ化有無</label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCount"> x軸Uターン回数</label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCount"> y軸Uターン回数</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count1"> レジスタ➡レジスタへの移動回数</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count2"> レジスタ➡レジスタ外への移動回数</label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count3"> レジスタ外➡レジスタへの移動回数</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count1"> レジスタ➡レジスタへの移動有無</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count2"> レジスタ外➡レジスタへの移動有無</label><br>
-                        <label><input type="checkbox" name="feature" value="register01count3"> レジスタ外➡レジスタへの移動有無</label><br>
-                        <label><input type="checkbox" name="feature" value="registerDDCount"> レジスタ外➡レジスタへの移動有無</label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCountDD"> x軸UターンDD回数</label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCountDD">y軸UターンDD回数</label><br>
-                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"> レジスタ外➡レジスタへの移動有無DD</label><br>
-                        <button type="button" id="apply-features-btn">適用</button>
+                        <label><input type="checkbox" name="feature" value="notaccuracy"> <?= translate('machineLearning_sample.php_812行目_不正解率(%)') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="Time"> <?= translate('machineLearning_sample.php_813行目_解答時間(秒)') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="distance"> <?= translate('machineLearning_sample.php_814行目_距離') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="averageSpeed"> <?= translate('machineLearning_sample.php_815行目_平均速度') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="maxSpeed"> <?= translate('machineLearning_sample.php_816行目_最高速度') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="thinkingTime"> <?= translate('machineLearning_sample.php_817行目_考慮時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="answeringTime"> <?= translate('machineLearning_sample.php_818行目_第一ドロップ後解答時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="totalStopTime"> <?= translate('machineLearning_sample.php_819行目_合計静止時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="maxStopTime"> <?= translate('machineLearning_sample.php_820行目_最大静止時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime"> <?= translate('machineLearning_sample.php_821行目_合計DD間時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime"> <?= translate('machineLearning_sample.php_822行目_最大DD間時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="maxDDTime"> <?= translate('machineLearning_sample.php_823行目_合計DD時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="minDDTime"> <?= translate('machineLearning_sample.php_824行目_最小DD時間') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="DDCount"> <?= translate('machineLearning_sample.php_825行目_合計DD回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="groupingDDCount"> <?= translate('machineLearning_sample.php_826行目_グループ化DD回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="groupingCountbool"> <?= translate('machineLearning_sample.php_827行目_グループ化有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="xUturnCount"> <?= translate('machineLearning_sample.php_828行目_x軸Uターン回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="yUturnCount"> <?= translate('machineLearning_sample.php_829行目_y軸Uターン回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count1"> <?= translate('machineLearning_sample.php_830行目_レジスタ→レジスタへの移動回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count2"> <?= translate('machineLearning_sample.php_831行目_レジスタ→レジスタ外への移動回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count3"> <?= translate('machineLearning_sample.php_832行目_レジスタ外→レジスタへの移動回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count1"> <?= translate('machineLearning_sample.php_833行目_レジスタ→レジスタへの移動有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count2"> <?= translate('machineLearning_sample.php_834行目_レジスタ外→レジスタへの移動有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count3"> <?= translate('machineLearning_sample.php_835行目_レジスタ外→レジスタへの移動有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="registerDDCount"> <?= translate('machineLearning_sample.php_836行目_レジスタに関する合計の移動回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="xUturnCountDD"> <?= translate('machineLearning_sample.php_837行目_x軸UターンD&D回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('machineLearning_sample.php_838行目_y軸UターンD&D回数') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"> <?= translate('machineLearning_sample.php_839行目_最終ドロップ後時間') ?></label><br>
+                        <button type="button" id="apply-features-btn"><?= translate('machineLearning_sample.php_840行目_適用') ?></button>
                     </form>
                 </div>
             </div>
@@ -897,16 +898,14 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     <form action="machineLearning_sample.php" id = "machineLearningForm" method="post" target="_blank">
                         <table class="table2">
                             <tr>
-                                <th>使用データ</th>
+                                <th><?= translate('machineLearning_sample.php_848行目_使用データ') ?></th>
                                 <td>
                                     <label for="groupdata">
                                         <input type = "radio" class="feature-modal-checkbox" id = "groupdata" name = "useData" value = "groupdata">
-                                        作成したグループデータのみ
+                                        <?= translate('machineLearning_sample.php_851行目_作成したグループデータのみ') ?>
                                     </label>
-                                    <!--プルダウンメニュー-->
-                                    
                                     <select id = "selectedGroup" name = "selectedGroup" style="display: none;">
-                                        <option value = "">選択してください</option>
+                                        <option value = ""><?= translate('machineLearning_sample.php_856行目_選択してください') ?></option>
                                         <?php
                                         
                                             $sql = "SELECT g.group_id, g.group_name
@@ -960,7 +959,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                         form.addEventListener('submit', (e) => {
                                             if (groupDataRadio.checked && groupDropdown.value === '') {
                                                 e.preventDefault();
-                                                alert('作成したグループを選択してください。');
+                                                alert(<?= json_encode(translate('machineLearning_sample.php_896行目_作成したグループを選択してください')) ?>);
                                                 groupDropdown.focus();
                                             }
                                         });
@@ -970,7 +969,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                 <td>
                                     <label for="alldata">
                                         <input type = "radio" class="feature-modal-checkbox" id = "alldata" name = "useData" value = "alalldata">
-                                        2019年度のA大学全データ
+                                        <?= translate('machineLearning_sample.php_903行目_2019年度のA大学全データ') ?>
                                     </label>
                                 </td>
                             </tr>
@@ -1031,106 +1030,103 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                             ここまで-->
                             <!-- 分類器選択ボタン -->
                             <tr>
-                                <th>分類器選択</th>
+                                <th><?= translate('machineLearning_sample.php_951行目_分類器選択') ?></th>
                                 <td colspan="2">
-                                    <button type="button" onclick="selectClassifier('A')">分類器A</button>
-                                    <button type="button" onclick="selectClassifier('B')">分類器B</button>
-                                    <button type="button" onclick="selectClassifier('C')">分類器C</button>
+                                    <button type="button" onclick="selectClassifier('A')"><?= translate('machineLearning_sample.php_953行目_分類器A') ?></button>
+                                    <button type="button" onclick="selectClassifier('B')"><?= translate('machineLearning_sample.php_954行目_分類器B') ?></button>
+                                    <button type="button" onclick="selectClassifier('C')"><?= translate('machineLearning_sample.php_955行目_分類器C') ?></button>
                                 </td>
                             </tr>
                             <tr>
-                                <th>解答全体</th>
+                                <th><?= translate('machineLearning_sample.php_958行目_解答全体') ?></th>
                                 <td colspan="2">
                                     <ul class = "itemgroup">
-                                        <li><label for="featuretime"><input type = "checkbox" class="feature-modal-checkbox" id = "featuretime" name = "featureLabel[]" value = "time">解答時間</label></li>
-                                        <li><label for="featuredistance"><input type = "checkbox" class="feature-modal-checkbox" id = "featuredistance" name = "featureLabel[]" value = "distance">移動距離</label></li>
-                                        <li><label for="featurespeed"><input type = "checkbox" class="feature-modal-checkbox" id ="featurespeed"  name = "featureLabel[]" value = "averageSpeed">平均速度</label></li>
-                                        <li><label for="featuremaxspeed"><input type = "checkbox" class="feature-modal-checkbox" id ="featuremaxspeed" name = "featureLabel[]" value = "maxSpeed">最大速度</label></li>
+                                        <li><label for="featuretime"><input type = "checkbox" class="feature-modal-checkbox" id = "featuretime" name = "featureLabel[]" value = "time"><?= translate('machineLearning_sample.php_961行目_解答時間') ?></label></li>
+                                        <li><label for="featuredistance"><input type = "checkbox" class="feature-modal-checkbox" id = "featuredistance" name = "featureLabel[]" value = "distance"><?= translate('machineLearning_sample.php_962行目_移動距離') ?></label></li>
+                                        <li><label for="featurespeed"><input type = "checkbox" class="feature-modal-checkbox" id ="featurespeed"  name = "featureLabel[]" value = "averageSpeed"><?= translate('machineLearning_sample.php_963行目_平均速度') ?></label></li>
+                                        <li><label for="featuremaxspeed"><input type = "checkbox" class="feature-modal-checkbox" id ="featuremaxspeed" name = "featureLabel[]" value = "maxSpeed"><?= translate('machineLearning_sample.php_964行目_最大速度') ?></label></li>
                                     </ul>
                                     <ul class="itemgroup">
-                                        <li><label for="totalstoptime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "totalStopTime">合計静止時間</label></li>
-                                        <li><label for="maxstoptime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "maxStopTime">最大静止時間</label></li>
+                                        <li><label for="totalstoptime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "totalStopTime"><?= translate('machineLearning_sample.php_967行目_合計静止時間') ?></label></li>
+                                        <li><label for="maxstoptime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "maxStopTime"><?= translate('machineLearning_sample.php_968行目_最大静止時間') ?></label></li>
 
                                     </ul>
                                     <ul class="itemgroup">
-                                        <li><label for="stopcount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "stopcount">静止回数</label></li>
-                                        <li><label for="FromlastdropToanswerTime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "FromlastdropToanswerTime">最終dropから解答終了までの時間</label></li>
+                                        <li><label for="stopcount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "stopcount"><?= translate('machineLearning_sample.php_972行目_静止回数') ?></label></li>
+                                        <li><label for="FromlastdropToanswerTime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "FromlastdropToanswerTime"><?= translate('machineLearning_sample.php_973行目_最終dropから解答終了までの時間') ?></label></li>
                                     </ul>
                                 </td>
                             </tr>
                             <tr>
-                                <th>Uターン</th>
+                                <th><?= translate('machineLearning_sample.php_977行目_Uターン') ?></th>
                                 <td colspan="2">
                                     <ul class="itemgroup">
-                                        <li><label for="xUturncount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "xUTurnCount">X軸Uターン回数</label></li>
-                                        <li><label for="yUturncount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "yUTurnCount">Y軸Uターン回数</label></li>
-                                        <li><label for="xUturncountDD"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "xUTurnCountDD">次回DragまでのX軸Uターン回数</label></li>
-                                        <li><label for="yUturncountDD"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "yUTurnCountDD">次回DragまでのY軸Uターン回数</label></li>
+                                        <li><label for="xUturncount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "xUTurnCount"><?= translate('machineLearning_sample.php_980行目_X軸Uターン回数') ?></label></li>
+                                        <li><label for="yUturncount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "yUTurnCount"><?= translate('machineLearning_sample.php_981行目_Y軸Uターン回数') ?></label></li>
+                                        <li><label for="xUturncountDD"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "xUTurnCountDD"><?= translate('machineLearning_sample.php_982行目_次回DragまでのX軸Uターン回数') ?></label></li>
+                                        <li><label for="yUturncountDD"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "yUTurnCountDD"><?= translate('machineLearning_sample.php_983行目_次回DragまでのY軸Uターン回数') ?></label></li>
                                     </ul>
                                 </td>
                             <tr>
-                                <th>第一ドラッグ</th>
+                                <th><?= translate('machineLearning_sample.php_987行目_第一ドラッグ') ?></th>
                                 <td colspan="2">
                                     <ul class = "itemgroup">
-                                        <li><label for="featurethinkingtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "thinkingTime">第一ドラッグ前時間</label></li>
-                                        <li><label for="answeringtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "answeringTime">第一ドロップ後から解答終了を押すまでの時間</label></li>
+                                        <li><label for="featurethinkingtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "thinkingTime"><?= translate('machineLearning_sample.php_990行目_第一ドラッグ前時間') ?></label></li>
+                                        <li><label for="answeringtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "answeringTime"><?= translate('machineLearning_sample.php_991行目_第一ドロップ後から解答終了を押すまでの時間') ?></label></li>
                                     </ul>
                                 </td>
                             </tr>
                             <tr>
-                                <th>DD</th>
+                                <th><?= translate('machineLearning_sample.php_995行目_DD') ?></th>
                                 <td colspan="2">
                                     <ul class="itemgroup">
-                                        <!--<li><label for="totalDDtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "totalDDTime">合計DD時間</label></li>-->
-                                        <li><label for="maxDDtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "maxDDTime">最大DD時間</label></li>
-                                        <li><label for="minDDtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "minDDTime">最小DD時間</label></li>
-                                        <li><label for="DDcount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "DDCount">DD回数</label></li>
+                                        <li><label for="maxDDtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "maxDDTime"><?= translate('machineLearning_sample.php_999行目_最大DD時間') ?></label></li>
+                                        <li><label for="minDDtime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "minDDTime"><?= translate('machineLearning_sample.php_1000行目_最小DD時間') ?></label></li>
+                                        <li><label for="DDcount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "DDCount"><?= translate('machineLearning_sample.php_1001行目_DD回数') ?></label></li>
                                     </ul>
                                 </td>
                             </tr>
                             <tr>
-                                <th>DD間</th>
+                                <th><?= translate('machineLearning_sample.php_1005行目_DD間') ?></th>
                                 <td colspan="2">
                                     <ul class="itemgroup">
-                                        <li><label for="maxDDintervaltime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "maxDDIntervalTime">最大DD間時間</label></li>
-                                        <!--<li><label for="minDDintervaltime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "minDDIntervalTime">最小DD間時間</label></li>-->
-                                        <li><label for="totalDDintervaltime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "totalDDIntervalTime">合計DD間時間</label></li>
+                                        <li><label for="maxDDintervaltime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "maxDDIntervalTime"><?= translate('machineLearning_sample.php_1008行目_最大DD間時間') ?></label></li>
+                                        <li><label for="totalDDintervaltime"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "totalDDIntervalTime"><?= translate('machineLearning_sample.php_1010行目_合計DD間時間') ?></label></li>
                                     </ul>
                                 </td>
                             </tr>
                             <tr>
-                                <th>グループ化</th>
+                                <th><?= translate('machineLearning_sample.php_1014行目_グループ化') ?></th>
                                 <td colspan="2">
                                     <ul class="itemgroup">
-                                        <li><label for="groupingDDcount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "groupingDDCount">グループ化中にDDした回数</label></li>
-                                        <li><label for="groupingDDcountbool"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "groupingCountbool">グループ化の有無</label></li>
+                                        <li><label for="groupingDDcount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "groupingDDCount"><?= translate('machineLearning_sample.php_1017行目_グループ化中にDDした回数') ?></label></li>
+                                        <li><label for="groupingDDcountbool"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "groupingCountbool"><?= translate('machineLearning_sample.php_1018行目_グループ化の有無') ?></label></li>
                                     </ul>
                                 </td>
                             </tr>
                             <tr>
-                                <th>レジスタ</th>
+                                <th><?= translate('machineLearning_sample.php_1022行目_レジスタ') ?></th>
                                 <td colspan="2">
                                     <ul class="itemgroup">        
-                                        <li><label for="register_move_count1"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register_move_count1">レジスタ移動回数1</label></li>
-                                        <li><label for="register_move_count2"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register_move_count2">レジスタ移動回数2</label></li>
-                                        <li><label for="register_move_count3"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register_move_count3">レジスタ移動回数3</label></li>
-                                        <li><label for="register_move_count4"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register_move_count4">レジスタ移動回数4</label></li>
+                                        <li><label for="register_move_count1"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register_move_count1"><?= translate('machineLearning_sample.php_1025行目_レジスタ移動回数1') ?></label></li>
+                                        <li><label for="register_move_count2"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register_move_count2"><?= translate('machineLearning_sample.php_1026行目_レジスタ移動回数2') ?></label></li>
+                                        <li><label for="register_move_count3"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register_move_count3"><?= translate('machineLearning_sample.php_1027行目_レジスタ移動回数3') ?></label></li>
+                                        <li><label for="register_move_count4"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register_move_count4"><?= translate('machineLearning_sample.php_1028行目_レジスタ移動回数4') ?></label></li>
                                     </ul>
                                     <ul class="itemgroup">
-                                        <li><label for="register01count1"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register01count1">レジスタ使用回数1</label></li>
-                                        <li><label for="register01count2"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register01count2">レジスタ使用回数2</label></li>
-                                        <li><label for="register01count3"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register01count3">レジスタ使用回数3</label></li>
-                                        <li><label for="register01count4"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register01count4">レジスタ使用回数4</label></li>
+                                        <li><label for="register01count1"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register01count1"><?= translate('machineLearning_sample.php_1031行目_レジスタ使用回数1') ?></label></li>
+                                        <li><label for="register01count2"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register01count2"><?= translate('machineLearning_sample.php_1032行目_レジスタ使用回数2') ?></label></li>
+                                        <li><label for="register01count3"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register01count3"><?= translate('machineLearning_sample.php_1033行目_レジスタ使用回数3') ?></label></li>
+                                        <li><label for="register01count4"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "register01count4"><?= translate('machineLearning_sample.php_1034行目_レジスタ使用回数4') ?></label></li>
                                     </ul>
                                     <ul class="itemgroup">
-                                        <li><label for="registerDDcount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "registerDDCount">レジスタ内DD回数</label></li>
+                                        <li><label for="registerDDcount"><input type = "checkbox" class="feature-modal-checkbox" name = "featureLabel[]" value = "registerDDCount"><?= translate('machineLearning_sample.php_1037行目_レジスタ内DD回数') ?></label></li>
                                     </ul>
                                 </td>
                             </tr>
-                        <!--</div>-->
                         </table>
-                        <input type="submit" id="machineLearningcons" value="機械学習">
-                        <button type="button" id="reset-button" onclick="resetCheckboxes()">リセット</button>
+                        <input type="submit" id="machineLearningcons" value="<?= translate('machineLearning_sample.php_1054行目_機械学習') ?>">
+                        <button type="button" id="reset-button" onclick="resetCheckboxes()"><?= translate('machineLearning_sample.php_1055行目_リセット') ?></button>
                     </form>
                 </div>
             </div>
@@ -1194,9 +1190,9 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
 
             <section class="individual-details">
                 <div class="machinelearning-result">
-                    <h2>機械学習結果</h2>
+                    <h2><?= translate('machineLearning_sample.php_1110行目_機械学習結果') ?></h2>
                     <div class="contents">
-                        <h3>解答情報</h3>       
+                        <h3><?= translate('machineLearning_sample.php_1112行目_解答情報') ?></h3>       
                         <?php
                             require "../dbc.php";
                             if($_SERVER["REQUEST_METHOD"] == "POST"){
@@ -1426,7 +1422,6 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                         
 
 
-
                                         ?>
                                         <div id = "table-container">
                                             <table border="1" id="results-table" class="table2">
@@ -1434,15 +1429,15 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                         <?php
                                         foreach ($header as $col_name) {
                                             if($col_name == "Understand"){
-                                                echo "<th>迷いの有無</th>";
+                                                echo "<th>" . translate('machineLearning_sample.php_1188行目_迷いの有無') . "</th>";
                                             }else if($col_name == "attempt"){
                                                 continue;
                                             }else{
                                                 echo "<th>" . htmlspecialchars($col_name) . "</th>";
                                             }
                                         }
-                                        echo "<th>正誤</th>";
-                                        echo "<th>軌跡再現リンク</th>";
+                                        echo "<th>" . translate('machineLearning_sample.php_1195行目_正誤') . "</th>";
+                                        echo "<th>" . translate('machineLearning_sample.php_1196行目_軌跡再現リンク') . "</th>";
                                         echo '</tr>';
                                         foreach ($topData as $data) {
                                             $uid = $data[0];
@@ -1469,30 +1464,30 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                             
                                             echo "<td>";
                                             if ($understand == 4) {
-                                                echo "迷い無し";
+                                                echo translate('machineLearning_sample.php_1213行目_迷い無し');
                                             } elseif ($understand == 2) {
-                                                echo "<span style='color: red; font-weight: bold;'>迷い有り</span>";
+                                                echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1215行目_迷い有り') . "</span>";
                                             } else {
-                                                echo "不明";
+                                                echo translate('machineLearning_sample.php_1217行目_不明');
                                             }
                                             echo "</td>";
                                             echo "<td>";
                                             
                                             if ($tf_value == '1') {
-                                                echo "正解";
+                                                echo translate('machineLearning_sample.php_1222行目_正解');
                                             } elseif ($tf_value == '0') {
-                                                echo "<span style='color: red; font-weight: bold;'>不正解</span>";
+                                                echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1224行目_不正解') . "</span>";
                                             } else {
                                                 echo "N/A";
                                             }
                                             echo "</td>";
                                             //echo "<td><a href=\"./mousemove/mousemove.php?uid=" . urlencode($uid) . "&wid=" . urlencode($wid) . "\">軌跡再現</a></td>";
-                                            echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "\" target=\"_blank\" rel=\"noopener noreferrer\">軌跡再現</a></td>";
+                                            echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "\" target=\"_blank\" rel=\"noopener noreferrer\">" . translate('machineLearning_sample.php_1228行目_軌跡再現') . "</a></td>";
                                             echo "</tr>";
                                         }
                                         echo '</table>';
                                     } else {
-                                        echo "結果のCSVファイルを読み込めませんでした。";
+                                        echo translate('machineLearning_sample.php_1233行目_結果のCSVファイルを読み込めませんでした');
                                     }
                                 }
                             }
@@ -1504,12 +1499,12 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     <div class="modal-content">
                         <span class="close" onclick="closeClusteringModal()">&times;</span>
                         <form id="clustering-feature-form">
-                        <h3>クラスタ数を入力してください</h3>
+                        <h3><?= translate('machineLearning_sample.php_1239行目_クラスタ数を入力してください') ?></h3>
                             <input type="number" id="clustering-input" min="1" max="10" value="2">
-                        <h3>クラスタリング特徴量を選択してください</h3>
-                            <label><input type="checkbox" name="feature" value="notAccuracy"> 不正解率 (%)</label><br>
-                            <label><input type="checkbox" name="feature" value="hesitation"> 迷い率</label><br>
-                            <button type="button" id="apply-clustering-btn">適用</button>
+                        <h3><?= translate('machineLearning_sample.php_1241行目_クラスタリング特徴量を選択してください') ?></h3>
+                            <label><input type="checkbox" name="feature" value="notAccuracy"> <?= translate('machineLearning_sample.php_1242行目_不正解率(%)') ?></label><br>
+                            <label><input type="checkbox" name="feature" value="hesitation"> <?= translate('machineLearning_sample.php_1243行目_迷い率') ?></label><br>
+                            <button type="button" id="apply-clustering-btn"><?= translate('machineLearning_sample.php_1244行目_適用') ?></button>
                         </form>
                     </div>
                 </div>
@@ -1529,14 +1524,14 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                         const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
                             .map(input => input.value);
                         if (selectedFeatures.length !== 2) {
-                            alert("2つの特徴量を選択してください。");
+                            alert(<?= json_encode(translate('machineLearning_sample.php_1257行目_2つの特徴量を選択してください')) ?>);
                             return;
                         }
                         // クラスタ数を取得
                         const clusterCount = document.getElementById('clustering-input').value;
 
                         // studentStatsから必要なデータを収集
-                        const studentData = <?php echo json_encode(array_values($studentStats)); ?>;
+                        const studentData = <?php echo json_encode(array_values($studentStats ?? [])); ?>;
 
                         const params = new URLSearchParams({
                             features: selectedFeatures.join(','),
@@ -1570,7 +1565,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                             })
                             .catch(error => {
                                 console.error('エラー:', error);
-                                alert('クラスタリング中にエラーが発生しました。もう一度お試しください。');
+                                alert(<?= json_encode(translate('machineLearning_sample.php_1281行目_クラスタリング中にエラーが発生しました')) ?>);
                             });
 
                     };
@@ -1610,7 +1605,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                             checkbox.value = clusterKey;
                             checkbox.className = 'cluster-checkbox';
 
-                            clusterHeader.textContent = `クラスタ ${clusterKey}`;
+                            clusterHeader.textContent = `${<?= json_encode(translate('machineLearning_sample.php_1311行目_クラスタ')) ?>} ${clusterKey}`;
                             clusterHeader.prepend(checkbox);
                             clusterDiv.appendChild(clusterHeader);
 
@@ -1631,7 +1626,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
 
                         // グループ化ボタンを作成
                         const groupButton = document.createElement('button');
-                        groupButton.textContent = 'グループ化';
+                        groupButton.textContent = <?= json_encode(translate('machineLearning_sample.php_1330行目_グループ化')) ?>;
                         groupButton.style.marginTop = '10px';
                         groupButton.onclick = () => {
                             groupSelectedClusters(clusters);
@@ -1644,7 +1639,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                         const selectedCheckboxes = document.querySelectorAll('.cluster-checkbox:checked');
 
                         if (selectedCheckboxes.length === 0) {
-                            alert('少なくとも1つのクラスタを選択してください。');
+                            alert(<?= json_encode(translate('machineLearning_sample.php_1340行目_少なくとも1つのクラスタを選択してください')) ?>);
                             return;
                         }
 
@@ -1652,7 +1647,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                         const clustersData = [];
                         selectedCheckboxes.forEach(checkbox => {
                             const clusterKey = checkbox.value;
-                            const clusterName = `クラスタ ${clusterKey}`;  // クラスタ名をそのままグループ名に使用
+                            const clusterName = `${<?= json_encode(translate('machineLearning_sample.php_1347行目_クラスタ')) ?>} ${clusterKey}`;  // クラスタ名をそのままグループ名に使用
                             const clusterData = clusters[clusterKey];
                             const studentIds = clusterData.map(student => student.uid);
 
@@ -1672,14 +1667,14 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                         })
                         .then(response => response.text())
                         .then(data => {
-                            alert('選択されたクラスタのグループ化が完了しました。');
+                            alert(<?= json_encode(translate('machineLearning_sample.php_1363行目_選択されたクラスタのグループ化が完了しました')) ?>);
                             //console.log(data);
                             // ページ再読み込み
                             window.location.reload();
                         })
                         .catch(error => {
                             console.error('エラー:', error);
-                            alert('グループ登録中にエラーが発生しました。');
+                            alert(<?= json_encode(translate('machineLearning_sample.php_1369行目_グループ登録中にエラーが発生しました')) ?>);
                         });
                     }
 
@@ -1790,25 +1785,23 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                 <div class="class-data" id="group-data-container">
                     <div class="class-card">
                         <h3>
-                            <button onclick="openClusteringModal(0)">クラスタリング</button>
+                            <button onclick="openClusteringModal(0)"><?= translate('machineLearning_sample.php_1453行目_クラスタリング') ?></button>
                         </h3>
                         <div class="chart-row">
                             <canvas id="result-Chart"></canvas>
                         </div>
                         <div id="clustering-results-container" class="clustering-results">
-                            <!-- クラスタリング結果をここに表示 -->
-                        </div>
+                            </div>
                     </div>
                     
                 </div>
         </section>
         
         <div id = "detail-info" class = "class-card">
-            <h2>学習者の詳細情報</h2>
-                <!---プルダウンメニュー--->
-                <label for = "uid-select">学習者名:(UID)</label>
+            <h2><?= translate('machineLearning_sample.php_1464行目_学習者の詳細情報') ?></h2>
+                <label for = "uid-select"><?= translate('machineLearning_sample.php_1466行目_学習者名UID') ?></label>
                 <select id = "uid-select">
-                    <option value = "">選択してください</option>
+                    <option value = ""><?= translate('machineLearning_sample.php_1468行目_選択してください') ?></option>
                     <?php
                         
                         $getUsersQuery = "SELECT DISTINCT tr.uid,s.Name FROM temporary_results tr 
@@ -1825,14 +1818,13 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                         $stmt->close();
                     ?>
                 </select>
-                <!-- 学習者情報の表示 -->
                 <div id="student-details">
                     <div id ="student-details-maininfo"></div>
                     <div id = "student-details-grammar"></div>
                 </div>
                 <label for = "wid-select"></label>
                 <select id = "wid-select">
-                    <option value = "">選択してください</option>
+                    <option value = ""><?= translate('machineLearning_sample.php_1483行目_選択してください') ?></option>
                 </select>
                 <div id = "wid-details">
                     <div id = "wid-details-maininfo-stu"></div>
@@ -1851,11 +1843,11 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                             const selectedUid = uidSelect.value;
 
                             //プルダウンのリセット
-                            widSelect.innerHTML = '<option value = "">ロード中</option>';
+                            widSelect.innerHTML = `<option value = "">${<?= json_encode(translate('machineLearning_sample.php_1498行目_ロード中')) ?>}</option>`;
                             if(!selectedUid){
                                 //学習者が選択されていない場合
-                                widSelect.innerHTML = '<option value = "">学習者を選択してください</option>';
-                                studentDetailsmaininfo.innerHTML = '<p>学習者情報を選択してください。</p>';
+                                widSelect.innerHTML = `<option value = "">${<?= json_encode(translate('machineLearning_sample.php_1501行目_学習者を選択してください')) ?>}</option>`;
+                                studentDetailsmaininfo.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1502行目_学習者情報を選択してください')) ?>}</p>`;
                                 return;
                             }
                             try{
@@ -1867,10 +1859,10 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                 }
                                 const widData = await widResponse.json();
                                 //プルダウンメニューを更新
-                                widSelect.innerHTML = '<option value = "">選択してください</option>';
+                                widSelect.innerHTML = `<option value = "">${<?= json_encode(translate('machineLearning_sample.php_1511行目_選択してください')) ?>}</option>`;
                                 widData.forEach(wid => {
                                                             widSelect.innerHTML += `<option value="${wid.WID}">
-                                                                ${wid.WID}: ${wid.Sentence}: 難易度${wid.level}: 迷い:${wid.Understand} 
+                                                                ${wid.WID}: ${wid.Sentence}: ${<?= json_encode(translate('machineLearning_sample.php_1513行目_難易度')) ?>}${wid.level}: ${<?= json_encode(translate('machineLearning_sample.php_1513行目_迷い')) ?>}:${wid.Understand} 
                                                                 ${wid.Understand === '迷い有り' ? '(★)' : ''}
                                                             </option>`;
                                                         });
@@ -1892,16 +1884,16 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                 // 学習者情報の表示/
                                 studentDetailsmaininfo.innerHTML = `
                                                 <div id = "student-info-title" style = "display:flex; gap: 10px;">
-                                                <h3>学習者名:${studentDatainfo.Name}</h3>
-                                                <h3>クラス名:${studentDatainfo.ClassID}</h3>
-                                                <h3>TOEICレベル:${studentDatainfo.toeic_level}</h3>
-                                                <h3>英検レベル:${studentDatainfo.eiken_level}</h3>
+                                                <h3>${<?= json_encode(translate('machineLearning_sample.php_1528行目_学習者名')) ?>}:${studentDatainfo.Name}</h3>
+                                                <h3>${<?= json_encode(translate('machineLearning_sample.php_1529行目_クラス名')) ?>}:${studentDatainfo.ClassID}</h3>
+                                                <h3>${<?= json_encode(translate('machineLearning_sample.php_1530行目_TOEICレベル')) ?>}:${studentDatainfo.toeic_level}</h3>
+                                                <h3>${<?= json_encode(translate('machineLearning_sample.php_1531行目_英検レベル')) ?>}:${studentDatainfo.eiken_level}</h3>
                                                 </div>
 
                                                 <div id = "student-info-accuracy" style = "display:flex; gap: 10px;">
-                                                <p>総解答数:${studentDatainfo.total_answers}</p>
-                                                <p>正解率:${studentDatainfo.accuracy}%</p>
-                                                <p>迷い率:${studentDatainfo.hesitation_rate}%</p>
+                                                <p>${<?= json_encode(translate('machineLearning_sample.php_1534行目_総解答数')) ?>}:${studentDatainfo.total_answers}</p>
+                                                <p>${<?= json_encode(translate('machineLearning_sample.php_1535行目_正解率')) ?>}:${studentDatainfo.accuracy}%</p>
+                                                <p>${<?= json_encode(translate('machineLearning_sample.php_1536行目_迷い率')) ?>}:${studentDatainfo.hesitation_rate}%</p>
                                                 </div>
                                                 `;
                                 //文法項目データを表示する関数
@@ -1919,7 +1911,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
         console.log("selectedUid", selectedUid);
 
         if(!selectedWid || !selectedUid){
-            widDetailsmaininfostu.innerHTML = '<p>学習者情報を選択してください。</p>';
+            widDetailsmaininfostu.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1544行目_学習者情報を選択してください')) ?>}</p>`;
             return;
         }
 
@@ -1957,17 +1949,17 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
             if (attempt1) {
                 widDetailsmaininfoall.innerHTML = `
                     <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; background-color: #f9f9f9;">
-                        <h3 style="color: #333; text-align: center; margin-bottom: 20px;">問題情報</h3>
+                        <h3 style="color: #333; text-align: center; margin-bottom: 20px;">${<?= json_encode(translate('machineLearning_sample.php_1570行目_問題情報')) ?>}</h3>
                         <div style="display: flex; flex-wrap: wrap; gap: 15px;">
                             <div style="flex: 1; min-width: 250px;">
-                                <p><strong>正解率:</strong> ${quesaccuracy}%</p>
-                                <p><strong>迷い率:</strong> ${queshesitation_rate}%</p>
-                                <p><strong>正解文:</strong> ${attempt1.Sentence}</p>
+                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1573行目_正解率')) ?>}:</strong> ${quesaccuracy}%</p>
+                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1574行目_迷い率')) ?>}:</strong> ${queshesitation_rate}%</p>
+                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1575行目_正解文')) ?>}:</strong> ${attempt1.Sentence}</p>
                             </div>
                             <div style="flex: 1; min-width: 250px;">
-                                <p><strong>日本語文:</strong> ${attempt1.Japanese}</p>
-                                <p><strong>文法項目:</strong> ${attempt1.grammar}</p>
-                                <p><strong>単語数:</strong> ${attempt1.wordnum}</p>
+                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1578行目_日本語文')) ?>}:</strong> ${attempt1.Japanese}</p>
+                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1579行目_文法項目')) ?>}:</strong> ${attempt1.grammar}</p>
+                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1580行目_単語数')) ?>}:</strong> ${attempt1.wordnum}</p>
                             </div>
                         </div>
                     </div>
@@ -1982,11 +1974,11 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     table.innerHTML = `
                         <thead>
                             <tr style="background-color: #f0f0f0; border-bottom: 2px solid #ccc;">
-                                <th style="padding: 10px;">グループ化された単語</th>
-                                <th style="padding: 10px;">正解数</th>
-                                <th style="padding: 10px;">不正解数</th>
-                                <th style="padding: 10px;">迷いあり数</th>
-                                <th style="padding: 10px;">迷いなし数</th>
+                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1586行目_グループ化された単語')) ?>}</th>
+                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1587行目_正解数')) ?>}</th>
+                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1588行目_不正解数')) ?>}</th>
+                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1589行目_迷いあり数')) ?>}</th>
+                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1590行目_迷いなし数')) ?>}</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -2018,10 +2010,10 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     tableContainer.appendChild(table);
                     widDetailsmaininfoall.appendChild(tableContainer);
                 } else {
-                    widDetailsmaininfoall.innerHTML += '<p>Label情報が見つかりませんでした。</p>';
+                    widDetailsmaininfoall.innerHTML += `<p>${<?= json_encode(translate('machineLearning_sample.php_1620行目_Label情報が見つかりませんでした')) ?>}</p>`;
                 }
             } else {
-                widDetailsmaininfoall.innerHTML = '<p>初期表示用のデータが見つかりません。</p>';
+                widDetailsmaininfoall.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1623行目_初期表示用のデータが見つかりません')) ?>}</p>`;
             }
 
             // widDetailsmaininfostu の設定
@@ -2040,15 +2032,15 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                 // detail.Label があればそのまま、なければ「グルーピングが行われていません」
                 const labelText = detail.Label 
                     ? detail.Label 
-                    : 'グルーピングが行われていません';
+                    : <?= json_encode(translate('machineLearning_sample.php_1641行目_グルーピングが行われていません')) ?>;
 
                 return `
-                    <p>回答日時: ${detail.Date}</p>
-                    <p>最終回答文: ${detail.EndSentence}</p>
-                    <p>解答時間: ${detail.Time}秒</p>
-                    <p>正誤: ${detail.TF}</p>
-                    <p>迷い: ${detail.Understand}</p>
-                    <p>Label: ${labelText}</p>
+                    <p>${<?= json_encode(translate('machineLearning_sample.php_1644行目_回答日時')) ?>}: ${detail.Date}</p>
+                    <p>${<?= json_encode(translate('machineLearning_sample.php_1645行目_最終回答文')) ?>}: ${detail.EndSentence}</p>
+                    <p>${<?= json_encode(translate('machineLearning_sample.php_1646行目_解答時間')) ?>}: ${detail.Time}秒</p>
+                    <p>${<?= json_encode(translate('machineLearning_sample.php_1647行目_正誤')) ?>}: ${detail.TF}</p>
+                    <p>${<?= json_encode(translate('machineLearning_sample.php_1648行目_迷い')) ?>}: ${detail.Understand}</p>
+                    <p>${<?= json_encode(translate('machineLearning_sample.php_1649行目_Label')) ?>}: ${labelText}</p>
                 `;
             }
 
@@ -2057,7 +2049,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                 attemptSelect.value = 1;
                 attemptDetailsContainer.innerHTML = getAttemptDetailHTML(attempt1);
             } else {
-                attemptDetailsContainer.innerHTML = '<p>試行回数 1 の情報が見つかりません。</p>';
+                attemptDetailsContainer.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1651行目_試行回数1の情報が見つかりません')) ?>}</p>`;
             }
 
             // attemptSelect の change イベント
@@ -2071,13 +2063,13 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     // ★修正: getAttemptDetailHTML() で Label を含む情報を描画
                     attemptDetailsContainer.innerHTML = getAttemptDetailHTML(selectedDetail);
                 } else {
-                    attemptDetailsContainer.innerHTML = '<p>選択された試行回数の情報が見つかりません。</p>';
+                    attemptDetailsContainer.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1662行目_選択された試行回数の情報が見つかりません')) ?>}</p>`;
                 }
             });
 
         } catch (error) {
             console.error(error);
-            widDetailsmaininfostu.innerHTML = '<p>データの取得に失敗しました。</p>';
+            widDetailsmaininfostu.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1667行目_データの取得に失敗しました')) ?>}</p>`;
         }
                         });
                         function displayGrammarStats(grammarStats) {
@@ -2094,16 +2086,15 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                             //追加
                             // テーブルHTMLの生成
                             let tableHTML = `
-                                <div style="flex: 1; padding-right: 20px;"> <!-- テーブル用のdiv -->
-                                    <table class = "table2">
+                                <div style="flex: 1; padding-right: 20px;"> <table class = "table2">
                                         <thead>
                                             <tr>
-                                                <th>文法項目</th>
-                                                <th>総解答数</th>
-                                                <th>正解数</th>
-                                                <th>迷い数</th>
-                                                <th>不正解率</th>
-                                                <th>迷い率</th>
+                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1682行目_文法項目')) ?>}</th>
+                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1683行目_総解答数')) ?>}</th>
+                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1684行目_正解数')) ?>}</th>
+                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1685行目_迷い数')) ?>}</th>
+                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1686行目_不正解率')) ?>}</th>
+                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1687行目_迷い率')) ?>}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -2170,8 +2161,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                         */
                         // グラフ用のHTML
     const chartHTML = `
-        <div style="flex: 1;"> <!-- グラフ用のdiv -->
-            <canvas id="grammarChart"></canvas>
+        <div style="flex: 1;"> <canvas id="grammarChart"></canvas>
         </div>
     `;
 
@@ -2185,14 +2175,14 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                     labels: labels,
                                     datasets: [
                                         {
-                                            label: '不正解率 (%)',
+                                            label: <?= json_encode(translate('machineLearning_sample.php_1744行目_不正解率(%)')) ?>,
                                             data: accuracyData,
                                             backgroundColor: 'rgba(75, 192, 192, 0.6)', // 青系
                                             borderColor: 'rgba(75, 192, 192, 1)',
                                             borderWidth: 1,
                                         },
                                         {
-                                            label: '迷い率 (%)',
+                                            label: <?= json_encode(translate('machineLearning_sample.php_1745行目_迷い率(%)')) ?>,
                                             data: hesitationData,
                                             backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
                                             borderColor: 'rgba(255,99,132,1)',
@@ -2205,7 +2195,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                     plugins: {
                                         title: {
                                             display: true,
-                                            text: '文法項目ごとの正解率と迷い率',
+                                            text: <?= json_encode(translate('machineLearning_sample.php_1750行目_文法項目ごとの正解率と迷い率')) ?>,
                                             font: {
                                                 size: 20, // フォントサイズを24pxに設定
                                             }
@@ -2233,7 +2223,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                         x: {
                                             title: {
                                                 display: true,
-                                                text: '文法項目',
+                                                text: <?= json_encode(translate('machineLearning_sample.php_1771行目_文法項目')) ?>,
                                                 font: {
                                                 size: 20, // Y軸ラベルのフォントサイズを20pxに設定
                                             }
@@ -2246,7 +2236,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                             max: 100,
                                             title: {
                                                 display: true,
-                                                text: '割合 (%)',
+                                                text: <?= json_encode(translate('machineLearning_sample.php_1780行目_割合(%)')) ?>,
                                                 font: {
                                                 size: 20, // Y軸ラベルのフォントサイズを20pxに設定
                                             },
@@ -2301,7 +2291,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                                 x: {
                                     title: {
                                         display: true,
-                                        text: 'ユーザー名',
+                                        text: <?= json_encode(translate('machineLearning_sample.php_630行目_ユーザー名')) ?>,
                                         font: {
                                             size: 20
                                         }
@@ -2358,7 +2348,7 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     });
                 }
                 // PHPからstudentStatsを取得
-                const studentData = <?php echo json_encode(array_values($studentStats)); ?>;
+                const studentData = <?php echo json_encode(array_values($studentStats ?? [])); ?>;
                 //console.log(studentData); // デバッグ用
 
                 if (studentData.length > 0) {
@@ -2373,17 +2363,24 @@ function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                         labels,
                         notAccuracyRates,
                         hesitationRates,
-                        '不正解率 (%)',
-                        '迷い率 (%)',
+                        <?= json_encode(translate('machineLearning_sample.php_1855行目_不正解率(%)')) ?>,
+                        <?= json_encode(translate('machineLearning_sample.php_1856行目_迷い率(%)')) ?>,
                         'rgba(255, 99, 132, 0.6)',
                         'rgba(54, 162, 235, 0.6)',
-                        '不正解率 (%)',
-                        '迷い率 (%)',
+                        <?= json_encode(translate('machineLearning_sample.php_1859行目_不正解率(%)')) ?>,
+                        <?= json_encode(translate('machineLearning_sample.php_1860行目_迷い率(%)')) ?>,
                         chartArray,
                         0 // インデックスは0で管理
                     );
                 } else {
-                    document.getElementById('result-Chart').textContent = "まだ迷い推定が行われていません";
+                    const resultChart = document.getElementById('result-Chart');
+                    if(resultChart) {
+                        const ctx = resultChart.getContext('2d');
+                        ctx.clearRect(0, 0, resultChart.width, resultChart.height);
+                        ctx.font = "20px Arial";
+                        ctx.textAlign = "center";
+                        ctx.fillText(<?= json_encode(translate('machineLearning_sample.php_1861行目_まだ迷い推定が行われていません')) ?>, resultChart.width / 2, resultChart.height / 2);
+                    }
                 }
             </script>
         </main>

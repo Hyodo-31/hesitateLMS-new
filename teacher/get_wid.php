@@ -1,4 +1,5 @@
 <?php
+    include '../lang.php';
     require "../dbc.php";
     //GET受け取り
     $uid = $_GET['uid'] ? $_GET['uid'] : null;
@@ -13,19 +14,19 @@
     $WID = [];
     while($row = $result->fetch_assoc()){
         if($row['Understand'] == 4){
-            $row['Understand'] = '迷い無し';
+            $row['Understand'] = translate('get_wid.php_16行目_迷い無し');
         }else if($row['Understand'] == 2){
-            $row['Understand'] = '迷い有り';
+            $row['Understand'] = translate('get_wid.php_18行目_迷い有り');
         }else{
-            $row['Understand'] = '不明';
+            $row['Understand'] = translate('get_wid.php_20行目_不明');
         }
 
         if($row['level'] == 1){
-            $row['level'] = '初級';
+            $row['level'] = translate('get_wid.php_23行目_初級');
         }else if($row['level'] == 2){
-            $row['level'] = '中級';
+            $row['level'] = translate('get_wid.php_25行目_中級');
         }else{
-            $row['level'] = '上級';
+            $row['level'] = translate('get_wid.php_27行目_上級');
         }
         $WID[] = [
             'WID' => $row['WID'],

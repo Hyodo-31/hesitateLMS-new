@@ -1,5 +1,5 @@
-
 <?php
+include '../lang.php'; // 多言語対応
 require "../dbc.php";
 //require "log_write.php";
 
@@ -13,7 +13,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
     if (empty($features) || empty($studentIDs)) {
-        echo json_encode(['error' => '特徴量または学生IDが不足しています。']);
+        echo json_encode(['error' => translate('perform_clustering.php_13行目_特徴量または学生IDが不足しています')]);
         exit();
     }
 
@@ -115,7 +115,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ($status !== 0) {
         // エラー出力を表示
-        echo "Error occurred:\n";
+        echo translate('perform_clustering.php_132行目_エラーが発生しました') . ":\n";
         echo implode("\n", $output);
         exit();
     }

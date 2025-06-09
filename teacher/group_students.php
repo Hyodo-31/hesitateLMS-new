@@ -1,13 +1,14 @@
 <?php
+include '../lang.php';
 require "../dbc.php";
-session_start();
+// session_start(); // lang.phpでセッションは開始済み
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $teacher_id = $_SESSION["MemberID"];
     $clustersData = json_decode(file_get_contents('php://input'), true);
 
     if (empty($clustersData)) {
-        echo "グループ化するデータがありません。";
+        echo translate('group_students.php_11行目_グループ化するデータがありません');
         exit();
     }
 
@@ -19,23 +20,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $students = $cluster['students'];
 
         // グループを作成
-        echo $teacher_id;
+        // echo $teacher_id;
         $stmt_group->bind_param("ss", $group_name, $teacher_id);
         if ($stmt_group->execute()) {
-            echo "グループ '{$group_name}' が正常に作成されました。<br>";
+            echo sprintf(translate('group_students.php_24行目_グループ正常に作成されました'), htmlspecialchars($group_name)) . "<br>";
             $group_id = $stmt_group->insert_id;
 
             // 学生をグループに追加
             foreach ($students as $student_id) {
                 $stmt_member->bind_param("ii", $group_id, $student_id);
                 if ($stmt_member->execute()) {
-                    echo "学生ID {$student_id} がグループ '{$group_name}' に追加されました。<br>";
+                    echo sprintf(translate('group_students.php_30行目_学生がグループに追加されました'), htmlspecialchars($student_id), htmlspecialchars($group_name)) . "<br>";
                 } else {
-                    echo "学生追加に失敗しました: " . $stmt_member->error . "<br>";
+                    echo translate('group_students.php_32行目_学生追加に失敗しました') . $stmt_member->error . "<br>";
                 }
             }
         } else {
-            echo "グループ作成に失敗しました: " . $stmt_group->error . "<br>";
+            echo translate('group_students.php_36行目_グループ作成に失敗しました') . $stmt_group->error . "<br>";
         }
     }
 
