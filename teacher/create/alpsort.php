@@ -1,18 +1,19 @@
-﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<?php
-session_start();
+﻿<?php
+// session_start(); // lang.phpでセッションスタート
+require "../../lang.php";
+
 if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 	require"notlogin.html";
-	session_destroy();
+	// session_destroy(); // lang.phpで処理されるため、ここでの個別破棄は不要な場合が多い
 	exit;
 }
 $_SESSION["examflag"] = 0;
 ?>
-
-<html>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!DOCTYPE html>
+<html lang="<?= $lang ?>">
 <head>
-	<title>初期順序決定</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title><?= translate('alpsort.php_12行目_初期順序決定') ?></title>
     <link rel="stylesheet" href="../../style/StyleSheet.css" type="text/css" />  
 </head>
 
@@ -23,7 +24,7 @@ $_SESSION["examflag"] = 0;
     function attention_equal() {
         //var res = confirm("問題の初期順序が正解と同一です。任意指定に移動します");
        // 選択結果で分岐
-       alert("初期順序が正解と同じであるため、任意指定に移動します");
+       alert(<?= json_encode(translate('alpsort.php_24行目_初期順序が正解と同じ')) ?>);
        window.location = "./ques.php";
        /*
        if( res == true ) {
@@ -38,7 +39,7 @@ $_SESSION["examflag"] = 0;
     }
 
     function attention_near() {
-        var res = confirm("初期順序が正解と近いため、任意指定に移動します");
+        var res = confirm(<?= json_encode(translate('alpsort.php_38行目_初期順序が正解に近い')) ?>);
        // 選択結果で分岐
        
        
@@ -48,17 +49,17 @@ $_SESSION["examflag"] = 0;
        }
        else {
           // キャンセルならダイアログ表示
-          alert("移動をキャンセルしました。");
+          alert(<?= json_encode(translate('alpsort.php_45行目_移動をキャンセルしました')) ?>);
        }
        
     }
 
 </script>
 <div align="center">
-	<FONT size="6">初期順序決定</FONT>
+	<FONT size="6"><?= translate('alpsort.php_50行目_初期順序決定') ?></FONT>
 	</br>
 <?php
-session_start();
+// session_start(); // lang.phpで処理済み
 require "../../dbc.php";
 $Japanese = $_SESSION["Japanese"];
 $Sentence = $_SESSION["Sentence"];
@@ -72,14 +73,14 @@ echo "<br>";
 
 <table style="border:3px dotted red;" cellpadding="5"><tr><td>
 <font size = 4>
-<b>日本文</b>：<?php echo $Japanese; ?></br>
-<b>問題文</b>：<?php echo $Sentence; ?></br>
-<b>区切り</b>：<?php echo $view_Sentence; ?></br>
+<b><?= translate('alpsort.php_66行目_日本文') ?></b>：<?php echo htmlspecialchars($Japanese, ENT_QUOTES, 'UTF-8'); ?></br>
+<b><?= translate('alpsort.php_67行目_問題文') ?></b>：<?php echo htmlspecialchars($Sentence, ENT_QUOTES, 'UTF-8'); ?></br>
+<b><?= translate('alpsort.php_68行目_区切り') ?></b>：<?php echo htmlspecialchars($view_Sentence, ENT_QUOTES, 'UTF-8'); ?></br>
 </font>
 </td></tr></table><br>
 
 <font size = 4>
-<b>初期順序をアルファベット順にしました。</br></br></b>
+<b><?= translate('alpsort.php_73行目_初期順序をアルファベット順にしました') ?><br><br></b>
 </font>
 
 <?php
@@ -98,8 +99,11 @@ foreach($a as $key => $value){//固定されていないラベルのみを取り
           $sub_a[$i] = $value;
           $i++;
         }
+    } else {
+        // $rock[$j] が存在しない場合のフォールバック
+        $sub_a[$i] = $value;
+        $i++;
     }
-    
 }
 
 
@@ -135,7 +139,7 @@ foreach($sub_b as $key => $value){//完全一致かどうかの判定
 }
 //echo "アルファベットソート:".$test2."<br>";//固定ラベルを抜いた問題文の単語の並び順(比較対象B)
 
-if($test1 == $test2){
+if(isset($test1) && isset($test2) && $test1 == $test2){
     //echo "初期順序と正答文が一致<br>";
     echo '<script type = "text/javascript">';
     echo 'attention_equal()';
@@ -156,7 +160,7 @@ foreach($sub_b as $key => $value){//完全一致かどうかの判定
 
 
 //echo $test2."<br>";//固定ラベルを抜いた問題文の単語の並び順(比較対象B)
-if (strstr($test1,$test2)) {
+if (isset($test1) && isset($test2) && strstr($test1,$test2)) {
     //echo "含んでいます(1-f)<br>";
     $near_flag = 1;
 }
@@ -174,7 +178,7 @@ foreach($sub_b as $key => $value){//完全一致かどうかの判定
     $i++;
 }
 //echo $test2."<br>";//固定ラベルを抜いた問題文の単語の並び順(比較対象B)
-if (strstr($test1,$test2)) {
+if (isset($test1) && isset($test2) && strstr($test1,$test2)) {
     //echo "含んでいます(1-e)<br>";
     $near_flag = 1;
 }
@@ -190,7 +194,7 @@ foreach($sub_b as $key => $value){//完全一致かどうかの判定
     $i++;
 }
 //echo "[A]".$test2."<br>";//固定ラベルを抜いた問題文の単語の並び順(比較対象B)
-if (strstr($test1,$test2)) {
+if (isset($test1) && isset($test2) && strstr($test1,$test2)) {
     //echo "含んでいます(2-f)<br>";
     $near_flag = 1;
 }
@@ -211,7 +215,7 @@ foreach($sub_b as $key => $value){//完全一致かどうかの判定
     $i++;
 }
 //echo "[B]".$test2."<br>";//固定ラベルを抜いた問題文の単語の並び順(比較対象B)
-if (strstr($test1,$test2)) {
+if (isset($test1) && isset($test2) && strstr($test1,$test2)) {
     //echo "含んでいます(2-m)<br>";
     $near_flag = 1;
 }
@@ -227,7 +231,7 @@ foreach($sub_b as $key => $value){//完全一致かどうかの判定
     $i++;
 }
 //echo "[C]".$test2."<br>";//固定ラベルを抜いた問題文の単語の並び順(比較対象B)
-if (strstr($test1,$test2)) {
+if (isset($test1) && isset($test2) && strstr($test1,$test2)) {
     //echo "含んでいます(2-f)<br>";
     $near_flag = 1;
     
@@ -243,6 +247,7 @@ if($near_flag ==1){
 $al_num =0;
 $change = 0;
 $i=0;
+$alp_array = [];
 foreach($sub_b as $key => $value){
     //echo $key.">".$value."<br>";
     $alp_array[$al_num] = $value;
@@ -299,28 +304,28 @@ foreach ($a as $key => $val) {
     }
 }
 echo "<br>";
-echo $start."<br><br><br>";
-
-
-$_SESSION["start"] = $start;
+if (isset($start)) {
+    echo htmlspecialchars($start, ENT_QUOTES, 'UTF-8') . "<br><br><br>";
+    $_SESSION["start"] = $start;
+}
 ?>
 
 
 
 <form method="post" action="check.php">
 <br>
-<input type="submit" value="決定" class="button"/>
+<input type="submit" value="<?= translate('alpsort.php_310行目_決定') ?>" class="button"/>
 </form>
 
 
-<a href="javascript:history.go(-7);">問題登録</a>
+<a href="javascript:history.go(-7);"><?= translate('alpsort.php_314行目_問題登録') ?></a>
 ＞
-<a href="javascript:history.go(-5);">区切り決定</a>
+<a href="javascript:history.go(-5);"><?= translate('alpsort.php_316行目_区切り決定') ?></a>
 ＞
-<a href="javascript:history.go(-3);">固定ラベル決定</a>
+<a href="javascript:history.go(-3);"><?= translate('alpsort.php_318行目_固定ラベル決定') ?></a>
 ＞
-<font size="4" color="red"><u>初期順序決定</u></font>
-＞登録
+<font size="4" color="red"><u><?= translate('alpsort.php_320行目_初期順序決定') ?></u></font>
+＞<?= translate('alpsort.php_321行目_登録') ?>
 </br>
 
 
