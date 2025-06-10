@@ -1,6 +1,7 @@
-﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<?php
-session_start();
+﻿<?php
+// session_start(); lang.phpでセッションスタート
+require "../../lang.php";
+
 if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 	require"notlogin.html";
 	session_destroy();
@@ -8,20 +9,20 @@ if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 }
 $_SESSION["examflag"] = 0;
 ?>
-
-<html>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!DOCTYPE html>
+<html lang="<?= $lang ?>">
 <head>
-	<title>登録</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title><?= translate('insert.php_14行目_登録') ?></title>
     <link rel="stylesheet" href="../../style/StyleSheet.css" type="text/css" />  
 </head>
 
 <body>
 <div align="center">
-	<FONT size="6">登録画面</FONT>
+	<FONT size="6"><?= translate('insert.php_20行目_登録画面') ?></FONT>
 	</br>
 <?php
-session_start();
+// session_start(); // lang.phpで処理済み
 require "../../dbc.php";
 $Japanese = $_SESSION["Japanese"];
 $Sentence = $_SESSION["Sentence"];
@@ -46,11 +47,11 @@ $sql_ins = "insert into question_info VALUES($dtcnt,'".$Japanese."','".$Sentence
 	 where WID = $dtcnt;";
 }
 print "<br>";
-echo $sql_ins."<BR>";
+// echo $sql_ins."<BR>"; // デバッグ用のためコメントアウト
 //SQLを実行
 //echo $sql_ins."<br>";
 if (!$res = mysqli_query($conn,$sql_ins)) {
-	echo "SQL実行時エラー" ;
+	echo translate('insert.php_57行目_SQL実行時エラー');
 	exit ;
 }
 //データベースから切断
@@ -70,10 +71,10 @@ mysqli_close($conn) ;
  $_SESSION["start"]="";
 ?>
 <font size = 4>
-<b>登録完了しました。</br></br></b>
+<b><?= translate('insert.php_75行目_登録完了しました') ?><br><br></b>
 </font>
 
-<a href="../teachertrue.php" class="button">　ホーム画面へ　</a><br><br>
+<a href="../teachertrue.php" class="button">　<?= translate('insert.php_78行目_ホーム画面へ') ?>　</a><br><br>
 </div>
 </body>
 </html>

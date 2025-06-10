@@ -1,6 +1,7 @@
-﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<?php
-session_start();
+﻿<?php
+// session_start(); lang.phpでセッションスタート
+require "../../lang.php";
+
 if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 	require"notlogin.html";
 	session_destroy();
@@ -8,29 +9,27 @@ if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 }
 $_SESSION["examflag"] = 0;
 ?>
-
-
-<html>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!DOCTYPE html>
+<html lang="<?= $lang ?>">
 <head>
-<link rel="stylesheet" href="../../style/StyleSheet.css" type="text/css" />  
-	<title>問題新規登録</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <link rel="stylesheet" href="../../style/StyleSheet.css" type="text/css" />  
+	<title><?= translate('new.php_16行目_問題新規登録') ?></title>
     <style type="text/css">
 
-input {
-font-size: 100%;
-}
+    input {
+    font-size: 100%;
+    }
 
-</style>
-
+    </style>
 </head>
 
 <body>
 <div align="center">
-	<FONT size="6">問題新規登録</FONT>
+	<FONT size="6"><?= translate('new.php_28行目_問題新規登録') ?></FONT>
 	</br>
 <?php
-session_start();
+// session_start(); // lang.phpで処理済み
 require "../../dbc.php";
 $sql = "select MAX(WID) as maxwid from question_info";
 $res = mysqli_query($conn,$sql) or die("接続エラー");
@@ -61,18 +60,18 @@ if(isset($_POST["Sentence"])){
 
 ?>
 <form action = "entry.php" method="post">
-      <b>**　日本語文　**</b><br>※日本語で入力して下さい。<br><br><input type="text" name="Japanese" size="50" class="input"><br><br>
-<b>**　英　文　**</b><br>※英語（半角）で入力して下さい。<br><br><input type="text" name="Sentence" size="50" style="ime-mode:disabled;" class="input"><br><br>
-　　　<input type="submit" name="exe" value="登録" class="button">
-　　　<input type="reset" name="exe" value="リセット" class="button">
+      <b>**　<?= translate('new.php_66行目_日本語文') ?>　**</b><br><?= translate('new.php_66行目_日本語で入力') ?><br><br><input type="text" name="Japanese" size="50" class="input"><br><br>
+<b>**　<?= translate('new.php_67行目_英文') ?>　**</b><br><?= translate('new.php_67行目_英語で入力') ?><br><br><input type="text" name="Sentence" size="50" style="ime-mode:disabled;" class="input"><br><br>
+　　　<input type="submit" name="exe" value="<?= translate('new.php_68行目_登録') ?>" class="button">
+　　　<input type="reset" name="exe" value="<?= translate('new.php_69行目_リセット') ?>" class="button">
 </form>
 <br><br>
 <form action = "stop.php" method="post">
-　　　<input type="submit" name="exe" value="登録を中止する" class="btn_mini">
+　　　<input type="submit" name="exe" value="<?= translate('new.php_73行目_登録を中止する') ?>" class="btn_mini">
 </form>
 </br>
-<font size="4" color="red"><u>問題登録</u></font>
-	＞区切り決定＞固定ラベル決定＞初期順序決定＞登録
+<font size="4" color="red"><u><?= translate('new.php_76行目_問題登録') ?></u></font>
+	＞<?= translate('new.php_77行目_区切り決定') ?>＞<?= translate('new.php_77行目_固定ラベル決定') ?>＞<?= translate('new.php_77行目_初期順序決定') ?>＞<?= translate('new.php_77行目_登録') ?>
 </br>
 
 </div>

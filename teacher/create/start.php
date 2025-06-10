@@ -1,6 +1,7 @@
-﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<?php
-session_start();
+﻿<?php
+// session_start(); lang.phpでセッションスタート
+require "../../lang.php";
+
 if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 	require"notlogin.html";
 	session_destroy();
@@ -8,33 +9,22 @@ if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 }
 $_SESSION["examflag"] = 0;
 ?>
-
-<html>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!DOCTYPE html>
+<html lang="<?= $lang ?>">
 <head>
-	<title>初期順序決定</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title><?= translate('start.php_14行目_初期順序決定') ?></title>
   <link rel="stylesheet" href="../../style/StyleSheet.css" type="text/css" />  
 <script type="text/javascript">
-<!--
-function gopage(){//ラジオボタンでの指定先のphpファイルにジャンプするための関数
-  for(var i=0; i<document.forms[0].group.length; i++){
-    if(document.forms[0].group[i].checked == true){
-         url = document.forms[0].group[i].value;
-         location.href = url;
-    }
-  }
-}
- 
-// -->
 </script>
 </head>
 
 <body>
 <div align="center">
-	<FONT size="6">初期順序決定</FONT>
+	<FONT size="6"><?= translate('start.php_34行目_初期順序決定') ?></FONT>
 	</br>
 <?php
-session_start();
+// session_start(); // lang.phpで処理済み
 require "../../dbc.php";
 $Japanese = $_SESSION["Japanese"];
 $Sentence = $_SESSION["Sentence"];
@@ -47,38 +37,38 @@ echo "<br>";
 
 <table style="border:3px dotted red;" cellpadding="5"><tr><td>
 <font size = 4>
-<b>日本文</b>：<?php echo $Japanese; ?></br>
-<b>問題文</b>：<?php echo $Sentence; ?></br>
-<b>区切り</b>：<?php echo $view_Sentence; ?></br>
+<b><?= translate('start.php_50行目_日本文') ?></b>：<?php echo htmlspecialchars($Japanese, ENT_QUOTES, 'UTF-8'); ?></br>
+<b><?= translate('start.php_51行目_問題文') ?></b>：<?php echo htmlspecialchars($Sentence, ENT_QUOTES, 'UTF-8'); ?></br>
+<b><?= translate('start.php_52行目_区切り') ?></b>：<?php echo htmlspecialchars($view_Sentence, ENT_QUOTES, 'UTF-8'); ?></br>
 </font>
 </td></tr></table><br>
 
 <font size = 4>
-<b>初期順序を決める方法を選択して下さい。</br></br></b>
+<b><?= translate('start.php_57行目_初期順序の決定方法を選択') ?><br><br></b>
 </font>
 
 <form>
-    <input type="radio" name="group" value="ques.php" checked="true">任意指定
-    <input type="radio" name="group" value="alpsort.php">アルファベット順
- 　 <input type="radio" name="group" value="randsort.php">ランダム
+    <input type="radio" name="group" value="ques.php" checked="true"><?= translate('start.php_62行目_任意指定') ?>
+    <input type="radio" name="group" value="alpsort.php"><?= translate('start.php_63行目_アルファベット順') ?>
+ 　 <input type="radio" name="group" value="randsort.php"><?= translate('start.php_64行目_ランダム') ?>
  　 <br><br>
-    <input type="button" value="選択" onclick="gopage()" class="button">
+    <input type="button" value="<?= translate('start.php_66行目_選択') ?>" onclick="gopage()" class="button">
   </form>
 
 <br><br>
 <form action = "stop.php" method="post">
-<input type="submit" name="exe" value="登録を中止する" class="btn_mini">
+<input type="submit" name="exe" value="<?= translate('start.php_71行目_登録を中止する') ?>" class="btn_mini">
 </form>
 
 
-<a href="javascript:history.go(-6);">問題登録</a>
+<a href="javascript:history.go(-6);"><?= translate('start.php_75行目_問題登録') ?></a>
 ＞
-<a href="javascript:history.go(-4);">区切り決定</a>
+<a href="javascript:history.go(-4);"><?= translate('start.php_77行目_区切り決定') ?></a>
 ＞
-<a href="javascript:history.go(-2);">固定ラベル決定</a>
+<a href="javascript:history.go(-2);"><?= translate('start.php_79行目_固定ラベル決定') ?></a>
 ＞
-<font size="4" color="red"><u>初期順序決定</u></font>
-＞登録
+<font size="4" color="red"><u><?= translate('start.php_81行目_初期順序決定') ?></u></font>
+＞<?= translate('start.php_82行目_登録') ?>
 </br>
 
 </div>

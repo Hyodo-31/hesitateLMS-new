@@ -1,6 +1,7 @@
-﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<?php
-session_start();
+﻿<?php
+// session_start(); lang.phpでセッションスタート
+require "../../lang.php";
+
 if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 	require"notlogin.html";
 	session_destroy();
@@ -8,20 +9,20 @@ if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 }
 $_SESSION["examflag"] = 0;
 ?>
-
-<html>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!DOCTYPE html>
+<html lang="<?= $lang ?>">
 <head>
-	<title>区切り決定</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title><?= translate('divide.php_14行目_区切り決定') ?></title>
     <link rel="stylesheet" href="../../style/StyleSheet.css" type="text/css" />  
 </head>
 
 <body>
 <div align="center">
-	<FONT size="6">区切り決定</FONT>
+	<FONT size="6"><?= translate('divide.php_20行目_区切り決定') ?></FONT>
 	</br>
 <?php
-session_start();
+// session_start(); // lang.phpで処理済み
 require "../../dbc.php";
 $Japanese = $_SESSION["Japanese"];
 $Sentence = $_SESSION["Sentence"];
@@ -37,13 +38,13 @@ $_SESSION["divide"] = $divide;
 
 <table style="border:3px dotted red;" cellpadding="5"><tr><td>
 <font size = 4>
-<b>日本文</b>：<?php echo $Japanese; ?></br>
-<b>問題文</b>：<?php echo $Sentence; ?></br>
+<b><?= translate('divide.php_38行目_日本文') ?></b>：<?php echo htmlspecialchars($Japanese, ENT_QUOTES, 'UTF-8'); ?></br>
+<b><?= translate('divide.php_39行目_問題文') ?></b>：<?php echo htmlspecialchars($Sentence, ENT_QUOTES, 'UTF-8'); ?></br>
 </font>
 </td></tr></table><br>
 
 <font size = 4>
-<b>単語を区切る場所にチェックを入れてください。</br></br></b>
+<b><?= translate('divide.php_44行目_単語を区切る場所にチェック') ?><br><br></b>
 </font>
 
 
@@ -58,26 +59,26 @@ $len = count($a);
 
 <form method="post" action="divide_rec.php">
 <?php
-echo $a[0];
+echo htmlspecialchars($a[0], ENT_QUOTES, 'UTF-8');
 for ($i = 1; $i < $len; $i++){
 ?>
-<input type="checkbox" name="check[]" value="<?php echo $i; ?>" checked><?php echo $a[$i]; ?>
+<input type="checkbox" name="check[]" value="<?php echo $i; ?>" checked><?php echo htmlspecialchars($a[$i], ENT_QUOTES, 'UTF-8'); ?>
 <?php
 }
 echo "<br><br>";
 ?>
-<input type="submit" value="決定" class="button"/><br>
+<input type="submit" value="<?= translate('divide.php_61行目_決定') ?>" class="button"/><br>
 </form>
 
 <form action = "stop.php" method="post">
-<input type="submit" name="exe" value="登録を中止する" class="button">
+<input type="submit" name="exe" value="<?= translate('divide.php_65行目_登録を中止する') ?>" class="button">
 </form>
 <br>
 <br>
-<a href="javascript:history.go(-2);">問題登録</a>
+<a href="javascript:history.go(-2);"><?= translate('divide.php_69行目_問題登録') ?></a>
 ＞
-<font size="4" color="red"><u>区切り決定</u></font>
-＞固定ラベル決定＞初期順序決定＞登録
+<font size="4" color="red"><u><?= translate('divide.php_71行目_区切り決定') ?></u></font>
+＞<?= translate('divide.php_72行目_固定ラベル決定') ?>＞<?= translate('divide.php_72行目_初期順序決定') ?>＞<?= translate('divide.php_72行目_登録') ?>
 </br>
 
 </div>
