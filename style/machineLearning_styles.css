@@ -231,12 +231,12 @@ main .individual-details .student-details {
 .moda-content-machineLearning {
     position: relative;
     background-color: #fff;
-    max-width: 1200px;
-    max-height: 800px;
-    margin: 20px auto;
+    max-width: 90vw; /* 画面の幅の90%を最大幅に設定 */
+    max-height: 90vh; /* 画面の高さの90%を最大高さに設定 */
+    margin: 5vh auto; /* 上下のマージンも画面サイズに連動させる */
     padding: 20px;
     border-radius: 10px;
-    overflow-y: auto;
+    overflow-y: auto; /* コンテンツが多ければスクロール表示 */
 }
 
 .close {
