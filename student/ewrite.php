@@ -2,7 +2,8 @@
 // error_reporting(E_ALL);   // デバッグ時
 error_reporting(0);   // 運用時
 
-session_start();
+include '../lang.php';
+// session_start(); // lang.phpで開始済み
 $_SESSION["examflag"] = 0;
 require "../dbc.php";
 
@@ -19,7 +20,7 @@ $newAttempts = [];
 if (is_file($file_name)) { 
     $text = fopen($file_name, 'r'); 
     if (!$text) {
-        echo 'ファイルを開くことができませんでした';
+        echo translate('ewrite.php_17行目_ファイルを開けませんでした');
         exit;
     }
 
@@ -30,7 +31,7 @@ if (is_file($file_name)) {
             if (!$res) {
                 // エラーメッセージの出力とログ保存
                 $errorMsg = mysqli_error($conn);
-                echo "データ追加エラー: " . htmlspecialchars($errorMsg) . "<br>";
+                echo translate('ewrite.php_27行目_データ追加エラー') . ": " . htmlspecialchars($errorMsg) . "<br>";
                 // ログファイルにエラーを記録する場合
                 // file_put_contents('/path/to/error.log', "Error: $errorMsg\nQuery: $lines\n", FILE_APPEND);
                 continue;
@@ -73,11 +74,11 @@ if (is_file($file_name)) {
 
             // ログ出力やエラーチェック
             if ($output === null) {
-                echo "Pythonスクリプトの実行に失敗しました: UID={$uid}, WID={$wid}, Attempt={$attempt}<br>";
+                echo translate('ewrite.php_70行目_Pythonスクリプトの実行に失敗しました') . ": UID={$uid}, WID={$wid}, Attempt={$attempt}<br>";
             } else {
                 // 出力内容に基づいて成功/失敗を判断
                 // 必要に応じて条件を追加
-                echo "Pythonスクリプト実行結果 for UID={$uid}, WID={$wid}, Attempt={$attempt}:<br>";
+                echo translate('ewrite.php_74行目_Pythonスクリプト実行結果') . " for UID={$uid}, WID={$wid}, Attempt={$attempt}:<br>";
                 echo nl2br(htmlspecialchars($output)) . "<br>";
             }
 
@@ -86,11 +87,11 @@ if (is_file($file_name)) {
         }
     }
 
-    echo "正常にデータを書き終えました";
+    echo translate('ewrite.php_83行目_正常にデータを書き終えました');
     
     // 一時ファイルの削除
     if (!unlink($file_name)) {
-        echo "一時ファイルの削除に失敗しました。";
+        echo translate('ewrite.php_87行目_一時ファイルの削除に失敗しました');
     }
 
     // 同時にuser_progressに書き込み（具体的な処理内容が不明なためコメント）
@@ -98,7 +99,7 @@ if (is_file($file_name)) {
     // $progress = "some progress data";
     // mysqli_query($conn, "UPDATE user_progress SET progress='$progress' WHERE MemberID=$MemberID");
 } else {
-    echo 'データがありませんでした';
+    echo translate('ewrite.php_94行目_データがありませんでした');
     exit;
 }
 ?>

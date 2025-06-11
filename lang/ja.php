@@ -5,12 +5,12 @@ return [
     'login.php_10行目_英単語並べ替え問題LMS' => '英単語並べ替え問題LMS',  //ログイン画面のタブの名前
     'login.php_126行目_ユーザーID' => 'ユーザーID', //ユーザーIDを入力
     'login.php_130行目_パスワード' => 'パスワード', //パスワードを入力
-    'login.php_134行目_ログイン'  => 'ログイン',    //ログインボタンのところ
+    'login.php_134行目_ログイン' => 'ログイン',    //ログインボタンのところ
 
     //ログアウト関係
     'logout.php_8行目_英単語並べ替え問題LMS' => '英単語並べ替え問題LMS',  //ログアウト画面のタブの名前
     'logout.php_36行目_正常にログアウトしました' => '正常にログアウトしました',
-    'logout.php_37行目_ログイン画面へ戻る' => 'ログイン画面へ戻る',    
+    'logout.php_37行目_ログイン画面へ戻る' => 'ログイン画面へ戻る',
 
 
     //teacher関係
@@ -727,7 +727,7 @@ return [
     'check.php_78行目_初期順序決定' => '初期順序決定',
     'check.php_80行目_登録' => '登録',
 
-     // divide.php
+    // divide.php
     'divide.php_14行目_区切り決定' => '区切り決定',
     'divide.php_20行目_区切り決定' => '区切り決定',
     'divide.php_38行目_日本文' => '日本文',
@@ -916,4 +916,180 @@ return [
     'mousemove.php_1131行目_経過時間' => '経過時間',
     'mousemove.php_1136行目_経過時間' => '経過時間',
     'mousemove.php_1141行目_経過時間' => '経過時間',
+
+
+    //　student関係
+    // assignment.php
+    'assignment.php_5行目_教師用ダッシュボード' => '教師用ダッシュボード',
+    'assignment.php_21行目_英単語並べ替え問題LMS' => '英単語並べ替え問題LMS',
+    'assignment.php_24行目_ホーム' => 'ホーム',
+    'assignment.php_30行目_ホーム' => 'ホーム',
+    'assignment.php_34行目_ここは課題のページ' => 'ここは課題のページ',
+
+    //dbsyori.php
+    'dbsyori.php_13行目_英文抽出エラー' => '英文抽出エラー',
+    'dbsyori.php_21行目_エラー' => 'エラー',
+    'dbsyori.php_58行目_日本文抽出エラー' => '日本文抽出エラー',
+    'dbsyori.php_72行目_固定抽出エラー' => '固定抽出エラー',
+    'dbsyori.php_132行目_個数抽出エラー' => '個数抽出エラー',
+
+    // ewrite.php
+    'ewrite.php_17行目_ファイルを開けませんでした' => 'ファイルを開くことができませんでした',
+    'ewrite.php_27行目_データ追加エラー' => 'データ追加エラー',
+    'ewrite.php_70行目_Pythonスクリプトの実行に失敗しました' => 'Pythonスクリプトの実行に失敗しました',
+    'ewrite.php_74行目_Pythonスクリプト実行結果' => 'Pythonスクリプト実行結果',
+    'ewrite.php_83行目_正常にデータを書き終えました' => '正常にデータを書き終えました',
+    'ewrite.php_87行目_一時ファイルの削除に失敗しました' => '一時ファイルの削除に失敗しました。',
+    'ewrite.php_94行目_データがありませんでした' => 'データがありませんでした',
+
+    // linemouse.php
+    'linemouse.php_15行目_テーブル存在確認エラー' => 'linedatamouseテーブルの存在確認エラー',
+    'linemouse.php_18行目_こんにちは' => 'こんにちは%sさん',
+    'linemouse.php_20行目_テーブル作成失敗エラー' => 'linedatamouseテーブル作成失敗エラー',
+    'linemouse.php_22行目_初回アクセス' => 'はじめてのアクセスなので、%s をつくりました。',
+
+    // load.php
+    'load.php_107行目_最初の問題です' => 'これは最初の問題です．',
+    'load.php_109行目_データが見つかりませんでした' => 'データが見つかりませんでした．',
+    'load.php_116行目_WID抽出エラー' => 'WID抽出エラー',
+
+    // notification_detail.php
+    'notification_detail.php_6行目_お知らせIDが指定されていません' => 'お知らせIDが指定されていません。',
+    'notification_detail.php_28行目_該当するお知らせが見つかりません' => '該当するお知らせが見つかりません。',
+    'notification_detail.php_33行目_お知らせ詳細' => 'お知らせ詳細',
+    'notification_detail.php_38行目_英単語並べ替え問題LMS' => '英単語並べ替え問題LMS',
+    'notification_detail.php_41行目_ホーム' => 'ホーム',
+    'notification_detail.php_42行目_コース管理' => 'コース管理',
+    'notification_detail.php_43行目_迷い推定・機械学習' => '迷い推定・機械学習',
+    'notification_detail.php_44行目_学生分析' => '学生分析',
+    'notification_detail.php_45行目_問題分析' => '問題分析',
+    'notification_detail.php_60行目_お知らせ詳細' => 'お知らせ詳細',
+    'notification_detail.php_68行目_投稿日時' => '投稿日時',
+
+    // result.php
+    'result.php_24行目_解答結果' => '解答結果',
+    'result.php_43行目_おつかれさまでした' => '英単語並べ替え問題解答おつかれさまでした。',
+    'result.php_44行目_以下解答結果' => '以下、解答結果です。',
+    'result.php_54行目_さんの解答結果' => 'さんの解答結果',
+    'result.php_78行目_正解率' => '正解率',
+    'result.php_104行目_問題番号' => '問題番号',
+    'result.php_104行目_解答' => '解答',
+    'result.php_104行目_正答' => '正答',
+    'result.php_104行目_正誤' => '〇/×',
+
+    // student.php
+    'student.php_5行目_学生用ダッシュボード' => '学生用ダッシュボード',
+    'student.php_23行目_英単語並べ替え問題LMS' => '英単語並べ替え問題LMS',
+    'student.php_26行目_ホーム' => 'ホーム',
+    'student.php_27行目_ログアウト' => 'ログアウト',
+    'student.php_38行目_学生用LMS' => '学生用LMS',
+    'student.php_41行目_お知らせ一覧' => 'お知らせ一覧',
+    'student.php_66行目_現在お知らせはありません' => '現在お知らせはありません。',
+    'student.php_76行目_テスト' => 'テスト',
+    'student.php_80行目_成績管理' => '成績管理',
+
+    // swrite.php
+    'swrite.php_14行目_こんにちは' => 'こんにちは',
+    'swrite.php_14行目_さん' => 'さん',
+
+    // template.php
+    'template.php_5行目_教師用ダッシュボード' => '教師用ダッシュボード',
+    'template.php_18行目_英単語並べ替え問題LMS' => '英単語並べ替え問題LMS',
+    'template.php_21行目_ホーム' => 'ホーム',
+    'template.php_22行目_コース管理' => 'コース管理',
+    'template.php_23行目_迷い推定・機械学習' => '迷い推定・機械学習',
+    'template.php_24行目_学生分析' => '学生分析',
+    'template.php_25行目_問題分析' => '問題分析',
+    'template.php_26行目_新規学生登録' => '新規学生登録',
+    'template.php_39行目_ここにコンテンツを入れる' => 'ここにコンテンツを入れる',
+
+    // test.php
+    'test.php_5行目_テスト' => 'テスト',
+    'test.php_45行目_英単語並べ替え問題LMS' => '英単語並べ替え問題LMS',
+    'test.php_48行目_ホーム' => 'ホーム',
+    'test.php_49行目_ログアウト' => 'ログアウト',
+    'test.php_56行目_成績管理' => '成績管理',
+    'test.php_61行目_テストページ' => 'ここはテストのページ',
+    'test.php_99行目_登録されたテスト一覧' => '登録されたテスト一覧',
+    'test.php_103行目_テスト名' => 'テスト名',
+    'test.php_104行目_作成日時' => '作成日時',
+    'test.php_105行目_解答状況' => '解答状況',
+    'test.php_106行目_解答' => '解答',
+    'test.php_125行目_テストはありません' => '登録されたテストはありません。',
+    // --- 解答状況の翻訳 ---
+    'status_unanswered' => '未回答',
+    'status_in_progress' => '解答途中',
+    'status_completed' => '解答済み',
+
+    // Analytics/analytics.php
+    'analytics.php_5行目_学習者用ダッシュボード' => '学習者用ダッシュボード',
+    'analytics.php_21行目_英単語並べ替え問題LMS' => '英単語並べ替え問題LMS',
+    'analytics.php_24行目_ホーム' => 'ホーム',
+    'analytics.php_25行目_ログアウト' => 'ログアウト',
+    'analytics.php_38行目_成績概要' => '成績概要',
+    'analytics.php_40行目_正解率' => '正解率',
+    'analytics.php_148行目_迷い率' => '迷い率',
+    'analytics.php_169行目_解答した問題数' => '解答した問題数',
+    'analytics.php_174行目_解答済み問題一覧' => '解答済み問題一覧',
+    'analytics.php_176行目_解答済みの問題を選択' => '解答済みの問題を選択してください',
+    'analytics.php_180行目_選択してください' => '選択してください',
+    'analytics.php_js_問題を選択してください' => '問題を選択してください。',
+    'analytics.php_js_試行回数を選択' => '試行回数を選択',
+    'analytics.php_js_Attempt' => 'Attempt',
+    'analytics.php_js_問題情報' => '問題情報',
+    'analytics.php_js_正解率' => '正解率',
+    'analytics.php_js_正解文' => '正解文',
+    'analytics.php_js_日本語文' => '日本語文',
+    'analytics.php_js_文法項目' => '文法項目',
+    'analytics.php_js_平均解答時間' => '平均解答時間',
+    'analytics.php_js_秒' => '秒',
+    'analytics.php_js_難易度' => '難易度',
+    'analytics.php_js_単語数' => '単語数',
+    'analytics.php_js_正解者が行っているグルーピング' => '正解者が行っているグルーピング',
+    'analytics.php_js_データが見つかりません' => 'データが見つかりません。',
+    'analytics.php_js_解答情報' => '解答情報',
+    'analytics.php_js_回答日時' => '回答日時',
+    'analytics.php_js_最終回答文' => '最終回答文',
+    'analytics.php_js_解答時間' => '解答時間',
+    'analytics.php_js_正誤' => '正誤',
+    'analytics.php_js_迷い' => '迷い',
+    'analytics.php_js_Attempt1が見つかりません' => 'Attempt=1が見つかりません。',
+    'analytics.php_js_試行回数の情報が見つかりません' => '選択された試行回数の情報が見つかりません。',
+    'analytics.php_js_データの取得に失敗しました' => 'データの取得に失敗しました。',
+
+    // get_answer_info.php (日本語テキストをキーにする最終版)
+    'UIDまたはWIDが指定されていません。' => 'UIDまたはWIDが指定されていません。',
+    '仮定法，命令法' => '仮定法，命令法',
+    'It, There' => 'It, There',
+    '無生物主語' => '無生物主語',
+    '接続詞' => '接続詞',
+    '倒置' => '倒置',
+    '関係詞' => '関係詞',
+    '間接話法' => '間接話法',
+    '前置詞(句)' => '前置詞(句)',
+    '分詞' => '分詞',
+    '動名詞' => '動名詞',
+    '不定詞' => '不定詞',
+    '受動態' => '受動態',
+    '助動詞' => '助動詞',
+    '比較' => '比較',
+    '否定' => '否定',
+    '後置修飾' => '後置修飾',
+    '完了形，時制' => '完了形，時制',
+    '句動詞(群動詞)' => '句動詞(群動詞)',
+    '挿入' => '挿入',
+    '使役' => '使役',
+    '補語/二重目的語' => '補語/二重目的語',
+    '正解' => '正解',
+    '不正解' => '不正解',
+    '迷い無し' => '迷い無し',
+    '迷い有り' => '迷い有り',
+    '不明' => '不明',
+    '未定義' => '未定義',
+    '初級' => '初級',
+    '中級' => '中級',
+    '上級' => '上級',
+
+    // get_student_info.php
+    'get_student_info.php_75行目_不明な文法項目' => '不明な文法項目',
 ];

@@ -1,30 +1,28 @@
-<!DOCTYPE html PUBLIC "-//W3c//DTD HTML 4.01 Transitional//EN">
-
 <?php
+// lang.phpでセッションが開始されるため、個別のsession_startは不要
+require_once "../lang.php";
 
 //ログイン関連
 error_reporting(E_ALL);
-session_start();
+// session_start();
 if(!isset($_SESSION["MemberName"])){
-require"notlogin";
-session_destroy();
-exit;
+    require "notlogin.html"; // 拡張子を補完
+    //session_destroy();
+    exit;
 }
-if($_SESSION["examflag"] == 1){
-	require"overlap.php";
+if(isset($_SESSION["examflag"]) && $_SESSION["examflag"] == 1){
+	require "overlap.php";
 	exit;
 }else{
-$_SESSION["examflag"] = 2;
-$_SESSION["page"] = "ques";
+    $_SESSION["examflag"] = 2;
+    $_SESSION["page"] = "ques";
 }
-
 ?>
-
-
-<html>
+<!DOCTYPE html>
+<html lang="<?= $lang ?>">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>解答結果</title>
+<title><?= translate('result.php_24行目_解答結果') ?></title>
 <link rel="stylesheet" href="../style/StyleSheet.css" type="text/css" />  
 </head>
 <body>
@@ -33,25 +31,26 @@ $_SESSION["page"] = "ques";
 <img src="image/logo.png">
 </div>
 <div align="right">
-    <!--
-<a class="btn_yellow" href="./LineQuesForm.php" onclick="window.close();">戻る</a><br>
--->
-</div>
+    </div>
 <div align="center">
 <br><br>
-英単語並べ替え問題解答おつかれさまでした。<br>
-以下、解答結果です。<br>
+<?= translate('result.php_43行目_おつかれさまでした') ?><br>
+<?= translate('result.php_44行目_以下解答結果') ?><br>
 <br>
 <br>
 <?php
 
-require "../dbc.php";
-//$uid="70110086";
+require_once "../dbc.php";
 $uid=$_SESSION["MemberID"];
-//echo "uid:".$uid;
 $Name=$_SESSION["MemberName"];
-$Qid = $_GET["Qid"];
-echo $Name."さんの解答結果<br><br>";
+if (isset($_GET["Qid"])) {
+    $Qid = $_GET["Qid"];
+} else {
+    // Qidが設定されていない場合のエラーハンドリング
+    die("Qidが指定されていません。");
+}
+
+echo htmlspecialchars($Name, ENT_QUOTES, 'UTF-8') . translate('result.php_54行目_さんの解答結果') . "<br><br>";
 
 $sql = "SELECT 
             SUM(TF) as correct_count,
@@ -65,21 +64,11 @@ $stmt->execute();
 $result = $stmt->get_result();
 $row = $result->fetch_assoc();
 
-/*
-$sql="select (Table1.Maru/(Table1.Maru+Table2.Batsu))*100 as Percent from
-(select count(*) as Maru from linedata where uid='".$uid."' and TF=1 and WID!=8) as Table1,
-(select count(*) as Batsu from linedata where uid='".$uid."' and TF=0 and WID!=8) as Table2";
-
-
-$res = mysql_query($sql, $conn) or die("Member抽出エラー");
-$row = mysql_fetch_array($res);
-*/
 
 if (isset($row['accuracy_rate'])) {
-    echo "<font size=12pt color=red>正解率：" . round($row['accuracy_rate'], 2) . "%</font><br><br>";
+    echo "<font size=12pt color=red>" . translate('result.php_78行目_正解率') . "：" . round($row['accuracy_rate'], 2) . "%</font><br><br>";
 } else {
-    // 例: 0%として扱う、あるいは「データ無し」と表示
-    echo "<font size=12pt color=red>正解率：0%</font><br><br>";
+    echo "<font size=12pt color=red>" . translate('result.php_78行目_正解率') . "：0%</font><br><br>";
 }
 
 
@@ -93,32 +82,19 @@ $stmt_2->bind_param('ii', $Qid, $uid);
 $stmt_2->execute();
 $res_2 = $stmt_2->get_result();
 
-/*
-$sql_2=" select quesorder.OID,linedata.WID,linedata.TF,linedata.EndSentence,question_info.Sentence,trackdata.point from linedata,quesorder,question_info,trackdata 
-        where linedata.WID=question_info.WID and linedata.uid='".$uid."' 
-        and quesorder.WID=linedata.WID and trackdata.uid='".$uid."' 
-        and trackdata.WID=linedata.WID 
-        order by quesorder.OID";
-//echo "sql:".$sql_2;
-$res_2 = mysql_query($sql_2, $conn) or die("Member抽出エラー");
-// echo "res:".$res_2."<br>";
-*/
 
+echo "<table class='table_1'><tr><th>" . translate('result.php_104行目_問題番号') . "</th><th>" . translate('result.php_104行目_解答') . "</th><th>" . translate('result.php_104行目_正答') . "</th><th>" . translate('result.php_104行目_正誤') . "</th></tr>";
 
-echo "<table class='table_1'><tr><th>問題番号</th><th>解答</th><th>正答</th><th>〇/×</th></tr>";
-
-//echo "before loop";
 while($row_2 = mysqli_fetch_array($res_2)){
     echo "<tr><td>".(intval($row_2['OID']))."</td>";
-    echo "<td>".$row_2['EndSentence']."</td>";
-    echo "<td>".$row_2['Sentence']."</td><td>";
+    echo "<td>".htmlspecialchars($row_2['EndSentence'], ENT_QUOTES, 'UTF-8')."</td>";
+    echo "<td>".htmlspecialchars($row_2['Sentence'], ENT_QUOTES, 'UTF-8')."</td><td>";
     $tf=$row_2['TF'];
     if($tf=='1') echo "〇</td>";
     else echo "×</td>";
 
-    //echo "<td>".$row_2['point']."</td></tr>"; トラックデータテーブルがよくわからんためいったん消す
+    //echo "<td>".$row_2['point']."</td></tr>";
 }
-//echo "after loop";
 echo "</table>";
 
 

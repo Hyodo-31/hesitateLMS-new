@@ -4,7 +4,8 @@
  */
 //error_reporting(E_ALL);   // デバッグ時
 error_reporting(0);   // 運用時
-session_start();
+include '../lang.php';
+// session_start(); // lang.phpで開始済み
 
 require "../dbc.php";
 
@@ -93,30 +94,32 @@ if($_GET['param1']=="a"){
 
 	// データが抽出できたとき
 	if ($tableMaxOID->num_rows > 0) {
-	$row = $tableMaxOID->fetch_assoc();
-	$maxOID = $row['max_oid']; // 修正: 'max_oid' を使用
+        $row = $tableMaxOID->fetch_assoc();
+        $maxOID = $row['max_oid']; // 修正: 'max_oid' を使用
 
-	if (is_null($maxOID)) {
-		$maxOID = "これは最初の問題です．";
-	}
+        if (is_null($maxOID)) {
+            $maxOID = translate('load.php_107行目_最初の問題です');
+        }
 	} else {
-	$maxOID = "データが見つかりませんでした．";
+	    $maxOID = translate('load.php_109行目_データが見つかりませんでした');
 	}
 
 	echo $maxOID;
 
 	
 }else if($_GET['param1']=="w"){
+    // mysql_*関数は非推奨のため、mysqli_*関数に置き換えることを推奨します。
+    // ここでは文字列の国際化のみ行います。
 	$sql_wid="select WID from test_questions where oid=".$_GET['param2']."";
-    $res_wid = mysql_query($sql_wid, $conn) or die("WID抽出エラー");
-    $cnt_wid = mysql_num_rows($res_wid);
+    $res_wid = mysqli_query($conn, $sql_wid) or die(translate('load.php_116行目_WID抽出エラー'));
+    $cnt_wid = mysqli_num_rows($res_wid);
     if($cnt_wid ==1){
-        $row_wid = mysql_fetch_array($res_wid);
+        $row_wid = mysqli_fetch_array($res_wid);
 		$WID = $row_wid['WID'];
         echo $WID;
     }
     else {
-        echo "WID抽出エラー";
+        echo translate('load.php_116行目_WID抽出エラー');
 	}
 }
 ?>

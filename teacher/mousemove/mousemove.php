@@ -1,6 +1,6 @@
 <?php
 // lang.phpでセッションが開始されるため、個別のsession_startは不要
-require "../../lang.php";
+require "../../../lang.php";
 ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">

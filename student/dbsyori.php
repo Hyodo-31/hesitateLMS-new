@@ -4,71 +4,63 @@
  */
 //error_reporting(E_ALL);   // デバッグ時
 error_reporting(0);   // 運用時
-session_start();
+include '../lang.php';
+// session_start(); // lang.phpで開始済み
 require"../dbc.php";
 $MemberID = $_SESSION["MemberID"];
-
-
-
 
 //解答系文のの参照
 if($_GET['param2']=="q"){
 	$Question = "SELECT Sentence FROM question_info WHERE (WID= ".$_GET['param1'].")";//ＤＢから英文を得る
-	$res = mysqli_query($conn,$Question) or die("英文抽出エラー");
+	$res = mysqli_query($conn,$Question) or die(translate('dbsyori.php_13行目_英文抽出エラー'));
 	$count = mysqli_num_rows($res);
 
 	//データが抽出できたとき
 	if(mysqli_num_rows($res) > 0){
 		$row = mysqli_fetch_array($res);
 		echo $row['Sentence'];
-		//$Answer = ucfirst($Question); //回答（先頭を大文字に)
-	    //$_SESSION["Answer"] = $Answer;
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
 }
 
 //開始英文のの参照
 if($_GET['param2']=="q1"){
 	$Question = "SELECT start FROM question_info WHERE (WID= ".$_GET['param1'].")";//ＤＢから英文を得る
-	$res = mysqli_query($conn,$Question) or die("英文抽出エラー");
+	$res = mysqli_query($conn,$Question) or die(translate('dbsyori.php_13行目_英文抽出エラー'));
 	$count = mysqli_num_rows($res);
 
 	//データが抽出できたとき
 	if(mysqli_num_rows($res) > 0){
 		$row = mysqli_fetch_array($res);
 		echo $row['start'];
-	/*	$Answer = ucfirst($Question);*/ //回答（先頭を大文字に)
-	/*    $_SESSION["Answer"] = $Answer;*/
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
 }
 
 //divideの参照
 if($_GET['param2']=="d"){
 	$Divide = "SELECT divide FROM question_info WHERE (WID= ".$_GET['param1'].")";//ＤＢから英文を得る
-	$res = mysqli_query($conn,$Divide) or die("英文抽出エラー");
+	$res = mysqli_query($conn,$Divide) or die(translate('dbsyori.php_13行目_英文抽出エラー'));
 	$count = mysqli_num_rows($res);
 
 	//データが抽出できたとき
 	if(mysqli_num_rows($res) > 0){
 		$row = mysqli_fetch_array($res);
 		echo $row['divide'];
-	/*	$Answer = ucfirst($Question);*/ //回答（先頭を大文字に)
-	/*    $_SESSION["Answer"] = $Answer;*/
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
 }
 //-------------------------------------------------------------------------------------
 //日本語の参照
 else if($_GET['param2']=="j"){
 	$JP = "SELECT Japanese FROM question_info WHERE (WID= ".$_GET['param1'].")";//日本文取得
-	$res = mysqli_query($conn,$JP) or die("日本文抽出エラー");
+	$res = mysqli_query($conn,$JP) or die(translate('dbsyori.php_58行目_日本文抽出エラー'));
 	$count = mysqli_num_rows($res);
 	//データが抽出できたとき
 	if(mysqli_num_rows($res) > 0){
@@ -76,14 +68,14 @@ else if($_GET['param2']=="j"){
 		echo $row['Japanese'];
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}	
 }
 //----------------------------------------------------------------
 //Fixの参照
 else if($_GET['param2']=="f"){
 	$Fix = "SELECT Fix FROM question_info WHERE (WID= ".$_GET['param1'].")";
-	$res = mysqli_query($conn,$Fix) or die("固定抽出エラー");
+	$res = mysqli_query($conn,$Fix) or die(translate('dbsyori.php_72行目_固定抽出エラー'));
 	$count = mysqli_num_rows($res);
 	//データが抽出できたとき
 	if(mysqli_num_rows($res) > 0){
@@ -91,16 +83,14 @@ else if($_GET['param2']=="f"){
 		echo mb_convert_encoding($row['Fix'],"UTF-8","EUC-JP");
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
 }
 //----------------------------------------------------------------
 //別解１の参照
 else if($_GET['param2']=="s1"){
-
-
 	$Question = "SELECT PartSentence FROM partans WHERE Point = 10 and (WID= ".$_GET['param1'].")";//ＤＢから英文を得る
-	$res = mysqli_query($conn,$Question) or die("英文抽出エラー");
+	$res = mysqli_query($conn,$Question) or die(translate('dbsyori.php_13行目_英文抽出エラー'));
 	$count = mysqli_num_rows($res);
 
 	//データが抽出できたとき
@@ -109,16 +99,14 @@ else if($_GET['param2']=="s1"){
 		echo $row['PartSentence'];
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
 }
 //---------------------------------------------
 //別解2の参照
 else if($_GET['param2']=="s2"){
-
-
 	$Question = "SELECT Sentence FROM question_info WHERE (WID= ".$_GET['param1'].")";//ＤＢから英文を得る
-	$res = mysqli_query($conn,$Question) or die("英文抽出エラー");
+	$res = mysqli_query($conn,$Question) or die(translate('dbsyori.php_13行目_英文抽出エラー'));
 	$count = mysqli_num_rows($res);
 
 	//データが抽出できたとき
@@ -127,14 +115,14 @@ else if($_GET['param2']=="s2"){
 		echo $row['Sentence2'];
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
 }
 //---------------------------------------------------
 //部分点検索
 else if($_GET['param2']=="p"){
 	$Question = "SELECT PartSentence FROM PartAns WHERE  WID = ".$_GET['param1']; //DBから英文
-	$res = mysqli_query($conn,$Question) or die("英文抽出エラー");
+	$res = mysqli_query($conn,$Question) or die(translate('dbsyori.php_13行目_英文抽出エラー'));
 	$count = mysqli_num_rows($res);
 	
 	//データが抽出できたとき
@@ -143,15 +131,14 @@ else if($_GET['param2']=="p"){
 		echo $row['PartSentence'];
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
-
 }
 //-----------------------------------------------------
 //問題を決めた個数
 else if($_GET['param2']=="count"){
 	$Question = "SELECT count(*) FROM test_questions WHERE test_id = ".$_SESSION["Qid"].""; //DBから英文
-	$res = mysqli_query($Question, $conn) or die("個数抽出エラー");
+	$res = mysqli_query($Question, $conn) or die(translate('dbsyori.php_132行目_個数抽出エラー'));
 	$count = mysqli_num_rows($res);
 	
 	//データが抽出できたとき
@@ -160,7 +147,7 @@ else if($_GET['param2']=="count"){
 		echo $row['count(*)'];
 		mysqli_free_result($res);
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
 }
 //問題を決めての検索
@@ -176,7 +163,7 @@ else if($_GET['param2']=="load"){
 		$row = $res -> fetch_assoc();
 		echo $row['WID'];
 	}else{
-		echo "エラー";
+		echo translate('dbsyori.php_21行目_エラー');
 	}
 	$stmt->close();
 }

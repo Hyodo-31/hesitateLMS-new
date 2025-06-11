@@ -4,7 +4,7 @@ require "../../lang.php";
 
 if(!isset($_SESSION["MemberName"])){ //ログインしていない場合
 	require"notlogin.html";
-	session_destroy();
+	//session_destroy();
 	exit;
 }
 $_SESSION["examflag"] = 0;

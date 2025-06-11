@@ -1,46 +1,41 @@
+<?php
+// lang.phpでセッションが開始されるため、個別のsession_startは不要
+include '../lang.php';
+require "../dbc.php";
+// セッション変数をクリアする（必要に応じて）
+unset($_SESSION['conditions']);
+?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= $lang ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教師用ダッシュボード</title>
-    <!--
-    ここにcssのスタイルシートを入れる
--->
+    <title><?= translate('student.php_5行目_学生用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/student_style.css">
-
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
 <body>
-    <?php
-        session_start();
-        require "../dbc.php";
-        // セッション変数をクリアする（必要に応じて）
-        unset($_SESSION['conditions']);
-    ?>
     <header>
-        <div class="logo">英単語並べ替え問題LMS</div>
+        <div class="logo"><?= translate('student.php_23行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="#">ホーム</a></li>
-                <li><a href="../logout.php">ログアウト</a></li>
+                <li><a href="#"><?= translate('student.php_26行目_ホーム') ?></a></li>
+                <li><a href="../logout.php"><?= translate('student.php_27行目_ログアウト') ?></a></li>
             </ul>
         </nav>
     </header>
     <div class="container">
         <aside>
             <ul>
-                <li><a href="#">ホーム</a></li>
-                <li><a href="../logout.php">ログアウト</a></li>
+                <li><a href="#"><?= translate('student.php_26行目_ホーム') ?></a></li>
+                <li><a href="../logout.php"><?= translate('student.php_27行目_ログアウト') ?></a></li>
             </ul>
         </aside>
         <main>
-            <!-- ここにコンテンツを入れる -->
-            <h1>学生用LMS</h1>
-            <!--お知らせのコンテンツを入れる^-^-->
+            <h1><?= translate('student.php_38行目_学生用LMS') ?></h1>
             <div class = "news">
-                <h2>お知らせ一覧</h2>
+                <h2><?= translate('student.php_41行目_お知らせ一覧') ?></h2>
                 <?php
                     $studentId = $_SESSION["MemberID"];
 
@@ -57,39 +52,28 @@
                     $stmt->execute();
                     $result = $stmt->get_result();
                 ?>
-                <!-- 件名だけをスクロール表示する領域 -->
                 <div class="news-scroll">
                     <?php if ($result && $result->num_rows > 0): ?>
                         <?php while($row = $result->fetch_assoc()): ?>
                             <div class="news-item" data-id="<?php echo $row['id']; ?>">
-                                <!-- 件名を表示 -->
                                 <h3 class="news-title">
                                     <?php echo htmlspecialchars($row['subject'], ENT_QUOTES, 'UTF-8'); ?>
                                 </h3>
-                                <!-- 日付などを表示したい場合はここに追記できます -->
                             </div>
                         <?php endwhile; ?>
                     <?php else: ?>
-                        <p>現在お知らせはありません。</p>
+                        <p><?= translate('student.php_66行目_現在お知らせはありません') ?></p>
                     <?php endif; ?>
                     <?php $stmt->close(); ?>
                 </div>
             </div>
             
             <div class = "content">
-                <!--課題ページへのリンク-->
-                <!--
-                <form action = "./assignment.php" method = "get">
-                    <button type= "submit">課題</button>
-                </form>
-                    -->
-                <!--テストページへのリンク-->
                 <form action = "./test.php" method = "get">
-                    <button type= "submit">テスト</button>
+                    <button type= "submit"><?= translate('student.php_76行目_テスト') ?></button>
                 </form>
-                <!--成績管理ページへのリンク-->
                 <form action = "./Analytics/analytics.php" method = "get">
-                    <button type= "submit">成績管理</button>
+                    <button type= "submit"><?= translate('student.php_80行目_成績管理') ?></button>
                 </form>
             </div>
             <script>
@@ -98,7 +82,6 @@
                     newsItems.forEach(item => {
                         item.addEventListener('dblclick', function() {
                             const id = this.getAttribute('data-id');
-                            // notification_detail.php に遷移して詳細を表示
                             window.location.href = 'notification_detail.php?id=' + id;
                         });
                     });

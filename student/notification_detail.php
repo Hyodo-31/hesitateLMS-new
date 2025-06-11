@@ -1,10 +1,11 @@
 <?php
-session_start();
+// lang.phpでセッションが開始されるため、個別のsession_startは不要
+include '../lang.php';
 require '../dbc.php';
 
 // id が渡されていない場合のエラー処理
 if (!isset($_GET['id'])) {
-    echo "お知らせIDが指定されていません。";
+    echo translate('notification_detail.php_6行目_お知らせIDが指定されていません');
     exit;
 }
 
@@ -27,27 +28,27 @@ $conn->close();
 
 // 取得できなかった場合のエラー処理
 if (!$detail) {
-    echo "該当するお知らせが見つかりません。";
+    echo translate('notification_detail.php_28行目_該当するお知らせが見つかりません');
     exit;
 }
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= $lang ?>">
 <head>
     <meta charset="UTF-8">
-    <title>お知らせ詳細</title>
+    <title><?= translate('notification_detail.php_33行目_お知らせ詳細') ?></title>
     <link rel="stylesheet" href="../style/student_style.css">
 </head>
 <body>
 <header>
-    <div class="logo">英単語並べ替え問題LMS</div>
+    <div class="logo"><?= translate('notification_detail.php_38行目_英単語並べ替え問題LMS') ?></div>
     <nav>
         <ul>
-            <li><a href="teachertrue.php">ホーム</a></li>
-            <li><a href="#">コース管理</a></li>
-            <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-            <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
-            <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+            <li><a href="teachertrue.php"><?= translate('notification_detail.php_41行目_ホーム') ?></a></li>
+            <li><a href="#"><?= translate('notification_detail.php_42行目_コース管理') ?></a></li>
+            <li><a href="machineLearning_sample.php"><?= translate('notification_detail.php_43行目_迷い推定・機械学習') ?></a></li>
+            <li><a href="Analytics/studentAnalytics.php"><?= translate('notification_detail.php_44行目_学生分析') ?></a></li>
+            <li><a href="Analytics/questionAnalytics.php"><?= translate('notification_detail.php_45行目_問題分析') ?></a></li>
         </ul>
     </nav>
 </header>
@@ -55,16 +56,16 @@ if (!$detail) {
 <div class="container">
     <aside>
         <ul>
-            <li><a href="teachertrue.php">ホーム</a></li>
-            <li><a href="#">コース管理</a></li>
-            <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-            <li><a href="Analytics/studentAnalytics.php">学生分析</a></li>
-            <li><a href="Analytics/questionAnalytics.php">問題分析</a></li>
+            <li><a href="teachertrue.php"><?= translate('notification_detail.php_41行目_ホーム') ?></a></li>
+            <li><a href="#"><?= translate('notification_detail.php_42行目_コース管理') ?></a></li>
+            <li><a href="machineLearning_sample.php"><?= translate('notification_detail.php_43行目_迷い推定・機械学習') ?></a></li>
+            <li><a href="Analytics/studentAnalytics.php"><?= translate('notification_detail.php_44行目_学生分析') ?></a></li>
+            <li><a href="Analytics/questionAnalytics.php"><?= translate('notification_detail.php_45行目_問題分析') ?></a></li>
         </ul>
     </aside>
 
     <main>
-        <h1>お知らせ詳細</h1>
+        <h1><?= translate('notification_detail.php_60行目_お知らせ詳細') ?></h1>
         <div class="notify">
             <h2 class="notification-title">
                 <?php echo htmlspecialchars($detail['subject'], ENT_QUOTES, 'UTF-8'); ?>
@@ -76,7 +77,7 @@ if (!$detail) {
                 ?>
             </p>
             <p class="notification-time">
-                投稿日時: <?php echo htmlspecialchars($detail['created_at'], ENT_QUOTES, 'UTF-8'); ?>
+                <?= translate('notification_detail.php_68行目_投稿日時') ?>: <?php echo htmlspecialchars($detail['created_at'], ENT_QUOTES, 'UTF-8'); ?>
             </p>
         </div>
     </main>

@@ -70,7 +70,7 @@
         //文法項目ごとの解答数を格納
         foreach ($grammars as $grammar) {
             // キャッシュから文法名を取得
-            $grammarName = $grammarCache[$grammar] ?? "不明な文法項目";
+            $grammarName = $grammarCache[$grammar] ?? translate('get_student_info.php_75行目_不明な文法項目');
             if(!isset($grammarStats[$grammar])){
                 $grammarStats[$grammar] = [
                     'GID' => $grammar,
