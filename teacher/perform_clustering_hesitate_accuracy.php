@@ -33,7 +33,7 @@ fclose($file);
 
 // Pythonスクリプトを呼び出してクラスタリングを実行
 $pythonScript = './perform_clustering.py';
-$command = escapeshellcmd("python3 $pythonScript $csvFile $clusterCount");
+$command = escapeshellcmd("python $pythonScript $csvFile $clusterCount");
 $output = shell_exec($command);
 
 // 結果をJSONとして返す

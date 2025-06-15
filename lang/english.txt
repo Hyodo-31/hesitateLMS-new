@@ -116,7 +116,7 @@ return [
     'teachertrue.php_929行目_グループ化' => 'Group',
     'teachertrue.php_941行目_少なくとも1つのクラスタを選択してください。' => 'Please select at least one cluster.',
     'teachertrue.php_971行目_選択されたクラスタのグループ化が完了しました。' => 'Grouping of the selected clusters has been completed.',
-    'teachertrue.php_990行目_クラスタリング機能によりグルーピングされた学習者群は...' => 'Please be aware that because the clustering function is a beta feature, the resulting learner groups may be inaccurate. Please review the graph of the clustering results. If you find that a group is clearly incorrect, please change the selected features and run the clustering process again.',
+    'teachertrue.php_990行目_クラスタリング機能によりグルーピングされた学習者群は...' => 'The group of learners grouped by the clustering function is...',
     'teachertrue.php_1049行目_クラスタリング結果 (PCA可視化)' => 'Clustering Result (PCA Visualization)',
     'teachertrue.php_1056行目_次元1' => 'Dimension 1',
     'teachertrue.php_1062行目_次元2' => 'Dimension 2',
