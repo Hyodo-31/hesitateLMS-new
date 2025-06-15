@@ -93,18 +93,19 @@ if($_GET['param1']=="a"){
 	$tableMaxOID = $stmt->get_result();
 
 	// データが抽出できたとき
-	if ($tableMaxOID->num_rows > 0) {
+	if ($tableMaxOID) { // クエリ自体が成功したか
         $row = $tableMaxOID->fetch_assoc();
-        $maxOID = $row['max_oid']; // 修正: 'max_oid' を使用
+        $maxOID = $row['max_oid'];
 
         if (is_null($maxOID)) {
-            $maxOID = translate('load.php_107行目_最初の問題です');
-        }
+            echo 0; // 初回プレイ時は 0 を返す
+        } else {
+			echo $maxOID; // 解答済みの最大のOIDを返す
+		}
 	} else {
-	    $maxOID = translate('load.php_109行目_データが見つかりませんでした');
+	    echo -1; // エラー時は -1 を返す
 	}
-
-	echo $maxOID;
+	$stmt->close();
 
 	
 }else if($_GET['param1']=="w"){

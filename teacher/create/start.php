@@ -16,6 +16,24 @@ $_SESSION["examflag"] = 0;
 	<title><?= translate('start.php_14行目_初期順序決定') ?></title>
   <link rel="stylesheet" href="../../style/StyleSheet.css" type="text/css" />  
 <script type="text/javascript">
+	function gopage() {
+  // 'group'という名前のラジオボタン要素をすべて取得します
+  const radios = document.getElementsByName('group');
+  let selectedPage = '';
+
+  // ラジオボタンをループして、チェックされているものを探します
+  for (let i = 0; i < radios.length; i++) {
+    if (radios[i].checked) {
+      selectedPage = radios[i].value; // チェックされたボタンのvalue値（ファイル名）を取得
+      break; // 目的の要素が見つかったのでループを終了
+    }
+  }
+
+  // 選択されたページがあれば、そのページに移動します
+  if (selectedPage) {
+    window.location.href = selectedPage;
+  }
+}
 </script>
 </head>
 
