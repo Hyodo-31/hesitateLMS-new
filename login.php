@@ -119,7 +119,7 @@
 </div>
 
 <div class = "login-container">
-    <img id = "log" src = "logo.png">
+    <img id="log" src="<?= translate('logo_image_path') ?>">
     <form method="POST" action="<?php echo $_SERVER["PHP_SELF"]; ?>">
         <table>
             <tr>

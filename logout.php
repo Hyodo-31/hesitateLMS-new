@@ -32,7 +32,7 @@
     
 ?>
 <div class = "login-container">
-    <img id = "log" src = "logo.png">
+    <img id="log" src="<?= translate('logo_image_path') ?>">
     <h2><?= translate('logout.php_36行目_正常にログアウトしました') ?></h2>
     <a href="login.php"><?= translate('logout.php_37行目_ログイン画面へ戻る') ?></a>
 

@@ -6,6 +6,7 @@ return [
     'login.php_126行目_ユーザーID' => 'User ID', //ユーザーIDを入力
     'login.php_130行目_パスワード' => 'Password', //パスワードを入力
     'login.php_134行目_ログイン' => 'Login',  //ログインボタンのところ
+    'logo_image_path' => 'logo_en.png', // English image path
 
     //ログアウト関係
     'logout.php_8行目_英単語並べ替え問題LMS' => 'English Word Scramble LMS',  //ログアウト画面のタブの名前
