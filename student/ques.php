@@ -1,9 +1,8 @@
-<!DOCTYPE html PUBLIC "-//W3c//DTD HTML 4.01 Transitional//EN">
-
 <?php
 //ログイン関連
 error_reporting(E_ALL);
 session_start();
+include '../lang.php';
 if(!isset($_SESSION["MemberName"])){
     require"notlogin";
     session_destroy();
@@ -18,15 +17,14 @@ if($_SESSION["examflag"] == 1){
     $_SESSION["page"] = "ques";
 }
 ?>
-
-<html>
+<!DOCTYPE html PUBLIC "-//W3c//DTD HTML 4.01 Transitional//EN">
+<html lang="<?= $lang ?>">
 <head>
 
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>並べ替え問題プログラム</title>
+<title><?= translate('ques.php_22行目_並べ替え問題プログラム') ?></title>
 <link rel="stylesheet" href="../style/StyleSheet.css" type="text/css" /> 
 
-<!--読み込み関連-->
 <script type="text/javascript"
         src="jquery-1.11.3.min.js"></script>
 <script type="text/javascript"
@@ -66,7 +64,7 @@ if($_SESSION["examflag"] == 1){
             myTime = myStop.getTime() - myStart.getTime(); // 通算ミリ秒計算
             myS = Math.floor(myTime / 1000);                 // '秒'取得
             myMS = myTime % 1000;                        // 'ミリ秒'取得
-            document.getElementById("TextBox1").innerHTML = myS + "." + myMS +"秒";
+            document.getElementById("TextBox1").innerHTML = myS + "." + myMS + <?= json_encode(translate('ques.php_82行目_秒')) ?>;
         }
     }
     //ストップウォッチ関数2(全体用)
@@ -276,7 +274,7 @@ if($_SESSION["examflag"] == 1){
             alert(req.responseText);
         }
         function getE(req) {
-            alert("書き込みに失敗しました");
+            alert(<?= json_encode(translate('ques.php_325行目_書き込みに失敗しました')) ?>);
         }
         AnswerT = new DateFormat("yyyy-MM-dd HH:mm:ss");
         $AccessDate = AnswerT.format(new Date());
@@ -293,7 +291,7 @@ if($_SESSION["examflag"] == 1){
         //-------------------------------------------------------------
         //DBから引用
         function getError(req,requestSource) {
-            alert("リクエストエラー(" + requestSource + "):" + req.status + "--" + req.statusText);
+            alert(<?= json_encode(translate('ques.php_335行目_リクエストエラー')) ?> + "(" + requestSource + "):" + req.status + "--" + req.statusText);
             console.log("エラー発生元：" + requestSource);
             console.log(req.responseText);
             window.close();
@@ -323,7 +321,7 @@ if($_SESSION["examflag"] == 1){
             OID = res.responseText; //load.phpから最大のOIDが入っているはずのresが帰ってくるのでそれを代入
             console.log("res"+res.responseText);
             console.log("OID = " + OID);
-            if (OID == "OID抽出エラー（マウス）" || OID == "" || OID == "OIDエラー" || OID == "これは最初の問題です．") {
+            if (OID == <?= json_encode(translate('ques.php_351行目_OID抽出エラー（マウス）')) ?> || OID == "" || OID == <?= json_encode(translate('ques.php_351行目_OIDエラー')) ?> || OID == <?= json_encode(translate('ques.php_351行目_これは最初の問題です')) ?>) {
                 OID = 1;
             } else {
                 OID = parseInt(OID) + 1;//取って来たのか履歴データなので次の問題を出すためにインクリメント
@@ -338,7 +336,7 @@ if($_SESSION["examflag"] == 1){
     //問題の出題関数
     function setques() {
         //OID=出題順
-        Fixmsg.innerHTML = "-情報-";
+        Fixmsg.innerHTML = <?= json_encode(translate('ques.php_364行目_情報')) ?>;
         myCheck(0);
         //問題固定var------------
         var $Load = "load";
@@ -355,12 +353,12 @@ if($_SESSION["examflag"] == 1){
         });
 
         function Error(res) {
-            alert("問題取得失敗");
+            alert(<?= json_encode(translate('ques.php_379行目_問題取得失敗')) ?>);
             window.close;
         }
         function getOIDtoWID(res) {
             if (res.responseText == "エラー" && OID != nEnd + 1) {
-                alert("固定問題番号取得エラー");
+                alert(<?= json_encode(translate('ques.php_384行目_固定問題番号取得エラー')) ?>);
             } else {
                 console.log("デバッグ" + res.responseText);
                 WID = res.responseText - 0;
@@ -442,7 +440,7 @@ if($_SESSION["examflag"] == 1){
                                     FixNum[i] -= 0; //数値化
                                     FixLabels[i] = MylabelsD[FixNum[i]];
                                     FixNum[i] += 1;
-                                    Fixmsg.innerHTML += "</br><font size='5' color='green'>" + FixLabels[i] + "</font>は<font size='5' color='red'>" + FixNum[i] + "</font>番目にきます";
+                                    Fixmsg.innerHTML += "</br><font size='5' color='green'>" + FixLabels[i] + "</font>" + <?= json_encode(translate('ques.php_442行目_は')) ?> + "<font size='5' color='red'>" + FixNum[i] + "</font>" + <?= json_encode(translate('ques.php_442行目_番目にきます')) ?>;
                                     FixNum[i] -= 1;
                                 }
                             } else {
@@ -1430,7 +1428,7 @@ if($_SESSION["examflag"] == 1){
     //○○終了ボタン主に一時ファイルの書き込み処理
     function LineQuestioneForm_Closing() {
         //▲マウスデータの取得
-        alert("お疲れ様です!OKを押してデータの書き込み開始です。");
+        alert(<?= json_encode(translate('ques.php_919行目_お疲れ様です')) ?>);
         new Ajax.Request(URL + 'ewrite.php',
         {
             method: 'get',
@@ -1446,7 +1444,7 @@ if($_SESSION["examflag"] == 1){
             window.close();
         }
         function getE(req) {
-            alert("失敗、何度試してもできなかったら右上の×ボタンで終了してください。\nそして管理者までご連絡をお願いします。\nエラーコード:lineques01");
+            alert(<?= json_encode(translate('ques.php_929行目_書き込み失敗')) ?>);
         }
     }
 
@@ -1454,7 +1452,7 @@ if($_SESSION["examflag"] == 1){
     function Button1_Click() {
         //終了条件チェック
         if (Mylabels_ea.length != Mylabels2.length) {
-            alert("まだ並べ替えが終了していません。");
+            alert(<?= json_encode(translate('ques.php_778行目_まだ並べ替えが終了していません')) ?>);
             return;
         }
         //固定ラベルチェック
@@ -1463,7 +1461,8 @@ if($_SESSION["examflag"] == 1){
             fixcheck = Mylabels_ea[FixNum[i]].innerHTML;
             if (FixLabels[i] != fixcheck) {
                 var fixnum2 = FixNum[i] + 1
-                var fix_a = confirm("位置固定単語である" + FixLabels[i] + "が" + fixnum2 + "番目に来ていませんが、宜しいですか？");
+                var confirm_msg = <?= json_encode(translate('ques.php_783行目_位置固定単語である')) ?> + FixLabels[i] + <?= json_encode(translate('ques.php_783行目_が')) ?> + fixnum2 + <?= json_encode(translate('ques.php_783行目_番目に来ていませんがよろしいですか')) ?>;
+                var fix_a = confirm(confirm_msg);
                 if (fix_a == true) {
                     continue;
                 }
@@ -1667,10 +1666,11 @@ if($_SESSION["examflag"] == 1){
         jQuery(answerBox).empty();
 
         if (OID == nEnd) {
-            alert("終了です。右下の終了ボタンを押して書き込みを行ってください。");
+            alert(<?= json_encode(translate('ques.php_996行目_終了です')) ?>);
             return;
         } else if (OID % 5 == 0 && OID != 0) {
-                alert("一度右下の終了ボタンを押して書き込みを行ってください。(現在" + QuesNum + "問終了)");
+                var alert_msg = <?= json_encode(translate('ques.php_998行目_書き込みを行ってください')) ?> + QuesNum + <?= json_encode(translate('ques.php_998行目_問終了')) ?>;
+                alert(alert_msg);
                 return;
         }
         if (Mouse_Flag == true) {
@@ -1743,7 +1743,7 @@ if($_SESSION["examflag"] == 1){
     //スタート
     function Button3_Click() {
         if (OID > nEnd) {
-            alert("終了しています。右上の×ボタンを押して終了してください。");
+            alert(<?= json_encode(translate('ques.php_1045行目_終了しています')) ?>);
             document.location = "result.php?Qid=" + Qid;
         }
         if (Mouse_Flag == true) {
@@ -1895,19 +1895,19 @@ if($_SESSION["examflag"] == 1){
     //正誤表示
     function print_answer() {
         if (MyAnswer == Answer || MyAnswer == Answer1 || MyAnswer == Answer2) {
-            document.getElementById("RichTextBox3").innerHTML = "正誤：○";
+            document.getElementById("RichTextBox3").innerHTML = <?= json_encode(translate('ques.php_890行目_正誤O')) ?>;
             YAHOO.util.Dom.setStyle("RichTextBox3", "color", "red");
             //DBに登録するときは１とするように変更が必要
             TF = 1;
-            document.getElementById("RichTextBox2").innerHTML = "正解</br>" + Answer;
+            document.getElementById("RichTextBox2").innerHTML = <?= json_encode(translate('ques.php_893行目_正解')) ?> + Answer;
             YAHOO.util.Dom.setStyle("RichTextBox2", "display", "block");
             AllCorrectAns += 1;
         } else {
-            document.getElementById("RichTextBox3").innerHTML = "正誤：×";
+            document.getElementById("RichTextBox3").innerHTML = <?= json_encode(translate('ques.php_896行目_正誤X')) ?>;
             YAHOO.util.Dom.setStyle("RichTextBox3", "color", "blue");
             //DBに登録するときは0とするように変更が必要
             TF = 0;
-            document.getElementById("RichTextBox2").innerHTML = "正解</br>" + Answer;
+            document.getElementById("RichTextBox2").innerHTML = <?= json_encode(translate('ques.php_893行目_正解')) ?> + Answer;
             YAHOO.util.Dom.setStyle("RichTextBox2", "display", "block");
         }
         YAHOO.util.Dom.setStyle("RichTextBox3", "display", "block");
@@ -1985,9 +1985,9 @@ if($_SESSION["examflag"] == 1){
         document.check.checkbox.checked = false;
 
         if (OID == nEnd) {
-            alert("終了です。お疲れ様でした。");
+            alert(<?= json_encode(translate('ques.php_1058行目_終了ですお疲れ様でした')) ?>);
             //▲マウスデータの取得
-            alert("採点を行います。");
+            alert(<?= json_encode(translate('ques.php_1062行目_採点を行います')) ?>);
             new Ajax.Request(URL + 'ewrite.php',
             {
                 method: 'get',
@@ -2002,11 +2002,12 @@ if($_SESSION["examflag"] == 1){
                 document.location = "result.php?Qid=" + Qid;
             }
             function getE(req) {
-                alert("失敗、何度試してもできなかったら右上の×ボタンで終了してください。\nそして管理者までご連絡をお願いします。");
+                alert(<?= json_encode(translate('ques.php_929行目_書き込み失敗')) ?>);
             }
             return;
         } else if (OID % 5 == 0) {
-            alert("次の画面で一度右下の終了ボタンを押して書き込みを行ってください。(現在" + QuesNum + "問終了)");
+            var alert_msg = <?= json_encode(translate('ques.php_1074行目_書き込みを行ってください2')) ?> + QuesNum + <?= json_encode(translate('ques.php_998行目_問終了')) ?>;
+            alert(alert_msg);
             return;
         }
     }
@@ -2500,92 +2501,74 @@ if($_SESSION["examflag"] == 1){
 
 </script>
 <body id=mybody onLoad = "ques_Load()" onMouseDown = "Form1_MouseDown()" onMouseUp = "Form1_MouseUp()">
-<!--スタートボタン-->
 <input type = "button"
     id = "Button3"
-    value="スタート"
+    value="<?= translate('ques.php_1512行目_スタート') ?>"
     onclick="Button3_Click()"
     style="width:80px;height:36px;position:absolute;left:768px;top:27px;display: block"/>
 
-<!--決定ボタン-->
 <input type = "button"
     id = "Button1"
-    value="決定"
+    value="<?= translate('ques.php_1517行目_決定') ?>"
     onclick="Button1_Click()"
     style="width:80px;height:36px;position:absolute;left:768px;top:32px;display:none"/>
 
-<!--悩み度決定-->
 <form name="Questions">
 <input type = "button"
     id = "ButtonM"
-    value="決定"
+    value="<?= translate('ques.php_1517行目_決定') ?>"
     onclick="ButtonM_Click()"
     style="width:80px;height:30px;position:absolute;left:600px;top:365px;display:none"/>
 </form>
 
-<!-- <form name="Questions2">
-<input type = "button"
-    id = "ButtonM2"
-    value="決定"
-    onclick="ButtonM2_Click()"
-    style="width:80px;height:30px;position:absolute;left:600px;top:270px;display:none"/>
-</form> --> 
-
 <form name="Hearing">
 <input type = "button"
     id = "Button5"
-    value="決定"
+    value="<?= translate('ques.php_1517行目_決定') ?>"
     onclick="Button5_Click()"
     style="width:80px;height:30px;position:absolute;left:750px;top:240px;display:none"/>
 </form>
 
-<!--次の問題ボタン-->
 <input type = "button"
     id = "Button2"
-    value="次の問題"
+    value="<?= translate('ques.php_1541行目_次の問題') ?>"
     onclick="Button2_Click()"
-    style="width:75px;height:33px;position:absolute;left:670px;top:365px;display:none"/>
+    style="width:auto;height:33px;position:absolute;left:670px;top:365px;display:none"/>
 
 <input type = "button"
     id = "ButtonE2"
-    value="問題へ"
+    value="<?= translate('ques.php_1546行目_問題へ') ?>"
     onclick="Button2_Click()"
     style="width:75px;height:33px;position:absolute;left:768px;top:274px;display:none"/>
 
 
-<!--終了ボタン-->
 <input type = "button"
     id = "Button4"
-    value="終了"
+    value="<?= translate('ques.php_1551行目_終了') ?>"
     onclick="LineQuestioneForm_Closing()"
     style="width:75px;height:20px;position:absolute;left:780px;top:365px;background-color:pink;display:none"/>
 
-<!--日本文-->
-<font color="red" style="position:absolute;left:12;top:7">日本文</font>
+<font color="red" style="position:absolute;left:12;top:7"><?= translate('ques.php_1554行目_日本文') ?></font>
 <div id = "RichTextBox1" style="background-color:#ffa500;position:absolute;
      left:12;top:27;width:731;height:36;border-style:inset">
-                                       ここに日本文が表示されます</div>
-<!--正解-->
+     <?= translate('ques.php_1556行目_ここに日本文が表示されます') ?></div>
 <div id = "RichTextBox2" style="background-color:#a1ffa1;position:absolute;
-     left:12;top:240;width:650;height:67;border-style:inset;display:none">ここに正解を表示</div>
+     left:12;top:240;width:650;height:67;border-style:inset;display:none"><?= translate('ques.php_1559行目_ここに正解を表示') ?></div>
 
-<!--正誤-->
 <div id = "RichTextBox3" style="background-color:#a1ffa1;position:absolute;
-     left:670;top:272;width:90;height:34;border-style:inset;display:none">正誤を表示</div>
+     left:670;top:272;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?></div>
 
-<!--解答時間-->
 <div id = "TextBox1"  style="background-color:#a1ffa1;position:absolute;
-     left:670;top:240;width:90;height:23;border-style:inset;display:none">解答時間</div>
+     left:670;top:240;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?></div>
 
-<!--機能説明-->
 <div id = "Label2" style="position:absolute;
      left:12;top:530;width:300;height:80;font-size:12;background-color:#ffa500;">
-         *操作説明</br>
+         <?= translate('ques.php_1568行目_操作説明') ?></br>
         
-         <b>単語の移動：ドラッグ＆ドロップ</b></br>
-         <b>グループ化：単語がないところでドラッグ</b></br></div>
+         <b><?= translate('ques.php_1570行目_単語の移動') ?></b></br>
+         <b><?= translate('ques.php_1571行目_グループ化') ?></b></br></div>
 
-<font id = "register" color ="red" style="position:absolute;left:12;top:220">単語退避レジスタ</font>
+<font id = "register" color ="red" style="position:absolute;left:12;top:220"><?= translate('ques.php_1573行目_単語退避レジスタ') ?></font>
 <div id = "register1" style="padding: 10px; border: 2px dotted #333333;position:absolute;
     left:12;top:240;width:500;height:15;font-size:12;"></div>
 
@@ -2594,105 +2577,89 @@ if($_SESSION["examflag"] == 1){
 <div id = "register3" style="padding: 10px; border: 2px dotted #333333;position:absolute;
     left:12;top:400;width:500;height:15;font-size:12;"></div>
 
-<!--解答欄-->
-<font color="red" style="position:absolute;left:12;top:140">解答欄</font>
+<font color="red" style="position:absolute;left:12;top:140"><?= translate('ques.php_1582行目_解答欄') ?></font>
 <div id = "answer" style="z-index=10;padding: 10px; border: 4px solid #333333;position:absolute;
     left:12;top:160;width:800;height:20;font-size:12;"></div>
 
-<!--問題提示欄-->
-<div style="position:absolute;left:12;top:70"><font color="red">問題提示欄</font></div>
+<div style="position:absolute;left:12;top:70"><font color="red"><?= translate('ques.php_1586行目_問題提示欄') ?></font></div>
 <div id = "question" style="padding: 10px; border: 2px solid #333333;position:absolute;
     left:12;top:90;width:800;height:20;font-size:12;"></div>
 
-<!--ヒアリング機能-->
-<font id="hearing2" color="red" style="position:absolute;left:12;top:220;display:none"><b>迷った単語をクリックしてください。</b></font>
+<font id="hearing2" color="red" style="position:absolute;left:12;top:220;display:none"><b><?= translate('ques.php_1590行目_迷った単語をクリックしてください') ?></b></font>
 
 <div id="hearingT2" style="position:absolute;
-     left:300;top:220;width:80;height:20;font-size:12;background-color:#ff0000;display:none">かなり迷った</div>
+     left:400;top:220;width:auto;height:20;font-size:12;background-color:#ff0000;display:none"><?= translate('ques.php_1592行目_かなり迷った') ?></div>
 <div id="hearingT1" style="position:absolute;
-     left:400;top:220;width:80;height:20;font-size:12;background-color:#ffee00;display:none">少し迷った</div>
+     left:500;top:220;width:auto;height:20;font-size:12;background-color:#ffee00;display:none"><?= translate('ques.php_1594行目_少し迷った') ?></div>
 
 <div id = "hearing" style="padding: 10px; border: 1px solid #333333;position:absolute;
     left:12;top:240;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
 </div>
 
-<font id = "comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:330;display:none;"><b>自由にご記入ください。(※改行と「"」は使用不可)</b></font>
+<font id = "comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:330;display:none;"><b><?= translate('ques.php_1600行目_自由にご記入ください') ?></b></font>
 
 
-<!--チェックボックス-->
 <form name="check" action="">
 <input id="checkbox" 
 type="checkbox" 
 value="全体的にわからなかった" 
 style="width:80px;height:30px;position:absolute;left:5px;top:350px;display:none"/>
 </form>
-<font id="checkbox2" style="position:absolute;left:70;top:360;display:none"><b>全体的にわからなかった</b></font>
+<font id="checkbox2" style="position:absolute;left:70;top:360;display:none"><b><?= translate('ques.php_1606行目_全体的にわからなかった') ?></b></font>
 
-<!--キャンバス-->
 <div id="myCanvas" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
 
-<!--キャンバス2-->
 <div id="myCanvas2" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
 
-<!--メモ-->
 <div id="msg" style="position:absolute;
      left:50;top:300;width:500;height:30;font-size:12;background-color:#ffa500;display:none"></div>
 
-<!--固定情報-->
 <div id="Fixmsg" style="position:absolute;
-     left:320;top:530;width:200;height:80;font-size:12;background-color:#ffa500;display:block">-情報-</div>
+     left:320;top:530;width:200;height:80;font-size:12;background-color:#ffa500;display:block"><?= translate('ques.php_364行目_情報') ?></div>
 
-<!--例題-->
 <font id="exercise" color="red" style="position:absolute;
-     left:768;top:10;width:80;height:18;font-size:18;color:red;display:none"><b>例題</b></font>
+     left:768;top:10;width:80;height:18;font-size:18;color:red;display:none"><b><?= translate('ques.php_1622行目_例題') ?></b></font>
 
-<!--番号-->
 <div id="number" style="position:absolute;
      left:768;top:6;width:80;height:18;font-size:18;color:red;display;:none"></div>
 
 
 <form name="Questions">
 
-<!--迷い度--> 
 <label for="QuesLevel" id="QuesLabel" style="position:absolute;left:600px;top:220px;display:none">
-解答の迷い度</label>
+<?= translate('ques.php_1629行目_解答の迷い度') ?></label>
 <select 
     id = "QuesLevel"
     size="5"
     style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">   
-<option value="choose" disabled="disabled">迷い度を選択してください(変更可能)</option> 
-<option value="level1" selected="selected">・ほとんど迷わなかった</option> 
-<option value="level2">・少し迷った</option>
-<option value="level3">・かなり迷った</option>
-<option value="level0">・誤って決定ボタンを押した</option>
+<option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option> 
+<option value="level1" selected="selected"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option> 
+<option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
+<option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
+<option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
 </select>
 <select 
     id = "QuesLevel2"
     size="5"
     style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">   
-<option value="choose" disabled="disabled">迷い度を選択してください(変更可能)</option> 
-<option value="level1">・ほとんど迷わなかった</option> 
-<option value="level2" selected="selected">・少し迷った</option>
-<option value="level3">・かなり迷った</option>
-<option value="level0">・誤って決定ボタンを押した</option>
+<option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option> 
+<option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option> 
+<option value="level2" selected="selected"><?= translate('ques.php_1635行目_少し迷った') ?></option>
+<option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
+<option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
 </select>
 <select 
     id = "QuesLevel3"
     size="5"
     style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">   
-<option value="choose" disabled="disabled">迷い度を選択してください(変更可能)</option> 
-<option value="level1">・ほとんど迷わなかった</option> 
-<option value="level2">・少し迷った</option>
-<option value="level3" selected="selected">・かなり迷った</option>
-<option value="level0">・誤って決定ボタンを押した</option>
+<option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option> 
+<option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option> 
+<option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
+<option value="level3" selected="selected"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
+<option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
 </select>
 
 
-
-<!-- <div id="radiobotton" style=" position:absolute;top:295px;display:none ">
-<input type="radio" name="radio1" value="かなり"> かなり<br>
-<input type="radio" name="radio1" value="少し"> 少し
-</div> -->
 
 <input type="hidden" id="TermText" value="">
  </form>

@@ -28,7 +28,7 @@ if(isset($_SESSION["examflag"]) && $_SESSION["examflag"] == 1){
 <body>
 <span style="line-height:20px"> 
 <div align="center">
-<img src="image/logo.png">
+<img src="<?= translate('logo_image_path2') ?>">
 </div>
 <div align="right">
     </div>

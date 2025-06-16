@@ -318,5 +318,80 @@ div id = memberp
 	position: relative;
 }
 
+/*
+2025/6/16兵頭追加
+*/
+/* ボタンの幅をテキストに合わせて自動調整するクラス */
+.btn-auto-width {
+    width: auto !important; /* 幅を自動に設定 */
+    padding-left: 15px !important; /* 左右の余白を追加 */
+    padding-right: 15px !important;
+}
+
+/* テキストがコンテナをはみ出すのを防ぐスタイル */
+.word-break {
+    word-wrap: break-word; /* 長い単語を折り返す */
+    white-space: normal;   /* 空白文字で折り返す */
+}
+
+/* 説明文など、高さも可変にするコンテナ */
+.flexible-container {
+    width: auto;
+    height: auto; /* 高さを自動調整 */
+    padding: 10px;
+}
+
+/* 全体的な迷い度選択のコンテナ */
+#QuesLabel {
+    white-space: nowrap; /* テキストが改行されないようにする */
+}
+
+/* レイアウト調整用の追加スタイル */
+.layout-table {
+    width: 100%;
+    max-width: 850px; /* 全体の最大幅 */
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.layout-table td {
+    padding: 5px;
+    vertical-align: top; /* セルの内容を上揃えに */
+}
+
+/* フォーム要素の余白調整 */
+.form-element {
+    margin-top: 10px;
+}
+
+/* 凡例のスタイル */
+.legend-box {
+    display: inline-block; /* 横並びにする */
+    padding: 2px 8px;
+    margin-left: 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: black;
+}
+
+.legend-hesitated-lot {
+    background-color: #ff0000;
+}
+
+.legend-hesitated-little {
+    background-color: #ffee00;
+}
+
+/* チェックボックスとラベルを横に並べる */
+.checkbox-container {
+    display: flex;
+    align-items: center; /* 縦方向中央揃え */
+    margin-top: 15px;
+}
+
+.checkbox-container input {
+    margin-right: 8px; /* チェックボックスとラベルの間に余白 */
+}
+
 
 
