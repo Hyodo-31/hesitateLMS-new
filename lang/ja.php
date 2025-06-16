@@ -540,7 +540,7 @@ return [
     'machineLearning_sample.php_1856行目_迷い率(%)' => '迷い率 (%)',
     'machineLearning_sample.php_1859行目_不正解率(%)' => '不正解率 (%)',
     'machineLearning_sample.php_1860行目_迷い率(%)' => '迷い率 (%)',
-    'machineLearning_sample.php_1861行目_まだ迷い推定が行われていません' => 'まだ迷い推定が行われていません',
+    'machineLearning_sample.php_1861行目_まだ迷い推定が行われていません' => '迷い推定がまだです。',
 
     // notification-detail.php
     'notification-detail.php_5行目_教師用ダッシュボード' => '教師用ダッシュボード',

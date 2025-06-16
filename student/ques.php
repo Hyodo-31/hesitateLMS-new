@@ -3,46 +3,38 @@
 error_reporting(E_ALL);
 session_start();
 include '../lang.php';
-if(!isset($_SESSION["MemberName"])){
-    require"notlogin";
+if (!isset($_SESSION["MemberName"])) {
+    require "notlogin";
     session_destroy();
     exit;
 }
 
-if($_SESSION["examflag"] == 1){
-    require"overlap.php";
+if ($_SESSION["examflag"] == 1) {
+    require "overlap.php";
     exit;
-}else{
+} else {
     $_SESSION["examflag"] = 2;
     $_SESSION["page"] = "ques";
 }
 ?>
 <!DOCTYPE html PUBLIC "-//W3c//DTD HTML 4.01 Transitional//EN">
 <html lang="<?= $lang ?>">
+
 <head>
 
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title><?= translate('ques.php_22行目_並べ替え問題プログラム') ?></title>
-<link rel="stylesheet" href="../style/StyleSheet.css" type="text/css" /> 
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title><?= translate('ques.php_22行目_並べ替え問題プログラム') ?></title>
+    <link rel="stylesheet" href="../style/StyleSheet.css" type="text/css" />
 
-<script type="text/javascript"
-        src="jquery-1.11.3.min.js"></script>
-<script type="text/javascript"
-        src="yui/build/yahoo/yahoo-min.js"></script>
-<script type="text/javascript"
-        src="yui/build/event/event-min.js"></script>
-<script type="text/javascript"
-        src="yui/build/dom/dom-min.js"></script>
-<script type="text/javascript"
-        src="prototype.js"></script>
-<script type="text/javascript"
-        src="dateformat.js"></script>
-<script type="text/javascript"
-        src="wz_jsgraphics.js"></script>
-<script type="text/javascript"
-        src="yui/build/dragdrop/dragdrop-min.js"></script>
-<script type="text/javascript"
-        src="yui/build/animation/animation-min.js"></script>
+    <script type="text/javascript" src="jquery-1.11.3.min.js"></script>
+    <script type="text/javascript" src="yui/build/yahoo/yahoo-min.js"></script>
+    <script type="text/javascript" src="yui/build/event/event-min.js"></script>
+    <script type="text/javascript" src="yui/build/dom/dom-min.js"></script>
+    <script type="text/javascript" src="prototype.js"></script>
+    <script type="text/javascript" src="dateformat.js"></script>
+    <script type="text/javascript" src="wz_jsgraphics.js"></script>
+    <script type="text/javascript" src="yui/build/dragdrop/dragdrop-min.js"></script>
+    <script type="text/javascript" src="yui/build/animation/animation-min.js"></script>
 </head>
 
 <script type="text/javascript">
@@ -193,7 +185,7 @@ if($_SESSION["examflag"] == 1){
     var URL = './' //サーバー用
     var attempt = 0;    //20250514追加
 
-    
+
     var Qid = <?php echo $Qid = $_GET['Qid']; ?> //LineQuesFormのボタンのURL引数
     /*
     var nEnd;
@@ -211,32 +203,32 @@ if($_SESSION["examflag"] == 1){
     }
         */
 
-    
+
 </script>
 <?php
-    //Qidの値を取得して、それによってnEndを取得
-    //nEndはOIDの最終番号
-    require "../dbc.php";
-    $_SESSION['Qid'] = $_GET['Qid'];
-    $Qid = $_GET['Qid'];
-    $sql = "select t_q.OID,t_q.WID 
+//Qidの値を取得して、それによってnEndを取得
+//nEndはOIDの最終番号
+require "../dbc.php";
+$_SESSION['Qid'] = $_GET['Qid'];
+$Qid = $_GET['Qid'];
+$sql = "select t_q.OID,t_q.WID 
             from test_questions t_q
             WHERE t_q.test_id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param('i', $Qid);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $all_rows = $result->fetch_all(MYSQLI_ASSOC);
-    $last_rows = end($all_rows);        //最後の行の要素を取得
-    $nEnd = $last_rows['OID'];
-    //echo $Qid;
-    //echo $nEnd;
-    $stmt->close();
+$stmt = $conn->prepare($sql);
+$stmt->bind_param('i', $Qid);
+$stmt->execute();
+$result = $stmt->get_result();
+$all_rows = $result->fetch_all(MYSQLI_ASSOC);
+$last_rows = end($all_rows);        //最後の行の要素を取得
+$nEnd = $last_rows['OID'];
+//echo $Qid;
+//echo $nEnd;
+$stmt->close();
 ?>
 
 <script type="text/javascript">
     nEnd = <?php echo $nEnd; ?>
-    
+
 
     //ランダムに配列を並び替えるソース
     Array.prototype.random = function () {
@@ -263,11 +255,11 @@ if($_SESSION["examflag"] == 1){
     //body がloadされた時点で実行される。
     function ques_Load() {
         new Ajax.Request(URL + 'swrite.php',//こんにちはOOさん出力
-        {
-            method: 'get',
-            onSuccess: getA,
-            onFailure: getE
-        });
+            {
+                method: 'get',
+                onSuccess: getA,
+                onFailure: getE
+            });
         //▲マウスデータの取得
         //ドラッグ開始地点の保存
         function getA(req) {
@@ -290,7 +282,7 @@ if($_SESSION["examflag"] == 1){
         document.onselectstart = "return false";
         //-------------------------------------------------------------
         //DBから引用
-        function getError(req,requestSource) {
+        function getError(req, requestSource) {
             alert(<?= json_encode(translate('ques.php_335行目_リクエストエラー')) ?> + "(" + requestSource + "):" + req.status + "--" + req.statusText);
             console.log("エラー発生元：" + requestSource);
             console.log(req.responseText);
@@ -298,11 +290,11 @@ if($_SESSION["examflag"] == 1){
         }
         //=============linedatamouseがなかったら作成============
         new Ajax.Request(URL + 'linemouse.php',
-        {
-            method: 'get',
-            onSuccess: getm,
-            onFailure: function(req){getError(req,"linemouse.php")}
-        });
+            {
+                method: 'get',
+                onSuccess: getm,
+                onFailure: function (req) { getError(req, "linemouse.php") }
+            });
         function getm(res) {
         }
         //======================================================
@@ -311,15 +303,15 @@ if($_SESSION["examflag"] == 1){
         var $a = "a"; //モード制御用
         $params = 'param1=' + encodeURIComponent($a);
         new Ajax.Request(URL + 'load.php',
-        {
-            method: 'get',
-            onSuccess: getOID,
-            onFailure: function(req){getError(req,"load.php")},
-            parameters: $params
-        });
+            {
+                method: 'get',
+                onSuccess: getOID,
+                onFailure: function (req) { getError(req, "load.php") },
+                parameters: $params
+            });
         function getOID(res) {
             OID = res.responseText; //load.phpから最大のOIDが入っているはずのresが帰ってくるのでそれを代入
-            console.log("res"+res.responseText);
+            console.log("res" + res.responseText);
             console.log("OID = " + OID);
             if (OID == <?= json_encode(translate('ques.php_351行目_OID抽出エラー（マウス）')) ?> || OID == "" || OID == <?= json_encode(translate('ques.php_351行目_OIDエラー')) ?> || OID == <?= json_encode(translate('ques.php_351行目_これは最初の問題です')) ?>) {
                 OID = 1;
@@ -342,15 +334,15 @@ if($_SESSION["examflag"] == 1){
         var $Load = "load";
         var $w = "w";
         var $params = 'param1=' + encodeURIComponent(OID)
-                      + '&param2=' + encodeURIComponent($Load);
+            + '&param2=' + encodeURIComponent($Load);
         console.log("$wの時:" + $params);
         new Ajax.Request(URL + 'dbsyori.php', //本番用
-        {
-            method: 'get',
-            onSuccess: getOIDtoWID,
-            onFailure: Error,
-            parameters: $params
-        });
+            {
+                method: 'get',
+                onSuccess: getOIDtoWID,
+                onFailure: Error,
+                parameters: $params
+            });
 
         function Error(res) {
             alert(<?= json_encode(translate('ques.php_379行目_問題取得失敗')) ?>);
@@ -369,7 +361,7 @@ if($_SESSION["examflag"] == 1){
                     {
                         method: 'get',
                         onSuccess: getAttempt,
-                        onFailure: function(req){getError(req,"getattempt.php")},
+                        onFailure: function (req) { getError(req, "getattempt.php") },
                         parameters: $params_for_attempt
                     });
                 function getAttempt(res) {
@@ -377,16 +369,16 @@ if($_SESSION["examflag"] == 1){
                     console.log("attempt = " + attempt);
                 }
                 var $params = 'param1=' + encodeURIComponent(WID)
-                          + '&param2=' + encodeURIComponent($q);
+                    + '&param2=' + encodeURIComponent($q);
                 console.log("$qの時:" + $params);
                 new Ajax.Request(URL + 'dbsyori.php', //本番用
                     {
-                    method: 'get',
-                    onSuccess: getResponse,
-                    onFailure: function(req){getError(req,"dbsyori.php")},
-                    parameters: $params
-                });
-                
+                        method: 'get',
+                        onSuccess: getResponse,
+                        onFailure: function (req) { getError(req, "dbsyori.php") },
+                        parameters: $params
+                    });
+
                 //関数開始-----------------------------------
                 function getResponse(req) {
                     //console.log("attempt = " + attempt);
@@ -396,184 +388,184 @@ if($_SESSION["examflag"] == 1){
                     Answer = str1.toUpperCase() + str2; //完全な答え
                     $q = "q1";
                     $params = 'param1=' + encodeURIComponent(WID)
-                                  + '&param2=' + encodeURIComponent($q);
+                        + '&param2=' + encodeURIComponent($q);
                     new Ajax.Request(URL + 'dbsyori.php', //本番用
                         {
-                        method: 'get',
-                        onSuccess: getStart,
-                        onFailure: function(req){getError(req,"dbsyori.php")},
-                        parameters: $params
-                    });
-                    
+                            method: 'get',
+                            onSuccess: getStart,
+                            onFailure: function (req) { getError(req, "dbsyori.php") },
+                            parameters: $params
+                        });
+
                     function getStart(req1) {
                         Mylabels = req1.responseText.split("|");
                         $d = "d";
                         $params = 'param1=' + encodeURIComponent(WID)
-                                  + '&param2=' + encodeURIComponent($d);
+                            + '&param2=' + encodeURIComponent($d);
                         new Ajax.Request(URL + 'dbsyori.php', //本番用
                             {
-                            method: 'get',
-                            onSuccess: getDivide,
-                            onFailure: function(req){getError(req,"dbsyori.php")},
-                            parameters: $params
-                        });
+                                method: 'get',
+                                onSuccess: getDivide,
+                                onFailure: function (req) { getError(req, "dbsyori.php") },
+                                parameters: $params
+                            });
                         function getDivide(req2) {
-                        MylabelsD = req2.responseText.split("|");
-                        $f = "f";
-                        $params = 'param1=' + encodeURIComponent(WID)
-                                  + '&param2=' + encodeURIComponent($f);
-                        new Ajax.Request(URL + 'dbsyori.php', //本番用
-                            {
-                            method: 'get',
-                            onSuccess: getFix,
-                            onFailure: function(req){getError(req,"dbsyori.php")},
-                            parameters: $params
-                        });
-                        function getFix(Fix) //固定情報の表示
-                        {
-                            msg.innerHTML = Fix.responseText;
-                            if (Fix.responseText != "-1") {
-                                
-
-                                FixNum = Fix.responseText.split("#"); //♯区切り
-                                for (i = 0; i <= FixNum.length - 1; i++) {
-                                    FixNum[i] -= 0; //数値化
-                                    FixLabels[i] = MylabelsD[FixNum[i]];
-                                    FixNum[i] += 1;
-                                    Fixmsg.innerHTML += "</br><font size='5' color='green'>" + FixLabels[i] + "</font>" + <?= json_encode(translate('ques.php_442行目_は')) ?> + "<font size='5' color='red'>" + FixNum[i] + "</font>" + <?= json_encode(translate('ques.php_442行目_番目にきます')) ?>;
-                                    FixNum[i] -= 1;
-                                }
-                            } else {
-                                FixNum = 0
-                            }
-                            LabelNum = Mylabels.length;
-                            //--------------------------------
-                            //body要素を取得
-                            var body = document.getElementsByTagName("body")[0];
-                            var el;
-                            //------------------------------
-                            for (i = 0; i <= LabelNum - 1; i++) {
-                                //p要素を作成
-                                var p = document.createElement("div");
-                                var n = document.createElement("div"); //そのラベルが何番目にくるのかを表示するためのdiv要素
-                                //テキストノードを作成
-                                p.setAttribute("id", i);
-                                n.setAttribute("id", -i); //一応何かのために(削除用)
-                                YAHOO.util.Dom.setStyle(p, "position", "absolute");
-                                YAHOO.util.Dom.setStyle(n, "position", "absolute");
-                                if (i < 1) {
-                                    YAHOO.util.Dom.setStyle(p, "left", DefaultX);
-                                    YAHOO.util.Dom.setStyle(p, "top", DefaultY);
-                                    var LL = YAHOO.util.Dom.getRegion(p);
-                                    YAHOO.util.Dom.setStyle(n, "top", DefaultY - 15);
-                                } else {
-                                    YAHOO.util.Dom.setStyle(p, "left", el.right + 17);
-                                    YAHOO.util.Dom.setStyle(p, "top", DefaultY);
-                                    var LL = YAHOO.util.Dom.getRegion(p);
-                                    YAHOO.util.Dom.setStyle(n, "top", DefaultY - 15);
-                                }
-                                YAHOO.util.Dom.setStyle(p, "width", "auto");
-                                YAHOO.util.Dom.setStyle(n, "width", "auto");
-                                YAHOO.util.Dom.setStyle(p, "font-family", "Arial");
-                                YAHOO.util.Dom.setStyle(n, "font-size", "20px");
-                                if (i == LabelNum - 1) {
-                                    StartQues += Mylabels[i];
-                                } else {
-                                    StartQues += Mylabels[i] + "|";
-                                }
-                                dd[i] = new YAHOO.util.DD(p);
-                                var str = document.createTextNode(Mylabels[i]);
-                                //テキストノードをp要素に追加
-                                p.appendChild(str);
-                                MyNums[i] = i + 1;
-                                var str2 = document.createTextNode(MyNums[i]);
-
-                                //p要素をbody要素に追加
-                                Mylabels[i] = p;
-                                body.appendChild(Mylabels[i]);
-                                //p要素をbody要素に追加
-                                MyNums[i] = n;
-                                body.appendChild(MyNums[i]);
-
-                                var LL = YAHOO.util.Dom.getRegion(p);
-                                YAHOO.util.Dom.setStyle(n, "left", LL.left + (LL.right - LL.left) / 2 - 2);
-
-                                el = YAHOO.util.Dom.getRegion(p);
-                                //イベントハンドラの追加
-                                dd[i].onMouseDown = function (e) { MyLabels_MouseDown(this.getDragEl()) }
-                                dd[i].onMouseUp = function (e) { MyLabels_MouseUp(this.getDragEl()) }
-                                dd[i].onDrag = function (e) { MyLabels_MouseMove(this.getDragEl()) }
-                                YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
-                                YAHOO.util.Event.addListener(Mylabels[i], 'mouseout', MyLabels_MouseLeave);
-
-                                region = YAHOO.util.Dom.getRegion(Mylabels[i]);
-                                Mylabels_left[i] = region.left;
-                                if (i != Mylabels.length - 1) {
-                                    BPen3.setFont("arial", "15px", Font.ITALIC_BOLD);
-                                    BPen3.drawString("/", region.right + 7, 100);
-                                    BPen3.paint();
-                                }
-                            }
-                            //Mylabels配列のコピー。Mylabelは今後動かさないので。
-                            Mylabels2 = Mylabels.concat();
-                            //-------------------------------------
-                            //日本文の取得
-                            var $j = "j";
+                            MylabelsD = req2.responseText.split("|");
+                            $f = "f";
                             $params = 'param1=' + encodeURIComponent(WID)
-                                            + '&param2=' + encodeURIComponent($j);
-                            new Ajax.Request(URL + 'dbsyori.php',
+                                + '&param2=' + encodeURIComponent($f);
+                            new Ajax.Request(URL + 'dbsyori.php', //本番用
+                                {
+                                    method: 'get',
+                                    onSuccess: getFix,
+                                    onFailure: function (req) { getError(req, "dbsyori.php") },
+                                    parameters: $params
+                                });
+                            function getFix(Fix) //固定情報の表示
+                            {
+                                msg.innerHTML = Fix.responseText;
+                                if (Fix.responseText != "-1") {
+
+
+                                    FixNum = Fix.responseText.split("#"); //♯区切り
+                                    for (i = 0; i <= FixNum.length - 1; i++) {
+                                        FixNum[i] -= 0; //数値化
+                                        FixLabels[i] = MylabelsD[FixNum[i]];
+                                        FixNum[i] += 1;
+                                        Fixmsg.innerHTML += "</br><font size='5' color='green'>" + FixLabels[i] + "</font>" + <?= json_encode(translate('ques.php_442行目_は')) ?> + "<font size='5' color='red'>" + FixNum[i] + "</font>" + <?= json_encode(translate('ques.php_442行目_番目にきます')) ?>;
+                                        FixNum[i] -= 1;
+                                    }
+                                } else {
+                                    FixNum = 0
+                                }
+                                LabelNum = Mylabels.length;
+                                //--------------------------------
+                                //body要素を取得
+                                var body = document.getElementsByTagName("body")[0];
+                                var el;
+                                //------------------------------
+                                for (i = 0; i <= LabelNum - 1; i++) {
+                                    //p要素を作成
+                                    var p = document.createElement("div");
+                                    var n = document.createElement("div"); //そのラベルが何番目にくるのかを表示するためのdiv要素
+                                    //テキストノードを作成
+                                    p.setAttribute("id", i);
+                                    n.setAttribute("id", -i); //一応何かのために(削除用)
+                                    YAHOO.util.Dom.setStyle(p, "position", "absolute");
+                                    YAHOO.util.Dom.setStyle(n, "position", "absolute");
+                                    if (i < 1) {
+                                        YAHOO.util.Dom.setStyle(p, "left", DefaultX);
+                                        YAHOO.util.Dom.setStyle(p, "top", DefaultY);
+                                        var LL = YAHOO.util.Dom.getRegion(p);
+                                        YAHOO.util.Dom.setStyle(n, "top", DefaultY - 15);
+                                    } else {
+                                        YAHOO.util.Dom.setStyle(p, "left", el.right + 17);
+                                        YAHOO.util.Dom.setStyle(p, "top", DefaultY);
+                                        var LL = YAHOO.util.Dom.getRegion(p);
+                                        YAHOO.util.Dom.setStyle(n, "top", DefaultY - 15);
+                                    }
+                                    YAHOO.util.Dom.setStyle(p, "width", "auto");
+                                    YAHOO.util.Dom.setStyle(n, "width", "auto");
+                                    YAHOO.util.Dom.setStyle(p, "font-family", "Arial");
+                                    YAHOO.util.Dom.setStyle(n, "font-size", "20px");
+                                    if (i == LabelNum - 1) {
+                                        StartQues += Mylabels[i];
+                                    } else {
+                                        StartQues += Mylabels[i] + "|";
+                                    }
+                                    dd[i] = new YAHOO.util.DD(p);
+                                    var str = document.createTextNode(Mylabels[i]);
+                                    //テキストノードをp要素に追加
+                                    p.appendChild(str);
+                                    MyNums[i] = i + 1;
+                                    var str2 = document.createTextNode(MyNums[i]);
+
+                                    //p要素をbody要素に追加
+                                    Mylabels[i] = p;
+                                    body.appendChild(Mylabels[i]);
+                                    //p要素をbody要素に追加
+                                    MyNums[i] = n;
+                                    body.appendChild(MyNums[i]);
+
+                                    var LL = YAHOO.util.Dom.getRegion(p);
+                                    YAHOO.util.Dom.setStyle(n, "left", LL.left + (LL.right - LL.left) / 2 - 2);
+
+                                    el = YAHOO.util.Dom.getRegion(p);
+                                    //イベントハンドラの追加
+                                    dd[i].onMouseDown = function (e) { MyLabels_MouseDown(this.getDragEl()) }
+                                    dd[i].onMouseUp = function (e) { MyLabels_MouseUp(this.getDragEl()) }
+                                    dd[i].onDrag = function (e) { MyLabels_MouseMove(this.getDragEl()) }
+                                    YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
+                                    YAHOO.util.Event.addListener(Mylabels[i], 'mouseout', MyLabels_MouseLeave);
+
+                                    region = YAHOO.util.Dom.getRegion(Mylabels[i]);
+                                    Mylabels_left[i] = region.left;
+                                    if (i != Mylabels.length - 1) {
+                                        BPen3.setFont("arial", "15px", Font.ITALIC_BOLD);
+                                        BPen3.drawString("/", region.right + 7, 100);
+                                        BPen3.paint();
+                                    }
+                                }
+                                //Mylabels配列のコピー。Mylabelは今後動かさないので。
+                                Mylabels2 = Mylabels.concat();
+                                //-------------------------------------
+                                //日本文の取得
+                                var $j = "j";
+                                $params = 'param1=' + encodeURIComponent(WID)
+                                    + '&param2=' + encodeURIComponent($j);
+                                new Ajax.Request(URL + 'dbsyori.php',
                                     {
                                         method: 'get',
                                         onSuccess: getJapanese,
-                                        onFailure: function(req){getError(req,"dbsyori.php")},
+                                        onFailure: function (req) { getError(req, "dbsyori.php") },
                                         parameters: $params
                                     });
-                            function getJapanese(res) {
-                                document.getElementById("RichTextBox1").innerHTML = res.responseText;
-                                //-------------------------------------
-                                //別解の取得(得点は10点の物）
-                                var $s1 = "s1";
-                                $params = 'param1=' + encodeURIComponent(WID)
-                                                + '&param2=' + encodeURIComponent($s1);
-                                new Ajax.Request(URL + 'dbsyori.php',
-                                {
-                                    method: 'get',
-                                    onSuccess: getSentence1,
-                                    onFailure: function(req){getError(req,"dbsyori.php")},
-                                    parameters: $params
-                                });
-                                function getSentence1(res) {
-                                    if (res.responseText != "") {
-                                        str1 = res.responseText.substr(0, 1);
-                                        str2 = res.responseText.substr(1);
-                                        Answer1 = str1.toUpperCase() + str2; //先頭を大文字に変更
-                                        //英文を取得
-                                        var $s2 = "s2";
-                                        $params = 'param1=' + encodeURIComponent(WID)
-                                                          + '&param2=' + encodeURIComponent($s2);
-                                        new Ajax.Request(URL + 'dbsyori.php',
+                                function getJapanese(res) {
+                                    document.getElementById("RichTextBox1").innerHTML = res.responseText;
+                                    //-------------------------------------
+                                    //別解の取得(得点は10点の物）
+                                    var $s1 = "s1";
+                                    $params = 'param1=' + encodeURIComponent(WID)
+                                        + '&param2=' + encodeURIComponent($s1);
+                                    new Ajax.Request(URL + 'dbsyori.php',
                                         {
                                             method: 'get',
-                                            onSuccess: getSentence2,
-                                            onFailure: function(req){getError(req,"dbsyori.php")},
+                                            onSuccess: getSentence1,
+                                            onFailure: function (req) { getError(req, "dbsyori.php") },
                                             parameters: $params
                                         });
-                                        function getSentence2(res) {
-                                            if (res.responseText != "") {//NULL以外だったら
-                                                str1 = res.responseText.substr(0, 1);
-                                                str2 = res.responseText.substr(1);
-                                                Answer2 = str1.toUpperCase() + str2;
-                                            } //ifres.responseText != ""ここまで------------------------------------
-                                        } // getSentence2ここまで--------------------------------------------------------
-                                    }
-                                } // getSentence1ここまで---------------------------------------------------
-                            } // getJapaneseここまで--------------------------------------------------------
-                            Mouse_Flag = true;
-                        } //Fix関数ここまで--------------------------------------------------------
-                    }
+                                    function getSentence1(res) {
+                                        if (res.responseText != "") {
+                                            str1 = res.responseText.substr(0, 1);
+                                            str2 = res.responseText.substr(1);
+                                            Answer1 = str1.toUpperCase() + str2; //先頭を大文字に変更
+                                            //英文を取得
+                                            var $s2 = "s2";
+                                            $params = 'param1=' + encodeURIComponent(WID)
+                                                + '&param2=' + encodeURIComponent($s2);
+                                            new Ajax.Request(URL + 'dbsyori.php',
+                                                {
+                                                    method: 'get',
+                                                    onSuccess: getSentence2,
+                                                    onFailure: function (req) { getError(req, "dbsyori.php") },
+                                                    parameters: $params
+                                                });
+                                            function getSentence2(res) {
+                                                if (res.responseText != "") {//NULL以外だったら
+                                                    str1 = res.responseText.substr(0, 1);
+                                                    str2 = res.responseText.substr(1);
+                                                    Answer2 = str1.toUpperCase() + str2;
+                                                } //ifres.responseText != ""ここまで------------------------------------
+                                            } // getSentence2ここまで--------------------------------------------------------
+                                        }
+                                    } // getSentence1ここまで---------------------------------------------------
+                                } // getJapaneseここまで--------------------------------------------------------
+                                Mouse_Flag = true;
+                            } //Fix関数ここまで--------------------------------------------------------
+                        }
                     }
                 } /*getStart関数ここまで*/
-                
+
                 //--関数getresponseここまで---------------------------------------
             }
         }
@@ -593,16 +585,11 @@ if($_SESSION["examflag"] == 1){
     //問題の出題関数ここまで-------------------------------------------------------
     //範囲指定をするときのドラッグ開始処理------------------------------
     function Form1_MouseDown() {
-        if (event.y <= 130)
-        { d_flag = 0; }
-        else if (event.y <= 215 && event.y > 130)
-        { d_flag = 4; }
-        else if (event.y <= 295 && event.y > 215)
-        { d_flag = 1; }
-        else if (event.y <= 375 && event.y > 295)
-        { d_flag = 2; }
-        else if (event.y > 375)
-        { d_flag = 3; }
+        if (event.y <= 130) { d_flag = 0; }
+        else if (event.y <= 215 && event.y > 130) { d_flag = 4; }
+        else if (event.y <= 295 && event.y > 215) { d_flag = 1; }
+        else if (event.y <= 375 && event.y > 295) { d_flag = 2; }
+        else if (event.y > 375) { d_flag = 3; }
         if (Mouse_Flag == false) {
             return;
         }
@@ -720,20 +707,20 @@ if($_SESSION["examflag"] == 1){
             //encodeURI = 変換してるだけだぴょん
             //paramっていうのに各変数を入れてる！(tmpfileで&で区切って送ってる)
             var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"])
-                      + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
-                      + '&param3=' + encodeURIComponent($Mouse_Data["X"])
-                      + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
-                      + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
-                      + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
-                      + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-                      + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
+                + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
+                + '&param3=' + encodeURIComponent($Mouse_Data["X"])
+                + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
+                + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
+                + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
+                + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
+                + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
             new Ajax.Request(URL + 'tmpfile.php',
-            {
-                method: 'get',
-                onSuccess: getA,
-                onFailure: getE,
-                parameters: $params
-            });
+                {
+                    method: 'get',
+                    onSuccess: getA,
+                    onFailure: getE,
+                    parameters: $params
+                });
             //▲マウスデータの取得
             //ドラッグ開始地点の保存
             function getA(req) {
@@ -1142,20 +1129,20 @@ if($_SESSION["examflag"] == 1){
         Mouse_Num += 1;
 
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"])
-                      + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
-                      + '&param3=' + encodeURIComponent($Mouse_Data["X"])
-                      + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
-                      + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
-                      + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
-                      + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-                      + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
+            + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
+            + '&param3=' + encodeURIComponent($Mouse_Data["X"])
+            + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
+            + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
+            + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
+            + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
+            + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
         new Ajax.Request(URL + 'tmpfile.php',
-        {
-            method: 'get',
-            onSuccess: getA,
-            onFailure: getE,
-            parameters: $params
-        });
+            {
+                method: 'get',
+                onSuccess: getA,
+                onFailure: getE,
+                parameters: $params
+            });
         //▲マウスデータの取得
         //ドラッグ開始地点の保存
         function getA(req) {
@@ -1255,20 +1242,20 @@ if($_SESSION["examflag"] == 1){
         Mouse_Num += 1;
 
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"])
-                      + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
-                      + '&param3=' + encodeURIComponent($Mouse_Data["X"])
-                      + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
-                      + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
-                      + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
-                      + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-                      + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
+            + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
+            + '&param3=' + encodeURIComponent($Mouse_Data["X"])
+            + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
+            + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
+            + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
+            + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
+            + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
         new Ajax.Request(URL + 'tmpfile.php',
-        {
-            method: 'get',
-            onSuccess: getA,
-            onFailure: getE,
-            parameters: $params
-        });
+            {
+                method: 'get',
+                onSuccess: getA,
+                onFailure: getE,
+                parameters: $params
+            });
         //▲マウスデータの取得
         //ドラッグ開始地点の保存
         function getA(req) {
@@ -1430,11 +1417,11 @@ if($_SESSION["examflag"] == 1){
         //▲マウスデータの取得
         alert(<?= json_encode(translate('ques.php_919行目_お疲れ様です')) ?>);
         new Ajax.Request(URL + 'ewrite.php',
-        {
-            method: 'get',
-            onSuccess: getA,
-            onFailure: getE
-        });
+            {
+                method: 'get',
+                onSuccess: getA,
+                onFailure: getE
+            });
         //▲マウスデータの取得
         //ドラッグ開始地点の保存
         function getA(req) {
@@ -1466,7 +1453,7 @@ if($_SESSION["examflag"] == 1){
                 if (fix_a == true) {
                     continue;
                 }
-                else{
+                else {
                     return;
                 }
             }
@@ -1507,20 +1494,20 @@ if($_SESSION["examflag"] == 1){
         Mouse_Num += 1;
 
         var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"])
-                      + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
-                      + '&param3=' + encodeURIComponent($Mouse_Data["X"])
-                      + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
-                      + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
-                      + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
-                      + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-                      + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
+            + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
+            + '&param3=' + encodeURIComponent($Mouse_Data["X"])
+            + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
+            + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
+            + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
+            + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
+            + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
         new Ajax.Request(URL + 'tmpfile.php',
-        {
-            method: 'get',
-            onSuccess: getA,
-            onFailure: getE,
-            parameters: $params
-        });
+            {
+                method: 'get',
+                onSuccess: getA,
+                onFailure: getE,
+                parameters: $params
+            });
         //▲マウスデータの取得
         function getA(req) {
         }
@@ -1551,8 +1538,8 @@ if($_SESSION["examflag"] == 1){
 
         //単語単位迷い度取得の配列初期化・単語迷い度変数初期化
         $countHearing = [];
-        for (i = 0; i <= Mylabels2.length - 1; i++){
-        $countHearing[i] = 0;
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            $countHearing[i] = 0;
         }
         $countH0 = 999999999;
         $countH1 = 999999999;
@@ -1588,7 +1575,7 @@ if($_SESSION["examflag"] == 1){
             YAHOO.util.Dom.setStyle("register1", "display", "none");
             YAHOO.util.Dom.setStyle("register2", "display", "none");
             YAHOO.util.Dom.setStyle("register3", "display", "none");
-        }else{
+        } else {
 
             $QAData["comments"] = -1;
             $QAData["hesitate"] = -1;
@@ -1602,16 +1589,16 @@ if($_SESSION["examflag"] == 1){
             YAHOO.util.Dom.setStyle("hearingT2", "display", "block");
             YAHOO.util.Dom.setStyle("checkbox", "display", "block");
             YAHOO.util.Dom.setStyle("checkbox2", "display", "block");
-            
+
             // var checkbox = document.getElementById('three');
             // checkbox.indeterminate = true;
-          
+
             var HearingHtml = "";
             HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
             for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
+                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                    + Mylabels_ea[i].innerHTML + "</label>";
+
             }
             HearingHtml += "</div><textarea id='comment' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
             document.getElementById("hearing").innerHTML = HearingHtml;//仮の直しcomments→comment
@@ -1641,20 +1628,20 @@ if($_SESSION["examflag"] == 1){
             YAHOO.util.Dom.setStyle("register2", "display", "none");
             YAHOO.util.Dom.setStyle("register3", "display", "none");
 
-           
+
             document.getElementById("Button2").disabled = true;
             document.getElementById("Buttonl").disabled = true;
 
-            }
+        }
 
 
         //決定を押した後にクリックできないように要素を見えなくする→解答欄のdivタグに追加して表示
         var answerBox = document.getElementById('answer');
-        for(var i=0; Mylabels_ea.length; i++){
-            Mylabels_ea[i].setAttribute('style','display:none;');
+        for (var i = 0; Mylabels_ea.length; i++) {
+            Mylabels_ea[i].setAttribute('style', 'display:none;');
             var span = document.createElement('span');
-            span.setAttribute('style','font-size:1.6em;');
-            span.appendChild(document.createTextNode(Mylabels_ea[i].firstChild.nodeValue+' '));
+            span.setAttribute('style', 'font-size:1.6em;');
+            span.appendChild(document.createTextNode(Mylabels_ea[i].firstChild.nodeValue + ' '));
             answerBox.appendChild(span);
         }
 
@@ -1669,9 +1656,9 @@ if($_SESSION["examflag"] == 1){
             alert(<?= json_encode(translate('ques.php_996行目_終了です')) ?>);
             return;
         } else if (OID % 5 == 0 && OID != 0) {
-                var alert_msg = <?= json_encode(translate('ques.php_998行目_書き込みを行ってください')) ?> + QuesNum + <?= json_encode(translate('ques.php_998行目_問終了')) ?>;
-                alert(alert_msg);
-                return;
+            var alert_msg = <?= json_encode(translate('ques.php_998行目_書き込みを行ってください')) ?> + QuesNum + <?= json_encode(translate('ques.php_998行目_問終了')) ?>;
+            alert(alert_msg);
+            return;
         }
         if (Mouse_Flag == true) {
             return;
@@ -1706,7 +1693,7 @@ if($_SESSION["examflag"] == 1){
             YAHOO.util.Dom.setStyle("exercise", "display", "none");
             YAHOO.util.Dom.setStyle("ButtonE2", "display", "none");
             document.getElementById("Button1").disabled = false;
-        }else{
+        } else {
             YAHOO.util.Dom.setStyle("Button2", "display", "none");
             YAHOO.util.Dom.setStyle("QuesLevel", "display", "none"); //悩み度
             YAHOO.util.Dom.setStyle("choose2", "display", "none");
@@ -1772,14 +1759,14 @@ if($_SESSION["examflag"] == 1){
         YAHOO.util.Dom.setStyle("Button3", "display", "none");
         YAHOO.util.Dom.setStyle("Button1", "display", "block");
         setques();
-    
+
     }
 
     //迷い度決定
-     function ButtonM_Click() {
-        
-         var cmbQues;
-        
+    function ButtonM_Click() {
+
+        var cmbQues;
+
         //if ($QAData["hesitate"] == "" && $QAData["check"] == 0 ) {
         //cmbQues = document.getElementById("QuesLevel");
         //} else if ($QAData["hesitate"] == "" && $QAData["check"] == 1 ){
@@ -1792,17 +1779,17 @@ if($_SESSION["examflag"] == 1){
 
         if ($QAData["check"] === 1 || $QAData["hesitate2"] != "") {
 
-        cmbQues = document.getElementById("QuesLevel3");
+            cmbQues = document.getElementById("QuesLevel3");
         } else {
-        if ($QAData["hesitate"] === "" ){
+            if ($QAData["hesitate"] === "") {
 
-        cmbQues = document.getElementById("QuesLevel");
-        } else if ($QAData["hesitate1"] != "" ){
-        cmbQues = document.getElementById("QuesLevel2");
-        } else {
+                cmbQues = document.getElementById("QuesLevel");
+            } else if ($QAData["hesitate1"] != "") {
+                cmbQues = document.getElementById("QuesLevel2");
+            } else {
 
-        cmbQues = document.getElementById("QuesLevel3");
-        }
+                cmbQues = document.getElementById("QuesLevel3");
+            }
         }
 
         /*if ($QAData["hesitate"] == "" && $QAData["check"] == 0 ) {
@@ -1824,34 +1811,34 @@ if($_SESSION["examflag"] == 1){
         }
 
         var MyComments = document.getElementsByTagName("textarea");
-        
+
         cmt = MyComments[0].value;
         if (cmt == "") cmt = "";
-        
+
         $QAData["comments"] = cmt;
 
 
 
-         document.getElementById("Button1").disabled = false;
+        document.getElementById("Button1").disabled = false;
 
-         YAHOO.util.Dom.setStyle("QuesLevel", "display", "none");
-         YAHOO.util.Dom.setStyle("QuesLevel2", "display", "none");
-         YAHOO.util.Dom.setStyle("QuesLevel3", "display", "none");
-         YAHOO.util.Dom.setStyle("choose2", "display", "none");
-         YAHOO.util.Dom.setStyle("TermText", "display", "none");
-         YAHOO.util.Dom.setStyle("TermLabel", "display", "none");
-         YAHOO.util.Dom.setStyle("OrderLabel", "display", "none");
-         YAHOO.util.Dom.setStyle("ButtonM", "display", "none");
+        YAHOO.util.Dom.setStyle("QuesLevel", "display", "none");
+        YAHOO.util.Dom.setStyle("QuesLevel2", "display", "none");
+        YAHOO.util.Dom.setStyle("QuesLevel3", "display", "none");
+        YAHOO.util.Dom.setStyle("choose2", "display", "none");
+        YAHOO.util.Dom.setStyle("TermText", "display", "none");
+        YAHOO.util.Dom.setStyle("TermLabel", "display", "none");
+        YAHOO.util.Dom.setStyle("OrderLabel", "display", "none");
+        YAHOO.util.Dom.setStyle("ButtonM", "display", "none");
 
-         YAHOO.util.Dom.setStyle("hearing", "display", "none");//自由記述欄修正
-         YAHOO.util.Dom.setStyle("comments", "display", "none");//自由記述欄修正
-         YAHOO.util.Dom.setStyle("comments2", "display", "none");//自由記述欄修正
+        YAHOO.util.Dom.setStyle("hearing", "display", "none");//自由記述欄修正
+        YAHOO.util.Dom.setStyle("comments", "display", "none");//自由記述欄修正
+        YAHOO.util.Dom.setStyle("comments2", "display", "none");//自由記述欄修正
 
         last();
-                   
-        }
 
-        //悩み度変更
+    }
+
+    //悩み度変更
     //  function QuesLevelChange() {
     //     var obj;
     //     obj = document.getElementById("QuesLevel");
@@ -1859,37 +1846,37 @@ if($_SESSION["examflag"] == 1){
     //     if (index != 0) {
     //             YAHOO.util.Dom.setStyle("ButtonM", "display", "block");
     //             document.getElementById("Button1").disabled = false;
-           
+
     //     }
     // }
 
     //悩み度決定2
-     // function ButtonM2_Click() {
+    // function ButtonM2_Click() {
 
-     //    var obj;
-     //    obj = document.getElementById("QuesLevel");
-     //    index = obj.selectedIndex;
-     //    if (index != 0) {
-     //            YAHOO.util.Dom.setStyle("ButtonM", "display", "block");
-     //            document.getElementById("Button1").disabled = false;
-           
-     //    }
+    //    var obj;
+    //    obj = document.getElementById("QuesLevel");
+    //    index = obj.selectedIndex;
+    //    if (index != 0) {
+    //            YAHOO.util.Dom.setStyle("ButtonM", "display", "block");
+    //            document.getElementById("Button1").disabled = false;
 
-     //     var cmbQues;
-     //     cmbQues = document.getElementById("QuesLevel");
+    //    }
 
-     //     $QAData["Understand"] = 5 - (cmbQues.selectedIndex * 1);
+    //     var cmbQues;
+    //     cmbQues = document.getElementById("QuesLevel");
 
-     //     YAHOO.util.Dom.setStyle("QuesLevel", "display", "none");
-     //     YAHOO.util.Dom.setStyle("choose2", "display", "none");
-     //     YAHOO.util.Dom.setStyle("TermText", "display", "none");
-     //     YAHOO.util.Dom.setStyle("TermLabel", "display", "none");
-     //     YAHOO.util.Dom.setStyle("OrderLabel", "display", "none");
-     //     YAHOO.util.Dom.setStyle("ButtonM", "display", "none");
+    //     $QAData["Understand"] = 5 - (cmbQues.selectedIndex * 1);
 
-     //    last();
-                   
-     //    }
+    //     YAHOO.util.Dom.setStyle("QuesLevel", "display", "none");
+    //     YAHOO.util.Dom.setStyle("choose2", "display", "none");
+    //     YAHOO.util.Dom.setStyle("TermText", "display", "none");
+    //     YAHOO.util.Dom.setStyle("TermLabel", "display", "none");
+    //     YAHOO.util.Dom.setStyle("OrderLabel", "display", "none");
+    //     YAHOO.util.Dom.setStyle("ButtonM", "display", "none");
+
+    //    last();
+
+    //    }
 
 
     //正誤表示
@@ -1924,43 +1911,43 @@ if($_SESSION["examflag"] == 1){
         $QAData["Time"] = mTimers;
         $QAData["Qid"] = Qid;
         var $params = 'param1=' + encodeURIComponent($QAData["WID"])
-                              + '&param2=' + encodeURIComponent($QAData["Date"])
-                              + '&param3=' + encodeURIComponent($QAData["TF"])
-                              + '&param4=' + encodeURIComponent($QAData["Time"])
-                              + '&param5=' + encodeURIComponent($QAData["Understand"])
-                              + '&param6=' + encodeURIComponent($QAData["EndSentence"])
-                              + '&param7=' + encodeURIComponent($QAData["hesitate"])
-                              + '&param8=' + encodeURIComponent($QAData["hesitate1"])
-                              + '&param9=' + encodeURIComponent($QAData["hesitate2"])
-                              + '&param10=' + encodeURIComponent($QAData["comments"])
-                              + '&param11=' + encodeURIComponent($QAData["check"]);
+            + '&param2=' + encodeURIComponent($QAData["Date"])
+            + '&param3=' + encodeURIComponent($QAData["TF"])
+            + '&param4=' + encodeURIComponent($QAData["Time"])
+            + '&param5=' + encodeURIComponent($QAData["Understand"])
+            + '&param6=' + encodeURIComponent($QAData["EndSentence"])
+            + '&param7=' + encodeURIComponent($QAData["hesitate"])
+            + '&param8=' + encodeURIComponent($QAData["hesitate1"])
+            + '&param9=' + encodeURIComponent($QAData["hesitate2"])
+            + '&param10=' + encodeURIComponent($QAData["comments"])
+            + '&param11=' + encodeURIComponent($QAData["check"]);
 
         if (!(linedataFlg)) {
             linedataFlg = true;
             new Ajax.Request(URL + 'tmpfile2.php',
-                    {
-                        method: 'get',
-                        onSuccess: getA,
-                        onFailure: getE,
-                        parameters: $params
-                    });
+                {
+                    method: 'get',
+                    onSuccess: getA,
+                    onFailure: getE,
+                    parameters: $params
+                });
             //▲マウスデータの取得
             //ドラッグ開始地点の保存
             function getA(req) {
                 //ここでuser_progressを更新する
                 $u = "u";
                 $params = 'param1=' + encodeURIComponent(OID)
-                        + '&param2=' + encodeURIComponent($u);
+                    + '&param2=' + encodeURIComponent($u);
                 new Ajax.Request(URL + 'dbsyori.php', //本番用
                     {
-                    method: 'get',
-                    onSuccess: getwriteuser_progress,
-                    onFailure: function(req){getError(req,"dbsyori.php")},
-                    parameters: $params
-                });
+                        method: 'get',
+                        onSuccess: getwriteuser_progress,
+                        onFailure: function (req) { getError(req, "dbsyori.php") },
+                        parameters: $params
+                    });
             }
             function getwriteuser_progress(req) {
-            
+
             }
             function getE(req) {
                 alert("失敗h");
@@ -1970,15 +1957,15 @@ if($_SESSION["examflag"] == 1){
     }
 
     //最終処理
-    function last(){
+    function last() {
 
         print_answer();
-       
+
         YAHOO.util.Dom.setStyle("TextBox1", "display", "block");
         if (OID % 5 != 0) {
             YAHOO.util.Dom.setStyle("Button2", "display", "block");
             document.getElementById("Button2").disabled = false;
-        }        
+        }
         YAHOO.util.Dom.setStyle("Button4", "display", "block");
         document.getElementById("Button4").disabled = false;
         //document.getElementById("Button2").disabled = false;
@@ -1989,11 +1976,11 @@ if($_SESSION["examflag"] == 1){
             //▲マウスデータの取得
             alert(<?= json_encode(translate('ques.php_1062行目_採点を行います')) ?>);
             new Ajax.Request(URL + 'ewrite.php',
-            {
-                method: 'get',
-                onSuccess: getA,
-                onFailure: getE
-            });
+                {
+                    method: 'get',
+                    onSuccess: getA,
+                    onFailure: getE
+                });
             //▲マウスデータの取得
             //ドラッグ開始地点の保存
             function getA(req) {
@@ -2020,354 +2007,354 @@ if($_SESSION["examflag"] == 1){
     }*/
     $countH0 = 999999999;
     $countH0_3 = 0;
-    function ButtonH0_Click(){
+    function ButtonH0_Click() {
         //$countH = 0;
         $countH0--;
         $countHearing[0] = $countH0 % 3;
         //alert($countHearing[0]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH1 = 99999999;
     $countH1_3 = 0;
-    function ButtonH1_Click(){
+    function ButtonH1_Click() {
         //$countH = 0;
         $countH1--;
         $countHearing[1] = $countH1 % 3;
         //alert($countHearing[1]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH2 = 99999999;
     $countH2_3 = 0;
-    function ButtonH2_Click(){
+    function ButtonH2_Click() {
         //$countH = 0;
         $countH2--;
         $countHearing[2] = $countH2 % 3;
         //alert($countHearing[2]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH3 = 99999999;
     $countH3_3 = 0;
-    function ButtonH3_Click(){
+    function ButtonH3_Click() {
         //$countH = 0;
         $countH3--;
         $countHearing[3] = $countH3 % 3;
         //alert($countHearing[3]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH4 = 99999999;
     $countH4_3 = 0;
-    function ButtonH4_Click(){
+    function ButtonH4_Click() {
         //$countH = 0;
         $countH4--;
         $countHearing[4] = $countH4 % 3;
         //alert($countHearing[4]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH5 = 99999999;
     $countH5_3 = 0;
-    function ButtonH5_Click(){
+    function ButtonH5_Click() {
         //$countH = 0;
         $countH5--;
         $countHearing[5] = $countH5 % 3;
         //alert($countHearing[5]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH6 = 99999999;
     $countH6_3 = 0;
-    function ButtonH6_Click(){
+    function ButtonH6_Click() {
         //$countH = 0;
         $countH6--;
         $countHearing[6] = $countH6 % 3;
         //alert($countHearing[6]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH7 = 99999999;
     $countH7_3 = 0;
-    function ButtonH7_Click(){
+    function ButtonH7_Click() {
         //$countH = 0;
         $countH7--;
         $countHearing[7] = $countH7 % 3;
         //alert($countHearing[7]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH8 = 99999999;
-    function ButtonH8_Click(){
+    function ButtonH8_Click() {
         //$countH = 0;
         $countH8--;
         $countHearing[8] = $countH8 % 3;
         //alert($countHearing[8]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH9 = 99999999;
-    function ButtonH9_Click(){
+    function ButtonH9_Click() {
         //$countH = 0;
         $countH9--;
         $countHearing[9] = $countH9 % 3;
         //alert($countHearing[9]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH10 = 99999999;
-    function ButtonH10_Click(){
+    function ButtonH10_Click() {
         //$countH = 0;
         $countH10--;
-        $countHearing[10]= $countH10 % 3;
+        $countHearing[10] = $countH10 % 3;
         //alert($countHearing[10]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH11 = 99999999;
-    function ButtonH11_Click(){
+    function ButtonH11_Click() {
         //$countH = 0;
         $countH11--;
         $countHearing[11] = $countH11 % 3;
         //alert($countHearing[11]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH12 = 99999999;
-    function ButtonH12_Click(){
+    function ButtonH12_Click() {
         //$countH = 0;
         $countH12--;
         $countHearing[12] = $countH12 % 3;
         //alert($countHearing[12]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH13 = 99999999;
-    function ButtonH13_Click(){
+    function ButtonH13_Click() {
         //$countH = 0;
         $countH13--;
         $countHearing[13] = $countH13 % 3;
         //alert($countHearing[13]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH14 = 99999999;
-    function ButtonH14_Click(){
+    function ButtonH14_Click() {
         //$countH = 0;
         $countH14--;
         $countHearing[14] = $countH14 % 3;
         //alert($countHearing[14]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH15 = 99999999;
-    function ButtonH15_Click(){
+    function ButtonH15_Click() {
         //$countH = 0;
         $countH15--;
         $countHearing[15] = $countH15 % 3;
         //alert($countHearing[15]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH16 = 99999999;
-    function ButtonH16_Click(){
+    function ButtonH16_Click() {
         //$countH = 0;
         $countH16--;
         $countHearing[16] = $countH16 % 3;
         //alert($countHearing[16]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH17 = 99999999;
-    function ButtonH17_Click(){
+    function ButtonH17_Click() {
         //$countH = 0;
         $countH17--;
         $countHearing[17] = $countH17 % 3;
         //alert($countHearing[17]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH18 = 99999999;
-    function ButtonH18_Click(){
+    function ButtonH18_Click() {
         //$countH = 0;
         $countH18--;
         $countHearing[18] = $countH18 % 3;
         //alert($countHearing[18]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH19 = 99999999;
-    function ButtonH19_Click(){
+    function ButtonH19_Click() {
         //$countH = 0;
         $countH19--;
         $countHearing[19] = $countH19 % 3;
         //alert($countHearing[19]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH20 = 99999999;
-    function ButtonH20_Click(){
+    function ButtonH20_Click() {
         //$countH = 0;
         $countH20--;
         $countHearing[20] = $countH20 % 3;
         //alert($countHearing[20]);
         var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-            for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\""+ i + "\"  onclick=\"ButtonH"+i+"_Click()\" s=\""+$countHearing[i]+"\" type=\"button\"><label for=\"select" + i + "\"s=\""+$countHearing[i]+"\">"
-                            + Mylabels_ea[i].innerHTML + "</label>";
-                
-            }
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+        for (i = 0; i <= Mylabels2.length - 1; i++) {
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
+                + Mylabels_ea[i].innerHTML + "</label>";
+
+        }
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;
     }
 
     //ヒアリング
     function Button5_Click() {
         //alert("countHearing"+$countHearing);
 
-        
+
 
         var numC = 0;
         var num = 0;
@@ -2379,67 +2366,67 @@ if($_SESSION["examflag"] == 1){
         var MyForm = document.getElementById("HearingForm");
         var MyTag = MyForm.getElementsByTagName("input");
 
-        
-        
+
+
         chk = document.check.checkbox.checked;
         //alert(document.getElementById("HearingForm")[1].s);
         for (i = 0; i < MyTag.length; i++) {
-            if(($countHearing[i] == 1)||($countHearing[i] == 2)){//if (MyTag[i].checked) {
+            if (($countHearing[i] == 1) || ($countHearing[i] == 2)) {//if (MyTag[i].checked) {
                 if (numC == 0) chkvalue += MyTag[i].value;
                 else chkvalue += "#" + MyTag[i].value;
                 numC++;
             }
         }
         for (i = 0; i < MyTag.length; i++) {
-            if($countHearing[i] == 1){//if (MyTag[i].checked) {
+            if ($countHearing[i] == 1) {//if (MyTag[i].checked) {
                 if (num == 0) chkvalue_1 += MyTag[i].value;
                 else chkvalue_1 += "#" + MyTag[i].value;
                 num++;
             }
         }
         for (i = 0; i < MyTag.length; i++) {
-            if($countHearing[i] == 2){//if (MyTag[i].checked) {
+            if ($countHearing[i] == 2) {//if (MyTag[i].checked) {
                 if (num2 == 0) chkvalue_2 += MyTag[i].value;
                 else chkvalue_2 += "#" + MyTag[i].value;
                 num2++;
             }
         }
-        
+
         //自由記述欄修正
         YAHOO.util.Dom.setStyle("hearing", "display", "block");
-        
-        
-            
-            // var checkbox = document.getElementById('three');
-            // checkbox.indeterminate = true;
-          
-            var HearingHtml = "";
-            HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
-        
-            HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:30;top:120;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;//仮の直しcomments→comment
 
-            // for (i = 0; i <= Mylabels2.length - 1; i++) {
-            // YAHOO.util.Dom.setStyle("radiobotton", "display", "block");
-            // }
 
-            YAHOO.util.Dom.setStyle("comments", "display", "block");
-            YAHOO.util.Dom.setStyle("comments2", "display", "block");
-        
+
+        // var checkbox = document.getElementById('three');
+        // checkbox.indeterminate = true;
+
+        var HearingHtml = "";
+        HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
+
+        HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:30;top:120;display:none; \"></textarea></form>";
+        document.getElementById("hearing").innerHTML = HearingHtml;//仮の直しcomments→comment
+
+        // for (i = 0; i <= Mylabels2.length - 1; i++) {
+        // YAHOO.util.Dom.setStyle("radiobotton", "display", "block");
+        // }
+
+        YAHOO.util.Dom.setStyle("comments", "display", "block");
+        YAHOO.util.Dom.setStyle("comments2", "display", "block");
+
         //alert("両方:"+chkvalue);
         //alert("迷い度1:"+chkvalue_1);
         //alert("迷い度2:"+chkvalue_2);
         var MyComments = document.getElementsByTagName("textarea");
-        
+
         cmt = MyComments[0].value;
         if (cmt == "") cmt = "";
 
-        if( chk==true ){
+        if (chk == true) {
             chkvalue2 = 1;
         }
         //document.write(chkvalue2);
 
-        
+
 
         $QAData["comments"] = cmt;
         $QAData["hesitate"] = chkvalue;
@@ -2465,17 +2452,17 @@ if($_SESSION["examflag"] == 1){
 
         if ($QAData["check"] === 1 || $QAData["hesitate2"] != "") {
 
-        YAHOO.util.Dom.setStyle("QuesLevel3", "display", "block");
+            YAHOO.util.Dom.setStyle("QuesLevel3", "display", "block");
         } else {
-        if ($QAData["hesitate"] === "" ){
+            if ($QAData["hesitate"] === "") {
 
-        YAHOO.util.Dom.setStyle("QuesLevel", "display", "block");
-        } else if ($QAData["hesitate1"] != ""){
-        YAHOO.util.Dom.setStyle("QuesLevel2", "display", "block")
-        } else {
+                YAHOO.util.Dom.setStyle("QuesLevel", "display", "block");
+            } else if ($QAData["hesitate1"] != "") {
+                YAHOO.util.Dom.setStyle("QuesLevel2", "display", "block")
+            } else {
 
-        YAHOO.util.Dom.setStyle("QuesLevel3", "display", "block");
-        }
+                YAHOO.util.Dom.setStyle("QuesLevel3", "display", "block");
+            }
         }
 
 
@@ -2494,191 +2481,177 @@ if($_SESSION["examflag"] == 1){
         YAHOO.util.Dom.setStyle("ButtonM", "display", "block");
         //document.getElementById("Button1").disabled = false;
         //YAHOO.util.Dom.setStyle("ButtonM2", "display", "block");
-          
+
     }
 
-        
+
 
 </script>
-<body id=mybody onLoad = "ques_Load()" onMouseDown = "Form1_MouseDown()" onMouseUp = "Form1_MouseUp()">
-<input type = "button"
-    id = "Button3"
-    value="<?= translate('ques.php_1512行目_スタート') ?>"
-    onclick="Button3_Click()"
-    style="width:80px;height:36px;position:absolute;left:768px;top:27px;display: block"/>
 
-<input type = "button"
-    id = "Button1"
-    value="<?= translate('ques.php_1517行目_決定') ?>"
-    onclick="Button1_Click()"
-    style="width:80px;height:36px;position:absolute;left:768px;top:32px;display:none"/>
+<body id=mybody onLoad="ques_Load()" onMouseDown="Form1_MouseDown()" onMouseUp="Form1_MouseUp()">
+    <input type="button" id="Button3" value="<?= translate('ques.php_1512行目_スタート') ?>" onclick="Button3_Click()"
+        style="width:80px;height:36px;position:absolute;left:768px;top:27px;display: block" />
 
-<form name="Questions">
-<input type = "button"
-    id = "ButtonM"
-    value="<?= translate('ques.php_1517行目_決定') ?>"
-    onclick="ButtonM_Click()"
-    style="width:80px;height:30px;position:absolute;left:600px;top:365px;display:none"/>
-</form>
+    <input type="button" id="Button1" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="Button1_Click()"
+        style="width:80px;height:36px;position:absolute;left:768px;top:32px;display:none" />
 
-<form name="Hearing">
-<input type = "button"
-    id = "Button5"
-    value="<?= translate('ques.php_1517行目_決定') ?>"
-    onclick="Button5_Click()"
-    style="width:80px;height:30px;position:absolute;left:750px;top:240px;display:none"/>
-</form>
+    <form name="Questions">
+        <input type="button" id="ButtonM" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="ButtonM_Click()"
+            style="width:80px;height:30px;position:absolute;left:600px;top:365px;display:none" />
+    </form>
 
-<input type = "button"
-    id = "Button2"
-    value="<?= translate('ques.php_1541行目_次の問題') ?>"
-    onclick="Button2_Click()"
-    style="width:auto;height:33px;position:absolute;left:670px;top:365px;display:none"/>
+    <form name="Hearing">
+        <input type="button" id="Button5" value="<?= translate('ques.php_1517行目_決定') ?>" onclick="Button5_Click()"
+            style="width:80px;height:30px;position:absolute;left:750px;top:240px;display:none" />
+    </form>
 
-<input type = "button"
-    id = "ButtonE2"
-    value="<?= translate('ques.php_1546行目_問題へ') ?>"
-    onclick="Button2_Click()"
-    style="width:75px;height:33px;position:absolute;left:768px;top:274px;display:none"/>
+    <input type="button" id="Button2" value="<?= translate('ques.php_1541行目_次の問題') ?>" onclick="Button2_Click()"
+        style="width:auto;height:33px;position:absolute;left:670px;top:365px;display:none" />
+
+    <input type="button" id="ButtonE2" value="<?= translate('ques.php_1546行目_問題へ') ?>" onclick="Button2_Click()"
+        style="width:75px;height:33px;position:absolute;left:768px;top:274px;display:none" />
 
 
-<input type = "button"
-    id = "Button4"
-    value="<?= translate('ques.php_1551行目_終了') ?>"
-    onclick="LineQuestioneForm_Closing()"
-    style="width:75px;height:20px;position:absolute;left:780px;top:365px;background-color:pink;display:none"/>
+    <input type="button" id="Button4" value="<?= translate('ques.php_1551行目_終了') ?>"
+        onclick="LineQuestioneForm_Closing()"
+        style="width:75px;height:20px;position:absolute;left:780px;top:365px;background-color:pink;display:none" />
 
-<font color="red" style="position:absolute;left:12;top:7"><?= translate('ques.php_1554行目_日本文') ?></font>
-<div id = "RichTextBox1" style="background-color:#ffa500;position:absolute;
+    <font color="red" style="position:absolute;left:12;top:7"><?= translate('ques.php_1554行目_日本文') ?></font>
+    <div id="RichTextBox1" style="background-color:#ffa500;position:absolute;
      left:12;top:27;width:731;height:36;border-style:inset">
-     <?= translate('ques.php_1556行目_ここに日本文が表示されます') ?></div>
-<div id = "RichTextBox2" style="background-color:#a1ffa1;position:absolute;
-     left:12;top:240;width:650;height:67;border-style:inset;display:none"><?= translate('ques.php_1559行目_ここに正解を表示') ?></div>
+        <?= translate('ques.php_1556行目_ここに日本文が表示されます') ?>
+    </div>
+    <div id="RichTextBox2" style="background-color:#a1ffa1;position:absolute;
+     left:12;top:240;width:650;height:67;border-style:inset;display:none"><?= translate('ques.php_1559行目_ここに正解を表示') ?>
+    </div>
 
-<div id = "RichTextBox3" style="background-color:#a1ffa1;position:absolute;
-     left:670;top:272;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?></div>
+    <div id="RichTextBox3" style="background-color:#a1ffa1;position:absolute;
+     left:670;top:272;width:90;height:auto;border-style:inset;display:none"><?= translate('ques.php_1562行目_正誤を表示') ?>
+    </div>
 
-<div id = "TextBox1"  style="background-color:#a1ffa1;position:absolute;
-     left:670;top:240;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?></div>
+    <div id="TextBox1" style="background-color:#a1ffa1;position:absolute;
+     left:670;top:240;width:90;height:23;border-style:inset;display:none"><?= translate('ques.php_1565行目_解答時間') ?>
+    </div>
 
-<div id = "Label2" style="position:absolute;
+    <div id="Label2" style="position:absolute;
      left:12;top:530;width:300;height:80;font-size:12;background-color:#ffa500;">
-         <?= translate('ques.php_1568行目_操作説明') ?></br>
-        
-         <b><?= translate('ques.php_1570行目_単語の移動') ?></b></br>
-         <b><?= translate('ques.php_1571行目_グループ化') ?></b></br></div>
+        <?= translate('ques.php_1568行目_操作説明') ?></br>
 
-<font id = "register" color ="red" style="position:absolute;left:12;top:220"><?= translate('ques.php_1573行目_単語退避レジスタ') ?></font>
-<div id = "register1" style="padding: 10px; border: 2px dotted #333333;position:absolute;
+        <b><?= translate('ques.php_1570行目_単語の移動') ?></b></br>
+        <b><?= translate('ques.php_1571行目_グループ化') ?></b></br>
+    </div>
+
+    <font id="register" color="red" style="position:absolute;left:12;top:220">
+        <?= translate('ques.php_1573行目_単語退避レジスタ') ?></font>
+    <div id="register1" style="padding: 10px; border: 2px dotted #333333;position:absolute;
     left:12;top:240;width:500;height:15;font-size:12;"></div>
 
-<div id = "register2" style="padding: 10px; border: 2px dotted #333333;position:absolute;
+    <div id="register2" style="padding: 10px; border: 2px dotted #333333;position:absolute;
     left:12;top:320;width:500;height:15;font-size:12;"></div>
-<div id = "register3" style="padding: 10px; border: 2px dotted #333333;position:absolute;
+    <div id="register3" style="padding: 10px; border: 2px dotted #333333;position:absolute;
     left:12;top:400;width:500;height:15;font-size:12;"></div>
 
-<font color="red" style="position:absolute;left:12;top:140"><?= translate('ques.php_1582行目_解答欄') ?></font>
-<div id = "answer" style="z-index=10;padding: 10px; border: 4px solid #333333;position:absolute;
+    <font color="red" style="position:absolute;left:12;top:140"><?= translate('ques.php_1582行目_解答欄') ?></font>
+    <div id="answer" style="z-index=10;padding: 10px; border: 4px solid #333333;position:absolute;
     left:12;top:160;width:800;height:20;font-size:12;"></div>
 
-<div style="position:absolute;left:12;top:70"><font color="red"><?= translate('ques.php_1586行目_問題提示欄') ?></font></div>
-<div id = "question" style="padding: 10px; border: 2px solid #333333;position:absolute;
+    <div style="position:absolute;left:12;top:70">
+        <font color="red"><?= translate('ques.php_1586行目_問題提示欄') ?></font>
+    </div>
+    <div id="question" style="padding: 10px; border: 2px solid #333333;position:absolute;
     left:12;top:90;width:800;height:20;font-size:12;"></div>
 
-<font id="hearing2" color="red" style="position:absolute;left:12;top:220;display:none"><b><?= translate('ques.php_1590行目_迷った単語をクリックしてください') ?></b></font>
+    <font id="hearing2" color="red" style="position:absolute;left:12;top:220;display:none">
+        <b><?= translate('ques.php_1590行目_迷った単語をクリックしてください') ?></b></font>
 
-<div id="hearingT2" style="position:absolute;
-     left:400;top:220;width:auto;height:20;font-size:12;background-color:#ff0000;display:none"><?= translate('ques.php_1592行目_かなり迷った') ?></div>
-<div id="hearingT1" style="position:absolute;
-     left:500;top:220;width:auto;height:20;font-size:12;background-color:#ffee00;display:none"><?= translate('ques.php_1594行目_少し迷った') ?></div>
+    <div id="hearingT2" style="position:absolute;
+     left:400;top:220;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
+        <?= translate('ques.php_1592行目_かなり迷った') ?></div>
+    <div id="hearingT1" style="position:absolute;
+     left:500;top:220;width:auto;height:20;font-size:12;background-color:#ffee00;display:none">
+        <?= translate('ques.php_1594行目_少し迷った') ?></div>
 
-<div id = "hearing" style="padding: 10px; border: 1px solid #333333;position:absolute;
+    <div id="hearing" style="padding: 10px; border: 1px solid #333333;position:absolute;
     left:12;top:240;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
-</div>
+    </div>
 
-<font id = "comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:330;display:none;"><b><?= translate('ques.php_1600行目_自由にご記入ください') ?></b></font>
+    <font id="comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:330;display:none;">
+        <b><?= translate('ques.php_1600行目_自由にご記入ください') ?></b></font>
 
 
-<form name="check" action="">
-<input id="checkbox" 
-type="checkbox" 
-value="全体的にわからなかった" 
-style="width:80px;height:30px;position:absolute;left:5px;top:350px;display:none"/>
-</form>
-<font id="checkbox2" style="position:absolute;left:70;top:360;display:none"><b><?= translate('ques.php_1606行目_全体的にわからなかった') ?></b></font>
+    <form name="check" action="">
+        <input id="checkbox" type="checkbox" value="全体的にわからなかった"
+            style="width:80px;height:30px;position:absolute;left:5px;top:350px;display:none" />
+    </form>
+    <font id="checkbox2" style="position:absolute;left:70;top:360;display:none">
+        <b><?= translate('ques.php_1606行目_全体的にわからなかった') ?></b></font>
 
-<div id="myCanvas" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
+    <div id="myCanvas" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
 
-<div id="myCanvas2" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
+    <div id="myCanvas2" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
 
-<div id="msg" style="position:absolute;
+    <div id="msg" style="position:absolute;
      left:50;top:300;width:500;height:30;font-size:12;background-color:#ffa500;display:none"></div>
 
-<div id="Fixmsg" style="position:absolute;
-     left:320;top:530;width:200;height:80;font-size:12;background-color:#ffa500;display:block"><?= translate('ques.php_364行目_情報') ?></div>
+    <div id="Fixmsg" style="position:absolute;
+     left:320;top:530;width:200;height:80;font-size:12;background-color:#ffa500;display:block">
+        <?= translate('ques.php_364行目_情報') ?></div>
 
-<font id="exercise" color="red" style="position:absolute;
-     left:768;top:10;width:80;height:18;font-size:18;color:red;display:none"><b><?= translate('ques.php_1622行目_例題') ?></b></font>
+    <font id="exercise" color="red" style="position:absolute;
+     left:768;top:10;width:80;height:18;font-size:18;color:red;display:none">
+        <b><?= translate('ques.php_1622行目_例題') ?></b></font>
 
-<div id="number" style="position:absolute;
+    <div id="number" style="position:absolute;
      left:768;top:6;width:80;height:18;font-size:18;color:red;display;:none"></div>
 
 
-<form name="Questions">
+    <form name="Questions">
 
-<label for="QuesLevel" id="QuesLabel" style="position:absolute;left:600px;top:220px;display:none">
-<?= translate('ques.php_1629行目_解答の迷い度') ?></label>
-<select 
-    id = "QuesLevel"
-    size="5"
-    style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">   
-<option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option> 
-<option value="level1" selected="selected"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option> 
-<option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
-<option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
-<option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
-</select>
-<select 
-    id = "QuesLevel2"
-    size="5"
-    style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">   
-<option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option> 
-<option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option> 
-<option value="level2" selected="selected"><?= translate('ques.php_1635行目_少し迷った') ?></option>
-<option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
-<option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
-</select>
-<select 
-    id = "QuesLevel3"
-    size="5"
-    style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">   
-<option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option> 
-<option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option> 
-<option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
-<option value="level3" selected="selected"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
-<option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
-</select>
+        <label for="QuesLevel" id="QuesLabel" style="position:absolute;left:600px;top:220px;display:none">
+            <?= translate('ques.php_1629行目_解答の迷い度') ?></label>
+        <select id="QuesLevel" size="5" style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">
+            <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
+            <option value="level1" selected="selected"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
+            <option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
+            <option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
+            <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
+        </select>
+        <select id="QuesLevel2" size="5" style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">
+            <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
+            <option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
+            <option value="level2" selected="selected"><?= translate('ques.php_1635行目_少し迷った') ?></option>
+            <option value="level3"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
+            <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
+        </select>
+        <select id="QuesLevel3" size="5" style=" font-size: 15px; position:absolute;left:600px;top:240px;display:none">
+            <option value="choose" disabled="disabled"><?= translate('ques.php_1633行目_迷い度を選択してください') ?></option>
+            <option value="level1"><?= translate('ques.php_1634行目_ほとんど迷わなかった') ?></option>
+            <option value="level2"><?= translate('ques.php_1635行目_少し迷った') ?></option>
+            <option value="level3" selected="selected"><?= translate('ques.php_1636行目_かなり迷った') ?></option>
+            <option value="level0"><?= translate('ques.php_1637行目_誤って決定ボタンを押した') ?></option>
+        </select>
 
 
 
-<input type="hidden" id="TermText" value="">
- </form>
+        <input type="hidden" id="TermText" value="">
+    </form>
     <script type="text/javascript">
 
-    function disableSelection(target) {
-        if (typeof target.onselectstart != "undefined") //IE route
-            target.onselectstart = function () { return false }
-        else if (typeof target.style.MozUserSelect != "undefined") //Firefox route
-            target.style.MozUserSelect = "none"
-        else //All other route (ie: Opera)
-            target.onmousedown = function () { return false }
-        target.style.cursor = "default"
-    }
-    disableSelection(document.getElementById("question"));
-    disableSelection(document.getElementById("answer"));
-    disableSelection(document.getElementById("myCanvas"));
-    disableSelection(document.getElementById("myCanvas2"));
-    disableSelection(document.getElementById("mybody"));
-</script>
+        function disableSelection(target) {
+            if (typeof target.onselectstart != "undefined") //IE route
+                target.onselectstart = function () { return false }
+            else if (typeof target.style.MozUserSelect != "undefined") //Firefox route
+                target.style.MozUserSelect = "none"
+            else //All other route (ie: Opera)
+                target.onmousedown = function () { return false }
+            target.style.cursor = "default"
+        }
+        disableSelection(document.getElementById("question"));
+        disableSelection(document.getElementById("answer"));
+        disableSelection(document.getElementById("myCanvas"));
+        disableSelection(document.getElementById("myCanvas2"));
+        disableSelection(document.getElementById("mybody"));
+    </script>
 </body>
+
 </html>
