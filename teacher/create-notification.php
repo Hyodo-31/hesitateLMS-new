@@ -1,4 +1,4 @@
-<?php include 'lang.php'; ?>
+<?php include '../lang.php'; ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
 <head>
@@ -11,7 +11,7 @@
 </head>
 <body>
     <?php
-        session_start();
+        //session_start();
         require "../dbc.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);

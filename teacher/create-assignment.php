@@ -1,4 +1,4 @@
-<?php include 'lang.php'; ?>
+<?php include '../lang.php'; ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
 <head>
