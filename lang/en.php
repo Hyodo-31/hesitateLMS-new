@@ -1150,4 +1150,6 @@ return [
     'ques.php_1635行目_少し迷った' => '- A little hesitation',
     'ques.php_1636行目_かなり迷った' => '- A lot of hesitation',
     'ques.php_1637行目_誤って決定ボタンを押した' => '- Pressed the submit button by mistake',
+
+    '不明な文法項目' => 'An unclear grammatical point',
 ];
