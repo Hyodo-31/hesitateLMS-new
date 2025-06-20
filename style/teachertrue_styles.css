@@ -446,9 +446,10 @@ canvas {
 /* コンテナのスタイル */
 .list-container {
     display: grid; /* グリッドレイアウトを使用 */
-    grid-template-columns: repeat(6, 1fr); /* 4列表示 */
+    grid-template-columns: repeat(5, 1fr); /* 画面幅に応じて列数を自動調整 */
     gap: 15px; /* 要素間の余白 */
     margin-top: 20px;
+    align-items: flex-start;
 }
 
 /* 各項目のスタイル */

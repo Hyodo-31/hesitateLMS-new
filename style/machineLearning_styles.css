@@ -276,6 +276,7 @@ main .individual-details .student-details {
     padding: 8px 12px; /* パディング */
     text-align: left; /* 左寄せ */
     color: #333; /* テキストカラー */
+    word-wrap: break-word;
 }
 
 .table2 th {
