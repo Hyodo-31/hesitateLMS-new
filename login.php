@@ -113,8 +113,8 @@
 
 <div class="language-buttons"> 
      <!-- 言語選択ボタンの設定 -->
-    <p>言語を選択してください。</p>
-    <p>Please select a language. :</p>
+    <p>言語を選択してください</p>
+    <p>Select a language:</p>
     <a href="?lang=ja">日本語</a>
     <a href="?lang=en">English</a>
 </div>
