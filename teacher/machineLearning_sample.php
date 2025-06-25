@@ -919,7 +919,7 @@
                         <label><input type="checkbox" name="feature" value="register01count1">
                             <?= translate('machineLearning_sample.php_833行目_レジスタ→レジスタへの移動有無') ?></label><br>
                         <label><input type="checkbox" name="feature" value="register01count2">
-                            <?= translate('machineLearning_sample.php_834行目_レジスタ外→レジスタへの移動有無') ?></label><br>
+                            <?= translate('machineLearning_sample.php_834行目_レジスタ→レジスタ外への移動有無') ?></label><br>
                         <label><input type="checkbox" name="feature" value="register01count3">
                             <?= translate('machineLearning_sample.php_835行目_レジスタ外→レジスタへの移動有無') ?></label><br>
                         <label><input type="checkbox" name="feature" value="registerDDCount">

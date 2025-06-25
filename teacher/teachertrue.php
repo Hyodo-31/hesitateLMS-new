@@ -185,7 +185,7 @@
                         <label><input type="checkbox" name="feature" value="register_move_count2"><?= translate('teachertrue.php_196行目_レジスタ➡レジスタ外への移動回数') ?></label><br>
                         <label><input type="checkbox" name="feature" value="register_move_count3"><?= translate('teachertrue.php_197行目_レジスタ外➡レジスタへの移動回数') ?></label><br>
                         <label><input type="checkbox" name="feature" value="register01count1"><?= translate('teachertrue.php_198行目_レジスタ➡レジスタへの移動有無') ?></label><br>
-                        <label><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_199行目_レジスタ外➡レジスタへの移動有無') ?></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_199行目_レジスタ➡レジスタ外への移動有無') ?></label><br>
                         <label><input type="checkbox" name="feature" value="register01count3"><?= translate('teachertrue.php_200行目_レジスタ外➡レジスタへの移動有無') ?></label><br>
                         <label><input type="checkbox" name="feature" value="registerDDCount"><?= translate('teachertrue.php_201行目_レジスタに関する合計の移動回数') ?></label><br>
                         <label><input type="checkbox" name="feature" value="xUturnCountDD"><?= translate('teachertrue.php_202行目_x軸UターンD&D回数') ?></label><br>

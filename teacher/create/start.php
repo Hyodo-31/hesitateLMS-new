@@ -66,9 +66,10 @@ echo "<br>";
 </font>
 
 <form>
-    <input type="radio" name="group" value="ques.php" checked="true"><?= translate('start.php_62行目_任意指定') ?>
-    <input type="radio" name="group" value="alpsort.php"><?= translate('start.php_63行目_アルファベット順') ?>
- 　 <input type="radio" name="group" value="randsort.php"><?= translate('start.php_64行目_ランダム') ?>
+    <!-- <input type="radio" name="group" value="ques.php" checked="true"><?= translate('start.php_62行目_任意指定') ?> -->
+    <!-- <input type="radio" name="group" value="alpsort.php"><?= translate('start.php_63行目_アルファベット順') ?> -->
+ 　 <input type="radio" name="group" value="randsort.php"><?= translate('start.php_64行目_ランダム') ?>  
+ <!-- 上のは、現状ランダムでしか動かない -->
  　 <br><br>
     <input type="button" value="<?= translate('start.php_66行目_選択') ?>" onclick="gopage()" class="button">
   </form>

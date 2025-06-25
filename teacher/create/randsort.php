@@ -54,7 +54,7 @@ $Sentence = $_SESSION["Sentence"];
 $dtcnt = $_SESSION["dtcnt"];
 $divide2 = $_SESSION["divide2"];
 $view_Sentence = $_SESSION["view_Sentence"];
-$rock =$_SESSION["rock"];
+$rock =$_SESSION["rock"];  
 echo "<br>";
 
 ?>

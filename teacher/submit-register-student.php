@@ -21,7 +21,6 @@
         <nav>
             <ul>
                 <li><a href="teachertrue.php"><?= translate('submit-register-student.php_21行目_ホーム') ?></a></li>
-                <li><a href="teachertrue.php"><?= translate('submit-register-student.php_22行目_ホーム') ?></a></li>
                 <li><a href="#"><?= translate('submit-register-student.php_23行目_コース管理') ?></a></li>
                 <li><a href="machineLearning_sample.php"><?= translate('submit-register-student.php_24行目_迷い推定・機械学習') ?></a></li>
                 <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-register-student.php_25行目_学生分析') ?></a></li>
@@ -34,7 +33,6 @@
         <aside>
             <ul>
                 <li><a href="teachertrue.php"><?= translate('submit-register-student.php_33行目_ホーム') ?></a></li>
-                <li><a href="teachertrue.php"><?= translate('submit-register-student.php_34行目_ホーム') ?></a></li>
                 <li><a href="#"><?= translate('submit-register-student.php_35行目_コース管理') ?></a></li>
                 <li><a href="machineLearning_sample.php"><?= translate('submit-register-student.php_36行目_迷い推定・機械学習') ?></a></li>
                 <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-register-student.php_37行目_学生分析') ?></a></li>

@@ -9,13 +9,13 @@ if (!isset($_SESSION["MemberName"])) {
     exit;
 }
 
-if ($_SESSION["examflag"] == 1) {
-    require "overlap.php";
-    exit;
-} else {
+//if ($_SESSION["examflag"] == 1) {
+    //require "overlap.php";
+    //exit;
+//} else {
     $_SESSION["examflag"] = 2;
     $_SESSION["page"] = "ques";
-}
+//}
 ?>
 <!DOCTYPE html PUBLIC "-//W3c//DTD HTML 4.01 Transitional//EN">
 <html lang="<?= $lang ?>">
