@@ -316,12 +316,39 @@ require "../../lang.php";
         array_pop($grammar_split);
         array_shift($grammar_split);
 
-        for($i = 0; $i<count($grammar_split); $i++){
+        /*for($i = 0; $i<count($grammar_split); $i++){
             $query6 = "select Item from grammar where GID = $grammar_split[$i]";
             $res6 = mysqli_query($conn,$query6);
             $row5 = mysqli_fetch_array($res6);
             $grammar_print[$i] = $row5['Item'];
+        } */
+
+        // ★★★★★★★★★★★★★★★★★★★ 修正箇所 ★★★★★★★★★★★★★★★★★★★
+        // 多言語対応テーブルから、現在の言語設定に応じた文法名を取得する
+
+        // SQL文をループの外で一度だけ準備（効率化のため）
+        // テーブル名はご自身の環境に合わせてください (例: grammar_translations)
+        $sql_translate = "SELECT Item FROM grammar_translations WHERE GID = ? AND language = ?";
+        $stmt_translate = $conn->prepare($sql_translate);
+
+        if ($stmt_translate) { // SQLの準備が成功したかチェック
+            for($i = 0; $i < count($grammar_split); $i++){
+                // ループの中でパラメータをセットして実行
+                $stmt_translate->bind_param("is", $grammar_split[$i], $lang);
+                $stmt_translate->execute();
+                $result_translate = $stmt_translate->get_result();
+                
+                if ($row_translate = $result_translate->fetch_assoc()) {
+                    // 翻訳が見つかった場合
+                    $grammar_print[$i] = $row_translate['Item'];
+                } else {
+                    // 翻訳が見つからなかった場合の表示
+                    $grammar_print[$i] = "[GID: " . htmlspecialchars($grammar_split[$i], ENT_QUOTES, 'UTF-8') . "]";
+                }
+            }
+            $stmt_translate->close(); // ステートメントを閉じる
         }
+        // ★★★★★★★★★★★★★★★★★★★ 修正はここまで ★★★★★★★★★★★★★★★★★★★★
     }
 
     $time = array();
