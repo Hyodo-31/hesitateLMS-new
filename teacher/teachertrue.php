@@ -1,6 +1,7 @@
 <?php include '../lang.php'; ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,12 +11,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="notification-script.js"></script>
 </head>
+
 <body>
     <?php
-        //session_start();  これもlang.phpでセッションスタートしてるから
-        require "../dbc.php";
-        // セッション変数をクリアする（必要に応じて）
-        unset($_SESSION['conditions']);
+    //session_start();  これもlang.phpでセッションスタートしてるから
+    require "../dbc.php";
+    // セッション変数をクリアする（必要に応じて）
+    unset($_SESSION['conditions']);
     ?>
     <header>
         <div class="logo"><?= translate('teachertrue.php_21行目_英単語並べ替え問題LMS') ?></div>
@@ -38,10 +40,10 @@
         </aside>
         <main>
 
-        <div class="notifications">
-            <h2><?= translate('teachertrue.php_51行目_お知らせ') ?></h2>
-            <div class="notify-scroll">
-                <?php
+            <div class="notifications">
+                <h2><?= translate('teachertrue.php_51行目_お知らせ') ?></h2>
+                <div class="notify-scroll">
+                    <?php
                     // 最新5件ではなく、すべてのお知らせを取得
                     $result = $conn->query("SELECT id, subject, content FROM notifications ORDER BY created_at DESC");
                     while ($row = $result->fetch_assoc()) {
@@ -52,109 +54,109 @@
                     }
                     $result->free();
                     $conn->close();
-                ?>
+                    ?>
+                </div>
+                <div id="notifymake-botton" class="button1">
+                    <a href='create-notification.php'><?= translate('teachertrue.php_67行目_お知らせ作成') ?></a>
+                </div>
             </div>
-            <div id="notifymake-botton" class="button1">
-                <a href='create-notification.php'><?= translate('teachertrue.php_67行目_お知らせ作成') ?></a>
-            </div>
-        </div>
 
             <div class="class-overview">
                 <h2><?= translate('teachertrue.php_72行目_グループ別データ') ?></h2>
-                <div id= "button-groupstudent-making" class="button1">
+                <div id="button-groupstudent-making" class="button1">
                     <a href='create-student-group.php'><?= translate('teachertrue.php_74行目_学習者グルーピング作成') ?></a>
                 </div>
                 <div class="class-data">
                     <?php
-                        require "../dbc.php";
-                        $teacher_id = $_SESSION['MemberID'];
+                    require "../dbc.php";
+                    $teacher_id = $_SESSION['MemberID'];
 
-                        $stmt = $conn->prepare("SELECT * FROM `groups` WHERE TID = ?");
-                        if (!$stmt) {
-                            die("prepare() failed: " . $conn->error);
-                        }
-                        $stmt->bind_param("i", $teacher_id);
-                        $stmt->execute();
-                        if (!$stmt) {
-                            die("prepare() failed: " . $conn->error);
-                        }
-                        $result = $stmt->get_result();
-                        
-                        $groups = [];
-                        if($result->num_rows > 0) {
-                            //学習者グループがある場合
-                            while($row = $result->fetch_assoc()) {
-                                $group_id = $row['group_id'];
-                                $group_name = $row['group_name'];
+                    $stmt = $conn->prepare("SELECT * FROM `groups` WHERE TID = ?");
+                    if (!$stmt) {
+                        die("prepare() failed: " . $conn->error);
+                    }
+                    $stmt->bind_param("i", $teacher_id);
+                    $stmt->execute();
+                    if (!$stmt) {
+                        die("prepare() failed: " . $conn->error);
+                    }
+                    $result = $stmt->get_result();
 
-                                $stmt_groupmember = $conn->prepare("SELECT * FROM group_members WHERE group_id = ?");
-                                $stmt_groupmember->bind_param("i", $group_id);
-                                $stmt_groupmember->execute();
-                                $result_groupmember = $stmt_groupmember->get_result();
-                                $group_students = [];
-                                while($member = $result_groupmember->fetch_assoc()) {
-                                    $students_id = $member['uid'];
-                                    //学生ごとの正解数と解答数を取得
-                                    $stmt_scores = $conn -> prepare("SELECT 
+                    $groups = [];
+                    if ($result->num_rows > 0) {
+                        //学習者グループがある場合
+                        while ($row = $result->fetch_assoc()) {
+                            $group_id = $row['group_id'];
+                            $group_name = $row['group_name'];
+
+                            $stmt_groupmember = $conn->prepare("SELECT * FROM group_members WHERE group_id = ?");
+                            $stmt_groupmember->bind_param("i", $group_id);
+                            $stmt_groupmember->execute();
+                            $result_groupmember = $stmt_groupmember->get_result();
+                            $group_students = [];
+                            while ($member = $result_groupmember->fetch_assoc()) {
+                                $students_id = $member['uid'];
+                                //学生ごとの正解数と解答数を取得
+                                $stmt_scores = $conn->prepare("SELECT 
                                                             COUNT(*) AS total_answers,
                                                             SUM(CASE WHEN TF = 1 THEN 1 ELSE 0 END) AS correct_answers,
                                                             SUM(Time) AS total_time
                                                             FROM linedata WHERE uid = ?");
-                                    $stmt_scores->bind_param("i", $students_id);
-                                    $stmt_scores->execute();
-                                    $result_scores = $stmt_scores->get_result();
-                                    $score_data = $result_scores->fetch_assoc();
-                                    $correct_answers = $score_data['correct_answers'];
-                                    $total_answers = $score_data['total_answers'];
-                                    $total_time = $score_data['total_time'];
-                                    $accuracy_rate = $total_answers > 0 ? number_format(($correct_answers / $total_answers) * 100,2) : 0;
-                                    $notaccuracy_rate = 100 - $accuracy_rate;
-                                    $accuracy_time = $total_answers > 0 ? number_format(($total_time / 1000) / $total_answers,2) : 0;
+                                $stmt_scores->bind_param("i", $students_id);
+                                $stmt_scores->execute();
+                                $result_scores = $stmt_scores->get_result();
+                                $score_data = $result_scores->fetch_assoc();
+                                $correct_answers = $score_data['correct_answers'];
+                                $total_answers = $score_data['total_answers'];
+                                $total_time = $score_data['total_time'];
+                                $accuracy_rate = $total_answers > 0 ? number_format(($correct_answers / $total_answers) * 100, 2) : 0;
+                                $notaccuracy_rate = 100 - $accuracy_rate;
+                                $accuracy_time = $total_answers > 0 ? number_format(($total_time / 1000) / $total_answers, 2) : 0;
 
-                                    $stmt_scores->close();
-                                    $result_scores->free(); // メモリ解放
+                                $stmt_scores->close();
+                                $result_scores->free(); // メモリ解放
 
-                                    //学生ごとの名前を取得
-                                    $stmt_name = $conn->prepare("SELECT Name FROM students WHERE uid = ?");
-                                    $stmt_name->bind_param("i", $students_id);
-                                    $stmt_name->execute();
-                                    $result_name = $stmt_name->get_result();
-                                    $name_data = $result_name->fetch_assoc();
-                                    $name = $name_data['Name'];
-                                    $stmt_name->close();
-                                    $result_name->free();
+                                //学生ごとの名前を取得
+                                $stmt_name = $conn->prepare("SELECT Name FROM students WHERE uid = ?");
+                                $stmt_name->bind_param("i", $students_id);
+                                $stmt_name->execute();
+                                $result_name = $stmt_name->get_result();
+                                $name_data = $result_name->fetch_assoc();
+                                $name = $name_data['Name'];
+                                $stmt_name->close();
+                                $result_name->free();
 
-                                    //学生ごとの正解数を格納
-                                    $group_students[] = [
-                                        'student_id' => $students_id,
-                                        'name' => $name,
-                                        'accuracy' => $accuracy_rate,
-                                        'notaccuracy' => $notaccuracy_rate,
-                                        'time' => $accuracy_time
-                                    ];
-                                }
-                                // グループデータを配列に追加
-                                $groups[] = [
-                                    'group_name' => $group_name,
-                                    'group_id' => $group_id,
-                                    'students' => $group_students
+                                //学生ごとの正解数を格納
+                                $group_students[] = [
+                                    'student_id' => $students_id,
+                                    'name' => $name,
+                                    'accuracy' => $accuracy_rate,
+                                    'notaccuracy' => $notaccuracy_rate,
+                                    'time' => $accuracy_time
                                 ];
-                                $stmt_groupmember->close();
-                                $result_groupmember->free();
                             }
-                        }else{
-                            // 学習者グループがない場合
-                            echo "<p>" . translate('teachertrue.php_156行目_学習者グループがありません') . "</p>";
+                            // グループデータを配列に追加
+                            $groups[] = [
+                                'group_name' => $group_name,
+                                'group_id' => $group_id,
+                                'students' => $group_students
+                            ];
+                            $stmt_groupmember->close();
+                            $result_groupmember->free();
                         }
+                    } else {
+                        // 学習者グループがない場合
+                        echo "<p>" . translate('teachertrue.php_156行目_学習者グループがありません') . "</p>";
+                    }
 
-                        $stmt->close();
-                        $conn->close();
-                       
+                    $stmt->close();
+                    $conn->close();
+
                     ?>
                     <script>
                         const groupData = <?php echo json_encode($groups); ?>;
                     </script>
-                    
+
                     <div class="class-data" id="group-data-container"></div>
                 </div>
             </div>
@@ -199,46 +201,80 @@
                 <div class="modal-content">
                     <span class="close" onclick="closeClusteringModal()">&times;</span>
                     <form id="clustering-feature-form">
-                    <h3 style = "display : none;"><?= translate('teachertrue.php_214行目_クラスタ数を入力してください') ?></h3>
-                        <input type="number" id="clustering-input" min="1" max="10" value="2" style = "display: none;">
-                    <h3 style = "display : none;"><?= translate('teachertrue.php_216行目_クラスタリング手法を選択してください') ?></h3>
-                    <label for="clustering-method" style = "display: none;"><?= translate('teachertrue.php_217行目_クラスタリング手法') ?></label>
-                        <select id="clustering-method" style = "display: none;">
+                        <h3 style="display : none;"><?= translate('teachertrue.php_214行目_クラスタ数を入力してください') ?></h3>
+                        <input type="number" id="clustering-input" min="1" max="10" value="2" style="display: none;">
+                        <h3 style="display : none;"><?= translate('teachertrue.php_216行目_クラスタリング手法を選択してください') ?></h3>
+                        <label for="clustering-method" style="display: none;"><?= translate('teachertrue.php_217行目_クラスタリング手法') ?></label>
+                        <select id="clustering-method" style="display: none;">
                             <option value="kmeans">K-Means</option>
                             <option value="xmeans">X-Means</option>
                             <option value="gmeans">G-Means</option>
                         </select>
-                    <h3><?= translate('teachertrue.php_223行目_クラスタリング特徴量を選択してください') ?></h3>
-                    
-                        <label title = "問題解答にかかった時間"><input type="checkbox" name="feature" value="Time"><?= translate('teachertrue.php_226行目_解答時間 (秒)') ?></label><br>
-                        <label title = "問題解答中にマウスカーソルを移動した距離（ピクセル単位）"><input type="checkbox" name="feature" value="distance"><?= translate('teachertrue.php_227行目_距離') ?></label><br>
-                        <label title = "問題解答中のマウスカーソルの速度の平均"><input type="checkbox" name="feature" value="averageSpeed"><?= translate('teachertrue.php_228行目_平均速度') ?></label><br>
-                        <label title = "問題解答中のマウスカーソルの速度の最大値"><input type="checkbox" name="feature" value="maxSpeed"><?= translate('teachertrue.php_229行目_最大速度') ?></label><br>
-                        <label title = "解答開始から最初のドラッグが行われるまでの時間"><input type="checkbox" name="feature" value="thinkingTime"><?= translate('teachertrue.php_230行目_第一ドラッグ前時間') ?></label><br>
-                        <label title = "最初のドラッグから解答終了までの時間"><input type="checkbox" name="feature" value="answeringTime"><?= translate('teachertrue.php_231行目_第一ドラッグ後時間') ?></label><br>
-                        <label title = "マウスカーソルが静止していた時間の合計値"><input type="checkbox" name="feature" value="totalStopTime"><?= translate('teachertrue.php_232行目_合計静止時間') ?></label><br>
-                        <label title = "マウスカーソルが静止していた時間の最大値"><input type="checkbox" name="feature" value="maxStopTime"><?= translate('teachertrue.php_233行目_最大静止時間') ?></label><br>
-                        <label title = "D&Dから次のD&Dまでの時間の合計値"><input type="checkbox" name="feature" value="totalDDIntervalTime"><?= translate('teachertrue.php_234行目_合計D&D間時間') ?></label><br>
-                        <label title = "D&Dから次のD&Dまでの時間の最大値"><input type="checkbox" name="feature" value="maxDDIntervalTime"><?= translate('teachertrue.php_235行目_最大D&D間時間') ?></label><br>
-                        <label title = "D&D中の時間の合計値"><input type="checkbox" name="feature" value="maxDDTime"><?= translate('teachertrue.php_236行目_合計D&D時間') ?></label><br>
-                        <label title = "D&D中の時間の最小値"><input type="checkbox" name="feature" value="minDDTime"><?= translate('teachertrue.php_237行目_最小D&D時間') ?></label><br>
-                        <label title = "D&Dが行われた回数"><input type="checkbox" name="feature" value="DDCount"><?= translate('teachertrue.php_238行目_合計D&D回数') ?></label><br>
-                        <label title = "グルーピングが使用された回数"><input type="checkbox" name="feature" value="groupingDDCount"><?= translate('teachertrue.php_239行目_グループ化回数') ?></label><br>
-                        <label title = "グルーピング機能の使用の有無"><input type="checkbox" name="feature" value="groupingCountbool"><?= translate('teachertrue.php_240行目_グループ化有無') ?></label><br>
-                        <label title = "横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCount"><?= translate('teachertrue.php_241行目_x軸Uターン回数') ?></label><br>
-                        <label title = "縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCount"><?= translate('teachertrue.php_242行目_y軸Uターン回数') ?></label><br>
-                        <label title = "マウスカーソルがレジスタからレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count1"><?= translate('teachertrue.php_243行目_レジスタ➡レジスタへの移動回数') ?></label><br>
-                        <label title = "マウスカーソルがレジスタからレジスタ外に移動した回数"><input type="checkbox" name="feature" value="register_move_count2"><?= translate('teachertrue.php_244行目_レジスタ➡レジスタ外への移動回数') ?></label><br>
-                        <label title = "マウスカーソルがレジスタ外からレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count3"><?= translate('teachertrue.php_245行目_レジスタ外➡レジスタへの移動回数') ?></label><br>
-                        <label title = "マウスカーソルがレジスタからレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count1"><?= translate('teachertrue.php_246行目_レジスタ➡レジスタへの移動有無') ?></label><br>
-                        <label title = "マウスカーソルがレジスタからレジスタ外に移動したかの有無"><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_247行目_レジスタ➡レジスタ外への移動有無') ?></label><br>
-                        <label title = "マウスカーソルがレジスタ外からレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count3"><?= translate('teachertrue.php_248行目_レジスタ外➡レジスタへの移動有無') ?></label><br>
-                        <label title = "レジスタを触れた移動回数の合計"><input type="checkbox" name="feature" value="registerDDCount"><?= translate('teachertrue.php_249行目_レジスタに関する合計の移動回数') ?></label><br>
-                        <label title = "D&D中に横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCountDD"><?= translate('teachertrue.php_250行目_x軸UターンD&D回数') ?></label><br>
-                        <label title = "D&D中に縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('teachertrue.php_251行目_y軸UターンD&D回数') ?></label><br>
-                        <label title = "最終ドロップから解答終了までの時間"><input type="checkbox" name="feature" value="FromlastdropToanswerTime"><?= translate('teachertrue.php_252行目_最終ドロップ後時間') ?></label><br>
+                        <h3><?= translate('teachertrue.php_223行目_クラスタリング特徴量を選択してください') ?></h3>
+
+                        <!-- <label title = "問題解答にかかった時間"><input type="checkbox" name="feature" value="Time"><?= translate('teachertrue.php_226行目_解答時間 (秒)') ?></label><br> -->
+                        <!-- <label title = "問題解答中にマウスカーソルを移動した距離（ピクセル単位）"><input type="checkbox" name="feature" value="distance"><?= translate('teachertrue.php_227行目_距離') ?></label><br> -->
+                        <!-- <label title = "問題解答中のマウスカーソルの速度の平均"><input type="checkbox" name="feature" value="averageSpeed"><?= translate('teachertrue.php_228行目_平均速度') ?></label><br> -->
+                        <!-- <label title = "問題解答中のマウスカーソルの速度の最大値"><input type="checkbox" name="feature" value="maxSpeed"><?= translate('teachertrue.php_229行目_最大速度') ?></label><br> -->
+                        <!-- <label title = "解答開始から最初のドラッグが行われるまでの時間"><input type="checkbox" name="feature" value="thinkingTime"><?= translate('teachertrue.php_230行目_第一ドラッグ前時間') ?></label><br> -->
+                        <!-- <label title = "最初のドラッグから解答終了までの時間"><input type="checkbox" name="feature" value="answeringTime"><?= translate('teachertrue.php_231行目_第一ドラッグ後時間') ?></label><br> -->
+                        <!-- <label title = "マウスカーソルが静止していた時間の合計値"><input type="checkbox" name="feature" value="totalStopTime"><?= translate('teachertrue.php_232行目_合計静止時間') ?></label><br> -->
+                        <!-- <label title = "マウスカーソルが静止していた時間の最大値"><input type="checkbox" name="feature" value="maxStopTime"><?= translate('teachertrue.php_233行目_最大静止時間') ?></label><br> -->
+                        <!-- <label title = "D&Dから次のD&Dまでの時間の合計値"><input type="checkbox" name="feature" value="totalDDIntervalTime"><?= translate('teachertrue.php_234行目_合計D&D間時間') ?></label><br> -->
+                        <!-- <label title = "D&Dから次のD&Dまでの時間の最大値"><input type="checkbox" name="feature" value="maxDDIntervalTime"><?= translate('teachertrue.php_235行目_最大D&D間時間') ?></label><br> -->
+                        <!-- <label title = "D&D中の時間の合計値"><input type="checkbox" name="feature" value="maxDDTime"><?= translate('teachertrue.php_236行目_合計D&D時間') ?></label><br> -->
+                        <!-- <label title = "D&D中の時間の最小値"><input type="checkbox" name="feature" value="minDDTime"><?= translate('teachertrue.php_237行目_最小D&D時間') ?></label><br> -->
+                        <!-- <label title = "D&Dが行われた回数"><input type="checkbox" name="feature" value="DDCount"><?= translate('teachertrue.php_238行目_合計D&D回数') ?></label><br> -->
+                        <!-- <label title = "グルーピングが使用された回数"><input type="checkbox" name="feature" value="groupingDDCount"><?= translate('teachertrue.php_239行目_グループ化回数') ?></label><br> -->
+                        <!-- <label title = "グルーピング機能の使用の有無"><input type="checkbox" name="feature" value="groupingCountbool"><?= translate('teachertrue.php_240行目_グループ化有無') ?></label><br> -->
+                        <!-- <label title = "横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCount"><?= translate('teachertrue.php_241行目_x軸Uターン回数') ?></label><br> -->
+                        <!-- <label title = "縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCount"><?= translate('teachertrue.php_242行目_y軸Uターン回数') ?></label><br> -->
+                        <!-- <label title = "マウスカーソルがレジスタからレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count1"><?= translate('teachertrue.php_243行目_レジスタ➡レジスタへの移動回数') ?></label><br> -->
+                        <!-- <label title = "マウスカーソルがレジスタからレジスタ外に移動した回数"><input type="checkbox" name="feature" value="register_move_count2"><?= translate('teachertrue.php_244行目_レジスタ➡レジスタ外への移動回数') ?></label><br> -->
+                        <!-- <label title = "マウスカーソルがレジスタ外からレジスタに移動した回数"><input type="checkbox" name="feature" value="register_move_count3"><?= translate('teachertrue.php_245行目_レジスタ外➡レジスタへの移動回数') ?></label><br> -->
+                        <!-- <label title = "マウスカーソルがレジスタからレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count1"><?= translate('teachertrue.php_246行目_レジスタ➡レジスタへの移動有無') ?></label><br> -->
+                        <!-- <label title = "マウスカーソルがレジスタからレジスタ外に移動したかの有無"><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_247行目_レジスタ➡レジスタ外への移動有無') ?></label><br> -->
+                        <!-- <label title = "マウスカーソルがレジスタ外からレジスタに移動したかの有無"><input type="checkbox" name="feature" value="register01count3"><?= translate('teachertrue.php_248行目_レジスタ外➡レジスタへの移動有無') ?></label><br> -->
+                        <!-- <label title = "レジスタを触れた移動回数の合計"><input type="checkbox" name="feature" value="registerDDCount"><?= translate('teachertrue.php_249行目_レジスタに関する合計の移動回数') ?></label><br> -->
+                        <!-- <label title = "D&D中に横軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="xUturnCountDD"><?= translate('teachertrue.php_250行目_x軸UターンD&D回数') ?></label><br> -->
+                        <!-- <label title = "D&D中に縦軸方向にUターンが行われた回数"><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('teachertrue.php_251行目_y軸UターンD&D回数') ?></label><br> -->
+                        <!-- <label title = "最終ドロップから解答終了までの時間"><input type="checkbox" name="feature" value="FromlastdropToanswerTime"><?= translate('teachertrue.php_252行目_最終ドロップ後時間') ?></label><br> -->
+                        <label><input type="checkbox" name="feature" value="Time"><?= translate('teachertrue.php_226行目_解答時間 (秒)') ?><span class="info-icon" data-feature-name="Time">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="distance"><?= translate('teachertrue.php_227行目_距離') ?><span class="info-icon" data-feature-name="distance">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="averageSpeed"><?= translate('teachertrue.php_228行目_平均速度') ?><span class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="maxSpeed"><?= translate('teachertrue.php_229行目_最大速度') ?><span class="info-icon" data-feature-name="maxSpeed">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="thinkingTime"><?= translate('teachertrue.php_230行目_第一ドラッグ前時間') ?><span class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="answeringTime"><?= translate('teachertrue.php_231行目_第一ドラッグ後時間') ?><span class="info-icon" data-feature-name="answeringTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="totalStopTime"><?= translate('teachertrue.php_232行目_合計静止時間') ?><span class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="maxStopTime"><?= translate('teachertrue.php_233行目_最大静止時間') ?><span class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime"><?= translate('teachertrue.php_234行目_合計D&D間時間') ?><span class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime"><?= translate('teachertrue.php_235行目_最大D&D間時間') ?><span class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="maxDDTime"><?= translate('teachertrue.php_236行目_合計D&D時間') ?><span class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="minDDTime"><?= translate('teachertrue.php_237行目_最小D&D時間') ?><span class="info-icon" data-feature-name="minDDTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="DDCount"><?= translate('teachertrue.php_238行目_合計D&D回数') ?><span class="info-icon" data-feature-name="DDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="groupingDDCount"><?= translate('teachertrue.php_239行目_グループ化回数') ?><span class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="groupingCountbool"><?= translate('teachertrue.php_240行目_グループ化有無') ?><span class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="xUturnCount"><?= translate('teachertrue.php_241行目_x軸Uターン回数') ?><span class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="yUturnCount"><?= translate('teachertrue.php_242行目_y軸Uターン回数') ?><span class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count1"><?= translate('teachertrue.php_243行目_レジスタ➡レジスタへの移動回数') ?><span class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count2"><?= translate('teachertrue.php_244行目_レジスタ➡レジスタ外への移動回数') ?><span class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="register_move_count3"><?= translate('teachertrue.php_245行目_レジスタ外➡レジスタへの移動回数') ?><span class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count1"><?= translate('teachertrue.php_246行目_レジスタ➡レジスタへの移動有無') ?><span class="info-icon" data-feature-name="register01count1">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_247行目_レジスタ➡レジスタ外への移動有無') ?><span class="info-icon" data-feature-name="register01count2">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="register01count3"><?= translate('teachertrue.php_248行目_レジスタ外➡レジスタへの移動有無') ?><span class="info-icon" data-feature-name="register01count3">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="registerDDCount"><?= translate('teachertrue.php_249行目_レジスタに関する合計の移動回数') ?><span class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="xUturnCountDD"><?= translate('teachertrue.php_250行目_x軸UターンD&D回数') ?><span class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('teachertrue.php_251行目_y軸UターンD&D回数') ?><span class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"><?= translate('teachertrue.php_252行目_最終ドロップ後時間') ?><span class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label><br>
                         <button type="button" id="apply-clustering-btn"><?= translate('teachertrue.php_254行目_適用') ?></button>
                     </form>
+                </div>
+            </div>
+            <div id="feature-detail-modal-mlsample" class="feature-detail-modal">
+                <div class="modal-content">
+                    <span class="close-detail-modal">&times;</span>
+                    <h3 id="detail-feature-title-mlsample"></h3>
+                    <p id="detail-feature-description-mlsample"></p>
                 </div>
             </div>
 
@@ -277,7 +313,7 @@
                     window.location.href = url;
                 }
 
-                
+
                 // クラス別グラフを管理する配列
                 let existingClassCharts = [];
                 // 全体の成績グラフを管理する配列
@@ -294,8 +330,7 @@
                         type: 'bar',
                         data: {
                             labels: labels,
-                            datasets: [
-                                {
+                            datasets: [{
                                     label: label1,
                                     data: data1,
                                     backgroundColor: color1,
@@ -381,7 +416,7 @@
 
 
                 // 各グループのデータに基づいてグラフを作成
-                document.addEventListener("DOMContentLoaded", function () {
+                document.addEventListener("DOMContentLoaded", function() {
                     const container = document.getElementById('group-data-container');
 
                     groupData.forEach((group, index) => {
@@ -397,7 +432,7 @@
                                 <canvas id="dual-axis-chart-${index}"></canvas>
                             </div>
                         `;
-                        
+
 
                         container.appendChild(groupContainer);
 
@@ -416,7 +451,7 @@
                             'rgba(255, 99, 132, 0.6)',
                             <?= json_encode(translate('teachertrue.php_433行目_不正解率(%)')) ?>,
                             <?= json_encode(translate('teachertrue.php_434行目_解答時間(秒)')) ?>,
-                            existingClassCharts,  // クラス別グラフ用の配列
+                            existingClassCharts, // クラス別グラフ用の配列
                             index
                         );
                     });
@@ -463,7 +498,7 @@
                         // クライアント側のデータから不正解率データを取得
                         let group = isOverall ? classData[chartIndex] : groupData[chartIndex];
                         //追加分
-                        const groupId = group.group_id;  // グループIDを取得
+                        const groupId = group.group_id; // グループIDを取得
                         console.log("groupId:", groupId);
                         const labels = group.students.map(student => student.name);
                         const notaccuracyData = group.students.map(student => student.notaccuracy);
@@ -475,9 +510,9 @@
                         }
 
                         // サーバーにリクエストするパラメータを設定（`notaccuracy`は含めない）
-                        const studentIDs = isOverall
-                            ? group.class_students.map(student => student.student_id).join(',')
-                            : group.students.map(student => student.student_id).join(',');
+                        const studentIDs = isOverall ?
+                            group.class_students.map(student => student.student_id).join(',') :
+                            group.students.map(student => student.student_id).join(',');
 
                         const params = new URLSearchParams({
                             features: otherFeature,
@@ -521,49 +556,49 @@
 
                         // もう1つの特徴量のデータをfetchで取得
                         fetch('fetch_feature_data.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            },
-                            body: params.toString()
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.error) {
-                                console.error('サーバーエラー:', data.error);
-                                alert(data.error);
-                                return;
-                            }
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: params.toString()
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.error) {
+                                    console.error('サーバーエラー:', data.error);
+                                    alert(data.error);
+                                    return;
+                                }
 
-                            const otherFeatureData = data.map(item => item.featureA_avg);
+                                const otherFeatureData = data.map(item => item.featureA_avg);
 
-                            const canvasId = isOverall
-                                ? `class-dual-axis-chart-${chartIndex}`
-                                : `dual-axis-chart-${chartIndex}`;
-                            
-                            const label1_text = <?= json_encode(translate('teachertrue.php_567行目_不正解率(%)')) ?>;
-                            const label2_text = `${otherFeature} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
+                                const canvasId = isOverall ?
+                                    `class-dual-axis-chart-${chartIndex}` :
+                                    `dual-axis-chart-${chartIndex}`;
 
-                            createDualAxisChart(
-                                document.getElementById(canvasId).getContext('2d'),
-                                labels,
-                                notaccuracyData,
-                                otherFeatureData,
-                                label1_text,
-                                label2_text,
-                                'rgba(54, 162, 235, 0.6)',
-                                'rgba(255, 99, 132, 0.6)',
-                                label1_text,
-                                label2_text,
-                                chartArray,
-                                chartIndex
-                            );
+                                const label1_text = <?= json_encode(translate('teachertrue.php_567行目_不正解率(%)')) ?>;
+                                const label2_text = `${otherFeature} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
 
-                            closeFeatureModal();
-                        })
-                        .catch(error => {
-                            console.error('エラー:', error);
-                        });
+                                createDualAxisChart(
+                                    document.getElementById(canvasId).getContext('2d'),
+                                    labels,
+                                    notaccuracyData,
+                                    otherFeatureData,
+                                    label1_text,
+                                    label2_text,
+                                    'rgba(54, 162, 235, 0.6)',
+                                    'rgba(255, 99, 132, 0.6)',
+                                    label1_text,
+                                    label2_text,
+                                    chartArray,
+                                    chartIndex
+                                );
+
+                                closeFeatureModal();
+                            })
+                            .catch(error => {
+                                console.error('エラー:', error);
+                            });
                     } else {
                         // 通常の2つの特徴量での処理
                         if (selectedFeatures.length !== 2) {
@@ -573,9 +608,9 @@
 
                         let group = isOverall ? classData[chartIndex] : groupData[chartIndex];
 
-                        const studentIDs = isOverall
-                            ? group.class_students.map(student => student.student_id).join(',')
-                            : group.students.map(student => student.student_id).join(',');
+                        const studentIDs = isOverall ?
+                            group.class_students.map(student => student.student_id).join(',') :
+                            group.students.map(student => student.student_id).join(',');
 
                         const params = new URLSearchParams({
                             features: selectedFeatures.join(','),
@@ -583,158 +618,230 @@
                         });
 
                         fetch('fetch_feature_data.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            },
-                            body: params.toString()
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.error) {
-                                console.error('サーバーエラー:', data.error);
-                                
-                                alert(data.error);
-                                return;
-                            }
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: params.toString()
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.error) {
+                                    console.error('サーバーエラー:', data.error);
 
-                            const labels = data.map(item => item.name);
-                            const featureAData = data.map(item => item.featureA_avg);
-                            const featureBData = data.map(item => item.featureB_avg);
+                                    alert(data.error);
+                                    return;
+                                }
 
-                            const canvasId = isOverall
-                                ? `class-dual-axis-chart-${chartIndex}`
-                                : `dual-axis-chart-${chartIndex}`;
+                                const labels = data.map(item => item.name);
+                                const featureAData = data.map(item => item.featureA_avg);
+                                const featureBData = data.map(item => item.featureB_avg);
 
-                            const label1_text = `${selectedFeatures[0]} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
-                            const label2_text = `${selectedFeatures[1]} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
+                                const canvasId = isOverall ?
+                                    `class-dual-axis-chart-${chartIndex}` :
+                                    `dual-axis-chart-${chartIndex}`;
 
-                            createDualAxisChart(
-                                document.getElementById(canvasId).getContext('2d'),
-                                labels,
-                                featureAData,
-                                featureBData,
-                                label1_text,
-                                label2_text,
-                                'rgba(54, 162, 235, 0.6)',
-                                'rgba(255, 99, 132, 0.6)',
-                                label1_text,
-                                label2_text,
-                                chartArray,
-                                chartIndex
-                            );
+                                const label1_text = `${selectedFeatures[0]} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
+                                const label2_text = `${selectedFeatures[1]} ` + <?= json_encode(translate('teachertrue.php_567行目_平均')) ?>;
 
-                            closeFeatureModal();
-                        })
-                        .catch(error => {
-                            console.error('エラー:', error);
-                        });
+                                createDualAxisChart(
+                                    document.getElementById(canvasId).getContext('2d'),
+                                    labels,
+                                    featureAData,
+                                    featureBData,
+                                    label1_text,
+                                    label2_text,
+                                    'rgba(54, 162, 235, 0.6)',
+                                    'rgba(255, 99, 132, 0.6)',
+                                    label1_text,
+                                    label2_text,
+                                    chartArray,
+                                    chartIndex
+                                );
+
+                                closeFeatureModal();
+                            })
+                            .catch(error => {
+                                console.error('エラー:', error);
+                            });
                     }
                 }
 
+                document.addEventListener('DOMContentLoaded', function() {
+                    const infoIconsTeacherTrue = document.querySelectorAll('#clustering-feature-form .info-icon');
+                    const detailModalTeacherTrue = document.getElementById('feature-detail-modal-teachertrue');
+                    const detailTitleTeacherTrue = document.getElementById('detail-feature-title-teachertrue');
+                    const detailDescriptionTeacherTrue = document.getElementById('detail-feature-description-teachertrue');
+                    const closeDetailModalTeacherTrue = document.querySelector('#feature-detail-modal-teachertrue .close-detail-modal');
 
+                    // 特徴量ごとの説明データを定義 (teachertrue.php 用)
+                    const featureDescriptionsTeacherTrue = {
+                        "Time": "問題解答にかかった時間。長いほど迷いが生じた可能性を示唆します。",
+                        "distance": "問題解答中にマウスカーソルを移動した距離（ピクセル単位）。長いほど迷いを示唆します。",
+                        "averageSpeed": "問題解答中のマウスカーソルの速度の平均。遅いほど迷いが生じている可能性を示唆します。",
+                        "maxSpeed": "問題解答中のマウスカーソルの速度の最大値。遅いほど迷いが生じている可能性を示唆します。",
+                        "thinkingTime": "解答開始から最初のドラッグが行われるまでの時間。長いほど、学習者が解答を始めるまでに頭の中で思考している可能性を示唆します。",
+                        "answeringTime": "最初のドラッグから解答終了までの時間。長いほど、迷いが生じた可能性を示唆します。",
+                        "totalStopTime": "マウスカーソルが静止していた時間の合計値。長いほど、迷いが生じた際にマウスから手を放して考慮している癖があると考えられます。",
+                        "maxStopTime": "マウスカーソルが静止していた時間の最大値。長いほど、迷いが生じた際にマウスから手を放して考慮している癖があると考えられます。",
+                        "totalDDIntervalTime": "D&Dから次のD&Dまでの時間の合計値。長いほど、迷いが生じた際に、単語と単語の選択の間が長いことを示唆します。",
+                        "maxDDIntervalTime": "D&Dから次のD&Dまでの時間の最大値。長いほど、迷いが生じた際に、単語と単語の選択の間が長いことを示唆します。",
+                        "maxDDTime": "D&D中の時間の合計値。長いほど、迷いが生じた際にドラッグしながら迷っている可能性を示唆します。",
+                        "minDDTime": "D&D中の時間の最小値。短いほど、迷いが生じた際にドラッグしながら迷っている可能性を示唆します。",
+                        "DDCount": "D&Dが行われた回数。多いほど、迷いが生じた際に単語のドラッグアンドドロップ操作が多くなっている可能性を示唆します。",
+                        "groupingDDCount": "グルーピングが使用された回数。多いほど、迷いの際にグループ化機能を使用した回数が多いことを示唆します。グループ化された単語のチャンクを見ることで学習者の理解している単語群を知ることが出来る可能性があります。",
+                        "groupingCountbool": "グルーピング機能の使用の有無。使用しているほど、迷いが発生した際はグループ化機能を使用していることが考えられます。",
+                        "xUturnCount": "横軸方向にUターンが行われた回数。多いほど、迷いが生じた際にマウスの上下左右の移動を行い、問題文や日本語文、解答文を何度も読み直している可能性を示唆します。",
+                        "yUturnCount": "縦軸方向にUターンが行われた回数。多いほど、迷いが生じた際にマウスの上下左右の移動を行い、問題文や日本語文、解答文を何度も読み直している可能性を示唆します。",
+                        "register_move_count1": "マウスカーソルがレジスタからレジスタに移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+                        "register_move_count2": "マウスカーソルがレジスタからレジスタ外に移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+                        "register_move_count3": "マウスカーソルがレジスタ外からレジスタに移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+                        "register01count1": "マウスカーソルがレジスタからレジスタに移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+                        "register01count2": "マウスカーソルがレジスタからレジスタ外に移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+                        "register01count3": "マウスカーソルがレジスタ外からレジスタに移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+                        "registerDDCount": "レジスタを触れた移動回数の合計。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+                        "xUturnCountDD": "D&D中に横軸方向にUターンが行われた回数。多いほど、迷いに起因している可能性があります。これは，迷いが生じた際にマウスの上下左右の移動を行い，問題文や日本語文，解答文を何度も読み直している可能性があります。",
+                        "yUturnCountDD": "D&D中に縦軸方向にUターンが行われた回数。多いほど、迷いに起因している可能性があります。これは，迷いが生じた際にマウスの上下左右の移動を行い，問題文や日本語文，解答文を何度も読み直している可能性があります。",
+                        "FromlastdropToanswerTime": "最終ドロップから解答終了までの時間。長いほど、迷いに起因している可能性があります。これは解答文を並べ替えた後によく注意した後に決定ボタンを押している可能性があります。"
+                    };
 
+                    infoIconsTeacherTrue.forEach(icon => {
+                        icon.addEventListener('click', function(event) {
+                            event.stopPropagation(); // チェックボックスのクリックを防ぐ
+                            const featureName = this.dataset.featureName;
+                            const description = featureDescriptionsTeacherTrue[featureName] || "この特徴量の説明はまだありません。";
 
+                            let featureLabelText = "";
+                            const parentLabel = this.closest('label');
+                            if (parentLabel) {
+                                // labelの子要素からinputとinfo-iconを除外し、残りのテキストを取得
+                                const textNodes = Array.from(parentLabel.childNodes).filter(node =>
+                                    node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== ''
+                                );
+                                if (textNodes.length > 0) {
+                                    featureLabelText = textNodes[0].textContent.trim();
+                                } else {
+                                    featureLabelText = featureName;
+                                }
+                            } else {
+                                featureLabelText = featureName;
+                            }
 
+                            detailTitleTeacherTrue.textContent = featureLabelText;
+                            detailDescriptionTeacherTrue.textContent = description;
+                            detailModalTeacherTrue.style.display = 'block';
+                        });
+                    });
+
+                    closeDetailModalTeacherTrue.addEventListener('click', function() {
+                        detailModalTeacherTrue.style.display = 'none';
+                    });
+
+                    window.addEventListener('click', function(event) {
+                        if (event.target == detailModalTeacherTrue) {
+                            detailModalTeacherTrue.style.display = 'none';
+                        }
+                    });
+                });
             </script>
 
-            <div class = "all-overview">
+            <div class="all-overview">
                 <h2><?= translate('teachertrue.php_671行目_クラス単位のデータ') ?></h2>
-                <div class = "class-data">
+                <div class="class-data">
                     <?php
-                        require "../dbc.php";
-                        $stmt = $conn->prepare("SELECT * FROM ClassTeacher WHERE TID = ?");
-                        $stmt->bind_param("i", $teacher_id);
-                        $stmt->execute();
-                        $result = $stmt->get_result();
-                        $classes = [];
-                        if ($result->num_rows > 0) {
-                            while ($row_class = $result->fetch_assoc()) {
-                                $class_id = $row_class['ClassID'];
-                                // ClassNameを取得するためにclassesテーブルを参照
-                                $stmt_classname = $conn->prepare("SELECT ClassName FROM classes WHERE ClassID = ?");
-                                $stmt_classname->bind_param("i", $class_id);
-                                $stmt_classname->execute();
-                                $result_classname = $stmt_classname->get_result();
-                                $class_name_data = $result_classname->fetch_assoc();
-                                $class_name = $class_name_data['ClassName'] ?? 'Unknown';
-                                $stmt_classname->close();
+                    require "../dbc.php";
+                    $stmt = $conn->prepare("SELECT * FROM ClassTeacher WHERE TID = ?");
+                    $stmt->bind_param("i", $teacher_id);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    $classes = [];
+                    if ($result->num_rows > 0) {
+                        while ($row_class = $result->fetch_assoc()) {
+                            $class_id = $row_class['ClassID'];
+                            // ClassNameを取得するためにclassesテーブルを参照
+                            $stmt_classname = $conn->prepare("SELECT ClassName FROM classes WHERE ClassID = ?");
+                            $stmt_classname->bind_param("i", $class_id);
+                            $stmt_classname->execute();
+                            $result_classname = $stmt_classname->get_result();
+                            $class_name_data = $result_classname->fetch_assoc();
+                            $class_name = $class_name_data['ClassName'] ?? 'Unknown';
+                            $stmt_classname->close();
 
-                                //クラスごとの学生データを取得
-                                $stmt_classstu = $conn->prepare("SELECT * FROM students WHERE ClassID = ?");
-                                $stmt_classstu->bind_param("i", $class_id);
-                                $stmt_classstu->execute();
-                                $result_classstu = $stmt_classstu->get_result();
-                                $class_students = []; // 各クラスごとの学生データを初期化
-                        
-                                if ($result_classstu->num_rows > 0) {
-                                    while ($row_student = $result_classstu->fetch_assoc()) {
-                                        $student_id = $row_student['uid'];
-                        
-                                        // 学生ごとの正解数と解答数を取得
-                                        $stmt_scores = $conn->prepare("SELECT 
+                            //クラスごとの学生データを取得
+                            $stmt_classstu = $conn->prepare("SELECT * FROM students WHERE ClassID = ?");
+                            $stmt_classstu->bind_param("i", $class_id);
+                            $stmt_classstu->execute();
+                            $result_classstu = $stmt_classstu->get_result();
+                            $class_students = []; // 各クラスごとの学生データを初期化
+
+                            if ($result_classstu->num_rows > 0) {
+                                while ($row_student = $result_classstu->fetch_assoc()) {
+                                    $student_id = $row_student['uid'];
+
+                                    // 学生ごとの正解数と解答数を取得
+                                    $stmt_scores = $conn->prepare("SELECT 
                                                                         COUNT(*) AS total_answers,
                                                                         SUM(CASE WHEN TF = 1 THEN 1 ELSE 0 END) AS correct_answers,
                                                                         SUM(Time) AS total_time
                                                                         FROM linedata WHERE uid = ?");
-                                        $stmt_scores->bind_param("i", $student_id);
-                                        $stmt_scores->execute();
-                                        $result_scores = $stmt_scores->get_result();
-                                        $score_data = $result_scores->fetch_assoc();
-                        
-                                        if ($score_data) {
-                                            $correct_answers = $score_data['correct_answers'];
-                                            $total_answers = $score_data['total_answers'];
-                                            $total_time = $score_data['total_time'];
-                                            $accuracy_rate = $total_answers > 0 ? number_format(($correct_answers / $total_answers) * 100, 2) : 0;
-                                            $notaccuracy_rate = 100 - $accuracy_rate;
-                                            $accuracy_time = $total_answers > 0 ? number_format(($total_time / 1000) / $total_answers, 2) : 0;
-                        
-                                            // 学生ごとの名前を取得
-                                            $name = $row_student['Name'];
-                        
-                                            // 学生ごとの正解率データを追加
-                                            $class_students[] = [
-                                                'student_id' => $student_id,  // student_id を uid に対応させる
-                                                'name' => $name,
-                                                'accuracy' => $accuracy_rate,
-                                                'notaccuracy' => $notaccuracy_rate,
-                                                'time' => $accuracy_time
-                                            ];
-                                        }
-                                        $stmt_scores->close();
+                                    $stmt_scores->bind_param("i", $student_id);
+                                    $stmt_scores->execute();
+                                    $result_scores = $stmt_scores->get_result();
+                                    $score_data = $result_scores->fetch_assoc();
+
+                                    if ($score_data) {
+                                        $correct_answers = $score_data['correct_answers'];
+                                        $total_answers = $score_data['total_answers'];
+                                        $total_time = $score_data['total_time'];
+                                        $accuracy_rate = $total_answers > 0 ? number_format(($correct_answers / $total_answers) * 100, 2) : 0;
+                                        $notaccuracy_rate = 100 - $accuracy_rate;
+                                        $accuracy_time = $total_answers > 0 ? number_format(($total_time / 1000) / $total_answers, 2) : 0;
+
+                                        // 学生ごとの名前を取得
+                                        $name = $row_student['Name'];
+
+                                        // 学生ごとの正解率データを追加
+                                        $class_students[] = [
+                                            'student_id' => $student_id,  // student_id を uid に対応させる
+                                            'name' => $name,
+                                            'accuracy' => $accuracy_rate,
+                                            'notaccuracy' => $notaccuracy_rate,
+                                            'time' => $accuracy_time
+                                        ];
                                     }
+                                    $stmt_scores->close();
                                 }
-                                $stmt_classstu->close();
-                        
-                                // クラスごとの学生データを追加
-                                $classes[] = [
-                                    'class_name' => $class_name,
-                                    'class_students' => $class_students
-                                ];
                             }
+                            $stmt_classstu->close();
+
+                            // クラスごとの学生データを追加
+                            $classes[] = [
+                                'class_name' => $class_name,
+                                'class_students' => $class_students
+                            ];
                         }
-                        $stmt->close();
-                        $conn->close();
+                    }
+                    $stmt->close();
+                    $conn->close();
                     ?>
                     <div class="class-data" id="class-data-container"></div>
                     <script>
                         const classData = <?php echo json_encode($classes); ?>;
                     </script>
                 </div>
-                <div id = "cluster-data"></div>
+                <div id="cluster-data"></div>
             </div>
-                    <script>
-                        // 現在のChartインスタンスを管理する変数
-                        let currentChart = null;
+            <script>
+                // 現在のChartインスタンスを管理する変数
+                let currentChart = null;
 
-                        const class_container = document.getElementById('class-data-container');
+                const class_container = document.getElementById('class-data-container');
 
-                        // コンテナの生成
-                        classData.forEach((classInfo, index) => {
-                            const classContainer = document.createElement('div');
-                            classContainer.classList.add('class-card');
-                            classContainer.innerHTML = `
+                // コンテナの生成
+                classData.forEach((classInfo, index) => {
+                    const classContainer = document.createElement('div');
+                    classContainer.classList.add('class-card');
+                    classContainer.innerHTML = `
                                 <h3>${classInfo.class_name}
                                     <button onclick="openClassFeatureModal(${index})">${ <?= json_encode(translate('teachertrue.php_769行目_グラフ描画特徴量')) ?>}</button>
                                     <button onclick="openClassEstimatePage(${index})">${ <?= json_encode(translate('teachertrue.php_770行目_迷い推定')) ?>}</button>
@@ -745,290 +852,295 @@
                                     <canvas id="class-dual-axis-chart-${index}"></canvas>
                                 </div>
                             `;
-                            class_container.appendChild(classContainer);
+                    class_container.appendChild(classContainer);
 
-                            const class_labels = classInfo.class_students.map(student => student.name);
-                            const class_accuracyData = classInfo.class_students.map(student => student.accuracy);
-                            const class_notaccuracyData = classInfo.class_students.map(student => student.notaccuracy);
-                            const class_timeData = classInfo.class_students.map(student => student.time);
+                    const class_labels = classInfo.class_students.map(student => student.name);
+                    const class_accuracyData = classInfo.class_students.map(student => student.accuracy);
+                    const class_notaccuracyData = classInfo.class_students.map(student => student.notaccuracy);
+                    const class_timeData = classInfo.class_students.map(student => student.time);
 
-                            createDualAxisChart(
-                                document.getElementById(`class-dual-axis-chart-${index}`).getContext('2d'),
-                                class_labels,
-                                class_notaccuracyData,
-                                class_timeData,
-                                <?= json_encode(translate('teachertrue.php_791行目_不正解率(%)')) ?>,
-                                <?= json_encode(translate('teachertrue.php_792行目_解答時間(秒)')) ?>,
-                                'rgba(54, 162, 235, 0.6)',
-                                'rgba(255, 99, 132, 0.6)',
-                                <?= json_encode(translate('teachertrue.php_795行目_不正解率(%)')) ?>,
-                                <?= json_encode(translate('teachertrue.php_796行目_解答時間(秒)')) ?>,
-                                existingOverallCharts,  // 全体の成績グラフ用の配列
-                                index
-                            );
+                    createDualAxisChart(
+                        document.getElementById(`class-dual-axis-chart-${index}`).getContext('2d'),
+                        class_labels,
+                        class_notaccuracyData,
+                        class_timeData,
+                        <?= json_encode(translate('teachertrue.php_791行目_不正解率(%)')) ?>,
+                        <?= json_encode(translate('teachertrue.php_792行目_解答時間(秒)')) ?>,
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 99, 132, 0.6)',
+                        <?= json_encode(translate('teachertrue.php_795行目_不正解率(%)')) ?>,
+                        <?= json_encode(translate('teachertrue.php_796行目_解答時間(秒)')) ?>,
+                        existingOverallCharts, // 全体の成績グラフ用の配列
+                        index
+                    );
+                });
+
+                //クラスタリング関連
+                let selectedClassIndex; // 現在選択中のクラスインデックス
+
+                // クラスタリングモーダルを開く
+                function openClusteringModal(index) {
+                    selectedClassIndex = index;
+                    document.getElementById('clustering-modal').style.display = 'block';
+                }
+
+                // クラスタリングモーダルを閉じる
+                function closeClusteringModal() {
+                    document.getElementById('clustering-modal').style.display = 'none';
+                    document.getElementById('clustering-feature-form').reset();
+                }
+                // 特徴量を送信してクラスタリングを実行
+                document.getElementById('apply-clustering-btn').onclick = function() {
+                    const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
+                        .map(input => input.value);
+                    if (selectedFeatures.length === 0) {
+                        alert(<?= json_encode(translate('teachertrue.php_822行目_少なくとも1つの特徴量を選択してください。')) ?>);
+                        return;
+                    }
+                    // クラスタ数を取得
+                    const clusterCount = document.getElementById('clustering-input').value;
+                    // ★ ここで手法を取得
+                    const method = document.getElementById('clustering-method').value;
+
+                    const classInfo = classData[selectedClassIndex];
+                    const studentIds = classInfo.class_students.map(student => student.student_id).join(',');
+
+                    const params = new URLSearchParams({
+                        features: selectedFeatures.join(','),
+                        studentIDs: studentIds,
+                        clusterCount: clusterCount, // クラスタ数を追加
+                        method: method // クラスタリング手法を追加
+                    });
+
+                    let jsonData
+
+                    fetch('perform_clustering.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: params.toString()
+                        })
+                        .then(response => response.text()) // JSON の代わりにテキストとして受け取る
+                        .then(data => {
+                            console.log("サーバーからのレスポンス:", data); // レスポンスを確認
+                            try {
+                                jsonData = JSON.parse(data); // JSON に変換
+                                if (jsonData.error) {
+                                    alert(jsonData.error);
+                                    return;
+                                }
+                                closeClusteringModal();
+                                displayClusteringResultsFromJSON(jsonData);
+                                displayClusteringResults_groupFromJSON(jsonData);
+                            } catch (e) {
+                                console.error('JSON 解析エラー:', e);
+                                console.error('レスポンス内容:', data);
+                            }
+                        })
+                        .catch(error => console.error('エラー:', error));
+                };
+                // JSONファイルのデータを可視化
+
+                function displayClusteringResults_groupFromJSON(jsonData) {
+                    const container = document.getElementById('cluster-data');
+                    if (!container) {
+                        console.error('クラスタコンテナが見つかりません。');
+                        return;
+                    }
+                    //clustersヲ取得
+                    const clusters = jsonData.clusters?.clusters;
+                    if (!clusters) {
+                        console.error('クラスターデータが見つかりません。');
+                        return;
+                    }
+
+
+                    // クラスタごとに表示
+                    Object.keys(clusters).forEach(clusterKey => {
+                        console.log('clusterKey:', clusterKey);
+                        const clusterPoints = clusters[clusterKey];
+
+                        // クラスタ情報のコンテナを作成
+                        const clusterDiv = document.createElement('div');
+                        clusterDiv.className = 'cluster-group';
+                        // チェックボックスとクラスタタイトル
+                        const clusterHeader = document.createElement('h3');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = clusterKey;
+                        checkbox.className = 'cluster-checkbox';
+
+                        clusterHeader.textContent = <?= json_encode(translate('teachertrue.php_907行目_クラスタ')) ?> + ` ${clusterKey}`;
+                        clusterHeader.prepend(checkbox);
+
+                        clusterDiv.appendChild(clusterHeader);
+
+                        // 学生リストを表示
+                        const studentList = document.createElement('ul');
+                        console.log('clusterPointsの型:', typeof clusterPoints);
+                        Object.keys(clusterPoints).forEach(groupIndex => {
+                            console.log('groupIndex:', groupIndex);
+                            const listItem = document.createElement('li');
+                            listItem.textContent = <?= json_encode(translate('teachertrue.php_918行目_学生')) ?> + `:${clusterPoints[groupIndex].name}`;
+                            console.log('listItem:', listItem);
+                            studentList.appendChild(listItem);
                         });
+                        clusterDiv.appendChild(studentList);
 
-                        //クラスタリング関連
-                        let selectedClassIndex; // 現在選択中のクラスインデックス
+                        container.appendChild(clusterDiv);
+                    });
+                    // グループ化ボタンを作成
+                    const groupButton = document.createElement('button');
+                    groupButton.textContent = <?= json_encode(translate('teachertrue.php_929行目_グループ化')) ?>;
+                    groupButton.onclick = () => {
+                        groupSelectedClusters(clusters);
+                    };
+                    container.appendChild(groupButton);
 
-                        // クラスタリングモーダルを開く
-                        function openClusteringModal(index) {
-                            selectedClassIndex = index;
-                            document.getElementById('clustering-modal').style.display = 'block';
-                        }
+                }
 
-                        // クラスタリングモーダルを閉じる
-                        function closeClusteringModal() {
-                            document.getElementById('clustering-modal').style.display = 'none';
-                            document.getElementById('clustering-feature-form').reset();
-                        }
-                        // 特徴量を送信してクラスタリングを実行
-                        document.getElementById('apply-clustering-btn').onclick = function () {
-                            const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
-                                .map(input => input.value);
-                            if (selectedFeatures.length === 0) {
-                                alert(<?= json_encode(translate('teachertrue.php_822行目_少なくとも1つの特徴量を選択してください。')) ?>);
-                                return;
-                            }
-                            // クラスタ数を取得
-                            const clusterCount = document.getElementById('clustering-input').value;
-                            // ★ ここで手法を取得
-                            const method = document.getElementById('clustering-method').value; 
+                function groupSelectedClusters(clusters) {
+                    const selectedCheckboxes = document.querySelectorAll('.cluster-checkbox:checked');
 
-                            const classInfo = classData[selectedClassIndex];
-                            const studentIds = classInfo.class_students.map(student => student.student_id).join(',');
+                    if (selectedCheckboxes.length === 0) {
+                        alert(<?= json_encode(translate('teachertrue.php_941行目_少なくとも1つのクラスタを選択してください。')) ?>);
+                        return;
+                    }
 
-                            const params = new URLSearchParams({
-                                features: selectedFeatures.join(','),
-                                studentIDs: studentIds,
-                                clusterCount: clusterCount,  // クラスタ数を追加
-                                method : method             // クラスタリング手法を追加
-                            });
+                    // 選択されたクラスタごとのデータを収集
+                    const clustersData = [];
+                    selectedCheckboxes.forEach(checkbox => {
+                        const clusterKey = checkbox.value;
+                        const clusterName = <?= json_encode(translate('teachertrue.php_907行目_クラスタ')) ?> + ` ${clusterKey}`;
+                        const clusterData = clusters[clusterKey];
+                        const studentIds = clusterData.map(student => student.id);
 
-                            let jsonData
+                        clustersData.push({
+                            group_name: clusterName,
+                            students: studentIds
+                        });
+                    });
 
-                            fetch('perform_clustering.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: params.toString()
+                    // サーバーにリクエストを送信
+                    fetch('group_students.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(clustersData) // JSON形式で送信
+                        })
+                        .then(response => response.text())
+                        .then(data => {
+                            alert(<?= json_encode(translate('teachertrue.php_971行目_選択されたクラスタのグループ化が完了しました。')) ?>);
+                            console.log(data);
+                            //ページ再読み込み
+                            window.location.reload();
+                        })
+                        .catch(error => {
+                            console.error('エラー:', error);
+                        });
+                }
+
+
+                function displayClusteringResultsFromJSON(jsonData) {
+                    const container = document.getElementById('cluster-data');
+                    if (!container) {
+                        console.error('cluster-data コンテナが見つかりません。');
+                        return;
+                    }
+                    container.innerHTML = ''; // 前の内容をクリア
+
+                    alert(<?= json_encode(translate('teachertrue.php_990行目_クラスタリング機能によりグルーピングされた学習者群は...')) ?>);
+
+                    // 新しい Canvas を作成
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'cluster-visualization';
+                    canvas.width = 800;
+                    canvas.height = 400;
+                    container.appendChild(canvas);
+
+                    const ctx = canvas.getContext('2d');
+
+                    const clusterData = jsonData.clusters;
+
+                    const clusterColors = [
+                        'rgba(255, 0, 0, 0.7)', // クラスタ0の色(赤)
+                        'rgba(0, 255, 0, 0.7)', // クラスタ1の色（青）
+                        'rgba(0, 0, 255, 0.7)', // クラスタ2の色（緑）
+                        'rgba(255, 255, 0, 0.7)', // クラスタ3の色（黄）
+                        'rgba(255, 0, 255, 0.7)', // クラスタ4の色（紫）
+                    ];
+
+                    const datasets = Object.keys(clusterData).flatMap(clusterKey => {
+                        const clusterPoints = clusterData[clusterKey];
+                        const color = clusterColors[parseInt(clusterKey)] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`;
+
+                        return clusterPoints.flatMap((pointGroup, groupIndex) =>
+                            pointGroup.map((point, pointIndex) => {
+                                return {
+                                    label: `Cluster ${groupIndex}`,
+                                    data: [{
+                                        x: point.pca1,
+                                        y: point.pca2
+                                    }],
+                                    backgroundColor: clusterColors[groupIndex] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`,
+                                    borderColor: 'rgba(0, 0, 0, 1)',
+                                    borderWidth: 1,
+                                    pointRadius: 5
+                                };
                             })
-                                .then(response => response.text()) // JSON の代わりにテキストとして受け取る
-                                .then(data => {
-                                    console.log("サーバーからのレスポンス:", data); // レスポンスを確認
-                                    try {
-                                        jsonData = JSON.parse(data); // JSON に変換
-                                        if (jsonData.error) {
-                                            alert(jsonData.error);
-                                            return;
-                                        }
-                                        closeClusteringModal();
-                                        displayClusteringResultsFromJSON(jsonData);
-                                        displayClusteringResults_groupFromJSON(jsonData);
-                                    } catch (e) {
-                                        console.error('JSON 解析エラー:', e);
-                                        console.error('レスポンス内容:', data);
-                                    }
-                                })
-                                .catch(error => console.error('エラー:', error));
-                        };
-                        // JSONファイルのデータを可視化
+                        );
+                    });
 
-                        function displayClusteringResults_groupFromJSON(jsonData) {
-                            const container = document.getElementById('cluster-data');
-                            if (!container) {
-                                console.error('クラスタコンテナが見つかりません。');
-                                return;
-                            }
-                            //clustersヲ取得
-                            const clusters = jsonData.clusters?.clusters;
-                            if (!clusters) {
-                                console.error('クラスターデータが見つかりません。');
-                                return;
-                            }
+                    if (currentChart) {
+                        currentChart.destroy();
+                    }
 
-
-                            // クラスタごとに表示
-                            Object.keys(clusters).forEach(clusterKey => {
-                                console.log('clusterKey:', clusterKey);
-                                const clusterPoints = clusters[clusterKey];
-
-                                // クラスタ情報のコンテナを作成
-                                const clusterDiv = document.createElement('div');
-                                clusterDiv.className = 'cluster-group';
-                                // チェックボックスとクラスタタイトル
-                                const clusterHeader = document.createElement('h3');
-                                const checkbox = document.createElement('input');
-                                checkbox.type = 'checkbox';
-                                checkbox.value = clusterKey;
-                                checkbox.className = 'cluster-checkbox';
-
-                                clusterHeader.textContent = <?= json_encode(translate('teachertrue.php_907行目_クラスタ')) ?> + ` ${clusterKey}`;
-                                clusterHeader.prepend(checkbox);
-
-                                clusterDiv.appendChild(clusterHeader);
-
-                                // 学生リストを表示
-                                const studentList = document.createElement('ul');
-                                console.log('clusterPointsの型:', typeof clusterPoints);
-                                Object.keys(clusterPoints).forEach(groupIndex => {
-                                    console.log('groupIndex:', groupIndex);
-                                    const listItem = document.createElement('li');
-                                    listItem.textContent = <?= json_encode(translate('teachertrue.php_918行目_学生')) ?> + `:${clusterPoints[groupIndex].name}`;
-                                    console.log('listItem:', listItem);
-                                    studentList.appendChild(listItem);
-                                });
-                                clusterDiv.appendChild(studentList);
-                                
-                                container.appendChild(clusterDiv);
-                            });
-                            // グループ化ボタンを作成
-                            const groupButton = document.createElement('button');
-                            groupButton.textContent = <?= json_encode(translate('teachertrue.php_929行目_グループ化')) ?>;
-                            groupButton.onclick = () => {
-                                groupSelectedClusters(clusters);
-                            };
-                            container.appendChild(groupButton);
-                            
-                        }
-                        function groupSelectedClusters(clusters) {
-                            const selectedCheckboxes = document.querySelectorAll('.cluster-checkbox:checked');
-
-                            if (selectedCheckboxes.length === 0) {
-                                alert(<?= json_encode(translate('teachertrue.php_941行目_少なくとも1つのクラスタを選択してください。')) ?>);
-                                return;
-                            }
-
-                            // 選択されたクラスタごとのデータを収集
-                            const clustersData = [];
-                            selectedCheckboxes.forEach(checkbox => {
-                                const clusterKey = checkbox.value;
-                                const clusterName = <?= json_encode(translate('teachertrue.php_907行目_クラスタ')) ?> + ` ${clusterKey}`;
-                                const clusterData = clusters[clusterKey];
-                                const studentIds = clusterData.map(student => student.id);
-
-                                clustersData.push({
-                                    group_name: clusterName,
-                                    students: studentIds
-                                });
-                            });
-
-                            // サーバーにリクエストを送信
-                            fetch('group_students.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
+                    currentChart = new Chart(ctx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: datasets,
+                        },
+                        options: {
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: <?= json_encode(translate('teachertrue.php_1049行目_クラスタリング結果 (PCA可視化)')) ?>,
                                 },
-                                body: JSON.stringify(clustersData)  // JSON形式で送信
-                            })
-                            .then(response => response.text())
-                            .then(data => {
-                                alert(<?= json_encode(translate('teachertrue.php_971行目_選択されたクラスタのグループ化が完了しました。')) ?>);
-                                console.log(data);
-                                //ページ再読み込み
-                                window.location.reload();
-                            })
-                            .catch(error => {
-                                console.error('エラー:', error);
-                            });
-                        }
-
-                        
-                        function displayClusteringResultsFromJSON(jsonData) {
-                            const container = document.getElementById('cluster-data');
-                            if (!container) {
-                                console.error('cluster-data コンテナが見つかりません。');
-                                return;
-                            }
-                            container.innerHTML = ''; // 前の内容をクリア
-                            
-                            alert(<?= json_encode(translate('teachertrue.php_990行目_クラスタリング機能によりグルーピングされた学習者群は...')) ?>);
-
-                            // 新しい Canvas を作成
-                            const canvas = document.createElement('canvas');
-                            canvas.id = 'cluster-visualization';
-                            canvas.width = 800;
-                            canvas.height = 400;
-                            container.appendChild(canvas);
-
-                            const ctx = canvas.getContext('2d');
-
-                            const clusterData = jsonData.clusters;
-                            
-                            const clusterColors = [
-                                'rgba(255, 0, 0, 0.7)',  // クラスタ0の色(赤)
-                                'rgba(0, 255, 0, 0.7)', // クラスタ1の色（青）
-                                'rgba(0, 0, 255, 0.7)', // クラスタ2の色（緑）
-                                'rgba(255, 255, 0, 0.7)', // クラスタ3の色（黄）
-                                'rgba(255, 0, 255, 0.7)', // クラスタ4の色（紫）
-                            ];
-                            
-                            const datasets = Object.keys(clusterData).flatMap(clusterKey => {
-                                const clusterPoints = clusterData[clusterKey]; 
-                                const color = clusterColors[parseInt(clusterKey)] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`;
-
-                                return clusterPoints.flatMap((pointGroup, groupIndex) =>
-                                    pointGroup.map((point, pointIndex) => {
-                                        return {
-                                            label: `Cluster ${groupIndex}`,
-                                            data: [{ x: point.pca1, y: point.pca2 }],
-                                            backgroundColor: clusterColors[groupIndex] || `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.7)`,
-                                            borderColor: 'rgba(0, 0, 0, 1)',
-                                            borderWidth: 1,
-                                            pointRadius: 5
-                                        };
-                                    })
-                                );
-                            });
-                        
-                            if (currentChart) {
-                                currentChart.destroy();
-                            }
-
-                            currentChart = new Chart(ctx, {
-                                type: 'scatter',
-                                data: {
-                                    datasets: datasets,
-                                },
-                                options: {
-                                    plugins: {
-                                        title: {
-                                            display: true,
-                                            text: <?= json_encode(translate('teachertrue.php_1049行目_クラスタリング結果 (PCA可視化)')) ?>,
-                                        },
-                                    },
-                                    scales: {
-                                        x: {
-                                            title: {
-                                                display: true,
-                                                text: <?= json_encode(translate('teachertrue.php_1056行目_次元1')) ?>,
-                                            },
-                                        },
-                                        y: {
-                                            title: {
-                                                display: true,
-                                                text: <?= json_encode(translate('teachertrue.php_1062行目_次元2')) ?>,
-                                            },
-                                        },
+                            },
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: <?= json_encode(translate('teachertrue.php_1056行目_次元1')) ?>,
                                     },
                                 },
-                            });
-                            
-                        }
-                    </script>
-                </div>
-            </div>
-            <div class = "create-new">
-                <h2><?= translate('teachertrue.php_1075行目_新規問題・テスト作成') ?></h2>
-                <div id = "createassignment-botton" class = "button1">
-                    <a href='./create/new.php?mode=0'><?= translate('teachertrue.php_1077行目_新規問題作成') ?></a>
-                </div>
-                <div id = "createtest-botton" class = "button1">
-                    <a href='create-test.php'><?= translate('teachertrue.php_1080行目_新規テスト作成') ?></a>
-                </div>
-            </div>
-        </main>
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: <?= json_encode(translate('teachertrue.php_1062行目_次元2')) ?>,
+                                    },
+                                },
+                            },
+                        },
+                    });
+
+                }
+            </script>
+    </div>
+    </div>
+    <div class="create-new">
+        <h2><?= translate('teachertrue.php_1075行目_新規問題・テスト作成') ?></h2>
+        <div id="createassignment-botton" class="button1">
+            <a href='./create/new.php?mode=0'><?= translate('teachertrue.php_1077行目_新規問題作成') ?></a>
+        </div>
+        <div id="createtest-botton" class="button1">
+            <a href='create-test.php'><?= translate('teachertrue.php_1080行目_新規テスト作成') ?></a>
+        </div>
+    </div>
+    </main>
     </div>
 </body>
+
 </html>
