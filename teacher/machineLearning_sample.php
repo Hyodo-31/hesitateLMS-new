@@ -875,61 +875,61 @@
                     <h3><?= translate('machineLearning_sample.php_810行目_特徴量を選択してください') ?></h3>
                     <form id="feature-form">
                         <label><input type="checkbox" name="feature" value="notaccuracy">
-                            <?= translate('machineLearning_sample.php_812行目_不正解率(%)') ?></label><br>
+                            <?= translate('machineLearning_sample.php_812行目_不正解率(%)') ?><span class="info-icon" data-feature-name="notaccuracy">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="Time">
-                            <?= translate('machineLearning_sample.php_813行目_解答時間(秒)') ?></label><br>
+                            <?= translate('machineLearning_sample.php_813行目_解答時間(秒)') ?><span class="info-icon" data-feature-name="Time">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="distance">
-                            <?= translate('machineLearning_sample.php_814行目_距離') ?></label><br>
+                            <?= translate('machineLearning_sample.php_814行目_距離') ?><span class="info-icon" data-feature-name="distance">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="averageSpeed">
-                            <?= translate('machineLearning_sample.php_815行目_平均速度') ?></label><br>
+                            <?= translate('machineLearning_sample.php_815行目_平均速度') ?><span class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="maxSpeed">
-                            <?= translate('machineLearning_sample.php_816行目_最高速度') ?></label><br>
+                            <?= translate('machineLearning_sample.php_816行目_最高速度') ?><span class="info-icon" data-feature-name="maxSpeed">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="thinkingTime">
-                            <?= translate('machineLearning_sample.php_817行目_考慮時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_817行目_考慮時間') ?><span class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="answeringTime">
-                            <?= translate('machineLearning_sample.php_818行目_第一ドロップ後解答時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_818行目_第一ドロップ後解答時間') ?><span class="info-icon" data-feature-name="answeringTime">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="totalStopTime">
-                            <?= translate('machineLearning_sample.php_819行目_合計静止時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_819行目_合計静止時間') ?><span class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="maxStopTime">
-                            <?= translate('machineLearning_sample.php_820行目_最大静止時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_820行目_最大静止時間') ?><span class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="totalDDIntervalTime">
-                            <?= translate('machineLearning_sample.php_821行目_合計DD間時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_821行目_合計DD間時間') ?><span class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="maxDDIntervalTime">
-                            <?= translate('machineLearning_sample.php_822行目_最大DD間時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_822行目_最大DD間時間') ?><span class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="maxDDTime">
-                            <?= translate('machineLearning_sample.php_823行目_合計DD時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_823行目_合計DD時間') ?><span class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="minDDTime">
-                            <?= translate('machineLearning_sample.php_824行目_最小DD時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_824行目_最小DD時間') ?><span class="info-icon" data-feature-name="minDDTime">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="DDCount">
-                            <?= translate('machineLearning_sample.php_825行目_合計DD回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_825行目_合計DD回数') ?><span class="info-icon" data-feature-name="DDCount">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="groupingDDCount">
-                            <?= translate('machineLearning_sample.php_826行目_グループ化DD回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_826行目_グループ化DD回数') ?><span class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="groupingCountbool">
-                            <?= translate('machineLearning_sample.php_827行目_グループ化有無') ?></label><br>
+                            <?= translate('machineLearning_sample.php_827行目_グループ化有無') ?><span class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="xUturnCount">
-                            <?= translate('machineLearning_sample.php_828行目_x軸Uターン回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_828行目_x軸Uターン回数') ?><span class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="yUturnCount">
-                            <?= translate('machineLearning_sample.php_829行目_y軸Uターン回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_829行目_y軸Uターン回数') ?><span class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="register_move_count1">
-                            <?= translate('machineLearning_sample.php_830行目_レジスタ→レジスタへの移動回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_830行目_レジスタ→レジスタへの移動回数') ?><span class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="register_move_count2">
-                            <?= translate('machineLearning_sample.php_831行目_レジスタ→レジスタ外への移動回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_831行目_レジスタ→レジスタ外への移動回数') ?><span class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="register_move_count3">
-                            <?= translate('machineLearning_sample.php_832行目_レジスタ外→レジスタへの移動回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_832行目_レジスタ外→レジスタへの移動回数') ?><span class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="register01count1">
-                            <?= translate('machineLearning_sample.php_833行目_レジスタ→レジスタへの移動有無') ?></label><br>
+                            <?= translate('machineLearning_sample.php_833行目_レジスタ→レジスタへの移動有無') ?><span class="info-icon" data-feature-name="register01count1">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="register01count2">
-                            <?= translate('machineLearning_sample.php_834行目_レジスタ→レジスタ外への移動有無') ?></label><br>
+                            <?= translate('machineLearning_sample.php_834行目_レジスタ→レジスタ外への移動有無') ?><span class="info-icon" data-feature-name="register01count2">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="register01count3">
-                            <?= translate('machineLearning_sample.php_835行目_レジスタ外→レジスタへの移動有無') ?></label><br>
+                            <?= translate('machineLearning_sample.php_835行目_レジスタ外→レジスタへの移動有無') ?><span class="info-icon" data-feature-name="register01count3">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="registerDDCount">
-                            <?= translate('machineLearning_sample.php_836行目_レジスタに関する合計の移動回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_836行目_レジスタに関する合計の移動回数') ?><span class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="xUturnCountDD">
-                            <?= translate('machineLearning_sample.php_837行目_x軸UターンD&D回数') ?></label><br>
+                            <?= translate('machineLearning_sample.php_837行目_x軸UターンD&D回数') ?><span class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature"
-                                value="yUturnCountDD"><?= translate('machineLearning_sample.php_838行目_y軸UターンD&D回数') ?></label><br>
+                                value="yUturnCountDD"><?= translate('machineLearning_sample.php_838行目_y軸UターンD&D回数') ?><span class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label><br>
                         <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime">
-                            <?= translate('machineLearning_sample.php_839行目_最終ドロップ後時間') ?></label><br>
+                            <?= translate('machineLearning_sample.php_839行目_最終ドロップ後時間') ?><span class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label><br>
                         <button type="button"
                             id="apply-features-btn"><?= translate('machineLearning_sample.php_840行目_適用') ?></button>
                     </form>
@@ -1091,6 +1091,185 @@
                             </tr>
                             <tr>
                                 <th><?= translate('machineLearning_sample.php_958行目_解答全体') ?></th>
+                                <td colspan="2">
+                                    <ul class="itemgroup">
+                                        <li><label for="featuretime"><input type="checkbox"
+                                                    class="feature-modal-checkbox" id="featuretime"
+                                                    name="featureLabel[]"
+                                                    value="time"><?= translate('machineLearning_sample.php_961行目_解答時間') ?><span class="info-icon" data-feature-name="Time">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="featuredistance"><input type="checkbox"
+                                                    class="feature-modal-checkbox" id="featuredistance"
+                                                    name="featureLabel[]"
+                                                    value="distance"><?= translate('machineLearning_sample.php_962行目_移動距離') ?><span class="info-icon" data-feature-name="distance">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="featurespeed"><input type="checkbox"
+                                                    class="feature-modal-checkbox" id="featurespeed"
+                                                    name="featureLabel[]"
+                                                    value="averageSpeed"><?= translate('machineLearning_sample.php_963行目_平均速度') ?><span class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="featuremaxspeed"><input type="checkbox"
+                                                    class="feature-modal-checkbox" id="featuremaxspeed"
+                                                    name="featureLabel[]"
+                                                    value="maxSpeed"><?= translate('machineLearning_sample.php_964行目_最大速度') ?><span class="info-icon" data-feature-name="maxSpeed">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                    <ul class="itemgroup">
+                                        <li><label for="totalstoptime"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="totalStopTime"><?= translate('machineLearning_sample.php_967行目_合計静止時間') ?><span class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="maxstoptime"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="maxStopTime"><?= translate('machineLearning_sample.php_968行目_最大静止時間') ?><span class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label>
+                                        </li>
+
+                                    </ul>
+                                    <ul class="itemgroup">
+                                        <li><label for="stopcount"><input type="checkbox" class="feature-modal-checkbox"
+                                                    name="featureLabel[]"
+                                                    value="stopcount"><?= translate('machineLearning_sample.php_972行目_静止回数') ?><span class="info-icon" data-feature-name="stopcount">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="FromlastdropToanswerTime"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="FromlastdropToanswerTime"><?= translate('machineLearning_sample.php_973行目_最終dropから解答終了までの時間') ?><span class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><?= translate('machineLearning_sample.php_977行目_Uターン') ?></th>
+                                <td colspan="2">
+                                    <ul class="itemgroup">
+                                        <li><label for="xUturncount"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="xUTurnCount"><?= translate('machineLearning_sample.php_980行目_X軸Uターン回数') ?><span class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="yUturncount"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="yUTurnCount"><?= translate('machineLearning_sample.php_981行目_Y軸Uターン回数') ?><span class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="xUturncountDD"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="xUTurnCountDD"><?= translate('machineLearning_sample.php_982行目_次回DragまでのX軸Uターン回数') ?><span class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="yUturncountDD"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="yUTurnCountDD"><?= translate('machineLearning_sample.php_983行目_次回DragまでのY軸Uターン回数') ?><span class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                </td>
+                            <tr>
+                                <th><?= translate('machineLearning_sample.php_987行目_第一ドラッグ') ?></th>
+                                <td colspan="2">
+                                    <ul class="itemgroup">
+                                        <li><label for="featurethinkingtime"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="thinkingTime"><?= translate('machineLearning_sample.php_990行目_第一ドラッグ前時間') ?><span class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="answeringtime"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="answeringTime"><?= translate('machineLearning_sample.php_991行目_第一ドロップ後から解答終了を押すまでの時間') ?><span class="info-icon" data-feature-name="answeringTime">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><?= translate('machineLearning_sample.php_995行目_DD') ?></th>
+                                <td colspan="2">
+                                    <ul class="itemgroup">
+                                        <li><label for="maxDDtime"><input type="checkbox" class="feature-modal-checkbox"
+                                                    name="featureLabel[]"
+                                                    value="maxDDTime"><?= translate('machineLearning_sample.php_999行目_最大DD時間') ?><span class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="minDDtime"><input type="checkbox" class="feature-modal-checkbox"
+                                                    name="featureLabel[]"
+                                                    value="minDDTime"><?= translate('machineLearning_sample.php_1000行目_最小DD時間') ?><span class="info-icon" data-feature-name="minDDTime">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="DDcount"><input type="checkbox" class="feature-modal-checkbox"
+                                                    name="featureLabel[]"
+                                                    value="DDCount"><?= translate('machineLearning_sample.php_1001行目_DD回数') ?><span class="info-icon" data-feature-name="DDCount">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><?= translate('machineLearning_sample.php_1005行目_DD間') ?></th>
+                                <td colspan="2">
+                                    <ul class="itemgroup">
+                                        <li><label for="maxDDintervaltime"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="maxDDIntervalTime"><?= translate('machineLearning_sample.php_1008行目_最大DD間時間') ?><span class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="totalDDintervaltime"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="totalDDIntervalTime"><?= translate('machineLearning_sample.php_1010行目_合計DD間時間') ?><span class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><?= translate('machineLearning_sample.php_1014行目_グループ化') ?></th>
+                                <td colspan="2">
+                                    <ul class="itemgroup">
+                                        <li><label for="groupingDDcount"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="groupingDDCount"><?= translate('machineLearning_sample.php_1017行目_グループ化中にDDした回数') ?><span class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="groupingDDcountbool"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="groupingCountbool"><?= translate('machineLearning_sample.php_1018行目_グループ化の有無') ?><span class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><?= translate('machineLearning_sample.php_1022行目_レジスタ') ?></th>
+                                <td colspan="2">
+                                    <ul class="itemgroup">
+                                        <li><label for="register_move_count1"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="register_move_count1"><?= translate('machineLearning_sample.php_1025行目_レジスタ移動回数1') ?><span class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="register_move_count2"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="register_move_count2"><?= translate('machineLearning_sample.php_1026行目_レジスタ移動回数2') ?><span class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="register_move_count3"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="register_move_count3"><?= translate('machineLearning_sample.php_1027行目_レジスタ移動回数3') ?><span class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="register_move_count4"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="register_move_count4"><?= translate('machineLearning_sample.php_1028行目_レジスタ移動回数4') ?><span class="info-icon" data-feature-name="register_move_count4">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                    <ul class="itemgroup">
+                                        <li><label for="register01count1"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="register01count1"><?= translate('machineLearning_sample.php_1031行目_レジスタ使用回数1') ?><span class="info-icon" data-feature-name="register01count1">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="register01count2"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="register01count2"><?= translate('machineLearning_sample.php_1032行目_レジスタ使用回数2') ?><span class="info-icon" data-feature-name="register01count2">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="register01count3"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="register01count3"><?= translate('machineLearning_sample.php_1033行目_レジスタ使用回数3') ?><span class="info-icon" data-feature-name="register01count3">ⓘ</span></label>
+                                        </li>
+                                        <li><label for="register01count4"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="register01count4"><?= translate('machineLearning_sample.php_1034行目_レジスタ使用回数4') ?><span class="info-icon" data-feature-name="register01count4">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                    <ul class="itemgroup">
+                                        <li><label for="registerDDcount"><input type="checkbox"
+                                                    class="feature-modal-checkbox" name="featureLabel[]"
+                                                    value="registerDDCount"><?= translate('machineLearning_sample.php_1037行目_レジスタ内DD回数') ?><span class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label>
+                                        </li>
+                                    </ul>
+                                </td>
+                                <!-- <th><?= translate('machineLearning_sample.php_958行目_解答全体') ?></th> 
                                 <td colspan="2">
                                     <ul class="itemgroup">
                                         <li><label for="featuretime"><input type="checkbox"
@@ -1268,7 +1447,7 @@
                                                     value="registerDDCount"><?= translate('machineLearning_sample.php_1037行目_レジスタ内DD回数') ?></label>
                                         </li>
                                     </ul>
-                                </td>
+                                </td> -->
                             </tr>
                         </table>
                         <input type="submit" id="machineLearningcons"
@@ -1651,6 +1830,22 @@
                             <input type="number" id="clustering-input" min="1" max="10" value="2">
                             <h3><?= translate('machineLearning_sample.php_1241行目_クラスタリング特徴量を選択してください') ?></h3>
                             <label><input type="checkbox" name="feature" value="notAccuracy">
+                                <?= translate('machineLearning_sample.php_1242行目_不正解率(%)') ?><span class="info-icon" data-feature-name="notAccuracy">ⓘ</span></label><br>
+                            <label><input type="checkbox" name="feature" value="hesitation">
+                                <?= translate('machineLearning_sample.php_1243行目_迷い率') ?><span class="info-icon" data-feature-name="hesitation">ⓘ</span></label><br>
+                            <button type="button"
+                                id="apply-clustering-btn"><?= translate('machineLearning_sample.php_1244行目_適用') ?></button>
+                        </form>
+                    </div>
+                </div>
+                <!-- <div id="clustering-modal" class="modal"> 
+                    <div class="modal-content">
+                        <span class="close" onclick="closeClusteringModal()">&times;</span>
+                        <form id="clustering-feature-form">
+                            <h3><?= translate('machineLearning_sample.php_1239行目_クラスタ数を入力してください') ?></h3>
+                            <input type="number" id="clustering-input" min="1" max="10" value="2">
+                            <h3><?= translate('machineLearning_sample.php_1241行目_クラスタリング特徴量を選択してください') ?></h3>
+                            <label><input type="checkbox" name="feature" value="notAccuracy">
                                 <?= translate('machineLearning_sample.php_1242行目_不正解率(%)') ?></label><br>
                             <label><input type="checkbox" name="feature" value="hesitation">
                                 <?= translate('machineLearning_sample.php_1243行目_迷い率') ?></label><br>
@@ -1658,7 +1853,7 @@
                                 id="apply-clustering-btn"><?= translate('machineLearning_sample.php_1244行目_適用') ?></button>
                         </form>
                     </div>
-                </div>
+                </div> -->
                 <script>
                     // クラスタリングモーダルを開く
                     function openClusteringModal(index) {
@@ -2586,5 +2781,98 @@
                 </script>
         </main>
     </div>
+
+    <div id="feature-detail-modal" class="feature-detail-modal">
+        <div class="feature-detail-modal-content">
+            <span class="close-detail-modal">&times;</span>
+            <h3 id="detail-feature-title"></h3>
+            <p id="detail-feature-description"></p>
+        </div>
+    </div>
+
+    <script>
+        // 特徴量ごとの説明データを定義 (machineLearning_sample.php 用)
+        const featureDescriptions = {
+            "notAccuracy": "問題の不正解率を示します。値が高いほど、不正解が多いことを意味します。",
+            "notaccuracy": "問題の不正解率を示します。値が高いほど、不正解が多いことを意味します。",
+            "stopcount": "問題解答中にマウスが止まった回数。多いほど迷いが生じている可能性を示唆します。",
+            "Time": "問題解答にかかった時間。長いほど迷いが生じた可能性を示唆します。",
+            "distance": "問題解答中にマウスカーソルを移動した距離（ピクセル単位）。長いほど迷いを示唆します。",
+            "averageSpeed": "問題解答中のマウスカーソルの速度の平均。遅いほど迷いが生じている可能性を示唆します。",
+            "maxSpeed": "問題解答中のマウスカーソルの速度の最大値。遅いほど迷いが生じている可能性を示唆します。",
+            "thinkingTime": "解答開始から最初のドラッグが行われるまでの時間。長いほど、学習者が解答を始めるまでに頭の中で思考している可能性を示唆します。",
+            "answeringTime": "最初のドラッグから解答終了までの時間。長いほど、迷いが生じた可能性を示唆します。",
+            "totalStopTime": "マウスカーソルが静止していた時間の合計値。長いほど、迷いが生じた際にマウスから手を放して考慮している癖があると考えられます。",
+            "maxStopTime": "マウスカーソルが静止していた時間の最大値。長いほど、迷いが生じた際にマウスから手を放して考慮している癖があると考えられます。",
+            "totalDDIntervalTime": "D&Dから次のD&Dまでの時間の合計値。長いほど、迷いが生じた際に、単語と単語の選択の間が長いことを示唆します。",
+            "maxDDIntervalTime": "D&Dから次のD&Dまでの時間の最大値。長いほど、迷いが生じた際に、単語と単語の選択の間が長いことを示唆します。",
+            "maxDDTime": "D&D中の時間の合計値。長いほど、迷いが生じた際にドラッグしながら迷っている可能性を示唆します。",
+            "minDDTime": "D&D中の時間の最小値。短いほど、迷いが生じた際にドラッグしながら迷っている可能性を示唆します。",
+            "DDCount": "D&Dが行われた回数。多いほど、迷いが生じた際に単語のドラッグアンドドロップ操作が多くなっている可能性を示唆します。",
+            "groupingDDCount": "グルーピングが使用された回数。多いほど、迷いの際にグループ化機能を使用した回数が多いことを示唆します。グループ化された単語のチャンクを見ることで学習者の理解している単語群を知ることが出来る可能性があります。",
+            "groupingCountbool": "グルーピング機能の使用の有無。使用しているほど、迷いが発生した際はグループ化機能を使用していることが考えられます。",
+            "xUturnCount": "横軸方向にUターンが行われた回数。多いほど、迷いが生じた際にマウスの上下左右の移動を行い、問題文や日本語文、解答文を何度も読み直している可能性を示唆します。",
+            "yUturnCount": "縦軸方向にUターンが行われた回数。多いほど、迷いが生じた際にマウスの上下左右の移動を行い、問題文や日本語文、解答文を何度も読み直している可能性を示唆します。",
+            "register_move_count1": "マウスカーソルがレジスタからレジスタに移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+            "register_move_count2": "マウスカーソルがレジスタからレジスタ外に移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+            "register_move_count3": "マウスカーソルがレジスタ外からレジスタに移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+            "register01count1": "マウスカーソルがレジスタからレジスタに移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+            "register01count2": "マウスカーソルがレジスタからレジスタ外に移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+            "register01count3": "マウスカーソルがレジスタ外からレジスタに移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+            "registerDDCount": "レジスタを触れた移動回数の合計。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
+            "xUturnCountDD": "D&D中に横軸方向にUターンが行われた回数。多いほど、迷いに起因している可能性があります。これは，迷いが生じた際にマウスの上下左右の移動を行い，問題文や日本語文，解答文を何度も読み直している可能性があります。",
+            "yUturnCountDD": "D&D中に縦軸方向にUターンが行われた回数。多いほど、迷いに起因している可能性があります。これは，迷いが生じた際にマウスの上下左右の移動を行い，問題文や日本語文，解答文を何度も読み直している可能性があります。",
+            "FromlastdropToanswerTime": "最終ドロップから解答終了までの時間。長いほど、迷いに起因している可能性があります。これは解答文を並べ替えた後によく注意した後に決定ボタンを押している可能性があります。",
+            "hesitation": "問題解答中に迷いが発生した割合を示します。値が高いほど、迷いが多いことを意味します。"
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const infoIcons = document.querySelectorAll('.info-icon');
+            const detailModal = document.getElementById('feature-detail-modal');
+            const detailTitle = document.getElementById('detail-feature-title');
+            const detailDescription = document.getElementById('detail-feature-description');
+            const closeDetailModal = document.querySelector('#feature-detail-modal .close-detail-modal');
+
+            infoIcons.forEach(icon => {
+                icon.addEventListener('click', function (event) {
+                    event.stopPropagation(); // 親要素へのイベント伝播を停止
+                    event.preventDefault();  // デフォルトの動作（ここではlabelのinputへのクリック伝播）をキャンセル
+
+                    const featureName = this.dataset.featureName;
+                    const description = featureDescriptions[featureName] || "この特徴量の説明はまだありません。";
+
+                    let featureLabelText = "";
+                    const parentLabel = this.closest('label');
+                    if (parentLabel) {
+                        // labelの子要素からinputとinfo-iconを除外し、残りのテキストを取得
+                        // input要素を見つけてその次のテキストノードがラベルテキストであると仮定
+                        const inputElement = parentLabel.querySelector('input[type="checkbox"]');
+                        if (inputElement && inputElement.nextSibling) {
+                            featureLabelText = inputElement.nextSibling.textContent.trim();
+                        } else {
+                            // fallback to data-feature-name if text not found
+                            featureLabelText = featureName;
+                        }
+                    } else {
+                        featureLabelText = featureName;
+                    }
+
+                    detailTitle.textContent = featureLabelText;
+                    detailDescription.textContent = description;
+                    detailModal.style.display = 'block';
+                });
+            });
+
+            closeDetailModal.addEventListener('click', function () {
+                detailModal.style.display = 'none';
+            });
+
+            window.addEventListener('click', function (event) {
+                if (event.target == detailModal) {
+                    detailModal.style.display = 'none';
+                }
+            });
+        });
+    </script>
 </body>
 </html>

@@ -506,28 +506,27 @@ canvas {
 /* 特徴量説明機能について */
 /* モーダル背景 */
 .feature-detail-modal {
-    display: none; /* 初期は非表示 */
-    position: fixed;
-    z-index: 1000;
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
     left: 0;
     top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.4);
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.4); /* より濃い半透明の背景 */
 }
 
 /* モーダルコンテンツ */
-.feature-detail-modal .modal-content {
+.feature-detail-modal-content {
     background-color: #fefefe;
-    margin: 15% auto;
+    margin: 10% auto; /* 上下10%の位置で中央寄せ */
     padding: 20px;
     border: 1px solid #888;
-    width: 80%;
-    max-width: 500px;
+    width: 80%; /* 適切な幅に調整 */
+    max-width: 600px; /* 最大幅を設定 */
     border-radius: 8px;
     position: relative;
-    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
 }
 
 /* 閉じるボタン */
