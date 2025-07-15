@@ -115,7 +115,7 @@
 
                                 $stmt_scores->close();
                                 $result_scores->free(); // メモリ解放
-                    
+
                                 //学生ごとの名前を取得
                                 $stmt_name = $conn->prepare("SELECT Name FROM students WHERE uid = ?");
                                 $stmt_name->bind_param("i", $students_id);
@@ -496,21 +496,21 @@
                         data: {
                             labels: labels,
                             datasets: [{
-                                label: label1,
-                                data: data1,
-                                backgroundColor: color1,
-                                borderColor: color1,
-                                yAxisID: 'y1',
-                                borderWidth: 1
-                            },
-                            {
-                                label: label2,
-                                data: data2,
-                                backgroundColor: color2,
-                                borderColor: color2,
-                                yAxisID: 'y2',
-                                borderWidth: 1
-                            }
+                                    label: label1,
+                                    data: data1,
+                                    backgroundColor: color1,
+                                    borderColor: color1,
+                                    yAxisID: 'y1',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: label2,
+                                    data: data2,
+                                    backgroundColor: color2,
+                                    borderColor: color2,
+                                    yAxisID: 'y2',
+                                    borderWidth: 1
+                                }
                             ]
                         },
                         options: {
@@ -581,7 +581,7 @@
 
 
                 // 各グループのデータに基づいてグラフを作成
-                document.addEventListener("DOMContentLoaded", function () {
+                document.addEventListener("DOMContentLoaded", function() {
                     const container = document.getElementById('group-data-container');
 
                     groupData.forEach((group, index) => {
@@ -633,7 +633,7 @@
                     document.getElementById('feature-modal').style.display = 'block';
 
                     // 特徴量選択後の適用ボタンに対して適切な配列とインデックスを設定
-                    document.getElementById('apply-features-btn').onclick = function () {
+                    document.getElementById('apply-features-btn').onclick = function() {
                         applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
                     };
                 }
@@ -721,12 +721,12 @@
 
                         // もう1つの特徴量のデータをfetchで取得
                         fetch('fetch_feature_data.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            },
-                            body: params.toString()
-                        })
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: params.toString()
+                            })
                             .then(response => response.json())
                             .then(data => {
                                 if (data.error) {
@@ -783,12 +783,12 @@
                         });
 
                         fetch('fetch_feature_data.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            },
-                            body: params.toString()
-                        })
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: params.toString()
+                            })
                             .then(response => response.json())
                             .then(data => {
                                 if (data.error) {
@@ -832,7 +832,7 @@
                     }
                 }
 
-                document.addEventListener('DOMContentLoaded', function () {
+                document.addEventListener('DOMContentLoaded', function() {
                     // グラフ描画モーダル内の情報アイコン (追加)
                     const infoIconsFeatureModal = document.querySelectorAll('#feature-modal .info-icon');
                     //　クラスタリング内の情報アイコン (追加)
@@ -844,45 +844,45 @@
 
                     // 特徴量ごとの説明データを定義 (teachertrue.php 用)
                     const featureDescriptionsTeacherTrue = {
-                        "notaccuracy": "問題の不正解率を示します。割合が高いほど、不正解が多いことを意味します。",
-                        "Time": "問題解答にかかった時間。長いほど迷いが生じた可能性を示唆します。",
-                        "distance": "問題解答中にマウスカーソルを移動した距離（ピクセル単位）。長いほど迷いを示唆します。",
-                        "averageSpeed": "問題解答中のマウスカーソルの速度の平均。遅いほど迷いが生じている可能性を示唆します。",
-                        "maxSpeed": "問題解答中のマウスカーソルの速度の最大値。遅いほど迷いが生じている可能性を示唆します。",
-                        "thinkingTime": "解答開始から最初のドラッグが行われるまでの時間。長いほど、学習者が解答を始めるまでに頭の中で思考している可能性を示唆します。",
-                        "answeringTime": "最初のドラッグから解答終了までの時間。長いほど、迷いが生じた可能性を示唆します。",
-                        "totalStopTime": "マウスカーソルが静止していた時間の合計値。長いほど、迷いが生じた際にマウスから手を放して考慮している癖があると考えられます。",
-                        "maxStopTime": "マウスカーソルが静止していた時間の最大値。長いほど、迷いが生じた際にマウスから手を放して考慮している癖があると考えられます。",
-                        "totalDDIntervalTime": "D&D(ドラッグ＆ドロップ)から次のD&Dまでの時間の合計値。これが長いほど、単語と単語の選択の間が長く、迷いが生じている可能性を示唆します。",
-                        "maxDDIntervalTime": "D&D(ドラッグ＆ドロップ)から次のD&Dまでの時間の最大値。これが長いほど、単語と単語の選択の間が長く、迷いが生じている可能性を示唆します。",
-                        "maxDDTime": "D&D(ドラッグ＆ドロップ)中の時間の合計値。長いほど、迷いが生じた際にドラッグしながら迷っている可能性を示唆します。",
-                        "minDDTime": "D&D(ドラッグ＆ドロップ)中の時間の最小値。これが長いほど、迷いが生じた際にドラッグしながら迷っている可能性を示唆します。",
-                        "DDCount": "D&D(ドラッグ＆ドロップ)が行われた回数。多いほど、迷いが生じた際に単語のドラッグ＆ドロップ操作が多くなっている可能性を示唆します。",
-                        "groupingDDCount": "グルーピングが使用された回数。多いほど、迷いの際にグループ化機能を使用した回数が多いことを示唆します。軌跡再現でグループ化された単語のチャンクを見ることで、学習者の理解している単語群を知ることが出来る可能性があります。",
-                        "groupingCountbool": "グルーピング機能の使用の有無。使用しているほど、迷いが発生した際はグループ化機能を使用していることが考えられます。",
-                        "xUturnCount": "横軸方向にUターンが行われた回数。多いほど、迷いが生じた際にマウスの左右の移動を行い、問題文等の読み直しや深く考えている可能性を示唆します。",
-                        "yUturnCount": "縦軸方向にUターンが行われた回数。多いほど、迷いが生じた際にマウスの上下の移動を行い、レジスタの活用や深く考えている可能性を示唆します。",
-                        "register_move_count1": "マウスカーソルがレジスタからレジスタに移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
-                        "register_move_count2": "マウスカーソルがレジスタからレジスタ外に移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
-                        "register_move_count3": "マウスカーソルがレジスタ外からレジスタに移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
-                        "register01count1": "マウスカーソルがレジスタからレジスタに移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
-                        "register01count2": "マウスカーソルがレジスタからレジスタ外に移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
-                        "register01count3": "マウスカーソルがレジスタ外からレジスタに移動したかの有無。使用しているほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
-                        "registerDDCount": "レジスタを触れた移動回数の合計。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。",
-                        "xUturnCountDD": "D&D(ドラッグ＆ドロップ)中に横軸方向にUターンが行われた回数。多いほど、迷いに起因している可能性があります。",
-                        "yUturnCountDD": "D&D(ドラッグ＆ドロップ)中に縦軸方向にUターンが行われた回数。多いほど、迷いに起因している可能性があります。",
-                        "FromlastdropToanswerTime": "最終ドロップから解答終了までの時間。長いほど、迷いに起因している可能性があります。これは解答文を並べ替えた後によく注意してから決定ボタンを押している可能性があります。"
+                        "notaccuracy": "<?= translate('teachertrue.php_description_notaccuracy') ?>",
+                        "Time": "<?= translate('teachertrue.php_description_Time') ?>",
+                        "distance": "<?= translate('teachertrue.php_description_distance') ?>",
+                        "averageSpeed": "<?= translate('teachertrue.php_description_averageSpeed') ?>",
+                        "maxSpeed": "<?= translate('teachertrue.php_description_maxSpeed') ?>",
+                        "thinkingTime": "<?= translate('teachertrue.php_description_thinkingTime') ?>",
+                        "answeringTime": "<?= translate('teachertrue.php_description_answeringTime') ?>",
+                        "totalStopTime": "<?= translate('teachertrue.php_description_totalStopTime') ?>",
+                        "maxStopTime": "<?= translate('teachertrue.php_description_maxStopTime') ?>",
+                        "totalDDIntervalTime": "<?= translate('teachertrue.php_description_totalDDIntervalTime') ?>",
+                        "maxDDIntervalTime": "<?= translate('teachertrue.php_description_maxDDIntervalTime') ?>",
+                        "maxDDTime": "<?= translate('teachertrue.php_description_maxDDTime') ?>",
+                        "minDDTime": "<?= translate('teachertrue.php_description_minDDTime') ?>",
+                        "DDCount": "<?= translate('teachertrue.php_description_DDCount') ?>",
+                        "groupingDDCount": "<?= translate('teachertrue.php_description_groupingDDCount') ?>",
+                        "groupingCountbool": "<?= translate('teachertrue.php_description_groupingCountbool') ?>",
+                        "xUturnCount": "<?= translate('teachertrue.php_description_xUturnCount') ?>",
+                        "yUturnCount": "<?= translate('teachertrue.php_description_yUturnCount') ?>",
+                        "register_move_count1": "<?= translate('teachertrue.php_description_register_move_count1') ?>",
+                        "register_move_count2": "<?= translate('teachertrue.php_description_register_move_count2') ?>",
+                        "register_move_count3": "<?= translate('teachertrue.php_description_register_move_count3') ?>",
+                        "register01count1": "<?= translate('teachertrue.php_description_register01count1') ?>",
+                        "register01count2": "<?= translate('teachertrue.php_description_register01count2') ?>",
+                        "register01count3": "<?= translate('teachertrue.php_description_register01count3') ?>",
+                        "registerDDCount": "<?= translate('teachertrue.php_description_registerDDCount') ?>",
+                        "xUturnCountDD": "<?= translate('teachertrue.php_description_xUturnCountDD') ?>",
+                        "yUturnCountDD": "<?= translate('teachertrue.php_description_yUturnCountDD') ?>",
+                        "FromlastdropToanswerTime": "<?= translate('teachertrue.php_description_FromlastdropToanswerTime') ?>"
                     };
 
                     const allInfoIcons = [...infoIconsFeatureModal, ...infoIconsTeacherTrue];
 
                     allInfoIcons.forEach(icon => {
-                        icon.addEventListener('click', function (event) {
+                        icon.addEventListener('click', function(event) {
                             event.stopPropagation(); // 親要素へのイベント伝播を停止
-                            event.preventDefault();  // デフォルトの動作（ここではlabelのinputへのクリック伝播）をキャンセル
+                            event.preventDefault(); // デフォルトの動作（ここではlabelのinputへのクリック伝播）をキャンセル
 
                             const featureName = this.dataset.featureName;
-                            const description = featureDescriptionsTeacherTrue[featureName] || "この特徴量の説明はまだありません。";
+                            const description = featureDescriptionsTeacherTrue[featureName] || "<?= translate('teachertrue.php_640行目_この特徴量の説明はまだありません') ?>";
 
                             let featureLabelText = "";
                             const parentLabel = this.closest('label');
@@ -906,11 +906,11 @@
                         });
                     });
 
-                    closeDetailModalTeacherTrue.addEventListener('click', function () {
+                    closeDetailModalTeacherTrue.addEventListener('click', function() {
                         detailModalTeacherTrue.style.display = 'none';
                     });
 
-                    window.addEventListener('click', function (event) {
+                    window.addEventListener('click', function(event) {
                         if (event.target == detailModalTeacherTrue) {
                             detailModalTeacherTrue.style.display = 'none';
                         }
@@ -946,7 +946,7 @@
                             $stmt_classstu->execute();
                             $result_classstu = $stmt_classstu->get_result();
                             $class_students = []; // 各クラスごとの学生データを初期化
-                    
+
                             if ($result_classstu->num_rows > 0) {
                                 while ($row_student = $result_classstu->fetch_assoc()) {
                                     $student_id = $row_student['uid'];
@@ -1063,7 +1063,7 @@
                     document.getElementById('clustering-feature-form').reset();
                 }
                 // 特徴量を送信してクラスタリングを実行
-                document.getElementById('apply-clustering-btn').onclick = function () {
+                document.getElementById('apply-clustering-btn').onclick = function() {
                     const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
                         .map(input => input.value);
                     if (selectedFeatures.length === 0) {
@@ -1088,12 +1088,12 @@
                     let jsonData
 
                     fetch('perform_clustering.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: params.toString()
-                    })
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: params.toString()
+                        })
                         .then(response => response.text()) // JSON の代わりにテキストとして受け取る
                         .then(data => {
                             console.log("サーバーからのレスポンス:", data); // レスポンスを確認
@@ -1197,12 +1197,12 @@
 
                     // サーバーにリクエストを送信
                     fetch('group_students.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(clustersData) // JSON形式で送信
-                    })
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(clustersData) // JSON形式で送信
+                        })
                         .then(response => response.text())
                         .then(data => {
                             alert(<?= json_encode(translate('teachertrue.php_971行目_選択されたクラスタのグループ化が完了しました。')) ?>);
