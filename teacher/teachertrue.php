@@ -1314,7 +1314,10 @@
     <div class="create-new">
         <h2><?= translate('teachertrue.php_1075行目_新規問題・テスト作成') ?></h2>
         <div id="createassignment-botton" class="button1">
-            <a href='./create/new.php?mode=0'><?= translate('teachertrue.php_1077行目_新規問題作成') ?></a>
+            <a href='./create/new.php?mode=0'><?= translate('teachertrue.php_1077行目_新規英語問題作成') ?></a>
+        </div>
+        <div id="createassignment-ja-botton" class="button1">
+            <a href='./create_ja/new.php?mode=0'><?= translate('teachertrue.php_1078行目_新規日本語問題作成') ?></a>
         </div>
         <div id="createtest-botton" class="button1">
             <a href='create-test.php'><?= translate('teachertrue.php_1080行目_新規テスト作成') ?></a>
