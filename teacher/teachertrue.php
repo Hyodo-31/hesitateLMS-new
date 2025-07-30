@@ -202,7 +202,8 @@ if ($teacher_id) {
                         </p>
                     </div>
 
-                    <div id="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+                    <!-- 推定結果のレイアウトは下の行 -->
+                    <div id="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">  
                         <h3><?= translate('machineLearning_sample.php_100行目_迷い推定結果') ?></h3>
                         <table id="results-table" class="results-table">
                             <thead>
