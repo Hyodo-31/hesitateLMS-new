@@ -26,7 +26,7 @@ if ($teacher_id) {
         $stmt_log->bind_param("s", $teacher_id);
         $stmt_log->execute();
         $result_log = $stmt_log->get_result();
-        
+
         if ($row_log = $result_log->fetch_assoc()) {
             // resultカラムのJSONをデコード
             $result_json = json_decode($row_log['result'], true);
@@ -80,7 +80,7 @@ if ($teacher_id) {
                     <?php
                     // お知らせを取得 (接続は維持されている)
                     $result = $conn->query("SELECT id, subject, content FROM notifications ORDER BY created_at DESC");
-                    if($result) {
+                    if ($result) {
                         while ($row = $result->fetch_assoc()) {
                             echo "<div class='notification-item' data-id='{$row['id']}'>";
                             echo "<h3 class='notification-title'>{$row['subject']}</h3>";
@@ -104,7 +104,7 @@ if ($teacher_id) {
                 <div class="class-data">
                     <?php
                     $groups = [];
-                    if($teacher_id) {
+                    if ($teacher_id) {
                         $stmt = $conn->prepare("SELECT * FROM `groups` WHERE TID = ?");
                         if ($stmt) {
                             $stmt->bind_param("i", $teacher_id);
@@ -176,8 +176,9 @@ if ($teacher_id) {
                         while (($data = fgetcsv($handle)) !== FALSE) {
                             $results_data[] = $data;
                             $student_uid_key = 'UID';
-                            $student_name_key = 'Name';
-                            if(isset($header_map[$student_uid_key]) && isset($header_map[$student_name_key])){
+                            // CSVにNameカラムがある場合のみ学習者リストを作成
+                            if (isset($header_map[$student_uid_key]) && isset($header_map['Name'])) {
+                                $student_name_key = 'Name';
                                 $student_uid = $data[$header_map[$student_uid_key]];
                                 $student_name = $data[$header_map[$student_name_key]];
                                 if (!isset($students_in_result[$student_uid])) {
@@ -189,54 +190,102 @@ if ($teacher_id) {
                     }
                     ?>
 
-                    <div class="student-info">
-                        <h3><?= translate('teachertrue.php_対象学習者') ?></h3>
-                        <p>
-                            <?php
-                            $student_list = [];
-                            foreach ($students_in_result as $uid => $name) {
-                                $student_list[] = htmlspecialchars($name) . " (ID: " . htmlspecialchars($uid) . ")";
-                            }
-                            echo implode(', ', $student_list);
-                            ?>
-                        </p>
-                    </div>
+                    <?php if (!empty($students_in_result)): ?>
+                        <div class="student-info">
+                            <h3><?= translate('teachertrue.php_対象学習者') ?></h3>
+                            <p>
+                                <?php
+                                $student_list = [];
+                                foreach ($students_in_result as $uid => $name) {
+                                    $student_list[] = htmlspecialchars($name) . " (ID: " . htmlspecialchars($uid) . ")";
+                                }
+                                echo implode(', ', $student_list);
+                                ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
 
-                    <!-- 推定結果のレイアウトは下の行 -->
-                    <div id="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">  
+                    <div id="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
                         <h3><?= translate('machineLearning_sample.php_100行目_迷い推定結果') ?></h3>
                         <table id="results-table" class="results-table">
                             <thead>
                                 <tr>
-                                    <?php if(!empty($header)) foreach ($header as $col) : ?>
-                                        <th><?= htmlspecialchars($col) ?></th>
-                                    <?php endforeach; ?>
+                                    <th>UID</th>
+                                    <th>WID</th>
+                                    <th><?= translate('machineLearning_sample.php_1188行目_迷いの有無') ?></th>
+                                    <th><?= translate('machineLearning_sample.php_1195行目_正誤') ?></th>
                                     <th><?= translate('teachertrue.php_軌跡再現') ?></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($results_data as $row) : ?>
-                                    <tr>
-                                        <?php foreach ($row as $cell) : ?>
-                                            <td><?= htmlspecialchars($cell) ?></td>
-                                        <?php endforeach; ?>
-                                        <td>
-                                            <?php
-                                            $uid_key = 'UID';
-                                            $qid_key = 'QID';
-                                            $logid_key = 'LogID';
-                                            if (isset($header_map[$uid_key]) && isset($header_map[$qid_key]) && isset($header_map[$logid_key])) {
-                                                $uid = $row[$header_map[$uid_key]];
-                                                $qid = $row[$header_map[$qid_key]];
-                                                $log_id = $row[$header_map[$logid_key]];
-                                                echo "<a href=\"trajectory.php?UID=" . urlencode($uid) . "&QID=" . urlencode($qid) . "&LogID=" . urlencode($log_id) . "\" target=\"_blank\">" . translate('teachertrue.php_軌跡をみる') . "</a>";
+                                <?php
+                                if (!empty($results_data)) {
+                                    // ▼▼▼ エラー修正箇所 ▼▼▼
+                                    // LogIDを使わないクエリに変更
+                                    $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ? LIMIT 1";
+                                    $stmt_tf = $conn->prepare($getTFQuery);
+
+                                    $uid_key_idx = isset($header_map['UID']) ? $header_map['UID'] : -1;
+                                    $wid_key_idx = isset($header_map['WID']) ? $header_map['WID'] : -1;
+                                    $understand_key_idx = isset($header_map['Understand']) ? $header_map['Understand'] : -1;
+                                    $attempt_key_idx = isset($header_map['attempt']) ? $header_map['attempt'] : -1;
+
+                                    if ($uid_key_idx > -1 && $wid_key_idx > -1 && $understand_key_idx > -1 && $attempt_key_idx > -1) {
+                                        foreach ($results_data as $row) {
+                                            $uid = $row[$uid_key_idx];
+                                            $wid = $row[$wid_key_idx];
+                                            $understand = $row[$understand_key_idx];
+                                            $attempt = $row[$attempt_key_idx];
+
+                                            $tf_value = null;
+                                            if ($stmt_tf) {
+                                                // bind_paramを 'ii' に変更
+                                                $stmt_tf->bind_param('ii', $uid, $wid);
+                                                // ▲▲▲ エラー修正箇所 ▲▲▲
+                                                $stmt_tf->execute();
+                                                $result_tf = $stmt_tf->get_result();
+                                                if ($result_tf) {
+                                                    if ($row_tf = $result_tf->fetch_assoc()) {
+                                                        $tf_value = $row_tf['TF'];
+                                                    }
+                                                    $result_tf->free();
+                                                }
+                                            }
+
+                                            echo "<tr>";
+                                            echo "<td>" . htmlspecialchars($uid) . "</td>";
+                                            echo "<td>" . htmlspecialchars($wid) . "-" . htmlspecialchars($attempt) . "</td>";
+                                            echo "<td>";
+                                            if ($understand == 4) {
+                                                echo translate('machineLearning_sample.php_1213行目_迷い無し');
+                                            } elseif ($understand == 2) {
+                                                echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1215行目_迷い有り') . "</span>";
+                                            } else {
+                                                echo htmlspecialchars($understand);
+                                            }
+                                            echo "</td>";
+                                            echo "<td>";
+                                            if ($tf_value === '1') {
+                                                echo translate('machineLearning_sample.php_1222行目_正解');
+                                            } elseif ($tf_value === '0') {
+                                                echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1224行目_不正解') . "</span>";
                                             } else {
                                                 echo "N/A";
                                             }
-                                            ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
+                                            echo "</td>";
+                                            // 軌跡再現リンクの LogID には attempt の値を使用
+                                            echo "<td><a href=\"trajectory.php?UID=" . urlencode($uid) . "&QID=" . urlencode($wid) . "&LogID=" . urlencode($attempt) . "\" target=\"_blank\">" . translate('teachertrue.php_軌跡をみる') . "</a></td>";
+                                            echo "</tr>";
+                                        }
+                                    } else {
+                                        echo '<tr><td colspan="5">結果ファイルの形式が正しくありません。必要なカラムが見つかりません。</td></tr>';
+                                    }
+
+                                    if (isset($stmt_tf)) {
+                                        $stmt_tf->close();
+                                    }
+                                }
+                                ?>
                             </tbody>
                         </table>
                     </div>
@@ -335,13 +384,13 @@ if ($teacher_id) {
                 <div class="class-data">
                     <?php
                     $classes = [];
-                    if($teacher_id) {
+                    if ($teacher_id) {
                         $stmt = $conn->prepare("SELECT * FROM ClassTeacher WHERE TID = ?");
-                        if($stmt) {
+                        if ($stmt) {
                             $stmt->bind_param("i", $teacher_id);
                             $stmt->execute();
                             $result = $stmt->get_result();
-                            
+
                             if ($result->num_rows > 0) {
                                 while ($row_class = $result->fetch_assoc()) {
                                     $class_id = $row_class['ClassID'];
@@ -402,7 +451,7 @@ if ($teacher_id) {
                     <p id="detail-feature-description-teachertrue"></p>
                 </div>
             </div>
-    
+
             <div class="create-new">
                 <h2><?= translate('teachertrue.php_1075行目_新規問題・テスト作成') ?></h2>
                 <div id="createassignment-botton" class="button1">
@@ -420,109 +469,194 @@ if ($teacher_id) {
     </div>
 
     <script>
-    // ページ全体のJavaScriptコード
-    document.addEventListener('DOMContentLoaded', function() {
-        // --- 共通の関数定義 ---
-        function createDualAxisChart(ctx, labels, data1, data2, label1, label2, color1, color2, yText1, yText2, chartArray, chartIndex) {
-            if (chartArray[chartIndex]) chartArray[chartIndex].destroy();
-            chartArray[chartIndex] = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: label1, data: data1, backgroundColor: color1, borderColor: color1, yAxisID: 'y1', borderWidth: 1 },
-                        { label: label2, data: data2, backgroundColor: color2, borderColor: color2, yAxisID: 'y2', borderWidth: 1 }
-                    ]
-                },
-                options: {
-                    maintainAspectRatio: false, responsive: true,
-                    scales: {
-                        x: { title: { display: true, text: '<?= json_encode(translate('teachertrue.php_339行目_ユーザー名')) ?>', font: { size: 20 } }, ticks: { font: { size: 16 } } },
-                        y1: { title: { display: true, text: yText1, font: { size: 20 } }, ticks: { font: { size: 16 } }, position: 'left', beginAtZero: true },
-                        y2: { title: { display: true, text: yText2, font: { size: 20 } }, ticks: { font: { size: 16 } }, position: 'right', beginAtZero: true }
+        // ページ全体のJavaScriptコード
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- 共通の関数定義 ---
+            function createDualAxisChart(ctx, labels, data1, data2, label1, label2, color1, color2, yText1, yText2, chartArray, chartIndex) {
+                if (chartArray[chartIndex]) chartArray[chartIndex].destroy();
+                chartArray[chartIndex] = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                                label: label1,
+                                data: data1,
+                                backgroundColor: color1,
+                                borderColor: color1,
+                                yAxisID: 'y1',
+                                borderWidth: 1
+                            },
+                            {
+                                label: label2,
+                                data: data2,
+                                backgroundColor: color2,
+                                borderColor: color2,
+                                yAxisID: 'y2',
+                                borderWidth: 1
+                            }
+                        ]
                     },
-                    plugins: { legend: { labels: { font: { size: 20 } } } }
-                }
-            });
-        }
-        
-        // --- グループ別グラフの描画 ---
-        const groupContainer = document.getElementById('group-data-container');
-        if(groupContainer && typeof groupData !== 'undefined') {
-            groupData.forEach((group, index) => {
-                const container = document.createElement('div');
-                container.classList.add('class-card');
-                container.innerHTML = `
+                    options: {
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '<?= json_encode(translate('teachertrue.php_339行目_ユーザー名')) ?>',
+                                    font: {
+                                        size: 20
+                                    }
+                                },
+                                ticks: {
+                                    font: {
+                                        size: 16
+                                    }
+                                }
+                            },
+                            y1: {
+                                title: {
+                                    display: true,
+                                    text: yText1,
+                                    font: {
+                                        size: 20
+                                    }
+                                },
+                                ticks: {
+                                    font: {
+                                        size: 16
+                                    }
+                                },
+                                position: 'left',
+                                beginAtZero: true
+                            },
+                            y2: {
+                                title: {
+                                    display: true,
+                                    text: yText2,
+                                    font: {
+                                        size: 20
+                                    }
+                                },
+                                ticks: {
+                                    font: {
+                                        size: 16
+                                    }
+                                },
+                                position: 'right',
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    font: {
+                                        size: 20
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // --- グループ別グラフの描画 ---
+            const groupContainer = document.getElementById('group-data-container');
+            if (groupContainer && typeof groupData !== 'undefined') {
+                groupData.forEach((group, index) => {
+                    const container = document.createElement('div');
+                    container.classList.add('class-card');
+                    container.innerHTML = `
                     <h3>${group.group_name}
                         <button onclick="openFeatureModal(${index}, false)">${'<?= json_encode(translate('teachertrue.php_404行目_グラフ描画特徴量')) ?>'}</button>
                         <button onclick="openEstimatePage(${index})">${'<?= json_encode(translate('teachertrue.php_405行目_迷い推定')) ?>'}</button>
                     </h3>
                     <div class="chart-row"><canvas id="dual-axis-chart-${index}"></canvas></div>`;
-                groupContainer.appendChild(container);
-                const labels = group.students.map(s => s.name);
-                const notaccuracyData = group.students.map(s => s.notaccuracy);
-                const timeData = group.students.map(s => s.time);
-                createDualAxisChart(document.getElementById(`dual-axis-chart-${index}`).getContext('2d'), labels, notaccuracyData, timeData, '<?= json_encode(translate('teachertrue.php_429行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_430行目_解答時間(秒)')) ?>', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)', '<?= json_encode(translate('teachertrue.php_433行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_434行目_解答時間(秒)')) ?>', existingClassCharts, index);
-            });
-        }
+                    groupContainer.appendChild(container);
+                    const labels = group.students.map(s => s.name);
+                    const notaccuracyData = group.students.map(s => s.notaccuracy);
+                    const timeData = group.students.map(s => s.time);
+                    createDualAxisChart(document.getElementById(`dual-axis-chart-${index}`).getContext('2d'), labels, notaccuracyData, timeData, '<?= json_encode(translate('teachertrue.php_429行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_430行目_解答時間(秒)')) ?>', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)', '<?= json_encode(translate('teachertrue.php_433行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_434行目_解答時間(秒)')) ?>', existingClassCharts, index);
+                });
+            }
 
-        // --- クラス別グラフの描画 ---
-        const classContainer = document.getElementById('class-data-container');
-        if(classContainer && typeof classData !== 'undefined') {
-            classData.forEach((classInfo, index) => {
-                const container = document.createElement('div');
-                container.classList.add('class-card');
-                container.innerHTML = `
+            // --- クラス別グラフの描画 ---
+            const classContainer = document.getElementById('class-data-container');
+            if (classContainer && typeof classData !== 'undefined') {
+                classData.forEach((classInfo, index) => {
+                    const container = document.createElement('div');
+                    container.classList.add('class-card');
+                    container.innerHTML = `
                     <h3>${classInfo.class_name}
                         <button onclick="openClassFeatureModal(${index})">${'<?= json_encode(translate('teachertrue.php_769行目_グラフ描画特徴量')) ?>'}</button>
                         <button onclick="openClassEstimatePage(${index})">${'<?= json_encode(translate('teachertrue.php_770行目_迷い推定')) ?>'}</button>
                         <button onclick="openClusteringModal(${index})">${'<?= json_encode(translate('teachertrue.php_771行目_クラスタリング')) ?>'}</button>
                     </h3>
                     <div class="chart-row"><canvas id="class-dual-axis-chart-${index}"></canvas></div>`;
-                classContainer.appendChild(container);
-                const labels = classInfo.class_students.map(s => s.name);
-                const notaccuracyData = classInfo.class_students.map(s => s.notaccuracy);
-                const timeData = classInfo.class_students.map(s => s.time);
-                createDualAxisChart(document.getElementById(`class-dual-axis-chart-${index}`).getContext('2d'), labels, notaccuracyData, timeData, '<?= json_encode(translate('teachertrue.php_791行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_792行目_解答時間(秒)')) ?>', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)', '<?= json_encode(translate('teachertrue.php_795行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_796行目_解答時間(秒)')) ?>', existingOverallCharts, index);
-            });
+                    classContainer.appendChild(container);
+                    const labels = classInfo.class_students.map(s => s.name);
+                    const notaccuracyData = classInfo.class_students.map(s => s.notaccuracy);
+                    const timeData = classInfo.class_students.map(s => s.time);
+                    createDualAxisChart(document.getElementById(`class-dual-axis-chart-${index}`).getContext('2d'), labels, notaccuracyData, timeData, '<?= json_encode(translate('teachertrue.php_791行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_792行目_解答時間(秒)')) ?>', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)', '<?= json_encode(translate('teachertrue.php_795行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_796行目_解答時間(秒)')) ?>', existingOverallCharts, index);
+                });
+            }
+        });
+
+        // --- モーダルや動的処理のためのグローバル関数 ---
+        let existingClassCharts = [];
+        let existingOverallCharts = [];
+        let selectedGroupIndex;
+        let selectedClassIndex;
+        let currentChart = null;
+
+        function openEstimatePage(groupIndex) {
+            const group = groupData[groupIndex];
+            if (!group || !group.students) {
+                alert('<?= json_encode(translate('teachertrue.php_265行目_グループに学習者が登録されていません。')) ?>');
+                return;
+            }
+            const studentIds = group.students.map(student => student.student_id).join(',');
+            window.location.href = `machineLearning_sample.php?students=${encodeURIComponent(studentIds)}`;
         }
-    });
 
-    // --- モーダルや動的処理のためのグローバル関数 ---
-    let existingClassCharts = [];
-    let existingOverallCharts = [];
-    let selectedGroupIndex;
-    let selectedClassIndex;
-    let currentChart = null;
-    
-    function openEstimatePage(groupIndex) {
-        const group = groupData[groupIndex];
-        if (!group || !group.students) { alert('<?= json_encode(translate('teachertrue.php_265行目_グループに学習者が登録されていません。')) ?>'); return; }
-        const studentIds = group.students.map(student => student.student_id).join(',');
-        window.location.href = `machineLearning_sample.php?students=${encodeURIComponent(studentIds)}`;
-    }
+        function openClassEstimatePage(classIndex) {
+            const classInfo = classData[classIndex];
+            if (!classInfo || !classInfo.class_students) {
+                alert('<?= json_encode(translate('teachertrue.php_283行目_クラスに学習者が登録されていません。')) ?>');
+                return;
+            }
+            const studentIds = classInfo.class_students.map(student => student.student_id).join(',');
+            window.location.href = `machineLearning_sample.php?students=${encodeURIComponent(studentIds)}`;
+        }
 
-    function openClassEstimatePage(classIndex) {
-        const classInfo = classData[classIndex];
-        if (!classInfo || !classInfo.class_students) { alert('<?= json_encode(translate('teachertrue.php_283行目_クラスに学習者が登録されていません。')) ?>'); return; }
-        const studentIds = classInfo.class_students.map(student => student.student_id).join(',');
-        window.location.href = `machineLearning_sample.php?students=${encodeURIComponent(studentIds)}`;
-    }
-    
-    function openFeatureModal(index, isOverall) {
-        selectedGroupIndex = index;
-        document.getElementById('feature-modal').style.display = 'block';
-        document.getElementById('apply-features-btn').onclick = function() {
-            applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
-        };
-    }
+        function openFeatureModal(index, isOverall) {
+            selectedGroupIndex = index;
+            document.getElementById('feature-modal').style.display = 'block';
+            document.getElementById('apply-features-btn').onclick = function() {
+                applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
+            };
+        }
 
-    function openClassFeatureModal(index) { openFeatureModal(index, true); }
-    function closeFeatureModal() { document.getElementById('feature-modal').style.display = 'none'; document.getElementById('feature-form').reset(); }
-    function openClusteringModal(index) { selectedClassIndex = index; document.getElementById('clustering-modal').style.display = 'block'; }
-    function closeClusteringModal() { document.getElementById('clustering-modal').style.display = 'none'; document.getElementById('clustering-feature-form').reset(); }
+        function openClassFeatureModal(index) {
+            openFeatureModal(index, true);
+        }
 
-    // 他のJavaScript関数 (applySelectedFeatures, groupSelectedClusters, displayClusteringResultsFromJSON など) はここに配置
+        function closeFeatureModal() {
+            document.getElementById('feature-modal').style.display = 'none';
+            document.getElementById('feature-form').reset();
+        }
+
+        function openClusteringModal(index) {
+            selectedClassIndex = index;
+            document.getElementById('clustering-modal').style.display = 'block';
+        }
+
+        function closeClusteringModal() {
+            document.getElementById('clustering-modal').style.display = 'none';
+            document.getElementById('clustering-feature-form').reset();
+        }
+
+        // 他のJavaScript関数 (applySelectedFeatures, groupSelectedClusters, displayClusteringResultsFromJSON など) はここに配置
     </script>
 </body>
 
