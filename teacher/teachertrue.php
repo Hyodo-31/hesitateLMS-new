@@ -164,7 +164,7 @@ if ($teacher_id) {
 
             <section class="previous-results">
                 <h2><?= translate('teachertrue.php_前回の迷い推定結果') ?></h2>
-                <?php if (!empty($results_csv_path) && file_exists($results_csv_path)) : ?>
+                <?php if (!empty($results_csv_path) && file_exists($results_csv_path)): ?>
                     <?php
                     $students_in_result = [];
                     $results_data = [];
@@ -176,7 +176,6 @@ if ($teacher_id) {
                         while (($data = fgetcsv($handle)) !== FALSE) {
                             $results_data[] = $data;
                             $student_uid_key = 'UID';
-                            // CSVにNameカラムがある場合のみ学習者リストを作成
                             if (isset($header_map[$student_uid_key]) && isset($header_map['Name'])) {
                                 $student_name_key = 'Name';
                                 $student_uid = $data[$header_map[$student_uid_key]];
@@ -205,7 +204,8 @@ if ($teacher_id) {
                         </div>
                     <?php endif; ?>
 
-                    <div id="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+                    <div id="table-container"
+                        style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
                         <h3><?= translate('machineLearning_sample.php_100行目_迷い推定結果') ?></h3>
                         <table id="results-table" class="results-table">
                             <thead>
@@ -220,11 +220,6 @@ if ($teacher_id) {
                             <tbody>
                                 <?php
                                 if (!empty($results_data)) {
-                                    // ▼▼▼ エラー修正箇所 ▼▼▼
-                                    // LogIDを使わないクエリに変更
-                                    $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ? LIMIT 1";
-                                    $stmt_tf = $conn->prepare($getTFQuery);
-
                                     $uid_key_idx = isset($header_map['UID']) ? $header_map['UID'] : -1;
                                     $wid_key_idx = isset($header_map['WID']) ? $header_map['WID'] : -1;
                                     $understand_key_idx = isset($header_map['Understand']) ? $header_map['Understand'] : -1;
@@ -237,19 +232,29 @@ if ($teacher_id) {
                                             $understand = $row[$understand_key_idx];
                                             $attempt = $row[$attempt_key_idx];
 
+                                            // ▼▼▼【デバッグ情報】どのデータで検索しているかを出力 ▼▼▼
+                                            echo "\n";
+                                            // ▲▲▲ デバッグ情報 ▲▲▲
+                            
+                                            $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ?";
+                                            $stmt = $conn->prepare($getTFQuery);
+
                                             $tf_value = null;
-                                            if ($stmt_tf) {
-                                                // bind_paramを 'ii' に変更
-                                                $stmt_tf->bind_param('ii', $uid, $wid);
-                                                // ▲▲▲ エラー修正箇所 ▲▲▲
-                                                $stmt_tf->execute();
-                                                $result_tf = $stmt_tf->get_result();
-                                                if ($result_tf) {
-                                                    if ($row_tf = $result_tf->fetch_assoc()) {
-                                                        $tf_value = $row_tf['TF'];
-                                                    }
-                                                    $result_tf->free();
+                                            if ($stmt) {
+                                                $stmt->bind_param('ii', $uid, $wid);
+                                                $stmt->execute();
+                                                $result = $stmt->get_result();
+                                                if ($row_tf = $result->fetch_assoc()) {
+                                                    $tf_value = $row_tf['TF'];
+                                                    // ▼▼▼【デバッグ情報】データが見つかった場合 ▼▼▼
+                                                    echo "\n";
+                                                    // ▲▲▲ デバッグ情報 ▲▲▲
+                                                } else {
+                                                    // ▼▼▼【デバッグ情報】データが見つからなかった場合 ▼▼▼
+                                                    echo "\n";
+                                                    // ▲▲▲ デバッグ情報 ▲▲▲
                                                 }
+                                                $stmt->close();
                                             }
 
                                             echo "<tr>";
@@ -273,24 +278,21 @@ if ($teacher_id) {
                                                 echo "N/A";
                                             }
                                             echo "</td>";
-                                            // 軌跡再現リンクの LogID には attempt の値を使用
-                                            echo "<td><a href=\"trajectory.php?UID=" . urlencode($uid) . "&QID=" . urlencode($wid) . "&LogID=" . urlencode($attempt) . "\" target=\"_blank\">" . translate('teachertrue.php_軌跡をみる') . "</a></td>";
+                                            echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "&LogID=" . urlencode($attempt) . "\" target=\"_blank\">" . translate('teachertrue.php_軌跡をみる') . "</a></td>";
                                             echo "</tr>";
                                         }
                                     } else {
                                         echo '<tr><td colspan="5">結果ファイルの形式が正しくありません。必要なカラムが見つかりません。</td></tr>';
-                                    }
-
-                                    if (isset($stmt_tf)) {
-                                        $stmt_tf->close();
                                     }
                                 }
                                 ?>
                             </tbody>
                         </table>
                     </div>
-                <?php else : ?>
-                    <p><?= translate('teachertrue.php_前回の推定結果はありません。') ?><a href="machinelearning_sample.php"><?= translate('teachertrue.php_こちら') ?></a><?= translate('teachertrue.php_から推定を実行してください。') ?></p>
+                <?php else: ?>
+                    <p><?= translate('teachertrue.php_前回の推定結果はありません。') ?><a
+                            href="machinelearning_sample.php"><?= translate('teachertrue.php_こちら') ?></a><?= translate('teachertrue.php_から推定を実行してください。') ?>
+                    </p>
                 <?php endif; ?>
             </section>
 
@@ -299,35 +301,92 @@ if ($teacher_id) {
                     <span class="close" onclick="closeFeatureModal()">&times;</span>
                     <h3><?= translate('teachertrue.php_175行目_特徴量を選択してください') ?></h3>
                     <form id="feature-form">
-                        <label><input type="checkbox" name="feature" value="notaccuracy"><?= translate('teachertrue.php_177行目_不正解率 (%)') ?><span class="info-icon" data-feature-name="notaccuracy">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="Time"><?= translate('teachertrue.php_178行目_解答時間 (秒)') ?><span class="info-icon" data-feature-name="Time">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="distance"><?= translate('teachertrue.php_179行目_距離') ?><span class="info-icon" data-feature-name="distance">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="averageSpeed"><?= translate('teachertrue.php_180行目_平均速度') ?><span class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="maxSpeed"><?= translate('teachertrue.php_181行目_最高速度') ?><span class="info-icon" data-feature-name="maxSpeed">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="thinkingTime"><?= translate('teachertrue.php_182行目_考慮時間') ?><span class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="answeringTime"><?= translate('teachertrue.php_183行目_第一ドロップ後解答時間') ?><span class="info-icon" data-feature-name="answeringTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="totalStopTime"><?= translate('teachertrue.php_184行目_合計静止時間') ?><span class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="maxStopTime"><?= translate('teachertrue.php_185行目_最大静止時間') ?><span class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime"><?= translate('teachertrue.php_186行目_合計DD間時間') ?><span class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime"><?= translate('teachertrue.php_187行目_最大DD間時間') ?><span class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDTime"><?= translate('teachertrue.php_188行目_合計DD時間') ?><span class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="minDDTime"><?= translate('teachertrue.php_189行目_最小DD時間') ?><span class="info-icon" data-feature-name="minDDTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="DDCount"><?= translate('teachertrue.php_190行目_合計DD回数') ?><span class="info-icon" data-feature-name="DDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="groupingDDCount"><?= translate('teachertrue.php_191行目_グループ化DD回数') ?><span class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="groupingCountbool"><?= translate('teachertrue.php_192行目_グループ化有無') ?><span class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCount"><?= translate('teachertrue.php_193行目_x軸Uターン回数') ?><span class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCount"><?= translate('teachertrue.php_194行目_y軸Uターン回数') ?><span class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count1"><?= translate('teachertrue.php_195行目_レジスタ➡レジスタへの移動回数') ?><span class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count2"><?= translate('teachertrue.php_196行目_レジスタ➡レジスタ外への移動回数') ?><span class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count3"><?= translate('teachertrue.php_197行目_レジスタ外➡レジスタへの移動回数') ?><span class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register01count1"><?= translate('teachertrue.php_198行目_レジスタ➡レジスタへの移動有無') ?><span class="info-icon" data-feature-name="register01count1">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_199行目_レジスタ➡レジスタ外への移動有無') ?><span class="info-icon" data-feature-name="register01count2">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register01count3"><?= translate('teachertrue.php_200行目_レジスタ外➡レジスタへの移動有無') ?><span class="info-icon" data-feature-name="register01count3">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="registerDDCount"><?= translate('teachertrue.php_201行目_レジスタに関する合計の移動回数') ?><span class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCountDD"><?= translate('teachertrue.php_202行目_x軸UターンD&D回数') ?><span class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('teachertrue.php_203行目_y軸UターンD&D回数') ?><span class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"><?= translate('teachertrue.php_204行目_最終ドロップ後時間') ?><span class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label><br>
-                        <button type="button" id="apply-features-btn"><?= translate('teachertrue.php_205行目_適用') ?></button>
+                        <label><input type="checkbox" name="feature"
+                                value="notaccuracy"><?= translate('teachertrue.php_177行目_不正解率 (%)') ?><span
+                                class="info-icon" data-feature-name="notaccuracy">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="Time"><?= translate('teachertrue.php_178行目_解答時間 (秒)') ?><span class="info-icon"
+                                data-feature-name="Time">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="distance"><?= translate('teachertrue.php_179行目_距離') ?><span class="info-icon"
+                                data-feature-name="distance">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="averageSpeed"><?= translate('teachertrue.php_180行目_平均速度') ?><span
+                                class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="maxSpeed"><?= translate('teachertrue.php_181行目_最高速度') ?><span class="info-icon"
+                                data-feature-name="maxSpeed">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="thinkingTime"><?= translate('teachertrue.php_182行目_考慮時間') ?><span
+                                class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="answeringTime"><?= translate('teachertrue.php_183行目_第一ドロップ後解答時間') ?><span
+                                class="info-icon" data-feature-name="answeringTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="totalStopTime"><?= translate('teachertrue.php_184行目_合計静止時間') ?><span
+                                class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="maxStopTime"><?= translate('teachertrue.php_185行目_最大静止時間') ?><span
+                                class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="totalDDIntervalTime"><?= translate('teachertrue.php_186行目_合計DD間時間') ?><span
+                                class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="maxDDIntervalTime"><?= translate('teachertrue.php_187行目_最大DD間時間') ?><span
+                                class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="maxDDTime"><?= translate('teachertrue.php_188行目_合計DD時間') ?><span
+                                class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="minDDTime"><?= translate('teachertrue.php_189行目_最小DD時間') ?><span
+                                class="info-icon" data-feature-name="minDDTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="DDCount"><?= translate('teachertrue.php_190行目_合計DD回数') ?><span class="info-icon"
+                                data-feature-name="DDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="groupingDDCount"><?= translate('teachertrue.php_191行目_グループ化DD回数') ?><span
+                                class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="groupingCountbool"><?= translate('teachertrue.php_192行目_グループ化有無') ?><span
+                                class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="xUturnCount"><?= translate('teachertrue.php_193行目_x軸Uターン回数') ?><span
+                                class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="yUturnCount"><?= translate('teachertrue.php_194行目_y軸Uターン回数') ?><span
+                                class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register_move_count1"><?= translate('teachertrue.php_195行目_レジスタ➡レジスタへの移動回数') ?><span
+                                class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register_move_count2"><?= translate('teachertrue.php_196行目_レジスタ➡レジスタ外への移動回数') ?><span
+                                class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register_move_count3"><?= translate('teachertrue.php_197行目_レジスタ外➡レジスタへの移動回数') ?><span
+                                class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register01count1"><?= translate('teachertrue.php_198行目_レジスタ➡レジスタへの移動有無') ?><span
+                                class="info-icon" data-feature-name="register01count1">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register01count2"><?= translate('teachertrue.php_199行目_レジスタ➡レジスタ外への移動有無') ?><span
+                                class="info-icon" data-feature-name="register01count2">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register01count3"><?= translate('teachertrue.php_200行目_レジスタ外➡レジスタへの移動有無') ?><span
+                                class="info-icon" data-feature-name="register01count3">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="registerDDCount"><?= translate('teachertrue.php_201行目_レジスタに関する合計の移動回数') ?><span
+                                class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="xUturnCountDD"><?= translate('teachertrue.php_202行目_x軸UターンD&D回数') ?><span
+                                class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="yUturnCountDD"><?= translate('teachertrue.php_203行目_y軸UターンD&D回数') ?><span
+                                class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="FromlastdropToanswerTime"><?= translate('teachertrue.php_204行目_最終ドロップ後時間') ?><span
+                                class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label><br>
+                        <button type="button"
+                            id="apply-features-btn"><?= translate('teachertrue.php_205行目_適用') ?></button>
                     </form>
                 </div>
             </div>
@@ -347,34 +406,89 @@ if ($teacher_id) {
                         </select>
                         <h3><?= translate('teachertrue.php_223行目_クラスタリング特徴量を選択してください') ?></h3>
 
-                        <label><input type="checkbox" name="feature" value="Time"><?= translate('teachertrue.php_226行目_解答時間 (秒)') ?><span class="info-icon" data-feature-name="Time">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="distance"><?= translate('teachertrue.php_227行目_距離') ?><span class="info-icon" data-feature-name="distance">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="averageSpeed"><?= translate('teachertrue.php_228行目_平均速度') ?><span class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="maxSpeed"><?= translate('teachertrue.php_229行目_最大速度') ?><span class="info-icon" data-feature-name="maxSpeed">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="thinkingTime"><?= translate('teachertrue.php_230行目_第一ドラッグ前時間') ?><span class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="answeringTime"><?= translate('teachertrue.php_231行目_第一ドラッグ後時間') ?><span class="info-icon" data-feature-name="answeringTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="totalStopTime"><?= translate('teachertrue.php_232行目_合計静止時間') ?><span class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="maxStopTime"><?= translate('teachertrue.php_233行目_最大静止時間') ?><span class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="totalDDIntervalTime"><?= translate('teachertrue.php_234行目_合計D&D間時間') ?><span class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDIntervalTime"><?= translate('teachertrue.php_235行目_最大D&D間時間') ?><span class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="maxDDTime"><?= translate('teachertrue.php_236行目_合計D&D時間') ?><span class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="minDDTime"><?= translate('teachertrue.php_237行目_最小D&D時間') ?><span class="info-icon" data-feature-name="minDDTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="DDCount"><?= translate('teachertrue.php_238行目_合計D&D回数') ?><span class="info-icon" data-feature-name="DDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="groupingDDCount"><?= translate('teachertrue.php_239行目_グループ化回数') ?><span class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="groupingCountbool"><?= translate('teachertrue.php_240行目_グループ化有無') ?><span class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCount"><?= translate('teachertrue.php_241行目_x軸Uターン回数') ?><span class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCount"><?= translate('teachertrue.php_242行目_y軸Uターン回数') ?><span class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count1"><?= translate('teachertrue.php_243行目_レジスタ➡レジスタへの移動回数') ?><span class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count2"><?= translate('teachertrue.php_244行目_レジスタ➡レジスタ外への移動回数') ?><span class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register_move_count3"><?= translate('teachertrue.php_245行目_レジスタ外➡レジスタへの移動回数') ?><span class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register01count1"><?= translate('teachertrue.php_246行目_レジスタ➡レジスタへの移動有無') ?><span class="info-icon" data-feature-name="register01count1">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register01count2"><?= translate('teachertrue.php_247行目_レジスタ➡レジスタ外への移動有無') ?><span class="info-icon" data-feature-name="register01count2">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="register01count3"><?= translate('teachertrue.php_248行目_レジスタ外➡レジスタへの移動有無') ?><span class="info-icon" data-feature-name="register01count3">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="registerDDCount"><?= translate('teachertrue.php_249行目_レジスタに関する合計の移動回数') ?><span class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="xUturnCountDD"><?= translate('teachertrue.php_250行目_x軸UターンD&D回数') ?><span class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="yUturnCountDD"><?= translate('teachertrue.php_251行目_y軸UターンD&D回数') ?><span class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature" value="FromlastdropToanswerTime"><?= translate('teachertrue.php_252行目_最終ドロップ後時間') ?><span class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label><br>
-                        <button type="button" id="apply-clustering-btn"><?= translate('teachertrue.php_254行目_適用') ?></button>
+                        <label><input type="checkbox" name="feature"
+                                value="Time"><?= translate('teachertrue.php_226行目_解答時間 (秒)') ?><span class="info-icon"
+                                data-feature-name="Time">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="distance"><?= translate('teachertrue.php_227行目_距離') ?><span class="info-icon"
+                                data-feature-name="distance">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="averageSpeed"><?= translate('teachertrue.php_228行目_平均速度') ?><span
+                                class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="maxSpeed"><?= translate('teachertrue.php_229行目_最大速度') ?><span class="info-icon"
+                                data-feature-name="maxSpeed">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="thinkingTime"><?= translate('teachertrue.php_230行目_第一ドラッグ前時間') ?><span
+                                class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="answeringTime"><?= translate('teachertrue.php_231行目_第一ドラッグ後時間') ?><span
+                                class="info-icon" data-feature-name="answeringTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="totalStopTime"><?= translate('teachertrue.php_232行目_合計静止時間') ?><span
+                                class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="maxStopTime"><?= translate('teachertrue.php_233行目_最大静止時間') ?><span
+                                class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="totalDDIntervalTime"><?= translate('teachertrue.php_234行目_合計D&D間時間') ?><span
+                                class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="maxDDIntervalTime"><?= translate('teachertrue.php_235行目_最大D&D間時間') ?><span
+                                class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="maxDDTime"><?= translate('teachertrue.php_236行目_合計D&D時間') ?><span
+                                class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="minDDTime"><?= translate('teachertrue.php_237行目_最小D&D時間') ?><span
+                                class="info-icon" data-feature-name="minDDTime">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="DDCount"><?= translate('teachertrue.php_238行目_合計D&D回数') ?><span class="info-icon"
+                                data-feature-name="DDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="groupingDDCount"><?= translate('teachertrue.php_239行目_グループ化回数') ?><span
+                                class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="groupingCountbool"><?= translate('teachertrue.php_240行目_グループ化有無') ?><span
+                                class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="xUturnCount"><?= translate('teachertrue.php_241行目_x軸Uターン回数') ?><span
+                                class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="yUturnCount"><?= translate('teachertrue.php_242行目_y軸Uターン回数') ?><span
+                                class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register_move_count1"><?= translate('teachertrue.php_243行目_レジスタ➡レジスタへの移動回数') ?><span
+                                class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register_move_count2"><?= translate('teachertrue.php_244行目_レジスタ➡レジスタ外への移動回数') ?><span
+                                class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register_move_count3"><?= translate('teachertrue.php_245行目_レジスタ外➡レジスタへの移動回数') ?><span
+                                class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register01count1"><?= translate('teachertrue.php_246行目_レジスタ➡レジスタへの移動有無') ?><span
+                                class="info-icon" data-feature-name="register01count1">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register01count2"><?= translate('teachertrue.php_247行目_レジスタ➡レジスタ外への移動有無') ?><span
+                                class="info-icon" data-feature-name="register01count2">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="register01count3"><?= translate('teachertrue.php_248行目_レジスタ外➡レジスタへの移動有無') ?><span
+                                class="info-icon" data-feature-name="register01count3">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="registerDDCount"><?= translate('teachertrue.php_249行目_レジスタに関する合計の移動回数') ?><span
+                                class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="xUturnCountDD"><?= translate('teachertrue.php_250行目_x軸UターンD&D回数') ?><span
+                                class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="yUturnCountDD"><?= translate('teachertrue.php_251行目_y軸UターンD&D回数') ?><span
+                                class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label><br>
+                        <label><input type="checkbox" name="feature"
+                                value="FromlastdropToanswerTime"><?= translate('teachertrue.php_252行目_最終ドロップ後時間') ?><span
+                                class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label><br>
+                        <button type="button"
+                            id="apply-clustering-btn"><?= translate('teachertrue.php_254行目_適用') ?></button>
                     </form>
                 </div>
             </div>
@@ -470,7 +584,7 @@ if ($teacher_id) {
 
     <script>
         // ページ全体のJavaScriptコード
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // --- 共通の関数定義 ---
             function createDualAxisChart(ctx, labels, data1, data2, label1, label2, color1, color2, yText1, yText2, chartArray, chartIndex) {
                 if (chartArray[chartIndex]) chartArray[chartIndex].destroy();
@@ -479,21 +593,21 @@ if ($teacher_id) {
                     data: {
                         labels: labels,
                         datasets: [{
-                                label: label1,
-                                data: data1,
-                                backgroundColor: color1,
-                                borderColor: color1,
-                                yAxisID: 'y1',
-                                borderWidth: 1
-                            },
-                            {
-                                label: label2,
-                                data: data2,
-                                backgroundColor: color2,
-                                borderColor: color2,
-                                yAxisID: 'y2',
-                                borderWidth: 1
-                            }
+                            label: label1,
+                            data: data1,
+                            backgroundColor: color1,
+                            borderColor: color1,
+                            yAxisID: 'y1',
+                            borderWidth: 1
+                        },
+                        {
+                            label: label2,
+                            data: data2,
+                            backgroundColor: color2,
+                            borderColor: color2,
+                            yAxisID: 'y2',
+                            borderWidth: 1
+                        }
                         ]
                     },
                     options: {
@@ -632,7 +746,7 @@ if ($teacher_id) {
         function openFeatureModal(index, isOverall) {
             selectedGroupIndex = index;
             document.getElementById('feature-modal').style.display = 'block';
-            document.getElementById('apply-features-btn').onclick = function() {
+            document.getElementById('apply-features-btn').onclick = function () {
                 applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
             };
         }
