@@ -164,49 +164,75 @@ if ($teacher_id) {
 
             <section class="previous-results">
                 <h2><?= translate('teachertrue.php_前回の迷い推定結果') ?></h2>
-                <?php if (!empty($results_csv_path) && file_exists($results_csv_path)): ?>
-                    <?php
-                    $students_in_result = [];
-                    $results_data = [];
-                    $header = [];
-                    if (($handle = fopen($results_csv_path, "r")) !== FALSE) {
-                        $header = fgetcsv($handle);
-                        $header_map = array_flip($header);
+                <?php
+                // === 新しい実装方針 ===
+                // 1. 教員の担当学生リストを取得
+                // 2. 学生たちの正誤情報を `linedata` から取得し、検索用マップを作成
+                // 3. 学生たちの迷い情報を `temporary_results` から取得
+                // 4. 迷い情報と正誤情報を組み合わせてテーブルを表示
 
-                        while (($data = fgetcsv($handle)) !== FALSE) {
-                            $results_data[] = $data;
-                            $student_uid_key = 'UID';
-                            if (isset($header_map[$student_uid_key]) && isset($header_map['Name'])) {
-                                $student_name_key = 'Name';
-                                $student_uid = $data[$header_map[$student_uid_key]];
-                                $student_name = $data[$header_map[$student_name_key]];
-                                if (!isset($students_in_result[$student_uid])) {
-                                    $students_in_result[$student_uid] = $student_name;
-                                }
-                            }
-                        }
-                        fclose($handle);
+                // --- ステップ1: 教員の担当学生リストを取得 ---
+                $student_uids = [];
+                if ($teacher_id) {
+                    $class_stmt = $conn->prepare("SELECT ClassID FROM ClassTeacher WHERE TID = ?");
+                    $class_stmt->bind_param("i", $teacher_id);
+                    $class_stmt->execute();
+                    $class_result = $class_stmt->get_result();
+                    $class_ids = [];
+                    while ($row = $class_result->fetch_assoc()) {
+                        $class_ids[] = $row['ClassID'];
                     }
-                    ?>
+                    $class_stmt->close();
 
-                    <?php if (!empty($students_in_result)): ?>
-                        <div class="student-info">
-                            <h3><?= translate('teachertrue.php_対象学習者') ?></h3>
-                            <p>
-                                <?php
-                                $student_list = [];
-                                foreach ($students_in_result as $uid => $name) {
-                                    $student_list[] = htmlspecialchars($name) . " (ID: " . htmlspecialchars($uid) . ")";
-                                }
-                                echo implode(', ', $student_list);
-                                ?>
-                            </p>
-                        </div>
-                    <?php endif; ?>
+                    if (!empty($class_ids)) {
+                        $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
+                        $types = str_repeat('i', count($class_ids));
+                        $student_stmt = $conn->prepare("SELECT uid FROM students WHERE ClassID IN ($placeholders)");
+                        $student_stmt->bind_param($types, ...$class_ids);
+                        $student_stmt->execute();
+                        $student_result = $student_stmt->get_result();
+                        while ($row = $student_result->fetch_assoc()) {
+                            $student_uids[] = $row['uid'];
+                        }
+                        $student_stmt->close();
+                    }
+                }
 
-                    <div id="table-container"
-                        style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
-                        <h3><?= translate('machineLearning_sample.php_100行目_迷い推定結果') ?></h3>
+                // --- ステップ2: `linedata` から正誤情報の検索用マップを作成 ---
+                $tf_lookup_map = [];
+                if (!empty($student_uids)) {
+                    $placeholders = implode(',', array_fill(0, count($student_uids), '?'));
+                    $types = str_repeat('i', count($student_uids));
+                    $get_all_tf_query = "SELECT UID, WID, TF FROM linedata WHERE UID IN ($placeholders)";
+                    $stmt = $conn->prepare($get_all_tf_query);
+                    if ($stmt) {
+                        $stmt->bind_param($types, ...$student_uids);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
+                        while ($db_row = $result->fetch_assoc()) {
+                            $key = "{$db_row['UID']}-{$db_row['WID']}";
+                            $tf_lookup_map[$key] = $db_row['TF'];
+                        }
+                        $stmt->close();
+                    }
+                }
+
+                // --- ステップ3: `temporary_results` から迷い情報を取得 ---
+                $ml_results = [];
+                if ($teacher_id) {
+                    // teacher_id に紐づく最新の迷い推定結果を取得
+                    $ml_stmt = $conn->prepare("SELECT UID, WID, Understand, attempt FROM temporary_results WHERE teacher_id = ? ORDER BY UID, WID, attempt");
+                    $ml_stmt->bind_param("i", $teacher_id);
+                    $ml_stmt->execute();
+                    $result = $ml_stmt->get_result();
+                    $ml_results = $result->fetch_all(MYSQLI_ASSOC);
+                    $ml_stmt->close();
+                }
+                ?>
+
+                <div id="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+                    <h3><?= translate('teachertrue.php_100行目_迷い推定結果') ?></h3>
+                    <?php if (!empty($ml_results)): ?>
                         <table id="results-table" class="results-table">
                             <thead>
                                 <tr>
@@ -219,48 +245,22 @@ if ($teacher_id) {
                             </thead>
                             <tbody>
                                 <?php
-                                if (!empty($results_data)) {
-                                    $uid_key_idx = isset($header_map['UID']) ? $header_map['UID'] : -1;
-                                    $wid_key_idx = isset($header_map['WID']) ? $header_map['WID'] : -1;
-                                    $understand_key_idx = isset($header_map['Understand']) ? $header_map['Understand'] : -1;
-                                    $attempt_key_idx = isset($header_map['attempt']) ? $header_map['attempt'] : -1;
+                                // --- ステップ4: 迷い情報と正誤情報を組み合わせてテーブルを表示 ---
+                                foreach ($ml_results as $row):
+                                    $uid = $row['UID'];
+                                    $wid = $row['WID'];
+                                    $understand = $row['Understand'];
+                                    $attempt = $row['attempt'];
 
-                                    if ($uid_key_idx > -1 && $wid_key_idx > -1 && $understand_key_idx > -1 && $attempt_key_idx > -1) {
-                                        foreach ($results_data as $row) {
-                                            $uid = $row[$uid_key_idx];
-                                            $wid = $row[$wid_key_idx];
-                                            $understand = $row[$understand_key_idx];
-                                            $attempt = $row[$attempt_key_idx];
-
-                                            // ▼▼▼【デバッグ情報】どのデータで検索しているかを出力 ▼▼▼
-                                            echo "\n";
-                                            // ▲▲▲ デバッグ情報 ▲▲▲
-                            
-                                            $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ?";
-                                            $stmt = $conn->prepare($getTFQuery);
-
-                                            $tf_value = null;
-                                            if ($stmt) {
-                                                $stmt->bind_param('ii', $uid, $wid);
-                                                $stmt->execute();
-                                                $result = $stmt->get_result();
-                                                if ($row_tf = $result->fetch_assoc()) {
-                                                    $tf_value = $row_tf['TF'];
-                                                    // ▼▼▼【デバッグ情報】データが見つかった場合 ▼▼▼
-                                                    echo "\n";
-                                                    // ▲▲▲ デバッグ情報 ▲▲▲
-                                                } else {
-                                                    // ▼▼▼【デバッグ情報】データが見つからなかった場合 ▼▼▼
-                                                    echo "\n";
-                                                    // ▲▲▲ デバッグ情報 ▲▲▲
-                                                }
-                                                $stmt->close();
-                                            }
-
-                                            echo "<tr>";
-                                            echo "<td>" . htmlspecialchars($uid) . "</td>";
-                                            echo "<td>" . htmlspecialchars($wid) . "-" . htmlspecialchars($attempt) . "</td>";
-                                            echo "<td>";
+                                    // マップから対応する正誤情報を検索
+                                    $lookup_key = "{$uid}-{$wid}";
+                                    $tf_value = $tf_lookup_map[$lookup_key] ?? null;
+                                ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($uid) ?></td>
+                                        <td><?= htmlspecialchars($wid) ?>-<?= htmlspecialchars($attempt) ?></td>
+                                        <td>
+                                            <?php
                                             if ($understand == 4) {
                                                 echo translate('machineLearning_sample.php_1213行目_迷い無し');
                                             } elseif ($understand == 2) {
@@ -268,32 +268,32 @@ if ($teacher_id) {
                                             } else {
                                                 echo htmlspecialchars($understand);
                                             }
-                                            echo "</td>";
-                                            echo "<td>";
-                                            if ($tf_value === '1') {
+                                            ?>
+                                        </td>
+                                        <td>
+                                            <?php
+                                            if ($tf_value === '1' || $tf_value === 1) {
                                                 echo translate('machineLearning_sample.php_1222行目_正解');
-                                            } elseif ($tf_value === '0') {
+                                            } elseif ($tf_value === '0' || $tf_value === 0) {
                                                 echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1224行目_不正解') . "</span>";
                                             } else {
                                                 echo "N/A";
                                             }
-                                            echo "</td>";
-                                            echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "&LogID=" . urlencode($attempt) . "\" target=\"_blank\">" . translate('teachertrue.php_軌跡をみる') . "</a></td>";
-                                            echo "</tr>";
-                                        }
-                                    } else {
-                                        echo '<tr><td colspan="5">結果ファイルの形式が正しくありません。必要なカラムが見つかりません。</td></tr>';
-                                    }
-                                }
-                                ?>
+                                            ?>
+                                        </td>
+                                        <td>
+                                            <a href="./mousemove/mousemove.php?UID=<?= urlencode($uid) ?>&WID=<?= urlencode($wid) ?>&LogID=<?= urlencode($attempt) ?>" target="_blank">
+                                                <?= translate('teachertrue.php_軌跡再現') ?>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
                             </tbody>
                         </table>
-                    </div>
-                <?php else: ?>
-                    <p><?= translate('teachertrue.php_前回の推定結果はありません。') ?><a
-                            href="machinelearning_sample.php"><?= translate('teachertrue.php_こちら') ?></a><?= translate('teachertrue.php_から推定を実行してください。') ?>
-                    </p>
-                <?php endif; ?>
+                    <?php else: ?>
+                        <p><?= translate('teachertrue.php_前回の推定結果はありません。') ?><a href="machinelearning_sample.php"><?= translate('teachertrue.php_こちら') ?></a><?= translate('teachertrue.php_から推定を実行してください。') ?></p>
+                    <?php endif; ?>
+                </div>
             </section>
 
             <div id="feature-modal" class="modal">
@@ -575,7 +575,10 @@ if ($teacher_id) {
                     <a href='./create_ja/new.php?mode=0'><?= translate('teachertrue.php_1078行目_新規日本語問題作成') ?></a>
                 </div>
                 <div id="createtest-botton" class="button1">
-                    <a href='create-test.php'><?= translate('teachertrue.php_1080行目_新規テスト作成') ?></a>
+                    <a href='create-test.php'><?= translate('teachertrue.php_1080行目_新規英語テスト作成') ?></a>
+                </div>
+                <div id="createtest-botton" class="button1">
+                    <a href='create-test-ja.php'><?= translate('teachertrue.php_1081行目_新規日本語テスト作成') ?></a>
                 </div>
             </div>
 
@@ -584,7 +587,7 @@ if ($teacher_id) {
 
     <script>
         // ページ全体のJavaScriptコード
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             // --- 共通の関数定義 ---
             function createDualAxisChart(ctx, labels, data1, data2, label1, label2, color1, color2, yText1, yText2, chartArray, chartIndex) {
                 if (chartArray[chartIndex]) chartArray[chartIndex].destroy();
@@ -593,21 +596,21 @@ if ($teacher_id) {
                     data: {
                         labels: labels,
                         datasets: [{
-                            label: label1,
-                            data: data1,
-                            backgroundColor: color1,
-                            borderColor: color1,
-                            yAxisID: 'y1',
-                            borderWidth: 1
-                        },
-                        {
-                            label: label2,
-                            data: data2,
-                            backgroundColor: color2,
-                            borderColor: color2,
-                            yAxisID: 'y2',
-                            borderWidth: 1
-                        }
+                                label: label1,
+                                data: data1,
+                                backgroundColor: color1,
+                                borderColor: color1,
+                                yAxisID: 'y1',
+                                borderWidth: 1
+                            },
+                            {
+                                label: label2,
+                                data: data2,
+                                backgroundColor: color2,
+                                borderColor: color2,
+                                yAxisID: 'y2',
+                                borderWidth: 1
+                            }
                         ]
                     },
                     options: {
@@ -746,7 +749,7 @@ if ($teacher_id) {
         function openFeatureModal(index, isOverall) {
             selectedGroupIndex = index;
             document.getElementById('feature-modal').style.display = 'block';
-            document.getElementById('apply-features-btn').onclick = function () {
+            document.getElementById('apply-features-btn').onclick = function() {
                 applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
             };
         }
