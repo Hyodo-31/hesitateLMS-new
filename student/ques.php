@@ -202,7 +202,14 @@ if (!isset($_SESSION["MemberName"])) {
         nEnd = 104;
     }
         */
+    
 
+    // ======================= ▼▼▼ 修正点 1/3 ▼▼▼ =======================
+    // 日本語の正解文を保存するためのグローバル変数を追加
+    var JapaneseAnswer = "";
+    // ======================= ▲▲▲ 修正点 1/3 ▲▲▲ =======================
+
+    var Qid = <?php echo $Qid = $_GET['Qid']; ?> //LineQuesFormのボタンのURL引数
 
 </script>
 <?php
@@ -211,6 +218,23 @@ if (!isset($_SESSION["MemberName"])) {
 require "../dbc.php";
 $_SESSION['Qid'] = $_GET['Qid'];
 $Qid = $_GET['Qid'];
+
+// ▼▼▼【ここから追加】▼▼▼
+// testsテーブルから言語タイプを取得
+$lang_type = 'en'; // デフォルトは英語
+$sql_lang = "SELECT lang_type FROM tests WHERE id = ?";
+$stmt_lang = $conn->prepare($sql_lang);
+$stmt_lang->bind_param('i', $Qid);
+$stmt_lang->execute();
+$result_lang = $stmt_lang->get_result();
+if ($row_lang = $result_lang->fetch_assoc()) {
+    if (!empty($row_lang['lang_type'])) {
+        $lang_type = $row_lang['lang_type'];
+    }
+}
+$stmt_lang->close();
+// ▲▲▲【ここまで追加】▲▲▲
+
 $sql = "select t_q.OID,t_q.WID 
             from test_questions t_q
             WHERE t_q.test_id = ?";
@@ -227,6 +251,10 @@ $stmt->close();
 ?>
 
 <script type="text/javascript">
+    // ▼▼▼【ここに追加】▼▼▼
+    // PHPから受け取った言語タイプをJavaScript変数に格納
+    var testLangType = "<?= $lang_type ?>";
+    // ▲▲▲【ここに追加】▲▲▲
     nEnd = <?php echo $nEnd; ?>
 
 
@@ -301,7 +329,7 @@ $stmt->close();
 
         //解答データのうち最大のOIDを計算。要は次に出題する問題を算出する。
         var $a = "a"; //モード制御用
-        $params = 'param1=' + encodeURIComponent($a);
+        $params = 'param1=' + encodeURIComponent($a) + '&lang=' + encodeURIComponent(testLangType);
         new Ajax.Request(URL + 'load.php',
             {
                 method: 'get',
@@ -334,7 +362,8 @@ $stmt->close();
         var $Load = "load";
         var $w = "w";
         var $params = 'param1=' + encodeURIComponent(OID)
-            + '&param2=' + encodeURIComponent($Load);
+            + '&param2=' + encodeURIComponent($Load)
+            + '&lang=' + encodeURIComponent(testLangType);
         console.log("$wの時:" + $params);
         new Ajax.Request(URL + 'dbsyori.php', //本番用
             {
@@ -356,7 +385,7 @@ $stmt->close();
                 WID = res.responseText - 0;
                 console.log("WID = " + WID);
                 $q = "q";
-                var $params_for_attempt = 'param1=' + encodeURIComponent(WID)
+                var $params_for_attempt = 'param1=' + encodeURIComponent(WID) + '&lang=' + encodeURIComponent(testLangType); //注意点
                 new Ajax.Request(URL + 'getattempt.php', //本番用
                     {
                         method: 'get',
@@ -369,7 +398,8 @@ $stmt->close();
                     console.log("attempt = " + attempt);
                 }
                 var $params = 'param1=' + encodeURIComponent(WID)
-                    + '&param2=' + encodeURIComponent($q);
+                    + '&param2=' + encodeURIComponent($q)
+                    + '&lang=' + encodeURIComponent(testLangType);
                 console.log("$qの時:" + $params);
                 new Ajax.Request(URL + 'dbsyori.php', //本番用
                     {
@@ -388,7 +418,8 @@ $stmt->close();
                     Answer = str1.toUpperCase() + str2; //完全な答え
                     $q = "q1";
                     $params = 'param1=' + encodeURIComponent(WID)
-                        + '&param2=' + encodeURIComponent($q);
+                        + '&param2=' + encodeURIComponent($q)
+                        + '&lang=' + encodeURIComponent(testLangType);
                     new Ajax.Request(URL + 'dbsyori.php', //本番用
                         {
                             method: 'get',
@@ -401,7 +432,8 @@ $stmt->close();
                         Mylabels = req1.responseText.split("|");
                         $d = "d";
                         $params = 'param1=' + encodeURIComponent(WID)
-                            + '&param2=' + encodeURIComponent($d);
+                            + '&param2=' + encodeURIComponent($d)
+                            + '&lang=' + encodeURIComponent(testLangType);
                         new Ajax.Request(URL + 'dbsyori.php', //本番用
                             {
                                 method: 'get',
@@ -413,7 +445,8 @@ $stmt->close();
                             MylabelsD = req2.responseText.split("|");
                             $f = "f";
                             $params = 'param1=' + encodeURIComponent(WID)
-                                + '&param2=' + encodeURIComponent($f);
+                                + '&param2=' + encodeURIComponent($f)
+                                + '&lang=' + encodeURIComponent(testLangType);
                             new Ajax.Request(URL + 'dbsyori.php', //本番用
                                 {
                                     method: 'get',
@@ -512,7 +545,8 @@ $stmt->close();
                                 //日本文の取得
                                 var $j = "j";
                                 $params = 'param1=' + encodeURIComponent(WID)
-                                    + '&param2=' + encodeURIComponent($j);
+                                    + '&param2=' + encodeURIComponent($j)
+                                    + '&lang=' + encodeURIComponent(testLangType);
                                 new Ajax.Request(URL + 'dbsyori.php',
                                     {
                                         method: 'get',
@@ -520,46 +554,69 @@ $stmt->close();
                                         onFailure: function (req) { getError(req, "dbsyori.php") },
                                         parameters: $params
                                     });
-                                function getJapanese(res) {
+                                // ======================= ▼▼▼ 修正点 2/3 ▼▼▼ =======================
+                            // getJapanese関数を修正
+                            function getJapanese(res) {
+                                if (testLangType === 'ja') {
+                                    // 【日本語テストの場合】
+                                    // １．正解判定用に、dbsyori.phpから受け取った「日本語の正解文」をグローバル変数に保存
+                                    JapaneseAnswer = res.responseText;
+                                    
+                                    // ２．ヒント欄には、先立って取得済みの「対応する英文（変数Answer）」を表示
+                                    document.getElementById("RichTextBox1").innerHTML = Answer;
+
+                                    // ３．ヒント欄のラベルを「英文」に変更
+                                    document.getElementById("reference_text_label").innerHTML = "<?= translate('英文') ?>";
+
+                                } else {
+                                    // 【英語テストの場合】
+                                    // 従来通り、dbsyori.phpから受け取った「日本語訳」をヒント欄に表示
                                     document.getElementById("RichTextBox1").innerHTML = res.responseText;
-                                    //-------------------------------------
-                                    //別解の取得(得点は10点の物）
-                                    var $s1 = "s1";
-                                    $params = 'param1=' + encodeURIComponent(WID)
-                                        + '&param2=' + encodeURIComponent($s1);
-                                    new Ajax.Request(URL + 'dbsyori.php',
-                                        {
-                                            method: 'get',
-                                            onSuccess: getSentence1,
-                                            onFailure: function (req) { getError(req, "dbsyori.php") },
-                                            parameters: $params
-                                        });
-                                    function getSentence1(res) {
-                                        if (res.responseText != "") {
-                                            str1 = res.responseText.substr(0, 1);
-                                            str2 = res.responseText.substr(1);
-                                            Answer1 = str1.toUpperCase() + str2; //先頭を大文字に変更
-                                            //英文を取得
-                                            var $s2 = "s2";
-                                            $params = 'param1=' + encodeURIComponent(WID)
-                                                + '&param2=' + encodeURIComponent($s2);
-                                            new Ajax.Request(URL + 'dbsyori.php',
-                                                {
-                                                    method: 'get',
-                                                    onSuccess: getSentence2,
-                                                    onFailure: function (req) { getError(req, "dbsyori.php") },
-                                                    parameters: $params
-                                                });
-                                            function getSentence2(res) {
-                                                if (res.responseText != "") {//NULL以外だったら
-                                                    str1 = res.responseText.substr(0, 1);
-                                                    str2 = res.responseText.substr(1);
-                                                    Answer2 = str1.toUpperCase() + str2;
-                                                } //ifres.responseText != ""ここまで------------------------------------
-                                            } // getSentence2ここまで--------------------------------------------------------
+                                    // ラベルを「日本文」に戻す
+                                    document.getElementById("reference_text_label").innerHTML = "<?= translate('ques.php_1554行目_日本文') ?>";
+                                }
+
+                                //-------------------------------------
+                                //別解の取得(得点は10点の物）
+                                var $s1 = "s1";
+                                $params = 'param1=' + encodeURIComponent(WID)
+                                    + '&param2=' + encodeURIComponent($s1)
+                                    + '&lang=' + encodeURIComponent(testLangType);
+                                new Ajax.Request(URL + 'dbsyori.php',
+                                    {
+                                        method: 'get',
+                                        onSuccess: getSentence1,
+                                        onFailure: function (req) { getError(req, "dbsyori.php") },
+                                        parameters: $params
+                                    });
+                                function getSentence1(res) {
+                                    if (res.responseText != "") {
+                                        str1 = res.responseText.substr(0, 1);
+                                        str2 = res.responseText.substr(1);
+                                        Answer1 = str1.toUpperCase() + str2; //先頭を大文字に変更
+                                        //英文を取得
+                                        var $s2 = "s2";
+                                        $params = 'param1=' + encodeURIComponent(WID)
+                                            + '&param2=' + encodeURIComponent($s2)
+                                            + '&lang=' + encodeURIComponent(testLangType);
+                                        new Ajax.Request(URL + 'dbsyori.php',
+                                            {
+                                                method: 'get',
+                                                onSuccess: getSentence2,
+                                                onFailure: function (req) { getError(req, "dbsyori.php") },
+                                                parameters: $params
+                                            });
+                                        function getSentence2(res) {
+                                            if (res.responseText != "") {//NULL以外だったら
+                                                str1 = res.responseText.substr(0, 1);
+                                                str2 = res.responseText.substr(1);
+                                                Answer2 = str1.toUpperCase() + str2;
+                                            }
                                         }
-                                    } // getSentence1ここまで---------------------------------------------------
-                                } // getJapaneseここまで--------------------------------------------------------
+                                    }
+                                }
+                            } // getJapaneseここまで
+                            // ======================= ▲▲▲ 修正点 2/3 ▲▲▲ =======================
                                 Mouse_Flag = true;
                             } //Fix関数ここまで--------------------------------------------------------
                         }
@@ -713,7 +770,8 @@ $stmt->close();
                 + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
                 + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
                 + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-                + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
+                + '&param8=' + encodeURIComponent($Mouse_Data["Label"])
+                + '&lang=' + encodeURIComponent(testLangType);
             new Ajax.Request(URL + 'tmpfile.php',
                 {
                     method: 'get',
@@ -1135,7 +1193,8 @@ $stmt->close();
             + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
             + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
             + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-            + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
+            + '&param8=' + encodeURIComponent($Mouse_Data["Label"])
+            + '&lang=' + encodeURIComponent(testLangType);
         new Ajax.Request(URL + 'tmpfile.php',
             {
                 method: 'get',
@@ -1248,7 +1307,8 @@ $stmt->close();
             + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
             + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
             + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-            + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
+            + '&param8=' + encodeURIComponent($Mouse_Data["Label"])
+            + '&lang=' + encodeURIComponent(testLangType);
         new Ajax.Request(URL + 'tmpfile.php',
             {
                 method: 'get',
@@ -1500,7 +1560,8 @@ $stmt->close();
             + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
             + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
             + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-            + '&param8=' + encodeURIComponent($Mouse_Data["Label"]);
+            + '&param8=' + encodeURIComponent($Mouse_Data["Label"])
+            + '&lang=' + encodeURIComponent(testLangType);
         new Ajax.Request(URL + 'tmpfile.php',
             {
                 method: 'get',
@@ -1881,22 +1942,41 @@ $stmt->close();
 
     //正誤表示
     function print_answer() {
-        if (MyAnswer == Answer || MyAnswer == Answer1 || MyAnswer == Answer2) {
+        // ======================= ▼▼▼ 修正点 3/3 ▼▼▼ =======================
+        var correctAnswer;
+        var isCorrect = false;
+
+        if (testLangType === 'ja') {
+            // 【日本語テストの場合】
+            // 正解文として、保存しておいた「日本語の正解文」を使用
+            correctAnswer = JapaneseAnswer;
+            // 日本語の解答(MyAnswer)と日本語の正解文(correctAnswer)を比較
+            // ※現時点では別解(Answer1, Answer2)は英語のみのため、比較対象外とする
+            isCorrect = (MyAnswer == correctAnswer);
+        } else {
+            // 【英語テストの場合】
+            // 従来通り、英語の正解文を使用
+            correctAnswer = Answer;
+            isCorrect = (MyAnswer == correctAnswer || MyAnswer == Answer1 || MyAnswer == Answer2);
+        }
+
+        if (isCorrect) {
             document.getElementById("RichTextBox3").innerHTML = <?= json_encode(translate('ques.php_890行目_正誤O')) ?>;
             YAHOO.util.Dom.setStyle("RichTextBox3", "color", "red");
-            //DBに登録するときは１とするように変更が必要
             TF = 1;
-            document.getElementById("RichTextBox2").innerHTML = <?= json_encode(translate('ques.php_893行目_正解')) ?> + Answer;
+            // 表示する正解文を、言語に応じて切り替えた `correctAnswer` 変数にする
+            document.getElementById("RichTextBox2").innerHTML = <?= json_encode(translate('ques.php_893行目_正解')) ?> + correctAnswer;
             YAHOO.util.Dom.setStyle("RichTextBox2", "display", "block");
             AllCorrectAns += 1;
         } else {
             document.getElementById("RichTextBox3").innerHTML = <?= json_encode(translate('ques.php_896行目_正誤X')) ?>;
             YAHOO.util.Dom.setStyle("RichTextBox3", "color", "blue");
-            //DBに登録するときは0とするように変更が必要
             TF = 0;
-            document.getElementById("RichTextBox2").innerHTML = <?= json_encode(translate('ques.php_893行目_正解')) ?> + Answer;
+            // 表示する正解文を、言語に応じて切り替えた `correctAnswer` 変数にする
+            document.getElementById("RichTextBox2").innerHTML = <?= json_encode(translate('ques.php_893行目_正解')) ?> + correctAnswer;
             YAHOO.util.Dom.setStyle("RichTextBox2", "display", "block");
         }
+        // ======================= ▲▲▲ 修正点 3/3 ▲▲▲ =======================
         YAHOO.util.Dom.setStyle("RichTextBox3", "display", "block");
         YAHOO.util.Dom.setStyle("choose2", "display", "none");
 
@@ -1920,7 +2000,8 @@ $stmt->close();
             + '&param8=' + encodeURIComponent($QAData["hesitate1"])
             + '&param9=' + encodeURIComponent($QAData["hesitate2"])
             + '&param10=' + encodeURIComponent($QAData["comments"])
-            + '&param11=' + encodeURIComponent($QAData["check"]);
+            + '&param11=' + encodeURIComponent($QAData["check"])
+            + '&lang=' + encodeURIComponent(testLangType);
 
         if (!(linedataFlg)) {
             linedataFlg = true;
@@ -1937,7 +2018,8 @@ $stmt->close();
                 //ここでuser_progressを更新する
                 $u = "u";
                 $params = 'param1=' + encodeURIComponent(OID)
-                    + '&param2=' + encodeURIComponent($u);
+                    + '&param2=' + encodeURIComponent($u)
+                    + '&lang=' + encodeURIComponent(testLangType);
                 new Ajax.Request(URL + 'dbsyori.php', //本番用
                     {
                         method: 'get',
@@ -2519,7 +2601,7 @@ $stmt->close();
     <font color="red" style="position:absolute;left:12;top:7"><?= translate('ques.php_1554行目_日本文') ?></font>
     <div id="RichTextBox1" style="background-color:#ffa500;position:absolute;
      left:12;top:27;width:731;height:36;border-style:inset">
-        <?= translate('ques.php_1556行目_ここに日本文が表示されます') ?>
+        <?= translate('ques.php_1556行目_ここに訳文が表示されます') ?>
     </div>
     <div id="RichTextBox2" style="background-color:#a1ffa1;position:absolute;
      left:12;top:240;width:650;height:67;border-style:inset;display:none"><?= translate('ques.php_1559行目_ここに正解を表示') ?>

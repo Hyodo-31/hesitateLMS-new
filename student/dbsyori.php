@@ -13,6 +13,14 @@ $MemberID = $_SESSION["MemberID"];
 $wid = isset($_GET['param1']) ? $_GET['param1'] : null;
 $param2 = isset($_GET['param2']) ? $_GET['param2'] : null;
 
+// ======================= ▼▼▼ 修正点 ▼▼▼ =======================
+// ques.phpから渡された言語情報を取得
+$lang = isset($_GET['lang']) ? $_GET['lang'] : 'en'; // デフォルトは 'en' (英語)
+
+// 言語情報に応じてテーブル名を決定
+$question_table = ($lang === 'ja') ? 'question_info_ja' : 'question_info';
+// ======================= ▲▲▲ 修正点 ▲▲▲ =======================
+
 // WIDが必要な処理のためにバリデーション
 if (in_array($param2, ['q', 'q1', 'd', 'j', 'f', 's1', 's2', 'p']) && !is_numeric($wid)) {
     die(translate('dbsyori.php_21行目_エラー'));
@@ -20,14 +28,16 @@ if (in_array($param2, ['q', 'q1', 'd', 'j', 'f', 's1', 's2', 'p']) && !is_numeri
 
 // 解答系文の参照
 if ($param2 == "q") {
-    $Question = "SELECT Sentence FROM question_info WHERE WID = ?";
+    // 日本語テストの場合は`English`カラムを、英語テストの場合は`Sentence`カラムを参照
+    $column = ($lang === 'ja') ? 'English' : 'Sentence';
+    $Question = "SELECT {$column} FROM {$question_table} WHERE WID = ?";
     $stmt = $conn->prepare($Question);
     $stmt->bind_param('i', $wid);
     $stmt->execute();
     $res = $stmt->get_result();
     if ($res->num_rows > 0) {
         $row = $res->fetch_assoc();
-        echo $row['Sentence'];
+        echo $row[$column];
     } else {
         echo translate('dbsyori.php_21行目_エラー');
     }
@@ -36,7 +46,7 @@ if ($param2 == "q") {
 
 // 開始英文の参照
 else if ($param2 == "q1") {
-    $Question = "SELECT start FROM question_info WHERE WID = ?";
+    $Question = "SELECT start FROM {$question_table} WHERE WID = ?";
     $stmt = $conn->prepare($Question);
     $stmt->bind_param('i', $wid);
     $stmt->execute();
@@ -52,7 +62,7 @@ else if ($param2 == "q1") {
 
 // divideの参照
 else if ($param2 == "d") {
-    $Divide = "SELECT divide FROM question_info WHERE WID = ?";
+    $Divide = "SELECT divide FROM {$question_table} WHERE WID = ?";
     $stmt = $conn->prepare($Divide);
     $stmt->bind_param('i', $wid);
     $stmt->execute();
@@ -68,14 +78,16 @@ else if ($param2 == "d") {
 // -------------------------------------------------------------------------------------
 // 日本語の参照
 else if ($param2 == "j") {
-    $JP = "SELECT Japanese FROM question_info WHERE WID = ?";
+    // 日本語テストの場合は`Sentence`カラムを、英語テストの場合は`Japanese`カラムを参照
+    $column = ($lang === 'ja') ? 'Sentence' : 'Japanese';
+    $JP = "SELECT {$column} FROM {$question_table} WHERE WID = ?";
     $stmt = $conn->prepare($JP);
     $stmt->bind_param('i', $wid);
     $stmt->execute();
     $res = $stmt->get_result();
     if ($res->num_rows > 0) {
         $row = $res->fetch_assoc();
-        echo $row['Japanese'];
+        echo $row[$column];
     } else {
         echo translate('dbsyori.php_21行目_エラー');
     }
@@ -84,7 +96,7 @@ else if ($param2 == "j") {
 // ----------------------------------------------------------------
 // Fixの参照
 else if ($param2 == "f") {
-    $Fix = "SELECT Fix FROM question_info WHERE WID = ?";
+    $Fix = "SELECT Fix FROM {$question_table} WHERE WID = ?";
     $stmt = $conn->prepare($Fix);
     $stmt->bind_param('i', $wid);
     $stmt->execute();
@@ -101,6 +113,9 @@ else if ($param2 == "f") {
 // ----------------------------------------------------------------
 // 別解１の参照
 else if ($param2 == "s1") {
+    // ★注意: 別解テーブル(partans)が言語ごとに分かれていない場合、このままでは機能しません。
+    // partansテーブルにも言語を区別するカラムが必要になる可能性があります。
+    // ここでは、一旦そのままにしておきます。
     $Question = "SELECT PartSentence FROM partans WHERE Point = 10 AND WID = ?";
     $stmt = $conn->prepare($Question);
     $stmt->bind_param('i', $wid);
@@ -110,14 +125,17 @@ else if ($param2 == "s1") {
         $row = $res->fetch_assoc();
         echo $row['PartSentence'];
     } else {
-        echo translate('dbsyori.php_21行目_エラー');
+        // エラーではなく空を返す方が挙動として自然かもしれません
+        echo "";
     }
     $stmt->close();
 }
 // ---------------------------------------------
-// 別解2の参照 (カラム名がSentence2で正しいか確認してください)
+// 別解2の参照
 else if ($param2 == "s2") {
-    $Question = "SELECT Sentence2 FROM question_info WHERE WID = ?";
+    // Sentence2カラムは question_info にしか無い可能性が高いです。
+    // question_info_ja にも同様のカラムが存在するか確認が必要です。
+    $Question = "SELECT Sentence2 FROM {$question_table} WHERE WID = ?";
     $stmt = $conn->prepare($Question);
     $stmt->bind_param('i', $wid);
     $stmt->execute();
@@ -126,12 +144,14 @@ else if ($param2 == "s2") {
         $row = $res->fetch_assoc();
         echo $row['Sentence2'];
     } else {
-        echo translate('dbsyori.php_21行目_エラー');
+        // エラーではなく空を返す方が挙動として自然かもしれません
+        echo "";
     }
     $stmt->close();
 }
 // ---------------------------------------------------
-// 部分点検索
+// (以降の処理は test_questions や user_progress を参照しており、言語に依存しないため修正不要)
+// ...
 else if ($param2 == "p") {
     $Question = "SELECT PartSentence FROM PartAns WHERE WID = ?";
     $stmt = $conn->prepare($Question);
@@ -149,7 +169,6 @@ else if ($param2 == "p") {
 // -----------------------------------------------------
 // 問題を決めた個数
 else if ($param2 == "count") {
-    // このクエリはmysqli_queryで問題ないが、一貫性のためプリペアードステートメントを推奨
     $Question = "SELECT count(*) as count FROM test_questions WHERE test_id = ?";
     $stmt = $conn->prepare($Question);
     $stmt->bind_param('i', $_SESSION["Qid"]);

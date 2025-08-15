@@ -46,10 +46,8 @@
                     // テスト名を取得
                     $test_name = $_POST['test_name'];
 
-                    // ★ 追加：対象の種類を取得（'class'または'group'）
                     $target_type = $_POST['target_type'];
 
-                    // ★ 修正：選択された対象に応じて、対象IDを決定する
                     if ($target_type == 'class') {
                         $target_group = $_POST['class_id'];
                     } elseif ($target_type == 'group') {
@@ -63,10 +61,13 @@
                     // テスト名、対象ID、及び選択された問題があるかチェック
                     if (!empty($test_name) && !empty($selected_questions) && $target_group !== null) {
 
-                        // ★ 修正：テスト作成時に対象の種類も一緒に保存するため、INSERT文にtarget_typeを追加
-                        // ※ これに伴い、testsテーブルには target_type カラム（例：ENUM('class','group')）を追加しておく必要があります。
-                        $stmt = $conn->prepare("INSERT INTO tests (test_name, teacher_id, target_group, target_type) VALUES (?, ?, ?, ?)");
-                        $stmt->bind_param('ssis', $test_name, $teacher_id, $target_group, $target_type);
+                        // ======================= ▼▼▼ 修正点 ▼▼▼ =======================
+                        // testsテーブルに言語タイプ 'ja' を保存する
+                        $lang_type = 'ja'; 
+                        $stmt = $conn->prepare("INSERT INTO tests (test_name, teacher_id, target_group, target_type, lang_type) VALUES (?, ?, ?, ?, ?)");
+                        $stmt->bind_param('ssiss', $test_name, $teacher_id, $target_group, $target_type, $lang_type);
+                        // ======================= ▲▲▲ 修正点 ▲▲▲ =======================
+
                         $stmt->execute();
                         $test_id = $stmt->insert_id; // 挿入されたテストIDを取得
                         $stmt->close();
