@@ -57,9 +57,9 @@ if ($teacher_id) {
         <div class="logo"><?= translate('teachertrue.php_21行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="#"><?= translate('teachertrue.php_24行目_ホーム') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('teachertrue.php_25行目_迷い推定・機械学習') ?></a></li>
-                <li><a href="register-student.php"><?= translate('teachertrue.php_30行目_新規学生登録') ?></a></li>
+                <!-- <li><a href="#"><?= translate('teachertrue.php_24行目_ホーム') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('teachertrue.php_25行目_迷い推定・機械学習') ?></a></li> -->
+                <!-- <li><a href="register-student.php"><?= translate('teachertrue.php_30行目_新規学生登録') ?></a></li> -->
                 <li><a href="../logout.php"><?= translate('teachertrue.php_31行目_ログアウト') ?></a></li>
             </ul>
         </nav>

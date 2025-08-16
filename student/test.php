@@ -39,7 +39,7 @@ unset($_SESSION['conditions']);
         <div class="logo"><?= translate('test.php_45行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="student.php"><?= translate('test.php_48行目_ホーム') ?></a></li>
+                <!-- <li><a href="student.php"><?= translate('test.php_48行目_ホーム') ?></a></li> -->
                 <li><a href="../logout.php"><?= translate('test.php_49行目_ログアウト') ?></a></li>
             </ul>
         </nav>
@@ -48,7 +48,7 @@ unset($_SESSION['conditions']);
         <aside>
             <ul>
                 <li><a href="student.php"><?= translate('test.php_48行目_ホーム') ?></a></li>
-                <li><a href="/Analytics/analytics.php"><?= translate('test.php_56行目_成績管理') ?></a></li>
+                <li><a href="Analytics/analytics.php"><?= translate('test.php_56行目_成績管理') ?></a></li>
             </ul>
         </aside>
         <main>

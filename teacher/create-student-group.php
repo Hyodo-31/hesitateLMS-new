@@ -20,8 +20,8 @@
         <div class="logo"><?= translate('create-student-group.php_19行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php"><?= translate('create-student-group.php_22行目_ホーム') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('create-student-group.php_23行目_迷い推定・機械学習') ?></a></li>
+                <!-- <li><a href="teachertrue.php"><?= translate('create-student-group.php_22行目_ホーム') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('create-student-group.php_23行目_迷い推定・機械学習') ?></a></li> -->
             </ul>
         </nav>
     </header>
@@ -29,7 +29,7 @@
         <aside>
             <ul>
                 <li><a href="teachertrue.php"><?= translate('create-student-group.php_30行目_ホーム') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('create-student-group.php_31行目_迷い推定・機械学習') ?></a></li>
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('create-student-group.php_31行目_迷い推定・機械学習') ?></a></li> -->
             </ul>
         </aside>
         <main>

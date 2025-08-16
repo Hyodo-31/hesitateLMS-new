@@ -29,12 +29,13 @@
         <div class="logo"><?= translate('create-test.php_29行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php"><?= translate('create-test.php_32行目_ホーム') ?></a></li>
-                <li><a href="#"><?= translate('create-test.php_33行目_コース管理') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('create-test.php_34行目_迷い推定・機械学習') ?></a></li>
+                <!-- <li><a href="teachertrue.php"><?= translate('create-test.php_32行目_ホーム') ?></a></li> -->
+                <!-- <li><a href="#"><?= translate('create-test.php_33行目_コース管理') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('create-test.php_34行目_迷い推定・機械学習') ?></a></li> -->
+
                 <!-- この下二つの参照先が無い！ -->
-                <li><a href="Analytics/studentAnalytics.php"><?= translate('create-test.php_35行目_学生分析') ?></a></li> 
-                <li><a href="Analytics/questionAnalytics.php"><?= translate('create-test.php_36行目_問題分析') ?></a></li>
+                <!-- <li><a href="Analytics/studentAnalytics.php"><?= translate('create-test.php_35行目_学生分析') ?></a></li>  -->
+                <!-- <li><a href="Analytics/questionAnalytics.php"><?= translate('create-test.php_36行目_問題分析') ?></a></li> -->
             </ul>
         </nav>
     </header>
@@ -233,10 +234,11 @@
         <aside>
             <ul>
                 <li><a href="teachertrue.php"><?= translate('create-test.php_230行目_ホーム') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('create-test.php_231行目_迷い推定・機械学習') ?></a></li>
+                <li><a href="./create_ja/new.php?mode=0"><?= translate('teachertrue.php_1078行目_新規日本語問題作成') ?></a></li>
+
                 <!-- 参照先が無い二つ！ -->
-                <li><a href="Analytics/studentAnalytics.php"><?= translate('create-test.php_232行目_学生分析') ?></a></li>
-                <li><a href="Analytics/questionAnalytics.php"><?= translate('create-test.php_233行目_問題分析') ?></a></li>
+                <!-- <li><a href="Analytics/studentAnalytics.php"><?= translate('create-test.php_232行目_学生分析') ?></a></li> -->
+                <!-- <li><a href="Analytics/questionAnalytics.php"><?= translate('create-test.php_233行目_問題分析') ?></a></li> -->
             </ul>
         </aside>
         <main>

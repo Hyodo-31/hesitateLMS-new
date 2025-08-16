@@ -20,7 +20,7 @@ unset($_SESSION['conditions']);
         <div class="logo"><?= translate('student.php_23行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="#"><?= translate('student.php_26行目_ホーム') ?></a></li>
+                <!-- <li><a href="#"><?= translate('student.php_26行目_ホーム') ?></a></li> -->
                 <li><a href="../logout.php"><?= translate('student.php_27行目_ログアウト') ?></a></li>
             </ul>
         </nav>
@@ -72,7 +72,7 @@ unset($_SESSION['conditions']);
                 <form action = "./test.php" method = "get">
                     <button type= "submit"><?= translate('student.php_76行目_テスト') ?></button>
                 </form>
-                <form action = "./Analytics/analytics.php" method = "get">
+                <form action = "Analytics/analytics.php" method = "get">
                     <button type= "submit"><?= translate('student.php_80行目_成績管理') ?></button>
                 </form>
             </div>

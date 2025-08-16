@@ -10,11 +10,11 @@ if (!isset($_SESSION["MemberName"])) {
 }
 
 //if ($_SESSION["examflag"] == 1) {
-    //require "overlap.php";
-    //exit;
+//require "overlap.php";
+//exit;
 //} else {
-    $_SESSION["examflag"] = 2;
-    $_SESSION["page"] = "ques";
+$_SESSION["examflag"] = 2;
+$_SESSION["page"] = "ques";
 //}
 ?>
 <!DOCTYPE html PUBLIC "-//W3c//DTD HTML 4.01 Transitional//EN">
@@ -39,44 +39,46 @@ if (!isset($_SESSION["MemberName"])) {
 
 <script type="text/javascript">
     //ストップウォッチ関数
-    myButton = 0;            // [Start]/[Stop]のフラグ
+    myButton = 0; // [Start]/[Stop]のフラグ
     var myStart;
     var myStop;
+
     function myCheck(myFlg) {
-        if (myButton == 0) {      // Startボタンを押した
-            myStart = new Date();  // スタート時間を退避
+        if (myButton == 0) { // Startボタンを押した
+            myStart = new Date(); // スタート時間を退避
             myButton = 1;
             myInterval = setInterval("myCheck(1)", 1);
-        } else {                 // スタート実行中
-            if (myFlg == 0) {       // Stopボタンを押した
+        } else { // スタート実行中
+            if (myFlg == 0) { // Stopボタンを押した
                 myButton = 0;
                 clearInterval(myInterval);
             }
-            myStop = new Date();  // 経過時間を退避
+            myStop = new Date(); // 経過時間を退避
             myTime = myStop.getTime() - myStart.getTime(); // 通算ミリ秒計算
-            myS = Math.floor(myTime / 1000);                 // '秒'取得
-            myMS = myTime % 1000;                        // 'ミリ秒'取得
+            myS = Math.floor(myTime / 1000); // '秒'取得
+            myMS = myTime % 1000; // 'ミリ秒'取得
             document.getElementById("TextBox1").innerHTML = myS + "." + myMS + <?= json_encode(translate('ques.php_82行目_秒')) ?>;
         }
     }
     //ストップウォッチ関数2(全体用)
-    myButton2 = 0;            // [Start]/[Stop]のフラグ
+    myButton2 = 0; // [Start]/[Stop]のフラグ
     var myStart2;
     var myStop2;
+
     function myCheck2(myFlg2) {
-        if (myButton2 == 0) {      // Startボタンを押した
-            myStart2 = new Date();  // スタート時間を退避
+        if (myButton2 == 0) { // Startボタンを押した
+            myStart2 = new Date(); // スタート時間を退避
             myButton2 = 1;
             myInterval2 = setInterval("myCheck2(1)", 1);
-        } else {                 // スタート実行中
-            if (myFlg2 == 0) {      // Stopボタンを押した
+        } else { // スタート実行中
+            if (myFlg2 == 0) { // Stopボタンを押した
                 myButton2 = 0;
                 clearInterval(myInterval2);
             }
-            myStop2 = new Date();  // 経過時間を退避
+            myStop2 = new Date(); // 経過時間を退避
             myTime2 = myStop2.getTime() - myStart2.getTime(); // 通算ミリ秒計算
-            myS2 = Math.floor(myTime2 / 1000);                 // '秒'取得
-            myMS2 = myTime2 % 1000;                        // 'ミリ秒'取得
+            myS2 = Math.floor(myTime2 / 1000); // '秒'取得
+            myMS2 = myTime2 % 1000; // 'ミリ秒'取得
         }
     }
     //＃構造体の宣言
@@ -84,17 +86,17 @@ if (!isset($_SESSION["MemberName"])) {
     Mouse["Time"] = 0;
     Mouse["X"] = 0;
     Mouse["Y"] = 0;
-    Mouse["DragDrop"] = 0;  //ドラッグ中か（0:MouseMove,1:MouseDown,2:MouseUp)
-    Mouse["DropPos"] = 0;       //どこドロップされたか(0:元,1:レジスタ1,2:レジスタ2,3:レジスタ3)
-    Mouse["hlabel"] = "";       //ドラッグしているラベル（マウスが当たっているラベル）
-    Mouse["Label"] = "";        //どのラベルが対象か（複数ラベル)
+    Mouse["DragDrop"] = 0; //ドラッグ中か（0:MouseMove,1:MouseDown,2:MouseUp)
+    Mouse["DropPos"] = 0; //どこドロップされたか(0:元,1:レジスタ1,2:レジスタ2,3:レジスタ3)
+    Mouse["hlabel"] = ""; //ドラッグしているラベル（マウスが当たっているラベル）
+    Mouse["Label"] = ""; //どのラベルが対象か（複数ラベル)
     Mouse["WID"] = 0;
     //-------------------------
     var AnswerData = new Object();
-    AnswerData["WID"] = 0;                       //問題番号
+    AnswerData["WID"] = 0; //問題番号
     AnswerData["Date"] = new Date; //解答日時
-    AnswerData["TF"] = 0;                       //正誤
-    AnswerData["Time"] = 0;                 //解答時間
+    AnswerData["TF"] = 0; //正誤
+    AnswerData["Time"] = 0; //解答時間
     AnswerData["Understand"] = 0;
     AnswerData["EndSentence"] = "";
     AnswerData["hesitate"] = "";
@@ -107,61 +109,64 @@ if (!isset($_SESSION["MemberName"])) {
 
     //--------------------------
     p = new Array();
-    Mouse_Flag = new Boolean(false);    //マウスの軌跡を保存するかどうか
-    IsDragging = new Boolean(false);    //ドラッグ中の場合true
-    function Point(_x, _y) { this.x = _x; this.y = _y; }
+    Mouse_Flag = new Boolean(false); //マウスの軌跡を保存するかどうか
+    IsDragging = new Boolean(false); //ドラッグ中の場合true
+    function Point(_x, _y) {
+        this.x = _x;
+        this.y = _y;
+    }
     //使う例 print(DiffPoint.x);
-    var DiffPoint = new Point(0, 0);     //ドラッグ開始地点とドラッグ開始時のボタンの位置とのずれ
+    var DiffPoint = new Point(0, 0); //ドラッグ開始地点とドラッグ開始時のボタンの位置とのずれ
     var DLabel = "";
-    var x = 0;                                      //挿入線を描画する位置
+    var x = 0; //挿入線を描画する位置
     var y1 = 0;
     var y2 = 0;
     //frag = 0;
-    var Mylabels = new Array();             //並び替えラベルの元
-    var MylabelsD = new Array();            //divideyou
-    var Mylabels_r1 = new Array();      //レジスタ用
+    var Mylabels = new Array(); //並び替えラベルの元
+    var MylabelsD = new Array(); //divideyou
+    var Mylabels_r1 = new Array(); //レジスタ用
     var Mylabels_r2 = new Array();
     var Mylabels_r3 = new Array();
-    var Mylabels_ea = new Array();      //最終解答欄用
-    var MyLabels_h = new Array();       //ヒアリング機能用
-    var MyNums = new Array();               //番号リスト
-    var DefaultX = 30;                      //ラベルの初期値
+    var Mylabels_ea = new Array(); //最終解答欄用
+    var MyLabels_h = new Array(); //ヒアリング機能用
+    var MyNums = new Array(); //番号リスト
+    var DefaultX = 30; //ラベルの初期値
     var DefaultY = 100;
-    var DefaultX_r1 = 30;                       //ラベルの初期値
+    var DefaultX_r1 = 30; //ラベルの初期値
     var DefaultY_r1 = 250;
-    var DefaultX_r2 = 30;                       //ラベルの初期値
+    var DefaultX_r2 = 30; //ラベルの初期値
     var DefaultY_r2 = 330;
-    var DefaultX_r3 = 30;                       //ラベルの初期値
+    var DefaultX_r3 = 30; //ラベルの初期値
     var DefaultY_r3 = 410;
-    var DefaultX_ea = 30;                       //ラベルの初期値
+    var DefaultX_ea = 30; //ラベルの初期値
     var DefaultY_ea = 170;
     var sPos = new Point(0, 0);
     var ePos = new Point(0, 0);
-    var PorQ;                               //文末の.または?を格納するよう
-    var Answer;                             //正解
-    var Question;                       //問題文(先頭小文字、文末ぬき）
-    var str1;                                   //Answerの補助
+    var PorQ; //文末の.または?を格納するよう
+    var Answer; //正解
+    var Question; //問題文(先頭小文字、文末ぬき）
+    var str1; //Answerの補助
     var str2;
-    var LabelNum;                           //ラベルの数
-    var Answer;                             //正解
-    var Answer1;                            //別解1
-    var Answer2;                            //別解2
-    var linedataFlg = false;                //linedataに書き込み中
-    var Answertime = new Date;          //解答日時(datatime?)
-    var $Mouse_Data = Mouse;                //マウスの軌跡情報を保持
-    var Mouse_Num;                                  //マウスの軌跡情報の数
-    var StartQues = "";                           //始めの問題の状態
-    var MyAnswer = "";                    //自分の答え
-    var WriteAnswer = "";             //自分の答え保存用
+    var LabelNum; //ラベルの数
+    var Answer; //正解
+    var Answer1; //別解1
+    var Answer2; //別解2
+    var linedataFlg = false; //linedataに書き込み中
+    var Answertime = new Date; //解答日時(datatime?)
+    var $Mouse_Data = Mouse; //マウスの軌跡情報を保持
+    var Mouse_Num; //マウスの軌跡情報の数
+    var StartQues = ""; //始めの問題の状態
+    var MyAnswer = ""; //自分の答え
+    var WriteAnswer = ""; //自分の答え保存用
     var $QAData = AnswerData; //問題データ保存用
-    var MyControls = new Array();       //グループ化ラベルをまとめた配列
-    var AllCorrectAns = 0;                  //全体の正解数
+    var MyControls = new Array(); //グループ化ラベルをまとめた配列
+    var AllCorrectAns = 0; //全体の正解数
     var ResAns = 0;
-    var AllResAns = 0;                          //全体の解答数
-    var OID = 0;                            //解答番号、linedataとlinedatamouseを関連付けるキー
+    var AllResAns = 0; //全体の解答数
+    var OID = 0; //解答番号、linedataとlinedatamouseを関連付けるキー
     var WID = 0;
-    var checkl = 0;                     //phpオリジナル、重さをなくすため
-    var cx = 0;                             //キャンバスのギャップの修正用
+    var checkl = 0; //phpオリジナル、重さをなくすため
+    var cx = 0; //キャンバスのギャップの修正用
     var cy = 0;
     var MV = new Boolean(false); //グループ化のためのドラッグ中か
     var loc = -1; //グループ化の線の位置　0:左上 1:左下 2:右上 3:右下
@@ -174,7 +179,7 @@ if (!isset($_SESSION["MemberName"])) {
     var FixText = new Array(); //固定ラベルのタグを含むテキスト
     MytoFo = new Boolean(false); //IEのバグ対応。MyLabels_MouseMove→Form1_onMouseMoveのため
     var DragL; //ドラッグ中のラベルの引渡し。
-    var QuesNum = 0;   //問題番号のインターフェース用.　何問目？とかにつかう。1-30
+    var QuesNum = 0; //問題番号のインターフェース用.　何問目？とかにつかう。1-30
     var array_flag = -1; //どこでイベントが起こったか判定する。(マウスダウン用)　0=問題提示欄 1=レジスタ1 2=レジスタ2 3=レジスタ3 4=最終解答欄
     var array_flag2 = -1; //どこでイベントが起こったか判定する。(マウスアップ用)　0=問題提示欄 1=レジスタ1 2=レジスタ2 3=レジスタ3 4=最終解答欄
     var d_flag = -1; //どこでイベントが起こったか判定する。(マウスアップ)　0=問題提示欄 1=レジスタ1 2=レジスタ2 3=3 4=最終解答欄
@@ -183,9 +188,9 @@ if (!isset($_SESSION["MemberName"])) {
     var Mylabels_left = new Array();
     var region = 0;
     var URL = './' //サーバー用
-    var attempt = 0;    //20250514追加
+    var attempt = 0; //20250514追加
 
-
+    var JapaneseAnswer = "";
     var Qid = <?php echo $Qid = $_GET['Qid']; ?> //LineQuesFormのボタンのURL引数
     /*
     var nEnd;
@@ -202,7 +207,7 @@ if (!isset($_SESSION["MemberName"])) {
         nEnd = 104;
     }
         */
-    
+
 
     // ======================= ▼▼▼ 修正点 1/3 ▼▼▼ =======================
     // 日本語の正解文を保存するためのグローバル変数を追加
@@ -210,7 +215,6 @@ if (!isset($_SESSION["MemberName"])) {
     // ======================= ▲▲▲ 修正点 1/3 ▲▲▲ =======================
 
     var Qid = <?php echo $Qid = $_GET['Qid']; ?> //LineQuesFormのボタンのURL引数
-
 </script>
 <?php
 //Qidの値を取得して、それによってnEndを取得
@@ -259,17 +263,20 @@ $stmt->close();
 
 
     //ランダムに配列を並び替えるソース
-    Array.prototype.random = function () {
-        this.sort(function (a, b) {
+    Array.prototype.random = function() {
+        this.sort(function(a, b) {
             var i = Math.ceil(Math.random() * 100) % 2;
-            if (i == 0) { return -1; }
-            else { return 1; }
+            if (i == 0) {
+                return -1;
+            } else {
+                return 1;
+            }
         });
     }
     //-------------------------------------------------------------
     //配列に指定した値があるかチェック
     if (!Array.prototype.contains) {
-        Array.prototype.contains = function (value) {
+        Array.prototype.contains = function(value) {
             for (var i in this) {
                 if (this.hasOwnProperty(i) && this[i] === value) {
                     return true;
@@ -282,7 +289,7 @@ $stmt->close();
     //ロードイベント
     //body がloadされた時点で実行される。
     function ques_Load() {
-        new Ajax.Request(URL + 'swrite.php',//こんにちはOOさん出力
+        new Ajax.Request(URL + 'swrite.php', //こんにちはOOさん出力
             {
                 method: 'get',
                 onSuccess: getA,
@@ -293,16 +300,17 @@ $stmt->close();
         function getA(req) {
             alert(req.responseText);
         }
+
         function getE(req) {
             alert(<?= json_encode(translate('ques.php_325行目_書き込みに失敗しました')) ?>);
         }
         AnswerT = new DateFormat("yyyy-MM-dd HH:mm:ss");
         $AccessDate = AnswerT.format(new Date());
-        BPen = new jsGraphics("myCanvas");                     //ペン(グループ化用)
+        BPen = new jsGraphics("myCanvas"); //ペン(グループ化用)
         BPen.setColor("black");
         //破線のスタイルを設定
         BPen.setStroke(-1);
-        BPen2 = new jsGraphics("myCanvas");                    //ペン(挿入線用)
+        BPen2 = new jsGraphics("myCanvas"); //ペン(挿入線用)
         BPen2.setColor("black");
         //スラッシュ入れる用
         BPen3 = new jsGraphics("myCanvas2");
@@ -317,26 +325,29 @@ $stmt->close();
             window.close();
         }
         //=============linedatamouseがなかったら作成============
-        new Ajax.Request(URL + 'linemouse.php',
-            {
-                method: 'get',
-                onSuccess: getm,
-                onFailure: function (req) { getError(req, "linemouse.php") }
-            });
-        function getm(res) {
-        }
+        new Ajax.Request(URL + 'linemouse.php', {
+            method: 'get',
+            onSuccess: getm,
+            onFailure: function(req) {
+                getError(req, "linemouse.php")
+            }
+        });
+
+        function getm(res) {}
         //======================================================
 
         //解答データのうち最大のOIDを計算。要は次に出題する問題を算出する。
         var $a = "a"; //モード制御用
         $params = 'param1=' + encodeURIComponent($a) + '&lang=' + encodeURIComponent(testLangType);
-        new Ajax.Request(URL + 'load.php',
-            {
-                method: 'get',
-                onSuccess: getOID,
-                onFailure: function (req) { getError(req, "load.php") },
-                parameters: $params
-            });
+        new Ajax.Request(URL + 'load.php', {
+            method: 'get',
+            onSuccess: getOID,
+            onFailure: function(req) {
+                getError(req, "load.php")
+            },
+            parameters: $params
+        });
+
         function getOID(res) {
             OID = res.responseText; //load.phpから最大のOIDが入っているはずのresが帰ってくるのでそれを代入
             console.log("res" + res.responseText);
@@ -344,7 +355,7 @@ $stmt->close();
             if (OID == <?= json_encode(translate('ques.php_351行目_OID抽出エラー（マウス）')) ?> || OID == "" || OID == <?= json_encode(translate('ques.php_351行目_OIDエラー')) ?> || OID == <?= json_encode(translate('ques.php_351行目_これは最初の問題です')) ?>) {
                 OID = 1;
             } else {
-                OID = parseInt(OID) + 1;//取って来たのか履歴データなので次の問題を出すためにインクリメント
+                OID = parseInt(OID) + 1; //取って来たのか履歴データなので次の問題を出すためにインクリメント
             }
             QuesNum = parseInt(OID);
         }
@@ -361,9 +372,9 @@ $stmt->close();
         //問題固定var------------
         var $Load = "load";
         var $w = "w";
-        var $params = 'param1=' + encodeURIComponent(OID)
-            + '&param2=' + encodeURIComponent($Load)
-            + '&lang=' + encodeURIComponent(testLangType);
+        var $params = 'param1=' + encodeURIComponent(OID) +
+            '&param2=' + encodeURIComponent($Load) +
+            '&lang=' + encodeURIComponent(testLangType);
         console.log("$wの時:" + $params);
         new Ajax.Request(URL + 'dbsyori.php', //本番用
             {
@@ -377,6 +388,7 @@ $stmt->close();
             alert(<?= json_encode(translate('ques.php_379行目_問題取得失敗')) ?>);
             window.close;
         }
+
         function getOIDtoWID(res) {
             if (res.responseText == "エラー" && OID != nEnd + 1) {
                 alert(<?= json_encode(translate('ques.php_384行目_固定問題番号取得エラー')) ?>);
@@ -390,22 +402,27 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getAttempt,
-                        onFailure: function (req) { getError(req, "getattempt.php") },
+                        onFailure: function(req) {
+                            getError(req, "getattempt.php")
+                        },
                         parameters: $params_for_attempt
                     });
+
                 function getAttempt(res) {
                     attempt = res.responseText;
                     console.log("attempt = " + attempt);
                 }
-                var $params = 'param1=' + encodeURIComponent(WID)
-                    + '&param2=' + encodeURIComponent($q)
-                    + '&lang=' + encodeURIComponent(testLangType);
+                var $params = 'param1=' + encodeURIComponent(WID) +
+                    '&param2=' + encodeURIComponent($q) +
+                    '&lang=' + encodeURIComponent(testLangType);
                 console.log("$qの時:" + $params);
                 new Ajax.Request(URL + 'dbsyori.php', //本番用
                     {
                         method: 'get',
                         onSuccess: getResponse,
-                        onFailure: function (req) { getError(req, "dbsyori.php") },
+                        onFailure: function(req) {
+                            getError(req, "dbsyori.php")
+                        },
                         parameters: $params
                     });
 
@@ -417,43 +434,51 @@ $stmt->close();
                     str2 = req.responseText.substr(1);
                     Answer = str1.toUpperCase() + str2; //完全な答え
                     $q = "q1";
-                    $params = 'param1=' + encodeURIComponent(WID)
-                        + '&param2=' + encodeURIComponent($q)
-                        + '&lang=' + encodeURIComponent(testLangType);
+                    $params = 'param1=' + encodeURIComponent(WID) +
+                        '&param2=' + encodeURIComponent($q) +
+                        '&lang=' + encodeURIComponent(testLangType);
                     new Ajax.Request(URL + 'dbsyori.php', //本番用
                         {
                             method: 'get',
                             onSuccess: getStart,
-                            onFailure: function (req) { getError(req, "dbsyori.php") },
+                            onFailure: function(req) {
+                                getError(req, "dbsyori.php")
+                            },
                             parameters: $params
                         });
 
                     function getStart(req1) {
                         Mylabels = req1.responseText.split("|");
                         $d = "d";
-                        $params = 'param1=' + encodeURIComponent(WID)
-                            + '&param2=' + encodeURIComponent($d)
-                            + '&lang=' + encodeURIComponent(testLangType);
+                        $params = 'param1=' + encodeURIComponent(WID) +
+                            '&param2=' + encodeURIComponent($d) +
+                            '&lang=' + encodeURIComponent(testLangType);
                         new Ajax.Request(URL + 'dbsyori.php', //本番用
                             {
                                 method: 'get',
                                 onSuccess: getDivide,
-                                onFailure: function (req) { getError(req, "dbsyori.php") },
+                                onFailure: function(req) {
+                                    getError(req, "dbsyori.php")
+                                },
                                 parameters: $params
                             });
+
                         function getDivide(req2) {
                             MylabelsD = req2.responseText.split("|");
                             $f = "f";
-                            $params = 'param1=' + encodeURIComponent(WID)
-                                + '&param2=' + encodeURIComponent($f)
-                                + '&lang=' + encodeURIComponent(testLangType);
+                            $params = 'param1=' + encodeURIComponent(WID) +
+                                '&param2=' + encodeURIComponent($f) +
+                                '&lang=' + encodeURIComponent(testLangType);
                             new Ajax.Request(URL + 'dbsyori.php', //本番用
                                 {
                                     method: 'get',
                                     onSuccess: getFix,
-                                    onFailure: function (req) { getError(req, "dbsyori.php") },
+                                    onFailure: function(req) {
+                                        getError(req, "dbsyori.php")
+                                    },
                                     parameters: $params
                                 });
+
                             function getFix(Fix) //固定情報の表示
                             {
                                 msg.innerHTML = Fix.responseText;
@@ -525,9 +550,15 @@ $stmt->close();
 
                                     el = YAHOO.util.Dom.getRegion(p);
                                     //イベントハンドラの追加
-                                    dd[i].onMouseDown = function (e) { MyLabels_MouseDown(this.getDragEl()) }
-                                    dd[i].onMouseUp = function (e) { MyLabels_MouseUp(this.getDragEl()) }
-                                    dd[i].onDrag = function (e) { MyLabels_MouseMove(this.getDragEl()) }
+                                    dd[i].onMouseDown = function(e) {
+                                        MyLabels_MouseDown(this.getDragEl())
+                                    }
+                                    dd[i].onMouseUp = function(e) {
+                                        MyLabels_MouseUp(this.getDragEl())
+                                    }
+                                    dd[i].onDrag = function(e) {
+                                        MyLabels_MouseMove(this.getDragEl())
+                                    }
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseout', MyLabels_MouseLeave);
 
@@ -544,79 +575,78 @@ $stmt->close();
                                 //-------------------------------------
                                 //日本文の取得
                                 var $j = "j";
-                                $params = 'param1=' + encodeURIComponent(WID)
-                                    + '&param2=' + encodeURIComponent($j)
-                                    + '&lang=' + encodeURIComponent(testLangType);
-                                new Ajax.Request(URL + 'dbsyori.php',
-                                    {
-                                        method: 'get',
-                                        onSuccess: getJapanese,
-                                        onFailure: function (req) { getError(req, "dbsyori.php") },
-                                        parameters: $params
-                                    });
+                                $params = 'param1=' + encodeURIComponent(WID) +
+                                    '&param2=' + encodeURIComponent($j) +
+                                    '&lang=' + encodeURIComponent(testLangType);
+                                new Ajax.Request(URL + 'dbsyori.php', {
+                                    method: 'get',
+                                    onSuccess: getJapanese,
+                                    onFailure: function(req) {
+                                        getError(req, "dbsyori.php")
+                                    },
+                                    parameters: $params
+                                });
                                 // ======================= ▼▼▼ 修正点 2/3 ▼▼▼ =======================
-                            // getJapanese関数を修正
-                            function getJapanese(res) {
-                                if (testLangType === 'ja') {
-                                    // 【日本語テストの場合】
-                                    // １．正解判定用に、dbsyori.phpから受け取った「日本語の正解文」をグローバル変数に保存
-                                    JapaneseAnswer = res.responseText;
-                                    
-                                    // ２．ヒント欄には、先立って取得済みの「対応する英文（変数Answer）」を表示
-                                    document.getElementById("RichTextBox1").innerHTML = Answer;
+                                // getJapanese関数を修正
+                                function getJapanese(res) {
+                                    if (testLangType === 'ja') {
+                                        // 【日本語テストの場合】
+                                        JapaneseAnswer = res.responseText;
+                                        document.getElementById("RichTextBox1").innerHTML = Answer;
+                                        // ラベルのテキストを「英文」に変更
+                                        document.getElementById("reference_text_label").innerHTML = "<?= translate('英文') ?>";
+                                    } else {
+                                        // 【英語テストの場合】
+                                        document.getElementById("RichTextBox1").innerHTML = res.responseText;
+                                        // ラベルのテキストを「日本文」に戻す
+                                        document.getElementById("reference_text_label").innerHTML = "<?= translate('ques.php_1554行目_日本文') ?>";
+                                    }
 
-                                    // ３．ヒント欄のラベルを「英文」に変更
-                                    document.getElementById("reference_text_label").innerHTML = "<?= translate('英文') ?>";
-
-                                } else {
-                                    // 【英語テストの場合】
-                                    // 従来通り、dbsyori.phpから受け取った「日本語訳」をヒント欄に表示
-                                    document.getElementById("RichTextBox1").innerHTML = res.responseText;
-                                    // ラベルを「日本文」に戻す
-                                    document.getElementById("reference_text_label").innerHTML = "<?= translate('ques.php_1554行目_日本文') ?>";
-                                }
-
-                                //-------------------------------------
-                                //別解の取得(得点は10点の物）
-                                var $s1 = "s1";
-                                $params = 'param1=' + encodeURIComponent(WID)
-                                    + '&param2=' + encodeURIComponent($s1)
-                                    + '&lang=' + encodeURIComponent(testLangType);
-                                new Ajax.Request(URL + 'dbsyori.php',
-                                    {
+                                    //-------------------------------------
+                                    //別解の取得(得点は10点の物）
+                                    var $s1 = "s1";
+                                    $params = 'param1=' + encodeURIComponent(WID) +
+                                        '&param2=' + encodeURIComponent($s1) +
+                                        '&lang=' + encodeURIComponent(testLangType);
+                                    new Ajax.Request(URL + 'dbsyori.php', {
                                         method: 'get',
                                         onSuccess: getSentence1,
-                                        onFailure: function (req) { getError(req, "dbsyori.php") },
+                                        onFailure: function(req) {
+                                            getError(req, "dbsyori.php")
+                                        },
                                         parameters: $params
                                     });
-                                function getSentence1(res) {
-                                    if (res.responseText != "") {
-                                        str1 = res.responseText.substr(0, 1);
-                                        str2 = res.responseText.substr(1);
-                                        Answer1 = str1.toUpperCase() + str2; //先頭を大文字に変更
-                                        //英文を取得
-                                        var $s2 = "s2";
-                                        $params = 'param1=' + encodeURIComponent(WID)
-                                            + '&param2=' + encodeURIComponent($s2)
-                                            + '&lang=' + encodeURIComponent(testLangType);
-                                        new Ajax.Request(URL + 'dbsyori.php',
-                                            {
+
+                                    function getSentence1(res) {
+                                        if (res.responseText != "") {
+                                            str1 = res.responseText.substr(0, 1);
+                                            str2 = res.responseText.substr(1);
+                                            Answer1 = str1.toUpperCase() + str2; //先頭を大文字に変更
+                                            //英文を取得
+                                            var $s2 = "s2";
+                                            $params = 'param1=' + encodeURIComponent(WID) +
+                                                '&param2=' + encodeURIComponent($s2) +
+                                                '&lang=' + encodeURIComponent(testLangType);
+                                            new Ajax.Request(URL + 'dbsyori.php', {
                                                 method: 'get',
                                                 onSuccess: getSentence2,
-                                                onFailure: function (req) { getError(req, "dbsyori.php") },
+                                                onFailure: function(req) {
+                                                    getError(req, "dbsyori.php")
+                                                },
                                                 parameters: $params
                                             });
-                                        function getSentence2(res) {
-                                            if (res.responseText != "") {//NULL以外だったら
-                                                str1 = res.responseText.substr(0, 1);
-                                                str2 = res.responseText.substr(1);
-                                                Answer2 = str1.toUpperCase() + str2;
+
+                                            function getSentence2(res) {
+                                                if (res.responseText != "") { //NULL以外だったら
+                                                    str1 = res.responseText.substr(0, 1);
+                                                    str2 = res.responseText.substr(1);
+                                                    Answer2 = str1.toUpperCase() + str2;
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            } // getJapaneseここまで
-                            // ======================= ▲▲▲ 修正点 2/3 ▲▲▲ =======================
+                                // ======================= ▲▲▲ 修正点 2/3 ▲▲▲ =======================
                                 Mouse_Flag = true;
                             } //Fix関数ここまで--------------------------------------------------------
                         }
@@ -642,11 +672,17 @@ $stmt->close();
     //問題の出題関数ここまで-------------------------------------------------------
     //範囲指定をするときのドラッグ開始処理------------------------------
     function Form1_MouseDown() {
-        if (event.y <= 130) { d_flag = 0; }
-        else if (event.y <= 215 && event.y > 130) { d_flag = 4; }
-        else if (event.y <= 295 && event.y > 215) { d_flag = 1; }
-        else if (event.y <= 375 && event.y > 295) { d_flag = 2; }
-        else if (event.y > 375) { d_flag = 3; }
+        if (event.y <= 130) {
+            d_flag = 0;
+        } else if (event.y <= 215 && event.y > 130) {
+            d_flag = 4;
+        } else if (event.y <= 295 && event.y > 215) {
+            d_flag = 1;
+        } else if (event.y <= 375 && event.y > 295) {
+            d_flag = 2;
+        } else if (event.y > 375) {
+            d_flag = 3;
+        }
         if (Mouse_Flag == false) {
             return;
         }
@@ -677,36 +713,39 @@ $stmt->close();
         //マウスカーソルを戻す
         document.body.style.cursor = "default";
         var g_array = new Array();
-        if (d_flag == 0) { g_array = Mylabels.slice(0); }
-        else if (d_flag == 1) { g_array = Mylabels_r1.slice(0); }
-        else if (d_flag == 2) { g_array = Mylabels_r2.slice(0); }
-        else if (d_flag == 3) { g_array = Mylabels_r3.slice(0); }
-        else if (d_flag == 4) { g_array = Mylabels_ea.slice(0); }
+        if (d_flag == 0) {
+            g_array = Mylabels.slice(0);
+        } else if (d_flag == 1) {
+            g_array = Mylabels_r1.slice(0);
+        } else if (d_flag == 2) {
+            g_array = Mylabels_r2.slice(0);
+        } else if (d_flag == 3) {
+            g_array = Mylabels_r3.slice(0);
+        } else if (d_flag == 4) {
+            g_array = Mylabels_ea.slice(0);
+        }
         //選択範囲の中にラベルがあればグループ化する
         //青色への色変えも
         //左上,右上,左下,右下の４方向からのドラッグに対応------------------------------------------
         for (i = 0; i <= g_array.length; i++) {
             //一時退避・・・なくて良い
             MLi = YAHOO.util.Dom.getRegion(g_array[i]);
-            if (sPos.x <= ePos.x && sPos.y <= ePos.y) {  //左上
+            if (sPos.x <= ePos.x && sPos.y <= ePos.y) { //左上
                 if ((sPos.x < MLi.right && sPos.y < MLi.bottom) && (ePos.x > MLi.left && ePos.y > MLi.top)) {
                     MyControls.push(g_array[i]);
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "blue");
                 }
-            }
-            else if (sPos.x <= ePos.x && sPos.y >= ePos.y) {//左下
+            } else if (sPos.x <= ePos.x && sPos.y >= ePos.y) { //左下
                 if ((sPos.x < MLi.right && sPos.y > MLi.top) && (ePos.x > MLi.left && ePos.y < MLi.bottom)) {
                     MyControls.push(g_array[i]);
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "blue");
                 }
-            }
-            else if (sPos.x > ePos.x && sPos.y < ePos.y) {//右上
+            } else if (sPos.x > ePos.x && sPos.y < ePos.y) { //右上
                 if ((sPos.x > MLi.left && sPos.y < MLi.bottom) && (ePos.x < MLi.right && ePos.y > MLi.top)) {
                     MyControls.push(g_array[i]);
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "blue");
                 }
-            }
-            else if (sPos.x > ePos.x && sPos.y > ePos.y) {//右下
+            } else if (sPos.x > ePos.x && sPos.y > ePos.y) { //右下
                 if ((sPos.x > MLi.left && sPos.y > MLi.top) && (ePos.x < MLi.right && ePos.y < MLi.bottom)) {
                     MyControls.push(g_array[i]);
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "blue");
@@ -763,81 +802,100 @@ $stmt->close();
 
             //encodeURI = 変換してるだけだぴょん
             //paramっていうのに各変数を入れてる！(tmpfileで&で区切って送ってる)
-            var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"])
-                + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
-                + '&param3=' + encodeURIComponent($Mouse_Data["X"])
-                + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
-                + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
-                + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
-                + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-                + '&param8=' + encodeURIComponent($Mouse_Data["Label"])
-                + '&lang=' + encodeURIComponent(testLangType);
-            new Ajax.Request(URL + 'tmpfile.php',
-                {
-                    method: 'get',
-                    onSuccess: getA,
-                    onFailure: getE,
-                    parameters: $params
-                });
+            var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
+                '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
+                '&param3=' + encodeURIComponent($Mouse_Data["X"]) +
+                '&param4=' + encodeURIComponent($Mouse_Data["Y"]) +
+                '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"]) +
+                '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
+                '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
+                '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
+                '&lang=' + encodeURIComponent(testLangType);
+            new Ajax.Request(URL + 'tmpfile.php', {
+                method: 'get',
+                onSuccess: getA,
+                onFailure: getE,
+                parameters: $params
+            });
             //▲マウスデータの取得
             //ドラッグ開始地点の保存
             function getA(req) {
                 document.getElementById("msg").innerHTML = req.responseText;
                 MytoFo = false;
             }
+
             function getE(req) {
                 alert("失敗c");
             }
         }
         //--------------------別のマウスムーブここまで----------------------------------------------------------------
     }
+
     function draw() {
         BPen.clear();
 
         //レジスタ3をドラッグ中
         if (d_flag == 3) {
             //もし、範囲の線を超えてしまっていたら？
-            if (ePos.y <= 375) { ePos.y = 375; }
+            if (ePos.y <= 375) {
+                ePos.y = 375;
+            }
             //もし、下の範囲を超えてしまっていたら？（バグ対策だぴょん） マウスアップの時になんかバグが起きてるかも！
-            else if (ePos.y >= 480) { ePos.y = 480; }
-        } else if (d_flag == 0) {//問題提示欄をドラッグ中
+            else if (ePos.y >= 480) {
+                ePos.y = 480;
+            }
+        } else if (d_flag == 0) { //問題提示欄をドラッグ中
             //もし、範囲の線を超えてしまっていたら？
-            if (ePos.y >= 130) { ePos.y = 130; }
+            if (ePos.y >= 130) {
+                ePos.y = 130;
+            }
         } else { //その他
             //最終解答欄だった場合
             if (d_flag == 4) {
                 //上限を超えていた場合
-                if (ePos.y <= 130) { ePos.y = 130; }
+                if (ePos.y <= 130) {
+                    ePos.y = 130;
+                }
                 //下限を超えていた場合
-                else if (ePos.y >= 215) { ePos.y = 215; }
+                else if (ePos.y >= 215) {
+                    ePos.y = 215;
+                }
             }
             //レジスタ1だった場合
             if (d_flag == 1) {
                 //上限を超えていた場合
-                if (ePos.y <= 215) { ePos.y = 215; }
+                if (ePos.y <= 215) {
+                    ePos.y = 215;
+                }
                 //下限を超えていた場合
-                else if (ePos.y >= 295) { ePos.y = 295; }
+                else if (ePos.y >= 295) {
+                    ePos.y = 295;
+                }
             }
             //レジスタ2だった場合
             if (d_flag == 2) {
                 //上限を超えていた場合
-                if (ePos.y <= 295) { ePos.y = 295; }
+                if (ePos.y <= 295) {
+                    ePos.y = 295;
+                }
                 //下限を超えていた場合
-                else if (ePos.y >= 375) { ePos.y = 375; }
+                else if (ePos.y >= 375) {
+                    ePos.y = 375;
+                }
             }
         }
         //消える描画でドラッグ中の四角形を描く
         //左上、右上、左下、右下、の４方向からのドラッグに対応
-        if (sPos.x <= ePos.x && sPos.y <= ePos.y) {  //左上
+        if (sPos.x <= ePos.x && sPos.y <= ePos.y) { //左上
             BPen.drawRect(sPos.x, sPos.y, ePos.x - sPos.x, ePos.y - sPos.y)
             loc = 0;
-        } else if (sPos.x <= ePos.x && sPos.y >= ePos.y) {//左下
+        } else if (sPos.x <= ePos.x && sPos.y >= ePos.y) { //左下
             BPen.drawRect(sPos.x, ePos.y, ePos.x - sPos.x, sPos.y - ePos.y)
             loc = 1;
-        } else if (sPos.x > ePos.x && sPos.y < ePos.y) {//右上
+        } else if (sPos.x > ePos.x && sPos.y < ePos.y) { //右上
             BPen.drawRect(ePos.x, sPos.y, sPos.x - ePos.x, ePos.y - sPos.y)
             loc = 2;
-        } else if (sPos.x > ePos.x && sPos.y > ePos.y) {//右下
+        } else if (sPos.x > ePos.x && sPos.y > ePos.y) { //右下
             BPen.drawRect(ePos.x, ePos.y, sPos.x - ePos.x, sPos.y - ePos.y)
             loc = 3;
         }
@@ -846,11 +904,17 @@ $stmt->close();
         //選択範囲が解除されたら黒色に戻る処理も実装
         //どの欄を対象にしているか、フラグにより判別
         var g_array = new Array();
-        if (d_flag == 0) { g_array = Mylabels.slice(0); }
-        else if (d_flag == 1) { g_array = Mylabels_r1.slice(0); }
-        else if (d_flag == 2) { g_array = Mylabels_r2.slice(0); }
-        else if (d_flag == 3) { g_array = Mylabels_r3.slice(0); }
-        else if (d_flag == 4) { g_array = Mylabels_ea.slice(0); }
+        if (d_flag == 0) {
+            g_array = Mylabels.slice(0);
+        } else if (d_flag == 1) {
+            g_array = Mylabels_r1.slice(0);
+        } else if (d_flag == 2) {
+            g_array = Mylabels_r2.slice(0);
+        } else if (d_flag == 3) {
+            g_array = Mylabels_r3.slice(0);
+        } else if (d_flag == 4) {
+            g_array = Mylabels_ea.slice(0);
+        }
 
         //色付け。このへんはあまりいじってません。
         for (i = 0; i <= g_array.length - 1; i++) {
@@ -865,19 +929,19 @@ $stmt->close();
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "black");
                 }
             } //左上ここまで--------------------------------------------------
-            else if (sPos.x <= ePos.x && sPos.y >= ePos.y) {//左下
+            else if (sPos.x <= ePos.x && sPos.y >= ePos.y) { //左下
                 if ((sPos.x < MLi.right && sPos.y > MLi.top) && (ePos.x > MLi.left && ePos.y < MLi.bottom)) {
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "red");
                 } else {
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "black");
                 }
-            } else if (sPos.x > ePos.x && sPos.y < ePos.y) {//右上
+            } else if (sPos.x > ePos.x && sPos.y < ePos.y) { //右上
                 if ((sPos.x > MLi.left && sPos.y < MLi.bottom) && (ePos.x < MLi.right && ePos.y > MLi.top)) {
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "red");
                 } else {
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "black");
                 }
-            } else if (sPos.x > ePos.x && sPos.y > ePos.y) {//右下
+            } else if (sPos.x > ePos.x && sPos.y > ePos.y) { //右下
                 if ((sPos.x > MLi.left && sPos.y > MLi.top) && (ePos.x < MLi.right && ePos.y < MLi.bottom)) {
                     YAHOO.util.Dom.setStyle(g_array[i], "color", "red");
                 } else {
@@ -934,7 +998,9 @@ $stmt->close();
             if (array_flag2 == 0) {
                 for (j = 0; j < MyControls.length; j++) {
                     for (i = 0; i < Mylabels2.length; i++) {
-                        if (Mylabels2[i].id == MyControls[j].id) { break; }
+                        if (Mylabels2[i].id == MyControls[j].id) {
+                            break;
+                        }
                     }
                     mylabelarray3.splice(i, 1, MyControls[j]);
                     Mylabels = mylabelarray3.slice(0);
@@ -946,7 +1012,9 @@ $stmt->close();
             var X1 = YAHOO.util.Dom.getRegion(MyControls[0]);
             //どこに挿入するか調べる。
             for (m = 0; m <= mylabelarray3.length; m++) {
-                if (m == mylabelarray3.length) { break; }
+                if (m == mylabelarray3.length) {
+                    break;
+                }
                 var X2 = YAHOO.util.Dom.getRegion(mylabelarray3[m]);
                 if (X1.left <= X2.left) {
                     break;
@@ -972,7 +1040,9 @@ $stmt->close();
             //問題提示欄にドロップされた場合のみ
             if (array_flag2 == 0) {
                 for (i = 0; i < Mylabels2.length; i++) {
-                    if (Mylabels2[i].id == hLabel.id) { break; }
+                    if (Mylabels2[i].id == hLabel.id) {
+                        break;
+                    }
                 }
                 mylabelarray3.splice(i, 1, hLabel);
                 Mylabels = mylabelarray3.slice(0);
@@ -983,7 +1053,9 @@ $stmt->close();
             var X1 = YAHOO.util.Dom.getRegion(hLabel);
             //どこに挿入するか調べる。グループ化も一緒にやってしまえたらやってしまおう。
             for (j = 0; j <= mylabelarray3.length; j++) {
-                if (j == mylabelarray3.length) { break; }
+                if (j == mylabelarray3.length) {
+                    break;
+                }
                 var X2 = YAHOO.util.Dom.getRegion(mylabelarray3[j]);
                 if (X1.left <= X2.left) {
                     break;
@@ -1003,10 +1075,15 @@ $stmt->close();
                 }
             }
         }
-        if (array_flag2 == 1) { Mylabels_r1 = mylabelarray3.slice(0); }
-        else if (array_flag2 == 2) { Mylabels_r2 = mylabelarray3.slice(0); }
-        else if (array_flag2 == 3) { Mylabels_r3 = mylabelarray3.slice(0); }
-        else if (array_flag2 == 4) { Mylabels_ea = mylabelarray3.slice(0); }
+        if (array_flag2 == 1) {
+            Mylabels_r1 = mylabelarray3.slice(0);
+        } else if (array_flag2 == 2) {
+            Mylabels_r2 = mylabelarray3.slice(0);
+        } else if (array_flag2 == 3) {
+            Mylabels_r3 = mylabelarray3.slice(0);
+        } else if (array_flag2 == 4) {
+            Mylabels_ea = mylabelarray3.slice(0);
+        }
         return mylabelarray3;
 
     }
@@ -1034,6 +1111,7 @@ $stmt->close();
         YAHOO.util.Dom.setStyle(this, "background-color", "yellow");
 
     }
+
     function MyLabels_MouseLeave() {
         if (MV == true || IsDragging == true) {
             return;
@@ -1063,44 +1141,76 @@ $stmt->close();
         //↑のコメントは多分出海さんなので文句は出海さんへお願いします
         //問題提示欄
         for (i = 0; i < Mylabels.length; i++) {
-            if (Mylabels[i] == undefined) { continue; }
-            if (Mylabels[i].id == sender.id) { array_flag = 0; index_sender = i; }
+            if (Mylabels[i] == undefined) {
+                continue;
+            }
+            if (Mylabels[i].id == sender.id) {
+                array_flag = 0;
+                index_sender = i;
+            }
         }
         //レジスタ1
         for (i = 0; i < Mylabels_r1.length; i++) {
-            if (Mylabels_r1[i].id == sender.id) { array_flag = 1; index_sender = i; }
+            if (Mylabels_r1[i].id == sender.id) {
+                array_flag = 1;
+                index_sender = i;
+            }
         }
         //レジスタ2
         for (i = 0; i < Mylabels_r2.length; i++) {
-            if (Mylabels_r2[i].id == sender.id) { array_flag = 2; index_sender = i; }
+            if (Mylabels_r2[i].id == sender.id) {
+                array_flag = 2;
+                index_sender = i;
+            }
         }
         //レジスタ3
         for (i = 0; i < Mylabels_r3.length; i++) {
-            if (Mylabels_r3[i].id == sender.id) { array_flag = 3; index_sender = i; }
+            if (Mylabels_r3[i].id == sender.id) {
+                array_flag = 3;
+                index_sender = i;
+            }
         }
         //最終解答欄
         for (i = 0; i < Mylabels_ea.length; i++) {
-            if (Mylabels_ea[i].id == sender.id) { array_flag = 4; index_sender = i; }
+            if (Mylabels_ea[i].id == sender.id) {
+                array_flag = 4;
+                index_sender = i;
+            }
         }
         //もしグループ化されているなら
         if (MyControls.length > 0) {
             var g_array = new Array();
-            if (array_flag == 1) { g_array = Mylabels_r1.slice(0); }
-            else if (array_flag == 2) { g_array = Mylabels_r2.slice(0); }
-            else if (array_flag == 3) { g_array = Mylabels_r3.slice(0); }
-            else if (array_flag == 4) { g_array = Mylabels_ea.slice(0); }
+            if (array_flag == 1) {
+                g_array = Mylabels_r1.slice(0);
+            } else if (array_flag == 2) {
+                g_array = Mylabels_r2.slice(0);
+            } else if (array_flag == 3) {
+                g_array = Mylabels_r3.slice(0);
+            } else if (array_flag == 4) {
+                g_array = Mylabels_ea.slice(0);
+            }
 
             //グループ化の先頭が何番目に入っているか？
             for (i = 0; i < g_array.length; i++) {
-                if (g_array[i] == undefined) { continue; }
-                if (g_array[i].id == MyControls[0].id) { index_sender_g = i; }
+                if (g_array[i] == undefined) {
+                    continue;
+                }
+                if (g_array[i].id == MyControls[0].id) {
+                    index_sender_g = i;
+                }
             }
         }
-        if (array_flag == 0) { mylabelarray = Mylabels.slice(0); }
-        else if (array_flag == 1) { mylabelarray = Mylabels_r1.slice(0); }
-        else if (array_flag == 2) { mylabelarray = Mylabels_r2.slice(0); }
-        else if (array_flag == 3) { mylabelarray = Mylabels_r3.slice(0); }
-        else if (array_flag == 4) { mylabelarray = Mylabels_ea.slice(0); }
+        if (array_flag == 0) {
+            mylabelarray = Mylabels.slice(0);
+        } else if (array_flag == 1) {
+            mylabelarray = Mylabels_r1.slice(0);
+        } else if (array_flag == 2) {
+            mylabelarray = Mylabels_r2.slice(0);
+        } else if (array_flag == 3) {
+            mylabelarray = Mylabels_r3.slice(0);
+        } else if (array_flag == 4) {
+            mylabelarray = Mylabels_ea.slice(0);
+        }
         //グループ化されたラベルの初期化とか、hLabelに退避とか
         Mld = true;
         var hLabel = sender;
@@ -1186,28 +1296,28 @@ $stmt->close();
         $Mouse_Data["Label"] = DLabel;
         Mouse_Num += 1;
 
-        var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"])
-            + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
-            + '&param3=' + encodeURIComponent($Mouse_Data["X"])
-            + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
-            + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
-            + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
-            + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-            + '&param8=' + encodeURIComponent($Mouse_Data["Label"])
-            + '&lang=' + encodeURIComponent(testLangType);
-        new Ajax.Request(URL + 'tmpfile.php',
-            {
-                method: 'get',
-                onSuccess: getA,
-                onFailure: getE,
-                parameters: $params
-            });
+        var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
+            '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
+            '&param3=' + encodeURIComponent($Mouse_Data["X"]) +
+            '&param4=' + encodeURIComponent($Mouse_Data["Y"]) +
+            '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"]) +
+            '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
+            '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
+            '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
+            '&lang=' + encodeURIComponent(testLangType);
+        new Ajax.Request(URL + 'tmpfile.php', {
+            method: 'get',
+            onSuccess: getA,
+            onFailure: getE,
+            parameters: $params
+        });
         //▲マウスデータの取得
         //ドラッグ開始地点の保存
         function getA(req) {
             document.getElementById("msg").innerHTML = req.responseText;
             Mld = false;
         }
+
         function getE(req) {
             alert("失敗d");
         }
@@ -1235,11 +1345,17 @@ $stmt->close();
             TermTextChange();
         }
 
-        if (array_flag == 0) { Mylabels = mylabelarray.slice(0); }
-        else if (array_flag == 1) { Mylabels_r1 = mylabelarray.slice(0); }
-        else if (array_flag == 2) { Mylabels_r2 = mylabelarray.slice(0); }
-        else if (array_flag == 3) { Mylabels_r3 = mylabelarray.slice(0); }
-        else if (array_flag == 4) { Mylabels_ea = mylabelarray.slice(0); }
+        if (array_flag == 0) {
+            Mylabels = mylabelarray.slice(0);
+        } else if (array_flag == 1) {
+            Mylabels_r1 = mylabelarray.slice(0);
+        } else if (array_flag == 2) {
+            Mylabels_r2 = mylabelarray.slice(0);
+        } else if (array_flag == 3) {
+            Mylabels_r3 = mylabelarray.slice(0);
+        } else if (array_flag == 4) {
+            Mylabels_ea = mylabelarray.slice(0);
+        }
     }
 
     //★★ラベルを離した時の作業。問題文の形を変えたりいろいろ
@@ -1252,17 +1368,29 @@ $stmt->close();
         document.getElementById("answer").style.borderColor = "black";
         var mylabelarray2 = new Array();
         //イベントが起こったy座標の判定。それによって単語をどこに落とすか決める。
-        if (event.y <= 150) { array_flag2 = 0; }
-        else if (event.y <= 240 && event.y > 150) { array_flag2 = 4; }
-        else if (event.y <= 320 && event.y > 240) { array_flag2 = 1; }
-        else if (event.y <= 400 && event.y > 320) { array_flag2 = 2; }
-        else if (event.y > 400) { array_flag2 = 3; }
+        if (event.y <= 150) {
+            array_flag2 = 0;
+        } else if (event.y <= 240 && event.y > 150) {
+            array_flag2 = 4;
+        } else if (event.y <= 320 && event.y > 240) {
+            array_flag2 = 1;
+        } else if (event.y <= 400 && event.y > 320) {
+            array_flag2 = 2;
+        } else if (event.y > 400) {
+            array_flag2 = 3;
+        }
 
-        if (array_flag2 == 0) { mylabelarray2 = Mylabels.slice(0); }
-        else if (array_flag2 == 1) { mylabelarray2 = Mylabels_r1.slice(0); }
-        else if (array_flag2 == 2) { mylabelarray2 = Mylabels_r2.slice(0); }
-        else if (array_flag2 == 3) { mylabelarray2 = Mylabels_r3.slice(0); }
-        else if (array_flag2 == 4) { mylabelarray2 = Mylabels_ea.slice(0); }
+        if (array_flag2 == 0) {
+            mylabelarray2 = Mylabels.slice(0);
+        } else if (array_flag2 == 1) {
+            mylabelarray2 = Mylabels_r1.slice(0);
+        } else if (array_flag2 == 2) {
+            mylabelarray2 = Mylabels_r2.slice(0);
+        } else if (array_flag2 == 3) {
+            mylabelarray2 = Mylabels_r3.slice(0);
+        } else if (array_flag2 == 4) {
+            mylabelarray2 = Mylabels_ea.slice(0);
+        }
         if (IsDragging != true) {
             return;
         }
@@ -1300,36 +1428,42 @@ $stmt->close();
         $Mouse_Data["Label"] = "";
         Mouse_Num += 1;
 
-        var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"])
-            + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
-            + '&param3=' + encodeURIComponent($Mouse_Data["X"])
-            + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
-            + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
-            + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
-            + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-            + '&param8=' + encodeURIComponent($Mouse_Data["Label"])
-            + '&lang=' + encodeURIComponent(testLangType);
-        new Ajax.Request(URL + 'tmpfile.php',
-            {
-                method: 'get',
-                onSuccess: getA,
-                onFailure: getE,
-                parameters: $params
-            });
+        var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
+            '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
+            '&param3=' + encodeURIComponent($Mouse_Data["X"]) +
+            '&param4=' + encodeURIComponent($Mouse_Data["Y"]) +
+            '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"]) +
+            '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
+            '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
+            '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
+            '&lang=' + encodeURIComponent(testLangType);
+        new Ajax.Request(URL + 'tmpfile.php', {
+            method: 'get',
+            onSuccess: getA,
+            onFailure: getE,
+            parameters: $params
+        });
         //▲マウスデータの取得
         //ドラッグ開始地点の保存
         function getA(req) {
             document.getElementById("msg").innerHTML = req.responseText;
         }
+
         function getE(req) {
             alert("失敗f");
         }
 
-        if (array_flag2 == 0) { Mylabels = mylabelarray2.slice(0); }
-        else if (array_flag2 == 1) { Mylabels_r1 = mylabelarray2.slice(0); }
-        else if (array_flag2 == 2) { Mylabels_r2 = mylabelarray2.slice(0); }
-        else if (array_flag2 == 3) { Mylabels_r3 = mylabelarray2.slice(0); }
-        else if (array_flag2 == 4) { Mylabels_ea = mylabelarray2.slice(0); }
+        if (array_flag2 == 0) {
+            Mylabels = mylabelarray2.slice(0);
+        } else if (array_flag2 == 1) {
+            Mylabels_r1 = mylabelarray2.slice(0);
+        } else if (array_flag2 == 2) {
+            Mylabels_r2 = mylabelarray2.slice(0);
+        } else if (array_flag2 == 3) {
+            Mylabels_r3 = mylabelarray2.slice(0);
+        } else if (array_flag2 == 4) {
+            Mylabels_ea = mylabelarray2.slice(0);
+        }
 
     }
     //★★マウスでラベルをドラッグ中。動かしてるときだからここで挿入線をアレしたりコレしたり
@@ -1388,11 +1522,17 @@ $stmt->close();
         document.getElementById("register3").style.borderColor = "black";
         document.getElementById("answer").style.borderColor = "black";
         //挿入線関係。まずy座標でどこに挿入線を引くか判定
-        if (event.y <= 150) { line_flag = 0; }
-        else if (event.y <= 240 && event.y > 150) { line_flag = 4; }
-        else if (event.y <= 320 && event.y > 240) { line_flag = 1; }
-        else if (event.y <= 400 && event.y > 320) { line_flag = 2; }
-        else if (event.y > 400) { line_flag = 3; }
+        if (event.y <= 150) {
+            line_flag = 0;
+        } else if (event.y <= 240 && event.y > 150) {
+            line_flag = 4;
+        } else if (event.y <= 320 && event.y > 240) {
+            line_flag = 1;
+        } else if (event.y <= 400 && event.y > 320) {
+            line_flag = 2;
+        } else if (event.y > 400) {
+            line_flag = 3;
+        }
         if (line_flag == 0) {
             line_array = Mylabels.slice(0);
             lstart_x = DefaultX;
@@ -1457,7 +1597,9 @@ $stmt->close();
         if (line_flag != 0) {
             draw3();
             draw2(line_x, line_y, line_y2);
-        } else { draw3(); }
+        } else {
+            draw3();
+        }
 
         MytoFo = true;
         Form1_MouseMove(sender);
@@ -1468,6 +1610,7 @@ $stmt->close();
         BPen2.paint();
         checkl = x;
     }
+
     function draw3() {
         BPen2.clear();
     }
@@ -1476,12 +1619,11 @@ $stmt->close();
     function LineQuestioneForm_Closing() {
         //▲マウスデータの取得
         alert(<?= json_encode(translate('ques.php_919行目_お疲れ様です')) ?>);
-        new Ajax.Request(URL + 'ewrite.php',
-            {
-                method: 'get',
-                onSuccess: getA,
-                onFailure: getE
-            });
+        new Ajax.Request(URL + 'ewrite.php', {
+            method: 'get',
+            onSuccess: getA,
+            onFailure: getE
+        });
         //▲マウスデータの取得
         //ドラッグ開始地点の保存
         function getA(req) {
@@ -1490,6 +1632,7 @@ $stmt->close();
             alert(req.responseText);
             window.close();
         }
+
         function getE(req) {
             alert(<?= json_encode(translate('ques.php_929行目_書き込み失敗')) ?>);
         }
@@ -1502,6 +1645,7 @@ $stmt->close();
             alert(<?= json_encode(translate('ques.php_778行目_まだ並べ替えが終了していません')) ?>);
             return;
         }
+
         //固定ラベルチェック
         for (i = 0; i < FixNum.length; i++) {
             var fixcheck = 0;
@@ -1512,8 +1656,7 @@ $stmt->close();
                 var fix_a = confirm(confirm_msg);
                 if (fix_a == true) {
                     continue;
-                }
-                else {
+                } else {
                     return;
                 }
             }
@@ -1553,37 +1696,43 @@ $stmt->close();
         $Mouse_Data["Label"] = "";
         Mouse_Num += 1;
 
-        var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"])
-            + '&param2=' + encodeURIComponent($Mouse_Data["Time"])
-            + '&param3=' + encodeURIComponent($Mouse_Data["X"])
-            + '&param4=' + encodeURIComponent($Mouse_Data["Y"])
-            + '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"])
-            + '&param6=' + encodeURIComponent($Mouse_Data["DropPos"])
-            + '&param7=' + encodeURIComponent($Mouse_Data["hlabel"])
-            + '&param8=' + encodeURIComponent($Mouse_Data["Label"])
-            + '&lang=' + encodeURIComponent(testLangType);
-        new Ajax.Request(URL + 'tmpfile.php',
-            {
-                method: 'get',
-                onSuccess: getA,
-                onFailure: getE,
-                parameters: $params
-            });
+        var $params = 'param1=' + encodeURIComponent($Mouse_Data["WID"]) +
+            '&param2=' + encodeURIComponent($Mouse_Data["Time"]) +
+            '&param3=' + encodeURIComponent($Mouse_Data["X"]) +
+            '&param4=' + encodeURIComponent($Mouse_Data["Y"]) +
+            '&param5=' + encodeURIComponent($Mouse_Data["DragDrop"]) +
+            '&param6=' + encodeURIComponent($Mouse_Data["DropPos"]) +
+            '&param7=' + encodeURIComponent($Mouse_Data["hlabel"]) +
+            '&param8=' + encodeURIComponent($Mouse_Data["Label"]) +
+            '&lang=' + encodeURIComponent(testLangType);
+        new Ajax.Request(URL + 'tmpfile.php', {
+            method: 'get',
+            onSuccess: getA,
+            onFailure: getE,
+            parameters: $params
+        });
         //▲マウスデータの取得
-        function getA(req) {
-        }
+        function getA(req) {}
+
         function getE(req) {
             alert("失敗g");
         }
-        //先頭の文字列を大文字に変換
-        str1 = Mylabels_ea[0].innerHTML.substr(0, 1);
-        str2 = Mylabels_ea[0].innerHTML.substr(1);
-        Mylabels_ea[0].innerHTML = str1.toUpperCase() + str2; //先頭の文字が大文字に
 
-        //ピリオドまたはクエスチョンを最後につける
-        Mylabels_ea[Mylabels2.length - 1].innerHTML += PorQ;
+        // ======================= ▼▼▼ ここからが修正箇所です ▼▼▼ =======================
+        // 英語テストの場合のみ、先頭を大文字にし、文末に句読点を追加する
+        if (testLangType !== 'ja') {
+            //先頭の文字列を大文字に変換
+            str1 = Mylabels_ea[0].innerHTML.substr(0, 1);
+            str2 = Mylabels_ea[0].innerHTML.substr(1);
+            Mylabels_ea[0].innerHTML = str1.toUpperCase() + str2;
+
+            //ピリオドまたはクエスチョンを最後につける
+            Mylabels_ea[Mylabels2.length - 1].innerHTML += PorQ;
+        }
 
         //自分の解答を文字列に格納
+        // ★注意：重複していたコードを削除し、こちらに一本化しました。
+        MyAnswer = ""; // 解答文字列を初期化
         for (i = 0; i <= Mylabels2.length - 1; i++) {
             //区切りラベルは解答に入れない
             if (Mylabels_ea[i].innerHTML == "/") {
@@ -1592,10 +1741,13 @@ $stmt->close();
             MyAnswer += Mylabels_ea[i].innerHTML + " ";
         }
         MyAnswer = MyAnswer.replace(/^\s+|\s+$/g, ""); //前後の空白削除
+        // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
+
         WriteAnswer = MyAnswer;
         $QAData["EndSentence"] = MyAnswer;
         ResAns += 1;
         AllResAns += 1;
+
 
         //単語単位迷い度取得の配列初期化・単語迷い度変数初期化
         $countHearing = [];
@@ -1651,50 +1803,33 @@ $stmt->close();
             YAHOO.util.Dom.setStyle("checkbox", "display", "block");
             YAHOO.util.Dom.setStyle("checkbox2", "display", "block");
 
-            // var checkbox = document.getElementById('three');
-            // checkbox.indeterminate = true;
-
             var HearingHtml = "";
             HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
             for (i = 0; i <= Mylabels2.length - 1; i++) {
-                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                    + Mylabels_ea[i].innerHTML + "</label>";
+                HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                    Mylabels_ea[i].innerHTML + "</label>";
 
             }
             HearingHtml += "</div><textarea id='comment' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
-            document.getElementById("hearing").innerHTML = HearingHtml;//仮の直しcomments→comment
-
-            // for (i = 0; i <= Mylabels2.length - 1; i++) {
-            // YAHOO.util.Dom.setStyle("radiobotton", "display", "block");
-            // }
+            document.getElementById("hearing").innerHTML = HearingHtml;
 
             YAHOO.util.Dom.setStyle("comments", "display", "block");
-            //YAHOO.util.Dom.setStyle("comments2", "display", "block");
             YAHOO.util.Dom.setStyle("QuesLevel", "display", "none");
-
             YAHOO.util.Dom.setStyle("choose2", "display", "none");
-            //YAHOO.util.Dom.setStyle("TermText", "display", "none");
-            //YAHOO.util.Dom.setStyle("TermLabel", "display", "none");
-            //YAHOO.util.Dom.setStyle("OrderLabel", "display", "none");
-            //YAHOO.util.Dom.setStyle("ButtonM", "display", "none");
             YAHOO.util.Dom.setStyle("TextBox1", "display", "none");
             YAHOO.util.Dom.setStyle("Label2", "display", "none");
             YAHOO.util.Dom.setStyle("Fixmsg", "display", "none");
             YAHOO.util.Dom.setStyle("ButtonM", "display", "none");
-            //YAHOO.util.Dom.setStyle("ButtonM2", "display", "none");
             YAHOO.util.Dom.setStyle("Button5", "display", "block");
-
             YAHOO.util.Dom.setStyle("register", "display", "none");
             YAHOO.util.Dom.setStyle("register1", "display", "none");
             YAHOO.util.Dom.setStyle("register2", "display", "none");
             YAHOO.util.Dom.setStyle("register3", "display", "none");
 
-
             document.getElementById("Button2").disabled = true;
             document.getElementById("Buttonl").disabled = true;
 
         }
-
 
         //決定を押した後にクリックできないように要素を見えなくする→解答欄のdivタグに追加して表示
         var answerBox = document.getElementById('answer');
@@ -1705,7 +1840,6 @@ $stmt->close();
             span.appendChild(document.createTextNode(Mylabels_ea[i].firstChild.nodeValue + ' '));
             answerBox.appendChild(span);
         }
-
     }
 
     //○○次の問題ボタン
@@ -1891,9 +2025,9 @@ $stmt->close();
         YAHOO.util.Dom.setStyle("OrderLabel", "display", "none");
         YAHOO.util.Dom.setStyle("ButtonM", "display", "none");
 
-        YAHOO.util.Dom.setStyle("hearing", "display", "none");//自由記述欄修正
-        YAHOO.util.Dom.setStyle("comments", "display", "none");//自由記述欄修正
-        YAHOO.util.Dom.setStyle("comments2", "display", "none");//自由記述欄修正
+        YAHOO.util.Dom.setStyle("hearing", "display", "none"); //自由記述欄修正
+        YAHOO.util.Dom.setStyle("comments", "display", "none"); //自由記述欄修正
+        YAHOO.util.Dom.setStyle("comments2", "display", "none"); //自由記述欄修正
 
         last();
 
@@ -1942,20 +2076,22 @@ $stmt->close();
 
     //正誤表示
     function print_answer() {
-        // ======================= ▼▼▼ 修正点 3/3 ▼▼▼ =======================
         var correctAnswer;
         var isCorrect = false;
 
         if (testLangType === 'ja') {
             // 【日本語テストの場合】
-            // 正解文として、保存しておいた「日本語の正解文」を使用
             correctAnswer = JapaneseAnswer;
-            // 日本語の解答(MyAnswer)と日本語の正解文(correctAnswer)を比較
-            // ※現時点では別解(Answer1, Answer2)は英語のみのため、比較対象外とする
-            isCorrect = (MyAnswer == correctAnswer);
+
+            // ======================= ▼▼▼ ここからが修正箇所です ▼▼▼ =======================
+            // 判定を確実にするため、ユーザーの解答と正解文から全ての空白(半角/全角)と句読点(。.)を取り除いてから比較する
+            var userAnswerNormalized = MyAnswer.replace(/(\s|　|。|\.)/g, "");
+            var correctAnswerNormalized = correctAnswer.replace(/(\s|　|。|\.)/g, "");
+            isCorrect = (userAnswerNormalized == correctAnswerNormalized);
+            // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
+
         } else {
             // 【英語テストの場合】
-            // 従来通り、英語の正解文を使用
             correctAnswer = Answer;
             isCorrect = (MyAnswer == correctAnswer || MyAnswer == Answer1 || MyAnswer == Answer2);
         }
@@ -1964,7 +2100,6 @@ $stmt->close();
             document.getElementById("RichTextBox3").innerHTML = <?= json_encode(translate('ques.php_890行目_正誤O')) ?>;
             YAHOO.util.Dom.setStyle("RichTextBox3", "color", "red");
             TF = 1;
-            // 表示する正解文を、言語に応じて切り替えた `correctAnswer` 変数にする
             document.getElementById("RichTextBox2").innerHTML = <?= json_encode(translate('ques.php_893行目_正解')) ?> + correctAnswer;
             YAHOO.util.Dom.setStyle("RichTextBox2", "display", "block");
             AllCorrectAns += 1;
@@ -1972,11 +2107,10 @@ $stmt->close();
             document.getElementById("RichTextBox3").innerHTML = <?= json_encode(translate('ques.php_896行目_正誤X')) ?>;
             YAHOO.util.Dom.setStyle("RichTextBox3", "color", "blue");
             TF = 0;
-            // 表示する正解文を、言語に応じて切り替えた `correctAnswer` 変数にする
             document.getElementById("RichTextBox2").innerHTML = <?= json_encode(translate('ques.php_893行目_正解')) ?> + correctAnswer;
             YAHOO.util.Dom.setStyle("RichTextBox2", "display", "block");
         }
-        // ======================= ▲▲▲ 修正点 3/3 ▲▲▲ =======================
+
         YAHOO.util.Dom.setStyle("RichTextBox3", "display", "block");
         YAHOO.util.Dom.setStyle("choose2", "display", "none");
 
@@ -1990,47 +2124,49 @@ $stmt->close();
         $QAData["TF"] = TF;
         $QAData["Time"] = mTimers;
         $QAData["Qid"] = Qid;
-        var $params = 'param1=' + encodeURIComponent($QAData["WID"])
-            + '&param2=' + encodeURIComponent($QAData["Date"])
-            + '&param3=' + encodeURIComponent($QAData["TF"])
-            + '&param4=' + encodeURIComponent($QAData["Time"])
-            + '&param5=' + encodeURIComponent($QAData["Understand"])
-            + '&param6=' + encodeURIComponent($QAData["EndSentence"])
-            + '&param7=' + encodeURIComponent($QAData["hesitate"])
-            + '&param8=' + encodeURIComponent($QAData["hesitate1"])
-            + '&param9=' + encodeURIComponent($QAData["hesitate2"])
-            + '&param10=' + encodeURIComponent($QAData["comments"])
-            + '&param11=' + encodeURIComponent($QAData["check"])
-            + '&lang=' + encodeURIComponent(testLangType);
+        var $params = 'param1=' + encodeURIComponent($QAData["WID"]) +
+            '&param2=' + encodeURIComponent($QAData["Date"]) +
+            '&param3=' + encodeURIComponent($QAData["TF"]) +
+            '&param4=' + encodeURIComponent($QAData["Time"]) +
+            '&param5=' + encodeURIComponent($QAData["Understand"]) +
+            '&param6=' + encodeURIComponent($QAData["EndSentence"]) +
+            '&param7=' + encodeURIComponent($QAData["hesitate"]) +
+            '&param8=' + encodeURIComponent($QAData["hesitate1"]) +
+            '&param9=' + encodeURIComponent($QAData["hesitate2"]) +
+            '&param10=' + encodeURIComponent($QAData["comments"]) +
+            '&param11=' + encodeURIComponent($QAData["check"]) +
+            '&lang=' + encodeURIComponent(testLangType);
 
         if (!(linedataFlg)) {
             linedataFlg = true;
-            new Ajax.Request(URL + 'tmpfile2.php',
-                {
-                    method: 'get',
-                    onSuccess: getA,
-                    onFailure: getE,
-                    parameters: $params
-                });
-            //▲マウスデータの取得
-            //ドラッグ開始地点の保存
+            new Ajax.Request(URL + 'tmpfile2.php', {
+                method: 'get',
+                onSuccess: getA,
+                onFailure: getE,
+                parameters: $params
+            });
+
             function getA(req) {
                 //ここでuser_progressを更新する
                 $u = "u";
-                $params = 'param1=' + encodeURIComponent(OID)
-                    + '&param2=' + encodeURIComponent($u)
-                    + '&lang=' + encodeURIComponent(testLangType);
+                $params = 'param1=' + encodeURIComponent(OID) +
+                    '&param2=' + encodeURIComponent($u) +
+                    '&lang=' + encodeURIComponent(testLangType);
                 new Ajax.Request(URL + 'dbsyori.php', //本番用
                     {
                         method: 'get',
                         onSuccess: getwriteuser_progress,
-                        onFailure: function (req) { getError(req, "dbsyori.php") },
+                        onFailure: function(req) {
+                            getError(req, "dbsyori.php")
+                        },
                         parameters: $params
                     });
             }
+
             function getwriteuser_progress(req) {
 
             }
+
             function getE(req) {
                 alert("失敗h");
             }
@@ -2057,12 +2193,11 @@ $stmt->close();
             alert(<?= json_encode(translate('ques.php_1058行目_終了ですお疲れ様でした')) ?>);
             //▲マウスデータの取得
             alert(<?= json_encode(translate('ques.php_1062行目_採点を行います')) ?>);
-            new Ajax.Request(URL + 'ewrite.php',
-                {
-                    method: 'get',
-                    onSuccess: getA,
-                    onFailure: getE
-                });
+            new Ajax.Request(URL + 'ewrite.php', {
+                method: 'get',
+                onSuccess: getA,
+                onFailure: getE
+            });
             //▲マウスデータの取得
             //ドラッグ開始地点の保存
             function getA(req) {
@@ -2070,6 +2205,7 @@ $stmt->close();
                 alert(req.responseText);
                 document.location = "result.php?Qid=" + Qid;
             }
+
             function getE(req) {
                 alert(<?= json_encode(translate('ques.php_929行目_書き込み失敗')) ?>);
             }
@@ -2089,6 +2225,7 @@ $stmt->close();
     }*/
     $countH0 = 999999999;
     $countH0_3 = 0;
+
     function ButtonH0_Click() {
         //$countH = 0;
         $countH0--;
@@ -2097,8 +2234,8 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2106,6 +2243,7 @@ $stmt->close();
     }
     $countH1 = 99999999;
     $countH1_3 = 0;
+
     function ButtonH1_Click() {
         //$countH = 0;
         $countH1--;
@@ -2114,8 +2252,8 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2123,6 +2261,7 @@ $stmt->close();
     }
     $countH2 = 99999999;
     $countH2_3 = 0;
+
     function ButtonH2_Click() {
         //$countH = 0;
         $countH2--;
@@ -2131,8 +2270,8 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2140,6 +2279,7 @@ $stmt->close();
     }
     $countH3 = 99999999;
     $countH3_3 = 0;
+
     function ButtonH3_Click() {
         //$countH = 0;
         $countH3--;
@@ -2148,8 +2288,8 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2157,6 +2297,7 @@ $stmt->close();
     }
     $countH4 = 99999999;
     $countH4_3 = 0;
+
     function ButtonH4_Click() {
         //$countH = 0;
         $countH4--;
@@ -2165,8 +2306,8 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2174,6 +2315,7 @@ $stmt->close();
     }
     $countH5 = 99999999;
     $countH5_3 = 0;
+
     function ButtonH5_Click() {
         //$countH = 0;
         $countH5--;
@@ -2182,8 +2324,8 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2191,6 +2333,7 @@ $stmt->close();
     }
     $countH6 = 99999999;
     $countH6_3 = 0;
+
     function ButtonH6_Click() {
         //$countH = 0;
         $countH6--;
@@ -2199,8 +2342,8 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2208,6 +2351,7 @@ $stmt->close();
     }
     $countH7 = 99999999;
     $countH7_3 = 0;
+
     function ButtonH7_Click() {
         //$countH = 0;
         $countH7--;
@@ -2216,14 +2360,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH8 = 99999999;
+
     function ButtonH8_Click() {
         //$countH = 0;
         $countH8--;
@@ -2232,14 +2377,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH9 = 99999999;
+
     function ButtonH9_Click() {
         //$countH = 0;
         $countH9--;
@@ -2248,14 +2394,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH10 = 99999999;
+
     function ButtonH10_Click() {
         //$countH = 0;
         $countH10--;
@@ -2264,14 +2411,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH11 = 99999999;
+
     function ButtonH11_Click() {
         //$countH = 0;
         $countH11--;
@@ -2280,14 +2428,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH12 = 99999999;
+
     function ButtonH12_Click() {
         //$countH = 0;
         $countH12--;
@@ -2296,14 +2445,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH13 = 99999999;
+
     function ButtonH13_Click() {
         //$countH = 0;
         $countH13--;
@@ -2312,14 +2462,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH14 = 99999999;
+
     function ButtonH14_Click() {
         //$countH = 0;
         $countH14--;
@@ -2328,14 +2479,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH15 = 99999999;
+
     function ButtonH15_Click() {
         //$countH = 0;
         $countH15--;
@@ -2344,14 +2496,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH16 = 99999999;
+
     function ButtonH16_Click() {
         //$countH = 0;
         $countH16--;
@@ -2360,14 +2513,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH17 = 99999999;
+
     function ButtonH17_Click() {
         //$countH = 0;
         $countH17--;
@@ -2376,14 +2530,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH18 = 99999999;
+
     function ButtonH18_Click() {
         //$countH = 0;
         $countH18--;
@@ -2392,14 +2547,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH19 = 99999999;
+
     function ButtonH19_Click() {
         //$countH = 0;
         $countH19--;
@@ -2408,14 +2564,15 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
         document.getElementById("hearing").innerHTML = HearingHtml;
     }
     $countH20 = 99999999;
+
     function ButtonH20_Click() {
         //$countH = 0;
         $countH20--;
@@ -2424,8 +2581,8 @@ $stmt->close();
         var HearingHtml = "";
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
         for (i = 0; i <= Mylabels2.length - 1; i++) {
-            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">"
-                + Mylabels_ea[i].innerHTML + "</label>";
+            HearingHtml += "<input name=\"HearingCheck\" id=\"select" + i + "\" value=\"" + i + "\"  onclick=\"ButtonH" + i + "_Click()\" s=\"" + $countHearing[i] + "\" type=\"button\"><label for=\"select" + i + "\"s=\"" + $countHearing[i] + "\">" +
+                Mylabels_ea[i].innerHTML + "</label>";
 
         }
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:350;top:50;display:none; \"></textarea></form>";
@@ -2453,21 +2610,21 @@ $stmt->close();
         chk = document.check.checkbox.checked;
         //alert(document.getElementById("HearingForm")[1].s);
         for (i = 0; i < MyTag.length; i++) {
-            if (($countHearing[i] == 1) || ($countHearing[i] == 2)) {//if (MyTag[i].checked) {
+            if (($countHearing[i] == 1) || ($countHearing[i] == 2)) { //if (MyTag[i].checked) {
                 if (numC == 0) chkvalue += MyTag[i].value;
                 else chkvalue += "#" + MyTag[i].value;
                 numC++;
             }
         }
         for (i = 0; i < MyTag.length; i++) {
-            if ($countHearing[i] == 1) {//if (MyTag[i].checked) {
+            if ($countHearing[i] == 1) { //if (MyTag[i].checked) {
                 if (num == 0) chkvalue_1 += MyTag[i].value;
                 else chkvalue_1 += "#" + MyTag[i].value;
                 num++;
             }
         }
         for (i = 0; i < MyTag.length; i++) {
-            if ($countHearing[i] == 2) {//if (MyTag[i].checked) {
+            if ($countHearing[i] == 2) { //if (MyTag[i].checked) {
                 if (num2 == 0) chkvalue_2 += MyTag[i].value;
                 else chkvalue_2 += "#" + MyTag[i].value;
                 num2++;
@@ -2486,7 +2643,7 @@ $stmt->close();
         HearingHtml = "<form name=\"Hearing\" id=\"HearingForm\"><div class=\"check\">";
 
         HearingHtml += "</div><textarea id='comments' cols='50' rows='2' style=\" position:absolute;left:30;top:120;display:none; \"></textarea></form>";
-        document.getElementById("hearing").innerHTML = HearingHtml;//仮の直しcomments→comment
+        document.getElementById("hearing").innerHTML = HearingHtml; //仮の直しcomments→comment
 
         // for (i = 0; i <= Mylabels2.length - 1; i++) {
         // YAHOO.util.Dom.setStyle("radiobotton", "display", "block");
@@ -2565,9 +2722,6 @@ $stmt->close();
         //YAHOO.util.Dom.setStyle("ButtonM2", "display", "block");
 
     }
-
-
-
 </script>
 
 <body id=mybody onLoad="ques_Load()" onMouseDown="Form1_MouseDown()" onMouseUp="Form1_MouseUp()">
@@ -2598,7 +2752,10 @@ $stmt->close();
         onclick="LineQuestioneForm_Closing()"
         style="width:75px;height:20px;position:absolute;left:780px;top:365px;background-color:pink;display:none" />
 
-    <font color="red" style="position:absolute;left:12;top:7"><?= translate('ques.php_1554行目_日本文') ?></font>
+    <!-- ======================= ▼▼▼ 修正点 2/2 (HTML) ▼▼▼ ======================= -->
+    <!-- ラベルの<font>タグにidを追加 -->
+    <font id="reference_text_label" color="red" style="position:absolute;left:12;top:7"><?= translate('ques.php_1554行目_日本文') ?></font>
+    <!-- ======================= ▲▲▲ 修正点 2/2 (HTML) ▲▲▲ ======================= -->
     <div id="RichTextBox1" style="background-color:#ffa500;position:absolute;
      left:12;top:27;width:731;height:36;border-style:inset">
         <?= translate('ques.php_1556行目_ここに訳文が表示されます') ?>
@@ -2644,7 +2801,8 @@ $stmt->close();
     left:12;top:90;width:800;height:20;font-size:12;"></div>
 
     <font id="hearing2" color="red" style="position:absolute;left:12;top:220;display:none">
-        <b><?= translate('ques.php_1590行目_迷った単語をクリックしてください') ?></b></font>
+        <b><?= translate('ques.php_1590行目_迷った単語をクリックしてください') ?></b>
+    </font>
 
     <div id="hearingT2" style="position:absolute;
      left:400;top:220;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
@@ -2658,7 +2816,8 @@ $stmt->close();
     </div>
 
     <font id="comments2" cols='50' rows='2' size='2' style=" position:absolute;left:30;top:330;display:none;">
-        <b><?= translate('ques.php_1600行目_自由にご記入ください') ?></b></font>
+        <b><?= translate('ques.php_1600行目_自由にご記入ください') ?></b>
+    </font>
 
 
     <form name="check" action="">
@@ -2666,7 +2825,8 @@ $stmt->close();
             style="width:80px;height:30px;position:absolute;left:5px;top:350px;display:none" />
     </form>
     <font id="checkbox2" style="position:absolute;left:70;top:360;display:none">
-        <b><?= translate('ques.php_1606行目_全体的にわからなかった') ?></b></font>
+        <b><?= translate('ques.php_1606行目_全体的にわからなかった') ?></b>
+    </font>
 
     <div id="myCanvas" style="position:absolute;top:0;left:0;height:500px;width:500px;z-index:-1"></div>
 
@@ -2681,7 +2841,8 @@ $stmt->close();
 
     <font id="exercise" color="red" style="position:absolute;
      left:768;top:10;width:80;height:18;font-size:18;color:red;display:none">
-        <b><?= translate('ques.php_1622行目_例題') ?></b></font>
+        <b><?= translate('ques.php_1622行目_例題') ?></b>
+    </font>
 
     <div id="number" style="position:absolute;
      left:768;top:6;width:80;height:18;font-size:18;color:red;display;:none"></div>
@@ -2718,14 +2879,17 @@ $stmt->close();
         <input type="hidden" id="TermText" value="">
     </form>
     <script type="text/javascript">
-
         function disableSelection(target) {
             if (typeof target.onselectstart != "undefined") //IE route
-                target.onselectstart = function () { return false }
+                target.onselectstart = function() {
+                    return false
+                }
             else if (typeof target.style.MozUserSelect != "undefined") //Firefox route
                 target.style.MozUserSelect = "none"
             else //All other route (ie: Opera)
-                target.onmousedown = function () { return false }
+                target.onmousedown = function() {
+                    return false
+                }
             target.style.cursor = "default"
         }
         disableSelection(document.getElementById("question"));

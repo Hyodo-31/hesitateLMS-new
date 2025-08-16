@@ -66,22 +66,18 @@
         <div class="logo"><?= translate('machineLearning_sample.php_58行目_データ分析ページ') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php"><?= translate('machineLearning_sample.php_61行目_ホーム') ?></a></li>
-                <li><a
-                        href="machineLearning_sample.php"><?= translate('machineLearning_sample.php_62行目_迷い推定・機械学習') ?></a>
-                </li>
-                <li><a href="register-student.php"><?= translate('machineLearning_sample.php_63行目_新規学生登録') ?></a></li>
+                <!-- <li><a href="teachertrue.php"><?= translate('machineLearning_sample.php_61行目_ホーム') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('machineLearning_sample.php_62行目_迷い推定・機械学習') ?></a></li> -->
+                <!-- <li><a href="register-student.php"><?= translate('machineLearning_sample.php_63行目_新規学生登録') ?></a></li> -->
             </ul>
         </nav>
     </header>
     <div class="container">
         <aside>
             <ul>
-                <li><a href="#"><?= translate('machineLearning_sample.php_69行目_ダッシュボード') ?></a></li>
-                <li><a
-                        href="machineLearning_sample.php"><?= translate('machineLearning_sample.php_70行目_迷い推定・機械学習') ?></a>
-                </li>
-                <li><a href="register-student.php"><?= translate('machineLearning_sample.php_71行目_新規学生登録') ?></a></li>
+                <li><a href="teachertrue.php"><?= translate('machineLearning_sample.php_61行目_ホーム') ?></a></li>
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('machineLearning_sample.php_70行目_迷い推定・機械学習') ?></a></li> -->
+                <!-- <li><a href="register-student.php"><?= translate('machineLearning_sample.php_71行目_新規学生登録') ?></a></li> -->
             </ul>
         </aside>
         <main>
