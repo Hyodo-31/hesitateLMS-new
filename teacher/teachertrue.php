@@ -295,203 +295,45 @@ if ($teacher_id) {
                     <?php endif; ?>
                 </div>
             </section>
+            
+            <!-- ======================= ▼▼▼ ここから追加 ▼▼▼ ======================= -->
+            <section id="detail-info" class="class-card">
+                <h2><?= translate('machineLearning_sample.php_1464行目_学習者の詳細情報') ?></h2>
+                <label for="uid-select"><?= translate('machineLearning_sample.php_1466行目_学習者名UID') ?></label>
+                <select id="uid-select">
+                    <option value=""><?= translate('machineLearning_sample.php_1468行目_選択してください') ?></option>
+                    <?php
+                    if ($teacher_id) {
+                        $getUsersQuery = "SELECT DISTINCT tr.uid,s.Name FROM temporary_results tr 
+                                                LEFT JOIN students s ON tr.uid = s.uid 
+                                                WHERE teacher_id = ?";
+                        $stmt_users = $conn->prepare($getUsersQuery);
+                        $stmt_users->bind_param("i", $teacher_id);
+                        $stmt_users->execute();
+                        $result_users = $stmt_users->get_result();
 
-            <div id="feature-modal" class="modal">
-                <div class="modal-content">
-                    <span class="close" onclick="closeFeatureModal()">&times;</span>
-                    <h3><?= translate('teachertrue.php_175行目_特徴量を選択してください') ?></h3>
-                    <form id="feature-form">
-                        <label><input type="checkbox" name="feature"
-                                value="notaccuracy"><?= translate('teachertrue.php_177行目_不正解率 (%)') ?><span
-                                class="info-icon" data-feature-name="notaccuracy">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="Time"><?= translate('teachertrue.php_178行目_解答時間 (秒)') ?><span class="info-icon"
-                                data-feature-name="Time">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="distance"><?= translate('teachertrue.php_179行目_距離') ?><span class="info-icon"
-                                data-feature-name="distance">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="averageSpeed"><?= translate('teachertrue.php_180行目_平均速度') ?><span
-                                class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="maxSpeed"><?= translate('teachertrue.php_181行目_最高速度') ?><span class="info-icon"
-                                data-feature-name="maxSpeed">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="thinkingTime"><?= translate('teachertrue.php_182行目_考慮時間') ?><span
-                                class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="answeringTime"><?= translate('teachertrue.php_183行目_第一ドロップ後解答時間') ?><span
-                                class="info-icon" data-feature-name="answeringTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="totalStopTime"><?= translate('teachertrue.php_184行目_合計静止時間') ?><span
-                                class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="maxStopTime"><?= translate('teachertrue.php_185行目_最大静止時間') ?><span
-                                class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="totalDDIntervalTime"><?= translate('teachertrue.php_186行目_合計DD間時間') ?><span
-                                class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="maxDDIntervalTime"><?= translate('teachertrue.php_187行目_最大DD間時間') ?><span
-                                class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="maxDDTime"><?= translate('teachertrue.php_188行目_合計DD時間') ?><span
-                                class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="minDDTime"><?= translate('teachertrue.php_189行目_最小DD時間') ?><span
-                                class="info-icon" data-feature-name="minDDTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="DDCount"><?= translate('teachertrue.php_190行目_合計DD回数') ?><span class="info-icon"
-                                data-feature-name="DDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="groupingDDCount"><?= translate('teachertrue.php_191行目_グループ化DD回数') ?><span
-                                class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="groupingCountbool"><?= translate('teachertrue.php_192行目_グループ化有無') ?><span
-                                class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="xUturnCount"><?= translate('teachertrue.php_193行目_x軸Uターン回数') ?><span
-                                class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="yUturnCount"><?= translate('teachertrue.php_194行目_y軸Uターン回数') ?><span
-                                class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register_move_count1"><?= translate('teachertrue.php_195行目_レジスタ➡レジスタへの移動回数') ?><span
-                                class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register_move_count2"><?= translate('teachertrue.php_196行目_レジスタ➡レジスタ外への移動回数') ?><span
-                                class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register_move_count3"><?= translate('teachertrue.php_197行目_レジスタ外➡レジスタへの移動回数') ?><span
-                                class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register01count1"><?= translate('teachertrue.php_198行目_レジスタ➡レジスタへの移動有無') ?><span
-                                class="info-icon" data-feature-name="register01count1">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register01count2"><?= translate('teachertrue.php_199行目_レジスタ➡レジスタ外への移動有無') ?><span
-                                class="info-icon" data-feature-name="register01count2">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register01count3"><?= translate('teachertrue.php_200行目_レジスタ外➡レジスタへの移動有無') ?><span
-                                class="info-icon" data-feature-name="register01count3">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="registerDDCount"><?= translate('teachertrue.php_201行目_レジスタに関する合計の移動回数') ?><span
-                                class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="xUturnCountDD"><?= translate('teachertrue.php_202行目_x軸UターンD&D回数') ?><span
-                                class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="yUturnCountDD"><?= translate('teachertrue.php_203行目_y軸UターンD&D回数') ?><span
-                                class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="FromlastdropToanswerTime"><?= translate('teachertrue.php_204行目_最終ドロップ後時間') ?><span
-                                class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label><br>
-                        <button type="button"
-                            id="apply-features-btn"><?= translate('teachertrue.php_205行目_適用') ?></button>
-                    </form>
+                        while ($row_user = $result_users->fetch_assoc()) {
+                            echo '<option value="' . $row_user['uid'] . '">' . $row_user['Name'] . ' (' . $row_user['uid'] . ')</option>';
+                        }
+                        $stmt_users->close();
+                    }
+                    ?>
+                </select>
+                <div id="student-details">
+                    <div id="student-details-maininfo"></div>
+                    <div id="student-details-grammar"></div>
                 </div>
-            </div>
-            <div id="clustering-modal" class="modal">
-                <div class="modal-content">
-                    <span class="close" onclick="closeClusteringModal()">&times;</span>
-                    <form id="clustering-feature-form">
-                        <h3 style="display : none;"><?= translate('teachertrue.php_214行目_クラスタ数を入力してください') ?></h3>
-                        <input type="number" id="clustering-input" min="1" max="10" value="2" style="display: none;">
-                        <h3 style="display : none;"><?= translate('teachertrue.php_216行目_クラスタリング手法を選択してください') ?></h3>
-                        <label for="clustering-method"
-                            style="display: none;"><?= translate('teachertrue.php_217行目_クラスタリング手法') ?></label>
-                        <select id="clustering-method" style="display: none;">
-                            <option value="kmeans">K-Means</option>
-                            <option value="xmeans">X-Means</option>
-                            <option value="gmeans">G-Means</option>
-                        </select>
-                        <h3><?= translate('teachertrue.php_223行目_クラスタリング特徴量を選択してください') ?></h3>
+                <label for="wid-select"></label>
+                <select id="wid-select">
+                    <option value=""><?= translate('machineLearning_sample.php_1483行目_選択してください') ?></option>
+                </select>
+                <div id="wid-details">
+                    <div id="wid-details-maininfo-stu"></div>
+                    <div id="wid-details-maininfo-all"></div>
+                </div>
+            </section>
+            <!-- ======================= ▲▲▲ 追加はここまで ▲▲▲ ======================= -->
 
-                        <label><input type="checkbox" name="feature"
-                                value="Time"><?= translate('teachertrue.php_226行目_解答時間 (秒)') ?><span class="info-icon"
-                                data-feature-name="Time">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="distance"><?= translate('teachertrue.php_227行目_距離') ?><span class="info-icon"
-                                data-feature-name="distance">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="averageSpeed"><?= translate('teachertrue.php_228行目_平均速度') ?><span
-                                class="info-icon" data-feature-name="averageSpeed">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="maxSpeed"><?= translate('teachertrue.php_229行目_最大速度') ?><span class="info-icon"
-                                data-feature-name="maxSpeed">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="thinkingTime"><?= translate('teachertrue.php_230行目_第一ドラッグ前時間') ?><span
-                                class="info-icon" data-feature-name="thinkingTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="answeringTime"><?= translate('teachertrue.php_231行目_第一ドラッグ後時間') ?><span
-                                class="info-icon" data-feature-name="answeringTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="totalStopTime"><?= translate('teachertrue.php_232行目_合計静止時間') ?><span
-                                class="info-icon" data-feature-name="totalStopTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="maxStopTime"><?= translate('teachertrue.php_233行目_最大静止時間') ?><span
-                                class="info-icon" data-feature-name="maxStopTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="totalDDIntervalTime"><?= translate('teachertrue.php_234行目_合計D&D間時間') ?><span
-                                class="info-icon" data-feature-name="totalDDIntervalTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="maxDDIntervalTime"><?= translate('teachertrue.php_235行目_最大D&D間時間') ?><span
-                                class="info-icon" data-feature-name="maxDDIntervalTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="maxDDTime"><?= translate('teachertrue.php_236行目_合計D&D時間') ?><span
-                                class="info-icon" data-feature-name="maxDDTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="minDDTime"><?= translate('teachertrue.php_237行目_最小D&D時間') ?><span
-                                class="info-icon" data-feature-name="minDDTime">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="DDCount"><?= translate('teachertrue.php_238行目_合計D&D回数') ?><span class="info-icon"
-                                data-feature-name="DDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="groupingDDCount"><?= translate('teachertrue.php_239行目_グループ化回数') ?><span
-                                class="info-icon" data-feature-name="groupingDDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="groupingCountbool"><?= translate('teachertrue.php_240行目_グループ化有無') ?><span
-                                class="info-icon" data-feature-name="groupingCountbool">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="xUturnCount"><?= translate('teachertrue.php_241行目_x軸Uターン回数') ?><span
-                                class="info-icon" data-feature-name="xUturnCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="yUturnCount"><?= translate('teachertrue.php_242行目_y軸Uターン回数') ?><span
-                                class="info-icon" data-feature-name="yUturnCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register_move_count1"><?= translate('teachertrue.php_243行目_レジスタ➡レジスタへの移動回数') ?><span
-                                class="info-icon" data-feature-name="register_move_count1">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register_move_count2"><?= translate('teachertrue.php_244行目_レジスタ➡レジスタ外への移動回数') ?><span
-                                class="info-icon" data-feature-name="register_move_count2">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register_move_count3"><?= translate('teachertrue.php_245行目_レジスタ外➡レジスタへの移動回数') ?><span
-                                class="info-icon" data-feature-name="register_move_count3">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register01count1"><?= translate('teachertrue.php_246行目_レジスタ➡レジスタへの移動有無') ?><span
-                                class="info-icon" data-feature-name="register01count1">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register01count2"><?= translate('teachertrue.php_247行目_レジスタ➡レジスタ外への移動有無') ?><span
-                                class="info-icon" data-feature-name="register01count2">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="register01count3"><?= translate('teachertrue.php_248行目_レジスタ外➡レジスタへの移動有無') ?><span
-                                class="info-icon" data-feature-name="register01count3">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="registerDDCount"><?= translate('teachertrue.php_249行目_レジスタに関する合計の移動回数') ?><span
-                                class="info-icon" data-feature-name="registerDDCount">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="xUturnCountDD"><?= translate('teachertrue.php_250行目_x軸UターンD&D回数') ?><span
-                                class="info-icon" data-feature-name="xUturnCountDD">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="yUturnCountDD"><?= translate('teachertrue.php_251行目_y軸UターンD&D回数') ?><span
-                                class="info-icon" data-feature-name="yUturnCountDD">ⓘ</span></label><br>
-                        <label><input type="checkbox" name="feature"
-                                value="FromlastdropToanswerTime"><?= translate('teachertrue.php_252行目_最終ドロップ後時間') ?><span
-                                class="info-icon" data-feature-name="FromlastdropToanswerTime">ⓘ</span></label><br>
-                        <button type="button"
-                            id="apply-clustering-btn"><?= translate('teachertrue.php_254行目_適用') ?></button>
-                    </form>
-                </div>
-            </div>
 
             <div class="all-overview">
                 <h2><?= translate('teachertrue.php_671行目_クラス単位のデータ') ?></h2>
@@ -556,14 +398,6 @@ if ($teacher_id) {
                     </script>
                 </div>
                 <div id="cluster-data"></div>
-            </div>
-
-            <div id="feature-detail-modal-teachertrue" class="feature-detail-modal">
-                <div class="modal-content">
-                    <span class="close-detail-modal">&times;</span>
-                    <h3 id="detail-feature-title-teachertrue"></h3>
-                    <p id="detail-feature-description-teachertrue"></p>
-                </div>
             </div>
 
             <div class="create-new">
@@ -717,6 +551,249 @@ if ($teacher_id) {
                     createDualAxisChart(document.getElementById(`class-dual-axis-chart-${index}`).getContext('2d'), labels, notaccuracyData, timeData, '<?= json_encode(translate('teachertrue.php_791行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_792行目_解答時間(秒)')) ?>', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)', '<?= json_encode(translate('teachertrue.php_795行目_不正解率(%)')) ?>', '<?= json_encode(translate('teachertrue.php_796行目_解答時間(秒)')) ?>', existingOverallCharts, index);
                 });
             }
+
+            // ======================= ▼▼▼ ここから修正 ▼▼▼ =======================
+            // 学習者詳細情報表示のためのJavaScript
+            const uidSelect = document.getElementById('uid-select');
+            const widSelect = document.getElementById('wid-select');
+            const studentDetailsmaininfo = document.getElementById('student-details-maininfo');
+            const widDetailsmaininfostu = document.getElementById('wid-details-maininfo-stu');
+            const widDetailsmaininfoall = document.getElementById('wid-details-maininfo-all');
+
+            //学習者選択時の処理
+            if(uidSelect) {
+                uidSelect.addEventListener('change', async function () {
+                    const selectedUid = uidSelect.value;
+
+                    //プルダウンのリセット
+                    widSelect.innerHTML = `<option value = "">${'<?= json_encode(translate('machineLearning_sample.php_1498行目_ロード中')) ?>'}</option>`;
+                    if (!selectedUid) {
+                        //学習者が選択されていない場合
+                        widSelect.innerHTML = `<option value = "">${'<?= json_encode(translate('machineLearning_sample.php_1501行目_学習者を選択してください')) ?>'}</option>`;
+                        studentDetailsmaininfo.innerHTML = `<p>${'<?= json_encode(translate('machineLearning_sample.php_1502行目_学習者情報を選択してください')) ?>'}</p>`;
+                        return;
+                    }
+                    try {
+                        //サーバーからデータを取得
+                        //問題データの取得
+                        const widResponse = await fetch(`get_wid.php?uid=${selectedUid}`);
+                        if (!widResponse.ok) {
+                            throw new Error(`HTTP error! status: ${widResponse.status}`);
+                        }
+                        const widData = await widResponse.json();
+                        //プルダウンメニューを更新
+                        widSelect.innerHTML = `<option value = "">${'<?= json_encode(translate('machineLearning_sample.php_1511行目_選択してください')) ?>'}</option>`;
+                        widData.forEach(wid => {
+                            widSelect.innerHTML += `<option value="${wid.WID}">
+                                                    ${wid.WID}: ${wid.Sentence}: ${'<?= json_encode(translate('machineLearning_sample.php_1513行目_難易度')) ?>'}${wid.level}: ${'<?= json_encode(translate('machineLearning_sample.php_1513行目_迷い')) ?>'}:${wid.Understand} 
+                                                    ${wid.Understand === '迷い有り' ? '(★)' : ''}
+                                                </option>`;
+                        });
+
+                        //**学習者情報の取得 */
+                        const studentResponse = await fetch(`get_student_info.php?uid=${selectedUid}`);
+                        if (!studentResponse.ok) {
+                            throw new Error(`HTTP error! status: ${studentResponse.status}`);
+                        }
+                        const studentData = await studentResponse.json();
+                        const studentDatainfo = studentData.userinfo;
+
+                        // 学習者情報の表示/
+                        studentDetailsmaininfo.innerHTML = `
+                                    <div id = "student-info-title" style = "display:flex; gap: 10px;">
+                                    <h3>${'<?= json_encode(translate('machineLearning_sample.php_1528行目_学習者名')) ?>'}:${studentDatainfo.Name}</h3>
+                                    <h3>${'<?= json_encode(translate('machineLearning_sample.php_1529行目_クラス名')) ?>'}:${studentDatainfo.ClassID}</h3>
+                                    <h3>${'<?= json_encode(translate('machineLearning_sample.php_1530行目_TOEICレベル')) ?>'}:${studentDatainfo.toeic_level}</h3>
+                                    <h3>${'<?= json_encode(translate('machineLearning_sample.php_1531行目_英検レベル')) ?>'}:${studentDatainfo.eiken_level}</h3>
+                                    </div>
+
+                                    <div id = "student-info-accuracy" style = "display:flex; gap: 10px;">
+                                    <p>${'<?= json_encode(translate('machineLearning_sample.php_1534行目_総解答数')) ?>'}:${studentDatainfo.total_answers}</p>
+                                    <p>${'<?= json_encode(translate('machineLearning_sample.php_1535行目_正解率')) ?>'}:${studentDatainfo.accuracy}%</p>
+                                    <p>${'<?= json_encode(translate('machineLearning_sample.php_1536行目_迷い率')) ?>'}:${studentDatainfo.hesitation_rate}%</p>
+                                    </div>
+                                    `;
+                        //文法項目データを表示する関数
+                        displayGrammarStats(studentData.grammarStats);
+                    } catch (error) {
+                        widSelect.innerHTML = '<option value = "">エラー</option>';
+                        console.error(error);
+                    }
+                });
+            }
+
+            //問題選択時の処理
+            if(widSelect) {
+                widSelect.addEventListener('change', async function () {
+                    const selectedWid = this.value;
+                    const selectedUid = uidSelect.value;
+
+                    if (!selectedWid || !selectedUid) {
+                        widDetailsmaininfostu.innerHTML = `<p>${'<?= json_encode(translate('machineLearning_sample.php_1544行目_学習者情報を選択してください')) ?>'}</p>`;
+                        return;
+                    }
+
+                    try {
+                        // 解答情報の取得
+                        const answerResponse = await fetch(`get_answer_info.php?uid=${selectedUid}&wid=${selectedWid}`);
+                        if (!answerResponse.ok) {
+                            throw new Error(`HTTP error! status:${answerResponse.status}`);
+                        }
+                        const answerDetails = await answerResponse.json();
+
+                        const quesaccuracy = answerDetails.quesaccuracy ?? "N/A";
+                        const queshesitation_rate = answerDetails.queshesitation_rate ?? "N/A";
+                        const labelinfo = answerDetails.labelinfo;
+                        const attempt1 = answerDetails.widinfo.find(detail => detail.attempt == 1);
+
+                        // attempt選択用のselect要素を作成
+                        const attemptSelect = document.createElement('select');
+                        attemptSelect.id = 'attempt-select';
+                        attemptSelect.innerHTML = '<option value="">選択してください</option>';
+                        answerDetails.widinfo.forEach(detail => {
+                            const option = document.createElement('option');
+                            option.value = detail.attempt;
+                            option.textContent = `Attempt ${detail.attempt}`;
+                            attemptSelect.appendChild(option);
+                        });
+
+                        // 全体表示の設定
+                        if (attempt1) {
+                            widDetailsmaininfoall.innerHTML = `
+                                <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; background-color: #f9f9f9;">
+                                    <h3 style="color: #333; text-align: center; margin-bottom: 20px;">${'<?= json_encode(translate('machineLearning_sample.php_1570行目_問題情報')) ?>'}</h3>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                                        <div style="flex: 1; min-width: 250px;">
+                                            <p><strong>${'<?= json_encode(translate('machineLearning_sample.php_1573行目_正解率')) ?>'}:</strong> ${quesaccuracy}%</p>
+                                            <p><strong>${'<?= json_encode(translate('machineLearning_sample.php_1574行目_迷い率')) ?>'}:</strong> ${queshesitation_rate}%</p>
+                                            <p><strong>${'<?= json_encode(translate('machineLearning_sample.php_1575行目_正解文')) ?>'}:</strong> ${attempt1.Sentence}</p>
+                                        </div>
+                                        <div style="flex: 1; min-width: 250px;">
+                                            <p><strong>${'<?= json_encode(translate('machineLearning_sample.php_1578行目_日本語文')) ?>'}:</strong> ${attempt1.Japanese}</p>
+                                            <p><strong>${'<?= json_encode(translate('machineLearning_sample.php_1579行目_文法項目')) ?>'}:</strong> ${attempt1.grammar}</p>
+                                            <p><strong>${'<?= json_encode(translate('machineLearning_sample.php_1580行目_単語数')) ?>'}:</strong> ${attempt1.wordnum}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+
+                            if (labelinfo && Array.isArray(labelinfo) && labelinfo.length > 0) {
+                                // ... (Label情報テーブルの描画ロジックは省略)
+                            }
+                        } else {
+                            widDetailsmaininfoall.innerHTML = `<p>${'<?= json_encode(translate('machineLearning_sample.php_1623行目_初期表示用のデータが見つかりません')) ?>'}</p>`;
+                        }
+
+                        widDetailsmaininfostu.innerHTML = '';
+                        widDetailsmaininfostu.appendChild(attemptSelect);
+                        const attemptDetailsContainer = document.createElement('div');
+                        attemptDetailsContainer.id = 'attempt-details';
+                        widDetailsmaininfostu.appendChild(attemptDetailsContainer);
+
+                        function getAttemptDetailHTML(detail) {
+                            const labelText = detail.Label ? detail.Label : '<?= json_encode(translate('machineLearning_sample.php_1641行目_グルーピングが行われていません')) ?>';
+                            return `
+                                <p>${'<?= json_encode(translate('machineLearning_sample.php_1644行目_回答日時')) ?>'}: ${detail.Date}</p>
+                                <p>${'<?= json_encode(translate('machineLearning_sample.php_1645行目_最終回答文')) ?>'}: ${detail.EndSentence}</p>
+                                <p>${'<?= json_encode(translate('machineLearning_sample.php_1646行目_解答時間')) ?>'}: ${detail.Time}秒</p>
+                                <p>${'<?= json_encode(translate('machineLearning_sample.php_1647行目_正誤')) ?>'}: ${detail.TF}</p>
+                                <p>${'<?= json_encode(translate('machineLearning_sample.php_1648行目_迷い')) ?>'}: ${detail.Understand}</p>
+                                <p>${'<?= json_encode(translate('machineLearning_sample.php_1649行目_Label')) ?>'}: ${labelText}</p>
+                            `;
+                        }
+
+                        if (attempt1) {
+                            attemptSelect.value = 1;
+                            attemptDetailsContainer.innerHTML = getAttemptDetailHTML(attempt1);
+                        }
+
+                        attemptSelect.addEventListener('change', function () {
+                            const selectedAttempt = this.value;
+                            const selectedDetail = answerDetails.widinfo.find(detail => detail.attempt == selectedAttempt);
+                            if (selectedDetail) {
+                                attemptDetailsContainer.innerHTML = getAttemptDetailHTML(selectedDetail);
+                            } else {
+                                attemptDetailsContainer.innerHTML = `<p>${'<?= json_encode(translate('machineLearning_sample.php_1662行目_選択された試行回数の情報が見つかりません')) ?>'}</p>`;
+                            }
+                        });
+
+                    } catch (error) {
+                        console.error(error);
+                        widDetailsmaininfostu.innerHTML = `<p>${'<?= json_encode(translate('machineLearning_sample.php_1667行目_データの取得に失敗しました')) ?>'}</p>`;
+                    }
+                });
+            }
+
+            function displayGrammarStats(grammarStats) {
+                const grammarStatsDiv = document.getElementById('student-details-grammar');
+                grammarStatsDiv.style.display = 'flex';
+                grammarStatsDiv.style.flexDirection = 'row';
+                grammarStatsDiv.style.justifyContent = 'space-between';
+                grammarStatsDiv.style.alignItems = 'flex-start';
+
+                let tableHTML = `
+                    <div style="flex: 1; padding-right: 20px;"> <table class = "table2">
+                            <thead>
+                                <tr>
+                                    <th>${'<?= json_encode(translate('machineLearning_sample.php_1682行目_文法項目')) ?>'}</th>
+                                    <th>${'<?= json_encode(translate('machineLearning_sample.php_1683行目_総解答数')) ?>'}</th>
+                                    <th>${'<?= json_encode(translate('machineLearning_sample.php_1684行目_正解数')) ?>'}</th>
+                                    <th>${'<?= json_encode(translate('machineLearning_sample.php_1685行目_迷い数')) ?>'}</th>
+                                    <th>${'<?= json_encode(translate('machineLearning_sample.php_1686行目_不正解率')) ?>'}</th>
+                                    <th>${'<?= json_encode(translate('machineLearning_sample.php_1687行目_迷い率')) ?>'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                const labels = [];
+                const accuracyData = [];
+                const hesitationData = [];
+
+                for (const [grammar, stats] of Object.entries(grammarStats)) {
+                    notaccuracy_grammar = (100 - stats.accuracy).toFixed(2);
+                    tableHTML += `
+                        <tr>
+                            <td>${stats.grammar}</td>
+                            <td>${stats.total_answers}</td>
+                            <td>${stats.correct_answers}</td>
+                            <td>${stats.hesitate_count}</td>
+                            <td>${notaccuracy_grammar}%</td>
+                            <td>${stats.hesitation_rate}%</td>
+                        </tr>
+                    `;
+                    labels.push(stats.grammar);
+                    accuracyData.push(notaccuracy_grammar);
+                    hesitationData.push(stats.hesitation_rate);
+                }
+                tableHTML += `</tbody></table></div>`;
+                const chartHTML = `<div style="flex: 1;"> <canvas id="grammarChart"></canvas></div>`;
+                grammarStatsDiv.innerHTML = tableHTML + chartHTML;
+                
+                const ctx = document.getElementById('grammarChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '<?= json_encode(translate('machineLearning_sample.php_1744行目_不正解率(%)')) ?>',
+                            data: accuracyData,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1,
+                        },
+                        {
+                            label: '<?= json_encode(translate('machineLearning_sample.php_1745行目_迷い率(%)')) ?>',
+                            data: hesitationData,
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                            borderColor: 'rgba(255,99,132,1)',
+                            borderWidth: 1,
+                        }]
+                    },
+                    options: { /* ... chart options ... */ }
+                });
+            }
+            // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
+
         });
 
         // --- モーダルや動的処理のためのグローバル関数 ---
@@ -773,7 +850,6 @@ if ($teacher_id) {
             document.getElementById('clustering-feature-form').reset();
         }
 
-        // 他のJavaScript関数 (applySelectedFeatures, groupSelectedClusters, displayClusteringResultsFromJSON など) はここに配置
     </script>
 </body>
 
