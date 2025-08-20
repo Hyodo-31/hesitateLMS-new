@@ -690,18 +690,25 @@ if ($teacher_id) {
                         attemptDetailsContainer.id = 'attempt-details';
                         widDetailsmaininfostu.appendChild(attemptDetailsContainer);
 
+                        // ======================= ▼▼▼ ここから修正 ▼▼▼ =======================
                         function getAttemptDetailHTML(detail) {
                             const labelText = detail.Label ? detail.Label : '<?= json_encode(translate('machineLearning_sample.php_1641行目_グルーピングが行われていません')) ?>';
+                            // 軌跡再現用のリンクを生成
+                            const traceLink = `./mousemove/mousemove.php?UID=${encodeURIComponent(selectedUid)}&WID=${encodeURIComponent(selectedWid)}&LogID=${encodeURIComponent(detail.attempt)}`;
+
                             return `
                                 <p>${'<?= json_encode(translate('machineLearning_sample.php_1644行目_回答日時')) ?>'}: ${detail.Date}</p>
                                 <p>${'<?= json_encode(translate('machineLearning_sample.php_1645行目_最終回答文')) ?>'}: ${detail.EndSentence}</p>
                                 <p>${'<?= json_encode(translate('machineLearning_sample.php_1646行目_解答時間')) ?>'}: ${detail.Time}秒</p>
                                 <p>${'<?= json_encode(translate('machineLearning_sample.php_1647行目_正誤')) ?>'}: ${detail.TF}</p>
                                 <p>${'<?= json_encode(translate('machineLearning_sample.php_1648行目_迷い')) ?>'}: ${detail.Understand}</p>
+                                <p>${'<?= json_encode(translate('teachertrue.php_軌跡再現')) ?>'}: <a href="${traceLink}" target="_blank">${'<?= json_encode(translate('teachertrue.php_軌跡再現')) ?>'}</a></p>
                                 <p>${'<?= json_encode(translate('machineLearning_sample.php_1649行目_Label')) ?>'}: ${labelText}</p>
                             `;
                         }
+                        // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
 
+                        
                         if (attempt1) {
                             attemptSelect.value = 1;
                             attemptDetailsContainer.innerHTML = getAttemptDetailHTML(attempt1);
