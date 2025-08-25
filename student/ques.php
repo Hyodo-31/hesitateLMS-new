@@ -1,11 +1,11 @@
 <?php
 //ログイン関連
 error_reporting(E_ALL);
-session_start();
+//session_start();
 include '../lang.php';
 if (!isset($_SESSION["MemberName"])) {
     require "notlogin";
-    session_destroy();
+    //session_destroy();
     exit;
 }
 
