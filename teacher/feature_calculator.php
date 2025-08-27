@@ -247,7 +247,7 @@ function calculateAndSaveFeatures(mysqli $conn, int $uid, int $wid, int $attempt
     }
     
     // 型を指定: i = integer, d = double, s = string
-    $stmt_insert->bind_param("iiiisiidddiiiiiiiiiiiiiiiiiiiiiiiiii",
+    $stmt_insert->bind_param("iiiiiiidddiiiiiiiiiiiiiiiiiiiiiiiiii",
         $uid, $wid, $understand, $attempt, $date, $check, $time, $distance, $averageSpeed, $maxSpeed,
         $thinkingTime, $answeringTime, $totalStopTime, $maxStopTime, $totalDDIntervalTime,
         $maxDDIntervalTime, $maxDDTime, $minDDTime, $DDCount, $groupingDDCount,
