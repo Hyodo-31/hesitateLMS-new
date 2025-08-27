@@ -27,7 +27,11 @@ if (is_file($file_name)) {
     while (($lines = fgets($text)) !== false) {
         if ($lines) {
             // SQLクエリの実行
-            $res = mysqli_query($conn, $lines);
+            //$res = mysqli_query($conn, $lines);
+            // INSERT文の先頭に "IGNORE" を追加して、重複エラーを無視するようにする
+            $insert_query = preg_replace('/^INSERT\\s+INTO/i', 'INSERT IGNORE INTO', $lines, 1);
+            // 修正したSQLクエリの実行
+            $res = mysqli_query($conn, $insert_query);
             if (!$res) {
                 // エラーメッセージの出力とログ保存
                 $errorMsg = mysqli_error($conn);
@@ -51,6 +55,13 @@ if (is_file($file_name)) {
     }
 
     fclose($text);
+
+    // linedataへの書き込みが完了した後に、特徴量計算を実行
+    require_once __DIR__ . '/../teacher/feature_calculator.php';
+
+    foreach ($newAttempts as $info) {
+        calculateAndSaveFeatures($conn, $info['uid'], $info['wid'], $info['attempt']);
+    }
 
     // ループ終了後
     if (!empty($newAttempts)) {

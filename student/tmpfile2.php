@@ -25,24 +25,24 @@ file_put_contents($TempFileName,$str."\n",FILE_APPEND);
 echo file_get_contents($TempFileName);
 
 //echo $str;
-$res = mysqli_query($conn,$str) or die("linedata error");
+//$res = mysqli_query($conn,$str) or die("linedata error");
 
 // --- ここからが追加した処理 ---
 
 // 特徴量計算スクリプトを読み込む
 // studentディレクトリからteacherディレクトリにあるファイルを呼び出すため、パスを調整
-require_once '../teacher/feature_calculator.php';
+//require_once '../teacher/feature_calculator.php';
 
 // 解答したUIDとWIDをセッションとGETパラメータから取得
-$answered_uid = (int)$MemberID;
-$answered_wid = (int)$_GET['param1'];
-$answered_attempt = (int)$attempt; // attempt変数を取得
+//$answered_uid = (int)$MemberID;
+//$answered_wid = (int)$_GET['param1'];
+//$answered_attempt = (int)$attempt; // attempt変数を取得
 
 // 特徴量を計算してtest_featurevalueテーブルに保存
 // $connは冒頭のdbc.phpで定義されたデータベース接続オブジェクト
-if (function_exists('calculateAndSaveFeatures')) {
-	calculateAndSaveFeatures($conn, $answered_uid, $answered_wid, $answered_attempt); // 第3引数を追加
-}
+// if (function_exists('calculateAndSaveFeatures')) {
+	//calculateAndSaveFeatures($conn, $answered_uid, $answered_wid, $answered_attempt); // 第3引数を追加
+//}
 
 // --- 追加処理ここまで --- 
 

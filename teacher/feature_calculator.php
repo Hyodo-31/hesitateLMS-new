@@ -13,7 +13,7 @@ function calculateAndSaveFeatures(mysqli $conn, int $uid, int $wid, int $attempt
 {
     // 1. 必要なデータをデータベースから取得
     // linedataから解答時間や迷い度などを取得
-    $stmt_linedata = $conn->prepare("SELECT Time, Understand, attempt, Date FROM linedata WHERE UID = ? AND WID = ? AND attempt = ?");
+    $stmt_linedata = $conn->prepare("SELECT Time, Understand, attempt FROM linedata WHERE UID = ? AND WID = ? AND attempt = ?");
     if (!$stmt_linedata) {
         error_log("Prepare failed (linedata): " . $conn->error);
         return false;
@@ -58,14 +58,14 @@ function calculateAndSaveFeatures(mysqli $conn, int $uid, int $wid, int $attempt
     $time = $linedata['Time'];
     $understand = $linedata['Understand'];
     $attempt = $linedata['attempt'];
-    $date = $linedata['Date'];
+    $date = 0;
     $check = 0; // 0: 未処理
     
     $distance = 0;
     $maxSpeed = 0;
     $totalStopTime = 0;
     $maxStopTime = 0;
-    $stopCount = 0;
+    $stopcount = 0;
     $totalDDIntervalTime = 0;
     $maxDDIntervalTime = 0;
     $DDCount = 0;
@@ -140,7 +140,7 @@ function calculateAndSaveFeatures(mysqli $conn, int $uid, int $wid, int $attempt
              }
         }
         if($speed == 0){
-            $stopCount++;
+            $stopcount++;
         }
 
         // DD関連の計算
@@ -227,8 +227,18 @@ function calculateAndSaveFeatures(mysqli $conn, int $uid, int $wid, int $attempt
 
 
     // 3. 計算した特徴量を `test_featurevalue` テーブルに挿入
-    $sql_insert = "INSERT INTO test_featurevalue (UID, WID, Understand, attempt, date, check, Time, distance, averageSpeed, maxSpeed, thinkingTime, answeringTime, totalStopTime, maxStopTime, totalDDIntervalTime, maxDDIntervalTime, maxDDTime, minDDTime, DDCount, groupingDDCount, groupingCountbool, xUTurnCount, yUTurnCount, register_move_count1, register_move_count2, register_move_count3, register_move_count4, register01count1, register01count2, register01count3, register01count4, registerDDCount, xUTurnCountDD, yUTurnCountDD, FromlastdropToanswerTime) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $sql_insert = "INSERT INTO test_featurevalue (
+                UID, WID, Understand, attempt, date, `check`, Time, distance, averageSpeed, maxSpeed, 
+                thinkingTime, answeringTime, totalStopTime, maxStopTime, totalDDIntervalTime, 
+                maxDDIntervalTime, maxDDTime, minDDTime, DDCount, groupingDDCount, 
+                groupingCountbool, xUTurnCount, yUTurnCount, register_move_count1, 
+                register_move_count2, register_move_count3, register_move_count4, 
+                register01count1, register01count2, register01count3, register01count4, 
+                registerDDCount, stopcount, xUTurnCountDD, yUTurnCountDD, FromlastdropToanswerTime
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )";
     
     $stmt_insert = $conn->prepare($sql_insert);
     if (!$stmt_insert) {
@@ -237,13 +247,14 @@ function calculateAndSaveFeatures(mysqli $conn, int $uid, int $wid, int $attempt
     }
     
     // 型を指定: i = integer, d = double, s = string
-    $stmt_insert->bind_param("iiiisiidddiiiiiiiiiiiiiiiiiiiiiiii",
+    $stmt_insert->bind_param("iiiisiidddiiiiiiiiiiiiiiiiiiiiiiiiii",
         $uid, $wid, $understand, $attempt, $date, $check, $time, $distance, $averageSpeed, $maxSpeed,
         $thinkingTime, $answeringTime, $totalStopTime, $maxStopTime, $totalDDIntervalTime,
-        $maxDDIntervalTime, $maxDDTime, $minDDTime, $DDCount, $groupingDDCount, $groupingCountbool,
-        $xUTurnCount, $yUTurnCount, $register_move_count1, $register_move_count2, $register_move_count3,
-        $register_move_count4, $register01count1, $register01count2, $register01count3, $register01count4,
-        $registerDDCount, $xUTurnCountDD, $yUTurnCountDD, $FromlastdropToanswerTime
+        $maxDDIntervalTime, $maxDDTime, $minDDTime, $DDCount, $groupingDDCount,
+        $groupingCountbool, $xUTurnCount, $yUTurnCount, $register_move_count1,
+        $register_move_count2, $register_move_count3, $register_move_count4,
+        $register01count1, $register01count2, $register01count3, $register01count4,
+        $registerDDCount, $stopcount, $xUTurnCountDD, $yUTurnCountDD, $FromlastdropToanswerTime
     );
 
     $success = $stmt_insert->execute();
