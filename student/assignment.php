@@ -21,14 +21,14 @@
         <div class="logo"><?= translate('assignment.php_21行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php"><?= translate('assignment.php_24行目_ホーム') ?></a></li>
+                <li><a href="student.php"><?= translate('assignment.php_24行目_ホーム') ?></a></li>
             </ul>
         </nav>
     </header>
     <div class="container">
         <aside>
             <ul>
-                <li><a href="teachertrue.php"><?= translate('assignment.php_30行目_ホーム') ?></a></li>
+                <li><a href="student.php"><?= translate('assignment.php_30行目_ホーム') ?></a></li>
             </ul>
         </aside>
         <main>

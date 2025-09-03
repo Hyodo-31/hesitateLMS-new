@@ -30,8 +30,16 @@ unset($_SESSION['conditions']);
     </style>
 </head>
 <script>
+    // ▼▼▼ ここから追加 ▼▼▼
+    // PHPの言語設定をJavaScriptの変数に保存
+    var currentLang = "<?php echo $lang; ?>";
+    // ▲▲▲ ここまで追加 ▲▲▲
+
     function openwin(Qid){
-        window.open("ques.php?Qid="+Qid, "new", "width=861,height=700,resizable=0,menubar=0");
+        // ▼▼▼ ここを修正 ▼▼▼
+        // URLの末尾に言語情報を追加する
+        window.open("ques.php?Qid="+Qid + "&lang=" + currentLang, "new", "width=861,height=700,resizable=0,menubar=0");
+        // ▲▲▲ ここまで修正 ▲▲▲
     }
 </script>
 <body>

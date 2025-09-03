@@ -38,6 +38,9 @@ $_SESSION["page"] = "ques";
 </head>
 
 <script type="text/javascript">
+    // ======================= ▼▼▼ ここから追加 ▼▼▼ =======================
+    var currentLang = "<?php echo $lang; ?>";
+    // ======================= ▲▲▲ ここまで追加 ▲▲▲ =======================
     //ストップウォッチ関数
     myButton = 0; // [Start]/[Stop]のフラグ
     var myStart;
@@ -1630,6 +1633,8 @@ $stmt->close();
             mybutton = 0;
             console.log(req.responseText);
             alert(req.responseText);
+            // ▼▼▼ 修正 ▼▼▼
+            document.location = "result.php?Qid=" + Qid + "&lang=" + currentLang;
             window.close();
         }
 
@@ -2203,7 +2208,9 @@ $stmt->close();
             function getA(req) {
                 mybutton = 0;
                 alert(req.responseText);
-                document.location = "result.php?Qid=" + Qid;
+                // ▼▼▼ 修正 ▼▼▼
+                document.location = "result.php?Qid=" + Qid + "&lang=" + currentLang;
+                //document.location = "result.php?Qid=" + Qid;
             }
 
             function getE(req) {

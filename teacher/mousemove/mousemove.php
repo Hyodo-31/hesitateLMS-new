@@ -4,150 +4,168 @@ require "../../lang.php";
 ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
+
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title><?= translate('mousemove.php_3行目_マウス軌跡再現') ?></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title><?= translate('mousemove.php_3行目_マウス軌跡再現') ?></title>
     <script type="text/javascript">
         var nativeSetInterval = window.setInterval;
         _setInterval = {};
 
-        window.setInterval = function(process, delay) {
-	        var entry;
-	        if(typeof process == 'string') {
-		        entry = new _setInterval.Entry(function(){eval(process);}, delay);
-	        }else if(typeof process == 'function') {
-		        entry = new _setInterval.Entry(process, delay);
-	        }else {
-		        throw Error(<?= json_encode(translate('mousemove.php_18行目_第一引数が不正です')) ?>);
-	        }
-	        var id = _setInterval.queue.length;
-	        _setInterval.queue[id] = entry
-	        return id;
+        window.setInterval = function (process, delay) {
+            var entry;
+            if (typeof process == 'string') {
+                entry = new _setInterval.Entry(function () { eval(process); }, delay);
+            } else if (typeof process == 'function') {
+                entry = new _setInterval.Entry(process, delay);
+            } else {
+                throw Error(<?= json_encode(translate('mousemove.php_18行目_第一引数が不正です')) ?>);
+            }
+            var id = _setInterval.queue.length;
+            _setInterval.queue[id] = entry
+            return id;
         };
 
-        window.clearInterval = function(id) {
-	        if (_setInterval.queue[id]) {
-                _setInterval.queue[id].loop = function(){};
+        window.clearInterval = function (id) {
+            if (_setInterval.queue[id]) {
+                _setInterval.queue[id].loop = function () { };
             }
         };
 
         _setInterval.queue = [];
 
-        _setInterval.Entry = function(process, delay) {
-	        this.process = process;
-	        this.delay   = delay;
-	        this.time    = 0;
+        _setInterval.Entry = function (process, delay) {
+            this.process = process;
+            this.delay = delay;
+            this.time = 0;
         };
 
-        _setInterval.Entry.prototype.loop = function(time) {
-	        this.time += time;
-	        while(this.time >= this.delay) {
-		        this.process();
-		        this.time -= this.delay
-	        }
+        _setInterval.Entry.prototype.loop = function (time) {
+            this.time += time;
+            while (this.time >= this.delay) {
+                this.process();
+                this.time -= this.delay
+            }
         };
 
         _setInterval.lastTime = new Date().getTime();
 
-        nativeSetInterval(function() {
-	        var time = new Date().getTime();
-	        var subTime =  time - _setInterval.lastTime;
-	        _setInterval.lastTime = time;
-	        for(var i = 0; i < _setInterval.queue.length; i++) {
+        nativeSetInterval(function () {
+            var time = new Date().getTime();
+            var subTime = time - _setInterval.lastTime;
+            _setInterval.lastTime = time;
+            for (var i = 0; i < _setInterval.queue.length; i++) {
                 if (_setInterval.queue[i]) {
-		            _setInterval.queue[i].loop(subTime);
+                    _setInterval.queue[i].loop(subTime);
                 }
-	        }
+            }
         }, 10);
     </script>
 
     <?php
-	    require("../../dbc.php");
+    require("../../dbc.php");
     ?>
     <style type="text/css">
-         <!--
-         th,td{
-         font-size:11pt;
-         }
-         -->
+        <!--
+        th,
+        td {
+            font-size: 11pt;
+        }
+        -->
     </style>
- 
-    <style type="text/css"><!--
+
+    <style type="text/css">
+        <!--
         div#myCanvasb {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas2 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas2_1 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas2_2 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas2_3 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas2_4 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas3 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas3_1 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas3_2 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas3_3 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas3_4 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas4 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas5 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         div#myCanvas6 {
             position: absolute;
             left: 50px;
             top: 150px;
         }
+
         #jquery-ui-slider-value {
             border: 0;
             color: red !important;
@@ -156,6 +174,7 @@ require "../../lang.php";
             margin: 5px;
             width: 100px;
         }
+
         #jquery-ui-slider {
             margin: 0 10px;
             width: 300px;
@@ -163,60 +182,64 @@ require "../../lang.php";
         -->
     </style>
     <?php
-    	// 合計値を求めるメソッド sum()
-	    function sum($array1){
-		    // 対象配列の抽出
-		    $target = $array1;
-		    // ここから合計値の計算
-		    $result = 0.0; // 合計値
-		    for ( $i=0; $i<count($target); $i++ ){
-			    $result += $target[$i];
-		    }
-		    return $result;	// 合計値を返して終了
-		}
-	
-	    // 平均値・期待値を求めるメソッド ave()
-	    function ave($array1){
-		    // 対象配列の抽出
-		    $target = $array1;
-		    // 平均値の計算　配列の合計値を算出して、要素数で割る
-		    $sum = sum($target);
-		    if ( count($target)>0 ){
-			    $result = $sum / count($target);
-		    }else{
-			    $result = 0;
-		    }
-		    return $result;	
-	    }
-	
-	    // 分散を求めるメソッド varp()
-	    function varp($array1){
-		    // 対象配列の抽出
-		    $target = $array1;
-		    // 分散 E{X-(E(X))^2}　により求められる
-		    $ave = ave($target);
-		    $tmp = 0; // 作業用変数
-		    // X-(E(X))^2 の値を入れておく配列
-		    $tmparray = array();
-		    // 配列の1要素ずつ、 (X-E(X))^2 を計算
-		    for ( $i=0; $i<count($target); $i++ ){
-			    $tmp = $target[$i] - $ave;		// X-E(X)
-			    $tmparray[$i] = $tmp * $tmp; 	// (X-E(X))^2
-		    }
-		    // 最後に、その平均値をもとめて終わり
-		    $result = ave($tmparray);
-		    return $result;	
-	    }
-	
-	    // 標準偏差を求めるメソッド sd()
-	    function sd($array1){
-		    // 対象配列の抽出
-		    $target = $array1;
-		    // 標準偏差は分散の平方根により求められる
-		    $varp = varp($target);	// 分散の算出
-		    $result = sqrt($varp);			// その平方根をとる
-		    return $result;	
-	    }
+    // 合計値を求めるメソッド sum()
+    function sum($array1)
+    {
+        // 対象配列の抽出
+        $target = $array1;
+        // ここから合計値の計算
+        $result = 0.0; // 合計値
+        for ($i = 0; $i < count($target); $i++) {
+            $result += $target[$i];
+        }
+        return $result;	// 合計値を返して終了
+    }
+
+    // 平均値・期待値を求めるメソッド ave()
+    function ave($array1)
+    {
+        // 対象配列の抽出
+        $target = $array1;
+        // 平均値の計算　配列の合計値を算出して、要素数で割る
+        $sum = sum($target);
+        if (count($target) > 0) {
+            $result = $sum / count($target);
+        } else {
+            $result = 0;
+        }
+        return $result;
+    }
+
+    // 分散を求めるメソッド varp()
+    function varp($array1)
+    {
+        // 対象配列の抽出
+        $target = $array1;
+        // 分散 E{X-(E(X))^2}　により求められる
+        $ave = ave($target);
+        $tmp = 0; // 作業用変数
+        // X-(E(X))^2 の値を入れておく配列
+        $tmparray = array();
+        // 配列の1要素ずつ、 (X-E(X))^2 を計算
+        for ($i = 0; $i < count($target); $i++) {
+            $tmp = $target[$i] - $ave;		// X-E(X)
+            $tmparray[$i] = $tmp * $tmp; 	// (X-E(X))^2
+        }
+        // 最後に、その平均値をもとめて終わり
+        $result = ave($tmparray);
+        return $result;
+    }
+
+    // 標準偏差を求めるメソッド sd()
+    function sd($array1)
+    {
+        // 対象配列の抽出
+        $target = $array1;
+        // 標準偏差は分散の平方根により求められる
+        $varp = varp($target);	// 分散の算出
+        $result = sqrt($varp);			// その平方根をとる
+        return $result;
+    }
     ?>
 
     <?php
@@ -227,7 +250,7 @@ require "../../lang.php";
     // POSTで受け取ったデータの処理
     if (isset($_POST["datalist"])) {
         $data_list = $_POST["datalist"];
-        echo htmlspecialchars($data_list, ENT_QUOTES, 'UTF-8')."<br>";
+        echo htmlspecialchars($data_list, ENT_QUOTES, 'UTF-8') . "<br>";
 
         // 受け取ったものをコンマで区切る
         $ID = explode(",", $data_list);
@@ -236,83 +259,109 @@ require "../../lang.php";
         $uid = $ID[0];
         $wid = $ID[1];
 
-    } elseif (isset($_GET["UID"]) && isset($_GET["WID"])) {
+    } elseif (isset($_GET["UID"]) && isset($_GET["WID"]) && isset($_GET["LogID"])) {
         // GETで受け取ったデータの処理（デフォルトのケース）
         $uid = $_GET["UID"];
         $wid = $_GET["WID"];
+        $log_id = $_GET["LogID"]; // LogID を受け取る
     } else {
-        // エラーメッセージ
-        $uid = 30914025;
-        $wid = 22;
+        // エラーメッセージまたはデフォルト値
+        echo "必要なパラメータが不足しています。";
+        exit;
     }
-    // データベースから値を取り出す
+
+    // データベースから値を取り出す (プリペアドステートメントに変更)
+// linedatamouseテーブルに `attempt` カラムが存在することを想定
+    $sql = "SELECT DISTINCT(Time), X, Y, DD, DPos, hLabel, Label, UTurnX, UTurnY 
+        FROM linedatamouse 
+        WHERE uid = ? AND WID = ? AND attempt = ? 
+        ORDER BY Time";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        die("Error: SQL prepare failed: " . $conn->error);
+    }
+
+    $stmt->bind_param("iii", $uid, $wid, $log_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    // } elseif (isset($_GET["UID"]) && isset($_GET["WID"])) {
+    // GETで受け取ったデータの処理（デフォルトのケース）
+    // $uid = $_GET["UID"];
+    // $wid = $_GET["WID"];
+// } else {
+    // エラーメッセージ
+    // $uid = 30914025;
+    // $wid = 22;
+// }
+// データベースから値を取り出す
     $query = "select distinct(Time),X,Y,DD,DPos,hLabel,Label,UTurnX,UTurnY from linedatamouse where uid = $uid and WID = $wid order by Time";
-    $res = mysqli_query($conn,$query) or die("Error:query1");
+    $res = mysqli_query($conn, $query) or die("Error:query1");
     $query2 = "select EndSentence,Understand from linedata where uid = $uid and WID = $wid";
-    $res2 = mysqli_query($conn,$query2) or die("Error:query2");
+    $res2 = mysqli_query($conn, $query2) or die("Error:query2");
     $query3 = "select Japanese,Sentence,grammar,level,start,divide from question_info where WID = $wid";
-    $res3 = mysqli_query($conn,$query3) or die("Error:query3");
+    $res3 = mysqli_query($conn, $query3) or die("Error:query3");
     $query4 = "select Distance,AveSpeed,MaxStopTime,point,GroupCount,UTurnCount_X,UTurnCount_Y,UTurnCount_XinDD,UTurnCount_YinDD,DragDropCount from trackdata where uid = $uid and WID = $wid";
-    $res4 = mysqli_query($conn,$query4) or die("Error:query4");
+    $res4 = mysqli_query($conn, $query4) or die("Error:query4");
     $query5 = "select Time from linedata where uid = $uid and WID = $wid";
-    $res5 = mysqli_query($conn,$query5) or die("Error:query5");
+    $res5 = mysqli_query($conn, $query5) or die("Error:query5");
 
     $row = mysqli_fetch_array($res2);
-    if(isset($row['EndSentence'])){
+    if (isset($row['EndSentence'])) {
         $es = $row['EndSentence'];
     }
-    if(isset($row['Understand'])){
+    if (isset($row['Understand'])) {
         $us = $row['Understand'];
     }
     $row2 = mysqli_fetch_array($res3);
-    if(isset($row2['Japanese'])){
+    if (isset($row2['Japanese'])) {
         $js = $row2['Japanese'];
     }
-    if(isset($row2['Sentence'])){
+    if (isset($row2['Sentence'])) {
         $se = $row2['Sentence'];
     }
-    if(isset($row2['grammar'])){
+    if (isset($row2['grammar'])) {
         $grammar = $row2['grammar'];
     }
-    if(isset($row2['level'])){
+    if (isset($row2['level'])) {
         $level = $row2['level'];
     }
-    if(isset($row2['start'])){
+    if (isset($row2['start'])) {
         $start = $row2['start'];
     }
     $row3 = mysqli_fetch_array($res4);
-    if(isset($row3['point'])){
+    if (isset($row3['point'])) {
         $point = $row3['point'];
     }
-    if(isset($row3['AveSpeed'])){
+    if (isset($row3['AveSpeed'])) {
         $avespeed = $row3['AveSpeed'];
     }
-    if(isset($row3['Distance'])){
+    if (isset($row3['Distance'])) {
         $distance = $row3['Distance'];
     }
-    if(isset($row3['GroupCount'])){
+    if (isset($row3['GroupCount'])) {
         $groupcount = $row3['GroupCount'];
     }
-    if(isset($row3['UTurnCount_X']) && isset($row3['UTurnCount_XinDD'])){
+    if (isset($row3['UTurnCount_X']) && isset($row3['UTurnCount_XinDD'])) {
         $uturncount_X = $row3['UTurnCount_X'] + $row3['UTurnCount_XinDD'];
     }
-    if(isset($row3['UTurnCount_Y']) && isset($row3['UTurnCount_YinDD'])){
+    if (isset($row3['UTurnCount_Y']) && isset($row3['UTurnCount_YinDD'])) {
         $uturncount_Y = $row3['UTurnCount_Y'] + $row3['UTurnCount_YinDD'];
     }
-    if(isset($row3['MaxStopTime'])){
+    if (isset($row3['MaxStopTime'])) {
         $maxstoptime = $row3['MaxStopTime'];
     }
-    if(isset($row3['DragDropCount'])){
+    if (isset($row3['DragDropCount'])) {
         $dragdropcount = $row3['DragDropCount'];
     }
     $row4 = mysqli_fetch_array($res5);
-    if(isset($row4['Time'])){
-        $a_time = $row4['Time']/1000;
+    if (isset($row4['Time'])) {
+        $a_time = $row4['Time'] / 1000;
     }
     $grammar_split = array();
     $grammar_print = array();
     if (isset($grammar)) {
-        $grammar_split = explode("#",$grammar);
+        $grammar_split = explode("#", $grammar);
         array_pop($grammar_split);
         array_shift($grammar_split);
 
@@ -325,19 +374,19 @@ require "../../lang.php";
 
         // ★★★★★★★★★★★★★★★★★★★ 修正箇所 ★★★★★★★★★★★★★★★★★★★
         // 多言語対応テーブルから、現在の言語設定に応じた文法名を取得する
-
+    
         // SQL文をループの外で一度だけ準備（効率化のため）
         // テーブル名はご自身の環境に合わせてください (例: grammar_translations)
         $sql_translate = "SELECT Item FROM grammar_translations WHERE GID = ? AND language = ?";
         $stmt_translate = $conn->prepare($sql_translate);
 
         if ($stmt_translate) { // SQLの準備が成功したかチェック
-            for($i = 0; $i < count($grammar_split); $i++){
+            for ($i = 0; $i < count($grammar_split); $i++) {
                 // ループの中でパラメータをセットして実行
                 $stmt_translate->bind_param("is", $grammar_split[$i], $lang);
                 $stmt_translate->execute();
                 $result_translate = $stmt_translate->get_result();
-                
+
                 if ($row_translate = $result_translate->fetch_assoc()) {
                     // 翻訳が見つかった場合
                     $grammar_print[$i] = $row_translate['Item'];
@@ -359,15 +408,15 @@ require "../../lang.php";
     $hLabel = array();
     $Label = array();
     //$addk = array();
-    $UTurnX =array();
-    $UTurnY =array();
+    $UTurnX = array();
+    $UTurnY = array();
 
-    
+
     //echo $uid."<br>";
     //echo $wid."<br>";
     // 切り取って配列へ
-    if($res && $res -> num_rows > 0){
-        while ( $Column = $res-> fetch_assoc() ){
+    if ($res && $res->num_rows > 0) {
+        while ($Column = $res->fetch_assoc()) {
             $time[] = $Column['Time'];
             $x[] = $Column['X'];
             $y[] = $Column['Y'];
@@ -379,7 +428,7 @@ require "../../lang.php";
             $UTurnX[] = $Column['UTurnX'];
             $UTurnY[] = $Column['UTurnY'];
         }
-    }else{
+    } else {
         echo translate('mousemove.php_400行目_結果セットが空です');
     }
 
@@ -396,31 +445,31 @@ require "../../lang.php";
     $DDdragTime = array();
 
     // 繋げて配列へ格納(Javascriptへ値を渡すため)
-    for ( $i=0; $i<count($time); $i++ ){
-	    if ( $i > 0 ){
-		    $timestring .= "###";
-		    $xstring .= "###";
-		    $ystring .= "###";
-		    $DDstring .= "###";
-		    $DPosstring .= "###";
-		    $hLabelstring .= "###";
-		    $Labelstring .= "###";
-		    $addkstring .= "###";
+    for ($i = 0; $i < count($time); $i++) {
+        if ($i > 0) {
+            $timestring .= "###";
+            $xstring .= "###";
+            $ystring .= "###";
+            $DDstring .= "###";
+            $DPosstring .= "###";
+            $hLabelstring .= "###";
+            $Labelstring .= "###";
+            $addkstring .= "###";
             $UTurnXstring .= "###";
             $UTurnYstring .= "###";
-            
-	    }
-	    $timestring .= $time[$i];
-	    $xstring .= $x[$i];
-	    $ystring .= $y[$i];
-	    $DDstring .= $DD[$i];
-	    $DPosstring .= $DPos[$i];
-	    $hLabelstring .= $hLabel[$i];
-	    $Labelstring .= $Label[$i];
-	    //$addkstring .= $addk[$i];
+
+        }
+        $timestring .= $time[$i];
+        $xstring .= $x[$i];
+        $ystring .= $y[$i];
+        $DDstring .= $DD[$i];
+        $DPosstring .= $DPos[$i];
+        $hLabelstring .= $hLabel[$i];
+        $Labelstring .= $Label[$i];
+        //$addkstring .= $addk[$i];
         $UTurnXstring .= $UTurnX[$i];
         $UTurnYstring .= $UTurnY[$i];
-        if($DD[$i] == '2'){
+        if ($DD[$i] == '2') {
             $DDdragTime[$hLabel[$i]] = $time[$i];
         }
 
@@ -459,7 +508,7 @@ require "../../lang.php";
         var UTurnYstring = "<?php echo $UTurnYstring; ?>";
         var startstring = "<?php echo isset($start) ? $start : ''; ?>";
 
-        
+
 
         t_point = tstring.split("###");
         x_point = xstring.split("###");
@@ -487,513 +536,555 @@ require "../../lang.php";
     <form name="myForm" action="#">
         <div>
             <input type="text" size="20" name="time" disabled>
-            <select NAME = "speed" SIZE = 1>
-                <OPTION value = 5><?= translate('mousemove.php_492行目_等倍') ?></OPTION>
-                <OPTION value = 2.5><?= translate('mousemove.php_493行目_0.5倍') ?></OPTION>
-                <OPTION value = 10><?= translate('mousemove.php_494行目_2倍') ?></OPTION>
-	            <OPTION value = 15><?= translate('mousemove.php_495行目_3倍') ?></OPTION>
-	            <OPTION value = 25><?= translate('mousemove.php_496行目_5倍') ?></OPTION>
-	        </select>
-            <input type="button" value="<?= translate('mousemove.php_497行目_軌跡再現') ?>" name="start" id = "start_b" 
-              onclick="interval(); DrawAline();">
-            <input type="button" value="<?= translate('mousemove.php_499行目_一時停止') ?>" name="stop" 
-              onclick="stop_interval()">
-            <input type="button" value="<?= translate('mousemove.php_501行目_リセット') ?>" name="reset"
-              onclick="reset_c()">
-            <select name="labelDD" SIZE = 1>
-                <?php 
-                    $tangoarray = isset($start) ? explode("|",$start) : [];
-                    $tangocount = count($tangoarray);
-                    echo '<option value= 100>' . translate('mousemove.php_504行目_------') . '</option>'; 
-                    for ($i = 0; $i < $tangocount; $i++) {
-                        if($i%2 == 0){
-                            echo '<option value="' . $i . '">' . htmlspecialchars($tangoarray[$i], ENT_QUOTES, 'UTF-8') . '</option>';
-                        }
-                            
+            <select NAME="speed" SIZE=1>
+                <OPTION value=5><?= translate('mousemove.php_492行目_等倍') ?></OPTION>
+                <OPTION value=2.5><?= translate('mousemove.php_493行目_0.5倍') ?></OPTION>
+                <OPTION value=10><?= translate('mousemove.php_494行目_2倍') ?></OPTION>
+                <OPTION value=15><?= translate('mousemove.php_495行目_3倍') ?></OPTION>
+                <OPTION value=25><?= translate('mousemove.php_496行目_5倍') ?></OPTION>
+            </select>
+            <input type="button" value="<?= translate('mousemove.php_497行目_軌跡再現') ?>" name="start" id="start_b"
+                onclick="interval(); DrawAline();">
+            <input type="button" value="<?= translate('mousemove.php_499行目_一時停止') ?>" name="stop"
+                onclick="stop_interval()">
+            <input type="button" value="<?= translate('mousemove.php_501行目_リセット') ?>" name="reset" onclick="reset_c()">
+            <select name="labelDD" SIZE=1>
+                <?php
+                $tangoarray = isset($start) ? explode("|", $start) : [];
+                $tangocount = count($tangoarray);
+                echo '<option value= 100>' . translate('mousemove.php_504行目_------') . '</option>';
+                for ($i = 0; $i < $tangocount; $i++) {
+                    if ($i % 2 == 0) {
+                        echo '<option value="' . $i . '">' . htmlspecialchars($tangoarray[$i], ENT_QUOTES, 'UTF-8') . '</option>';
                     }
+
+                }
                 ?>
             </select>
         </div>
     </form>
 
-    <p><?= translate('mousemove.php_516行目_途中から開始') ?>：<input type="text" id="jquery-ui-slider-value" /> / <script type="text/javascript">document.write(t_point[t_point.length-4]);</script>ms</p> 
+    <p><?= translate('mousemove.php_516行目_途中から開始') ?>：<input type="text" id="jquery-ui-slider-value" /> /
+        <script type="text/javascript">document.write(t_point[t_point.length - 4]);</script>ms
+    </p>
 
     <div id="jquery-ui-slider"></div><br>
 
     <script type="text/javascript" src="excanvas.js"></script>
     <canvas id="canvas" width="0" height="0" style="visibility:hidden;position:absolute;"></canvas>
 
-    <table border = "1" cellspacing = "1" width = "1000" height = "500">
-        <tr><td>
-            <div id="myCanvasb"></div>
-            <div id="myCanvas"></div>
-            <div id="myCanvas2"></div>
-            <div id="myCanvas2_1"></div>
-            <div id="myCanvas2_2"></div>
-            <div id="myCanvas2_3"></div>
-            <div id="myCanvas2_4"></div>
-            <div id="myCanvas3"></div>
-            <div id="myCanvas3_1"></div>
-            <div id="myCanvas3_2"></div>
-            <div id="myCanvas3_3"></div>
-            <div id="myCanvas3_4"></div>
-            <div id="myCanvas4"></div>
-            <div id="myCanvas5"></div>
-            <div id="myCanvas6"></div>
-            <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
-            <br><br><br><br><br><br><br><br><br><br><br><br><br><br>
-            <table border = "0" width = "995" height = "200">
-                <tr><td>
-                    <table border = "1" cellspacing = "1" width = "600" height = "200">
-                        <tr><td>
-                            <b><u><?= translate('mousemove.php_534行目_問題番号') ?></u>：<?php echo isset($wid) ? htmlspecialchars($wid, ENT_QUOTES, 'UTF-8') : '';?>
-                               <u><?= translate('mousemove.php_535行目_ユーザ番号') ?></u>：<?php echo isset($uid) ? htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') : '';?></b>
-                            <br><br>
-                            <b><u><?= translate('mousemove.php_537行目_最終解答文') ?></u>：<?php echo isset($es) ? htmlspecialchars($es, ENT_QUOTES, 'UTF-8') : ''; ?></b><br><br>
-                            <b><u><?= translate('mousemove.php_539行目_日本語文') ?></u>：<?php echo isset($js) ? htmlspecialchars($js, ENT_QUOTES, 'UTF-8') : ''; ?></b><br>
-                            <b><u><?= translate('mousemove.php_540行目_正解文') ?></u>：<?php echo isset($se) ? htmlspecialchars($se, ENT_QUOTES, 'UTF-8') : ''; ?></b><br>
-                            <br>
-                            <b><u><?= translate('mousemove.php_542行目_迷い度') ?></u>：
+    <table border="1" cellspacing="1" width="1000" height="500">
+        <tr>
+            <td>
+                <div id="myCanvasb"></div>
+                <div id="myCanvas"></div>
+                <div id="myCanvas2"></div>
+                <div id="myCanvas2_1"></div>
+                <div id="myCanvas2_2"></div>
+                <div id="myCanvas2_3"></div>
+                <div id="myCanvas2_4"></div>
+                <div id="myCanvas3"></div>
+                <div id="myCanvas3_1"></div>
+                <div id="myCanvas3_2"></div>
+                <div id="myCanvas3_3"></div>
+                <div id="myCanvas3_4"></div>
+                <div id="myCanvas4"></div>
+                <div id="myCanvas5"></div>
+                <div id="myCanvas6"></div>
+                <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+                <br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+                <table border="0" width="995" height="200">
+                    <tr>
+                        <td>
+                            <table border="1" cellspacing="1" width="600" height="200">
+                                <tr>
+                                    <td>
+                                        <b><u><?= translate('mousemove.php_534行目_問題番号') ?></u>：<?php echo isset($wid) ? htmlspecialchars($wid, ENT_QUOTES, 'UTF-8') : ''; ?>
+                                            <u><?= translate('mousemove.php_535行目_ユーザ番号') ?></u>：<?php echo isset($uid) ? htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') : ''; ?></b>
+                                        <br><br>
+                                        <b><u><?= translate('mousemove.php_537行目_最終解答文') ?></u>：<?php echo isset($es) ? htmlspecialchars($es, ENT_QUOTES, 'UTF-8') : ''; ?></b><br><br>
+                                        <b><u><?= translate('mousemove.php_539行目_日本語文') ?></u>：<?php echo isset($js) ? htmlspecialchars($js, ENT_QUOTES, 'UTF-8') : ''; ?></b><br>
+                                        <b><u><?= translate('mousemove.php_540行目_正解文') ?></u>：<?php echo isset($se) ? htmlspecialchars($se, ENT_QUOTES, 'UTF-8') : ''; ?></b><br>
+                                        <br>
+                                        <b><u><?= translate('mousemove.php_542行目_迷い度') ?></u>：
+                                            <?php
+                                            if (isset($us)) {
+                                                if ($us == 0) {
+                                                    print (translate('mousemove.php_544行目_間違って終了ボタン'));
+                                                } elseif ($us == 4) {
+                                                    print (translate('mousemove.php_545行目_ほとんど迷わなかった'));
+                                                } elseif ($us == 3) {
+                                                    print (translate('mousemove.php_546行目_少し迷った'));
+                                                } elseif ($us == 2) {
+                                                    print (translate('mousemove.php_547行目_かなり迷った'));
+                                                }
+                                            }
+                                            ?>
+                                        </b><br>
+                                        <b><u><?= translate('mousemove.php_550行目_正誤') ?></u>：
+                                            <?php
+                                            if (isset($point) && $point == 10) {
+                                                print ("○");
+                                            } else {
+                                                print ("×");
+                                            }
+                                            ?>
+                                        </b><br>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td>
+                            <table border="1" cellspacing="1" width="380" height="200">
+                                <tr>
+                                    <td>
+                                        <?= translate('mousemove.php_560行目_文法項目') ?>：<?php
+                                          if (isset($grammar_print)) {
+                                              for ($i = 0; $i < count($grammar_print); $i++) {
+                                                  print (htmlspecialchars($grammar_print[$i], ENT_QUOTES, 'UTF-8'));
+                                                  print (" ");
+                                              }
+                                          }
+                                          ?>
+                                        <br>
+                                        <?= translate('mousemove.php_565行目_難易度') ?>：<?php
+                                          if (isset($level)) {
+                                              if ($level == 1) {
+                                                  print (translate('mousemove.php_566行目_初級'));
+                                              } else if ($level == 2) {
+                                                  print (translate('mousemove.php_567行目_中級'));
+                                              } else if ($level == 3) {
+                                                  print (translate('mousemove.php_568行目_上級'));
+                                              }
+                                          }
+                                          ?>
+                                        <br><br>
+                                        <?= translate('mousemove.php_571行目_得点') ?>：<?php
+                                          if (isset($point)) {
+                                              echo htmlspecialchars($point, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?><?= translate('mousemove.php_571行目_点') ?><br>
+                                        <?= translate('mousemove.php_576行目_解答時間') ?>：<?php
+                                          if (isset($a_time)) {
+                                              echo htmlspecialchars($a_time, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?><?= translate('mousemove.php_578行目_秒') ?><br>
+                                        <?= translate('mousemove.php_579行目_DragDrop回数') ?>：<?php
+                                          if (isset($dragdropcount)) {
+                                              echo htmlspecialchars($dragdropcount, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?><?= translate('mousemove.php_581行目_回') ?><br>
+                                        <?= translate('mousemove.php_582行目_Uターン回数X') ?>：<?php
+                                          if (isset($uturncount_X)) {
+                                              echo htmlspecialchars($uturncount_X, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?><?= translate('mousemove.php_584行目_回') ?><br>
+                                        <?= translate('mousemove.php_585行目_Uターン回数Y') ?>：<?php
+                                          if (isset($uturncount_Y)) {
+                                              echo htmlspecialchars($uturncount_Y, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?><?= translate('mousemove.php_587行目_回') ?><br>
+                                        <?= translate('mousemove.php_588行目_マウス移動距離') ?>：<?php
+                                          if (isset($distance)) {
+                                              echo htmlspecialchars($distance, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?>pixel<br>
+                                        <?= translate('mousemove.php_593行目_平均マウス速度') ?>：<?php
+                                          if (isset($avespeed)) {
+                                              echo htmlspecialchars($avespeed, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?>pixel/ms<br>
+                                        <?= translate('mousemove.php_598行目_最大静止時間') ?>：<?php
+                                          if (isset($maxstoptime)) {
+                                              echo htmlspecialchars($maxstoptime, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?>ms<br>
+                                        <?= translate('mousemove.php_603行目_グループ化回数') ?>：<?php
+                                          if (isset($groupcount)) {
+                                              echo htmlspecialchars($groupcount, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?><?= translate('mousemove.php_605行目_回') ?><br>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+                <br>
+                <table border="1" cellspacing="1" width="600" height="200">
+                    <tr>
+                        <td>
                             <?php
-                                if (isset($us)){
-                                    if ($us == 0){print(translate('mousemove.php_544行目_間違って終了ボタン'));}
-                                    elseif ( $us == 4 ){print(translate('mousemove.php_545行目_ほとんど迷わなかった'));}
-                                    elseif ( $us == 3 ){print(translate('mousemove.php_546行目_少し迷った'));}
-                                    elseif ( $us == 2 ){print(translate('mousemove.php_547行目_かなり迷った'));}
-                                }
-                            ?>
-                            </b><br>
-                            <b><u><?= translate('mousemove.php_550行目_正誤') ?></u>：
-                            <?php
-                                if(isset($point) && $point == 10){print("○");}
-                                else{print("×");}
-                            ?>
-                            </b><br>
-                        </td></tr>
-                    </table>
-                    </td><td>
-                        <table border = "1" cellspacing = "1" width = "380" height = "200">
-                            <tr><td>
-                                <?= translate('mousemove.php_560行目_文法項目') ?>：<?php
-                                    if(isset($grammar_print)){
-                                        for($i = 0; $i<count($grammar_print); $i++)
-                                        {print(htmlspecialchars($grammar_print[$i], ENT_QUOTES, 'UTF-8'));
-                                        print(" ");}
-                                    }
-                                ?>
-                                <br>
-                                <?= translate('mousemove.php_565行目_難易度') ?>：<?php
-                                    if (isset($level)) {
-                                        if ( $level == 1 ){print(translate('mousemove.php_566行目_初級'));}
-                                        else if ( $level == 2 ){print(translate('mousemove.php_567行目_中級'));}
-                                        else if ( $level == 3 ){print(translate('mousemove.php_568行目_上級'));}
-                                    }
-                                ?>
-                                <br><br>
-                                <?= translate('mousemove.php_571行目_得点') ?>：<?php
-                                    if(isset($point)){
-                                        echo htmlspecialchars($point, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?><?= translate('mousemove.php_571行目_点') ?><br>
-                                <?= translate('mousemove.php_576行目_解答時間') ?>：<?php
-                                    if(isset($a_time)){
-                                        echo htmlspecialchars($a_time, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?><?= translate('mousemove.php_578行目_秒') ?><br>
-                                <?= translate('mousemove.php_579行目_DragDrop回数') ?>：<?php
-                                    if(isset($dragdropcount)){
-                                        echo htmlspecialchars($dragdropcount, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?><?= translate('mousemove.php_581行目_回') ?><br>
-                                <?= translate('mousemove.php_582行目_Uターン回数X') ?>：<?php
-                                    if(isset($uturncount_X)){
-                                        echo htmlspecialchars($uturncount_X, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?><?= translate('mousemove.php_584行目_回') ?><br>
-                                <?= translate('mousemove.php_585行目_Uターン回数Y') ?>：<?php
-                                    if(isset($uturncount_Y)){
-                                        echo htmlspecialchars($uturncount_Y, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?><?= translate('mousemove.php_587行目_回') ?><br>
-                                <?= translate('mousemove.php_588行目_マウス移動距離') ?>：<?php
-                                    if(isset($distance)){
-                                        echo htmlspecialchars($distance, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?>pixel<br>
-                                <?= translate('mousemove.php_593行目_平均マウス速度') ?>：<?php
-                                    if(isset($avespeed)){
-                                        echo htmlspecialchars($avespeed, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?>pixel/ms<br>
-                                <?= translate('mousemove.php_598行目_最大静止時間') ?>：<?php
-                                    if(isset($maxstoptime)){
-                                        echo htmlspecialchars($maxstoptime, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?>ms<br>
-                                <?= translate('mousemove.php_603行目_グループ化回数') ?>：<?php
-                                    if(isset($groupcount)){
-                                        echo htmlspecialchars($groupcount, ENT_QUOTES, 'UTF-8');
-                                    }
-                                ?><?= translate('mousemove.php_605行目_回') ?><br>
-                            </td></tr>
-                        </table>
-                    </td></tr>
-            </table>
-            <br>
-            <table border = "1" cellspacing = "1" width = "600" height = "200">
-            <tr><td>
-            <?php
-                $diarray = isset($start) ? explode("|",$start) : [];
-                $diarray_num = count($diarray);
-                $word_count = array();
-                $DD_count = array();
-                $AAword_count = array();
-                $Label = "";
-                $AALabel = "";
-                $Array_Flag = 0;
-                $AARR_Flag = 0;
-                $sql_DD ="select * from linedatamouse where UID = ".$uid." and WID = ".$wid." order by Time;";
-                $res_DD = mysqli_query($conn,$sql_DD) or die("接続エラー");
-                while($row_DD = mysqli_fetch_array($res_DD)){
-                    if($row_DD["DD"] ==2){//Drag時
-                        $Label = $row_DD["Label"];
-                        $Label_div = explode("#",$Label);
-                        $DragTime = $row_DD["Time"];
-                        foreach($Label_div as $value){
-                            if(isset($DD_count[$value])){
-                                $DD_count[$value] += 1;
-                            }else{
-                                $DD_count[$value] = 1;
-                            }
-                            
-                        }
-                        /*各欄の座標で場所を判断しているため、新しい実験のときはここを変更すること*/
-                        if($row_DD["Y"] > 130 and $row_DD["Y"]<= 215){ $Array_Flag = 4; //解答欄 
-                        }else if($row_DD["Y"] > 215 and $row_DD["Y"]<=295){ $Array_Flag = 1;//レジスタ1
-                        }else if($row_DD["Y"] > 295 and $row_DD["Y"]<=375){ $Array_Flag = 2;//レジスタ2
-                        }else if($row_DD["Y"] > 375){ $Array_Flag = 3;//レジスタ3
-                        }else{ $Array_Flag = 0;//問題提示欄
-                        }
-                    }else if($row_DD["DD"] ==1){//Drop時
-                        $DropTime = $row_DD["Time"];
-                        if($row_DD["Y"] <= 130){//　→問題提示欄
-                            if($Array_Flag!=0){//問題提示欄から以外→問題提示欄はD&Dカウント
-                                foreach($Label_div as $value){
-                                    if(isset($word_count[$value])){
-                                        $word_count[$value]++;
-                                    }else{
-                                        $word_count[$value] = 1;
-                                    }
-                                }
-                            }
-                        }else if($row_DD["Y"] > 130 and $row_DD["Y"]<= 215){//　→解答欄
-                            if($Array_Flag==4){//解答欄入れ替え
-                                $AARR_Flag = 4;
-                                foreach($Label_div as $value){
-                                    if(isset($word_count[$value])){
-                                        $word_count[$value]++;
-                                    }else{
-                                        $word_count[$value] = 1;
-                                    }
-                                    
-                                }
-                            }
-                        }else if($row_DD["Y"] > 215 and $row_DD["Y"]<=295){ //→レジスタ1
-                            if($Array_Flag==1){
-                                $AARR_Flag = 1;
-                                foreach($Label_div as $value){
-                                    if(isset($word_count[$value])){
-                                        $word_count[$value]++;
-                                    }else{
-                                        $word_count[$value] = 1;
-                                    }
-                                    
-                                }
-                            }
-                        }else if($row_DD["Y"] > 295 and $row_DD["Y"]<=375){ //→レジスタ2
-                            if($Array_Flag==2){
-                                $AARR_Flag = 2;
-                                foreach($Label_div as $value){
-                                    if(isset($word_count[$value])){
-                                        $word_count[$value]++;
-                                    }else{
-                                        $word_count[$value] = 1;
-                                    }
-                                }
-                            }
-                        }else if($row_DD["Y"] > 375){ //→レジスタ3
-                            if($Array_Flag==3){
-                                $AARR_Flag = 3;
-                                foreach($Label_div as $value){
-                                    if(isset($word_count[$value])){
-                                        $word_count[$value]++;
-                                    }else{
-                                        $word_count[$value] = 1;
-                                    }
-                                }
-                            }
-                        }
-                        if($AARR_Flag>=1 and $AARR_Flag<=4){//解答欄内or同レジスタ内移動の場合
-                            $AALabel = $Label;
-                            $AALabel_div = explode("#",$AALabel);
-                            foreach($AALabel_div as $value){
-                                if(isset($AAword_count[$value])){
-                                    $AAword_count[$value]++;//単語の取得
-                                }else{
-                                    $AAword_count[$value] = 1;//単語の取得
-                                }
-                                
-                            }
-                        }
-                        $AARR_Flag = 0;//解答欄内入れ替え判定フラグ初期化
-                        $Label_div = array();
-                    }
-                }
-                arsort($AAword_count);
-                arsort($word_count);
-                $sql_DD2="select * from linedatamouse where UID = ".$uid." order by WID,Time;";
-                $res_DD2 = mysqli_query($conn,$sql_DD2) or die("接続エラー");
-                $DC_Flag = 0;
-                $DC_array = array();
-                $Time_array = array();
-                $WID_array = array();
-                $Label_array = array();
-                $hazureDC = array();
-                $DevDC = array();
-                $j = 0;
-                $l_80 = 0;
-                $l_75 = 0;
-                $l_70 = 0;
-                $l_65 = 0;
-                $l_60 = 0;
-                $l_2 = 0;
-                $l_1 = 0;
-                $l_075 = 0;
-                $key80_array =array();
-                $key75_array =array();
-                $key70_array =array();
-                $key65_array =array();
-                $key60_array =array();
-                $key2_array = array();
-                $key1_array = array();
-                $key075_array = array();
-                $m = 0;
-                while($row_DD2 = mysqli_fetch_array($res_DD2)){
-                    if($row_DD2["DD"] ==2){
-                        if($DC_Flag ==1){
-                            $Time_array[$j] = $row_DD2["Time"];
-                            $DC_array[$j] = $row_DD2["Time"] - $before_Time;
-                            $WID_array[$j] = $row_DD2["WID"];
-                            $Label_array[$j] = $row_DD2["Label"];
-                            $j++;
-                        }
-                    }else if($row_DD2["DD"] ==1){
-                        $DC_Flag = 1;
-                        $before_Time = $row_DD2["Time"];
-                    }else if($row_DD2["DD"] ==-1){
-                        $DC_Flag = 0;
-                    }
-                }
-       
-                $aveDC_sub = ave($DC_array);//純粋なDC時間の平均値
-                $sdDC_sub = sd($DC_array);//純粋なDC時間の標準偏差
-                $thereshold_2 = 2*$sdDC_sub+$aveDC_sub;//閾値下
-                $thereshold_3 = 3*$sdDC_sub+$aveDC_sub;//閾値上
-                $thereshold_1 = 1*$sdDC_sub+$aveDC_sub;//閾値上     
-                $thereshold_075 = 0.75*$sdDC_sub+$aveDC_sub;//閾値上
-                $j = 0;
-                $sdDC = 0;
-                $aveDC = 0;
-                $tempsdDC = 50;
-                foreach($DC_array as $value){
-                    $DevDC[$j] = ($value- $aveDC)*10 / $tempsdDC;
-                    if($WID_array[$j] == $wid){
-                        if($value>=$thereshold_2 ){ $key2_array[$l_2] = $j; $l_2++;}
-                        if($value>=$thereshold_1 and $value<$thereshold_2){ $key1_array[$l_1] = $j; $l_1++;}               
-                        if($value>=$thereshold_075 and $value<$thereshold_1){ $key075_array[$l_075] = $j; $l_075++;}
-                        for($i = count($diarray)-1;$i>=0;$i--){
-                            $Label_array[$j] = str_replace($i,isset($diarray[$i]) ? $diarray[$i] : '',$Label_array[$j]);
-                        }
-                    }
-                    $j++;
-                }
-                $p2 = 0;
-                $p1 = 0;
-                $p075 = 0;
-                
-                $DC_array2 = array();
-                $DC_array1 = array();
-                $DC_array075 = array();
-                $key_sub2 = array();
-                $key_sub1  = array();
-                $key_sub075 = array();
-                foreach($key2_array as $value){
-                    $DC_array2[$p2] = $DC_array[$value];
-                    $key_sub2[$p2] = $value;
-                    $p2++;
-                }
-                foreach($key1_array as $value){
-                    $DC_array1[$p1] = $DC_array[$value];
-                    $key_sub1[$p1] = $value;
-                    $p1++;
-                }
-                foreach($key075_array as $value){
-                    $DC_array075[$p075] = $DC_array[$value];
-                    $key_sub075[$p075] = $value;
-                    $p075++;
-                }
-                arsort($DC_array2);
-                arsort($DC_array1);
-                arsort($DC_array075);
-            ?>
-            <?php
-                function arrayGetDuplicate($array){//重複した配列を抽出する関数
-                    $duplicate = array();
-                    $already = array();
-                    foreach ($array as $key=>$value){
-                        foreach ($array as $key2=>$value2) {
-                            if($key == $key2){
-                                continue;
-                            }
-                            if(in_array($key2, $already)){
-                                continue;
-                            }
-                            if($array[$key] == $array[$key2]){
-                                $already[] = $key;
-                                $duplicate[] = $array[$key] ;
-                            }
-                        }
-                    }
-                    return $duplicate;
-                }        
+                            $diarray = isset($start) ? explode("|", $start) : [];
+                            $diarray_num = count($diarray);
+                            $word_count = array();
+                            $DD_count = array();
+                            $AAword_count = array();
+                            $Label = "";
+                            $AALabel = "";
+                            $Array_Flag = 0;
+                            $AARR_Flag = 0;
+                            $sql_DD = "select * from linedatamouse where UID = " . $uid . " and WID = " . $wid . " order by Time;";
+                            $res_DD = mysqli_query($conn, $sql_DD) or die("接続エラー");
+                            while ($row_DD = mysqli_fetch_array($res_DD)) {
+                                if ($row_DD["DD"] == 2) {//Drag時
+                                    $Label = $row_DD["Label"];
+                                    $Label_div = explode("#", $Label);
+                                    $DragTime = $row_DD["Time"];
+                                    foreach ($Label_div as $value) {
+                                        if (isset($DD_count[$value])) {
+                                            $DD_count[$value] += 1;
+                                        } else {
+                                            $DD_count[$value] = 1;
+                                        }
 
-                //迷い抽出テスト用はじめ
-                $word_array = array();//迷い単語格納用
-                $Labelnum = 0;
-                //迷い抽出テスト終わり
-                $word_array = array();//迷い単語格納用
-                $Labelnum = 0;
-                foreach ($word_count as $key => $value){
-                    if($value >=1){
-                        if(isset($diarray[$key])){
-                            $word_array[$Labelnum] = $diarray[$key];
-                            $Labelnum++;
-                        }
-                     
-                    }
-                }
-                /*
-                foreach($DC_array3 as $key=>$value){
-                    $word_array[$Labelnum] = $Label_array[$key_sub3[$key]];
-                    $Labelnum++;
-                }
-                */
-                 foreach($DC_array2 as $key=>$value){
-                    if (isset($key_sub2[$key]) && isset($Label_array[$key_sub2[$key]])) {
-                        $word_array[$Labelnum] = $Label_array[$key_sub2[$key]];
-                        $Labelnum++;
-                    }
-                }
-                 foreach($DC_array1 as $key=>$value){
-                    if (isset($key_sub1[$key]) && isset($Label_array[$key_sub1[$key]])) {
-                        $word_array[$Labelnum] = $Label_array[$key_sub1[$key]];
-                        $Labelnum++;
-                    }
-                }
-                foreach($DC_array075 as $key=>$value){
-                    if (isset($key_sub075[$key]) && isset($Label_array[$key_sub075[$key]])) {
-                        $word_array[$Labelnum] = $Label_array[$key_sub075[$key]];
-                        $Labelnum++;
-                    }
-                }
-            ?>
-            <b><u><?= translate('mousemove.php_1078行目_迷い候補リスト') ?></u></b><br>
-            <?php
-                //2023/11/29追加 phpからpythonを呼び出す
-                $filename = "Python/helloworld.py";
-                $command = "py " . $filename;
-                // exec($command, $dum,$rtn);
-                // echo "python:" . (isset($dum[0]) ? $dum[0] : '');
-                
-                
-                
-                $word_array = array_unique($word_array);
-                $hesitate_word="";
-                $hesitate_cnt=0;
-                foreach($word_array as $value){
-                    echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "<br>";
-                    if($hesitate_cnt==0) $hesitate_word=$value;
-                    else $hesitate_word=$hesitate_word."#".$value;
-                    $hesitate_cnt++;
-                }
-                // テーブルhesitate.への挿入.使いたいときはコメントを外してください
-                /*
-                $sql_insert_ready="select * from hesitate where uid=".$uid." and wid=".$wid;
-                $res_insert_ready=mysqli_query($conn,$sql_insert_ready);
-                $num_ready=mysqli_num_rows($res_insert_ready);
-                if($num_ready == 0){
-                    $sql_insert="insert into hesitate values(".$uid.",".$wid.",\"".$hesitate_word."\")";
-                    $res_insert= mysqli_query($conn,$sql_insert) or die("接続エラー");
-                }
-                */
-                
-            ?>
-            <br>
-            <b><u><?= translate('mousemove.php_1107行目_余分なDD動作') ?></u></b><br>
-            <?php   
-                $p = 0;
-                $q = 0;
-                foreach ($word_count as $key => $value){
-                    if($p ==0){
-            ?>
-                        <u><?= translate('mousemove.php_1113行目_複数回') ?></u><br>
-            <?php
-                    }
-                    if ($value >=2){
-                        echo " " . (isset($diarray[$key]) ? htmlspecialchars($diarray[$key], ENT_QUOTES, 'UTF-8') : '') . "(" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . "): " . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " " . translate('mousemove.php_1117行目_回') . "<br>";
-                        $p++;
-                    }else if ($value >=1){
-                        if($q == 0){
-            ?>
-                            <u><?= translate('mousemove.php_1121行目_1回') ?></u><br>
-            <?php
-                        }
-                        if(isset($diarray[$key])){
-                            echo " " . htmlspecialchars($diarray[$key], ENT_QUOTES, 'UTF-8') . "(" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . ")<br>";
-                        }
-                        $q++;
-                    }
-                }
-            ?>
-            <br>
-            <b><u><?= translate('mousemove.php_1128行目_入れ替え間時間') ?></u></b><br> 
-                <u><?= translate('mousemove.php_1129行目_長いもの') ?></u><br>
-                <?php
-                    foreach($DC_array2 as $key=>$value){
-                        if (isset($key_sub2[$key])) {
-                            echo htmlspecialchars($Label_array[$key_sub2[$key]], ENT_QUOTES, 'UTF-8') . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " [" . translate('mousemove.php_1131行目_経過時間') . htmlspecialchars($Time_array[$key_sub2[$key]], ENT_QUOTES, 'UTF-8') . "ms～]<br>";
-                        }
-                    }
-                ?>
-                <u>1.0</u><br>
-                <?php
-                    foreach($DC_array1 as $key=>$value){
-                        if (isset($key_sub1[$key])) {
-                            echo htmlspecialchars($Label_array[$key_sub1[$key]], ENT_QUOTES, 'UTF-8') . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " [" . translate('mousemove.php_1136行目_経過時間') . htmlspecialchars($Time_array[$key_sub1[$key]], ENT_QUOTES, 'UTF-8') . "ms～]<br>";
-                        }
-                    }
-                ?>
-                <u>0.75</u><br>
-                <?php
-                    foreach($DC_array075 as $key=>$value){
-                        if (isset($key_sub075[$key])) {
-                            echo htmlspecialchars($Label_array[$key_sub075[$key]], ENT_QUOTES, 'UTF-8') . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " [" . translate('mousemove.php_1141行目_経過時間') . htmlspecialchars($Time_array[$key_sub075[$key]], ENT_QUOTES, 'UTF-8') . "ms～]<br>";
-                        }
-                    }
-                ?>
-            </td></tr>
-            </table>
-        </td></tr>
+                                    }
+                                    /*各欄の座標で場所を判断しているため、新しい実験のときはここを変更すること*/
+                                    if ($row_DD["Y"] > 130 and $row_DD["Y"] <= 215) {
+                                        $Array_Flag = 4; //解答欄 
+                                    } else if ($row_DD["Y"] > 215 and $row_DD["Y"] <= 295) {
+                                        $Array_Flag = 1;//レジスタ1
+                                    } else if ($row_DD["Y"] > 295 and $row_DD["Y"] <= 375) {
+                                        $Array_Flag = 2;//レジスタ2
+                                    } else if ($row_DD["Y"] > 375) {
+                                        $Array_Flag = 3;//レジスタ3
+                                    } else {
+                                        $Array_Flag = 0;//問題提示欄
+                                    }
+                                } else if ($row_DD["DD"] == 1) {//Drop時
+                                    $DropTime = $row_DD["Time"];
+                                    if ($row_DD["Y"] <= 130) {//　→問題提示欄
+                                        if ($Array_Flag != 0) {//問題提示欄から以外→問題提示欄はD&Dカウント
+                                            foreach ($Label_div as $value) {
+                                                if (isset($word_count[$value])) {
+                                                    $word_count[$value]++;
+                                                } else {
+                                                    $word_count[$value] = 1;
+                                                }
+                                            }
+                                        }
+                                    } else if ($row_DD["Y"] > 130 and $row_DD["Y"] <= 215) {//　→解答欄
+                                        if ($Array_Flag == 4) {//解答欄入れ替え
+                                            $AARR_Flag = 4;
+                                            foreach ($Label_div as $value) {
+                                                if (isset($word_count[$value])) {
+                                                    $word_count[$value]++;
+                                                } else {
+                                                    $word_count[$value] = 1;
+                                                }
+
+                                            }
+                                        }
+                                    } else if ($row_DD["Y"] > 215 and $row_DD["Y"] <= 295) { //→レジスタ1
+                                        if ($Array_Flag == 1) {
+                                            $AARR_Flag = 1;
+                                            foreach ($Label_div as $value) {
+                                                if (isset($word_count[$value])) {
+                                                    $word_count[$value]++;
+                                                } else {
+                                                    $word_count[$value] = 1;
+                                                }
+
+                                            }
+                                        }
+                                    } else if ($row_DD["Y"] > 295 and $row_DD["Y"] <= 375) { //→レジスタ2
+                                        if ($Array_Flag == 2) {
+                                            $AARR_Flag = 2;
+                                            foreach ($Label_div as $value) {
+                                                if (isset($word_count[$value])) {
+                                                    $word_count[$value]++;
+                                                } else {
+                                                    $word_count[$value] = 1;
+                                                }
+                                            }
+                                        }
+                                    } else if ($row_DD["Y"] > 375) { //→レジスタ3
+                                        if ($Array_Flag == 3) {
+                                            $AARR_Flag = 3;
+                                            foreach ($Label_div as $value) {
+                                                if (isset($word_count[$value])) {
+                                                    $word_count[$value]++;
+                                                } else {
+                                                    $word_count[$value] = 1;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if ($AARR_Flag >= 1 and $AARR_Flag <= 4) {//解答欄内or同レジスタ内移動の場合
+                                        $AALabel = $Label;
+                                        $AALabel_div = explode("#", $AALabel);
+                                        foreach ($AALabel_div as $value) {
+                                            if (isset($AAword_count[$value])) {
+                                                $AAword_count[$value]++;//単語の取得
+                                            } else {
+                                                $AAword_count[$value] = 1;//単語の取得
+                                            }
+
+                                        }
+                                    }
+                                    $AARR_Flag = 0;//解答欄内入れ替え判定フラグ初期化
+                                    $Label_div = array();
+                                }
+                            }
+                            arsort($AAword_count);
+                            arsort($word_count);
+                            $sql_DD2 = "select * from linedatamouse where UID = " . $uid . " order by WID,Time;";
+                            $res_DD2 = mysqli_query($conn, $sql_DD2) or die("接続エラー");
+                            $DC_Flag = 0;
+                            $DC_array = array();
+                            $Time_array = array();
+                            $WID_array = array();
+                            $Label_array = array();
+                            $hazureDC = array();
+                            $DevDC = array();
+                            $j = 0;
+                            $l_80 = 0;
+                            $l_75 = 0;
+                            $l_70 = 0;
+                            $l_65 = 0;
+                            $l_60 = 0;
+                            $l_2 = 0;
+                            $l_1 = 0;
+                            $l_075 = 0;
+                            $key80_array = array();
+                            $key75_array = array();
+                            $key70_array = array();
+                            $key65_array = array();
+                            $key60_array = array();
+                            $key2_array = array();
+                            $key1_array = array();
+                            $key075_array = array();
+                            $m = 0;
+                            while ($row_DD2 = mysqli_fetch_array($res_DD2)) {
+                                if ($row_DD2["DD"] == 2) {
+                                    if ($DC_Flag == 1) {
+                                        $Time_array[$j] = $row_DD2["Time"];
+                                        $DC_array[$j] = $row_DD2["Time"] - $before_Time;
+                                        $WID_array[$j] = $row_DD2["WID"];
+                                        $Label_array[$j] = $row_DD2["Label"];
+                                        $j++;
+                                    }
+                                } else if ($row_DD2["DD"] == 1) {
+                                    $DC_Flag = 1;
+                                    $before_Time = $row_DD2["Time"];
+                                } else if ($row_DD2["DD"] == -1) {
+                                    $DC_Flag = 0;
+                                }
+                            }
+
+                            $aveDC_sub = ave($DC_array);//純粋なDC時間の平均値
+                            $sdDC_sub = sd($DC_array);//純粋なDC時間の標準偏差
+                            $thereshold_2 = 2 * $sdDC_sub + $aveDC_sub;//閾値下
+                            $thereshold_3 = 3 * $sdDC_sub + $aveDC_sub;//閾値上
+                            $thereshold_1 = 1 * $sdDC_sub + $aveDC_sub;//閾値上     
+                            $thereshold_075 = 0.75 * $sdDC_sub + $aveDC_sub;//閾値上
+                            $j = 0;
+                            $sdDC = 0;
+                            $aveDC = 0;
+                            $tempsdDC = 50;
+                            foreach ($DC_array as $value) {
+                                $DevDC[$j] = ($value - $aveDC) * 10 / $tempsdDC;
+                                if ($WID_array[$j] == $wid) {
+                                    if ($value >= $thereshold_2) {
+                                        $key2_array[$l_2] = $j;
+                                        $l_2++;
+                                    }
+                                    if ($value >= $thereshold_1 and $value < $thereshold_2) {
+                                        $key1_array[$l_1] = $j;
+                                        $l_1++;
+                                    }
+                                    if ($value >= $thereshold_075 and $value < $thereshold_1) {
+                                        $key075_array[$l_075] = $j;
+                                        $l_075++;
+                                    }
+                                    for ($i = count($diarray) - 1; $i >= 0; $i--) {
+                                        $Label_array[$j] = str_replace($i, isset($diarray[$i]) ? $diarray[$i] : '', $Label_array[$j]);
+                                    }
+                                }
+                                $j++;
+                            }
+                            $p2 = 0;
+                            $p1 = 0;
+                            $p075 = 0;
+
+                            $DC_array2 = array();
+                            $DC_array1 = array();
+                            $DC_array075 = array();
+                            $key_sub2 = array();
+                            $key_sub1 = array();
+                            $key_sub075 = array();
+                            foreach ($key2_array as $value) {
+                                $DC_array2[$p2] = $DC_array[$value];
+                                $key_sub2[$p2] = $value;
+                                $p2++;
+                            }
+                            foreach ($key1_array as $value) {
+                                $DC_array1[$p1] = $DC_array[$value];
+                                $key_sub1[$p1] = $value;
+                                $p1++;
+                            }
+                            foreach ($key075_array as $value) {
+                                $DC_array075[$p075] = $DC_array[$value];
+                                $key_sub075[$p075] = $value;
+                                $p075++;
+                            }
+                            arsort($DC_array2);
+                            arsort($DC_array1);
+                            arsort($DC_array075);
+                            ?>
+                            <?php
+                            function arrayGetDuplicate($array)
+                            {//重複した配列を抽出する関数
+                                $duplicate = array();
+                                $already = array();
+                                foreach ($array as $key => $value) {
+                                    foreach ($array as $key2 => $value2) {
+                                        if ($key == $key2) {
+                                            continue;
+                                        }
+                                        if (in_array($key2, $already)) {
+                                            continue;
+                                        }
+                                        if ($array[$key] == $array[$key2]) {
+                                            $already[] = $key;
+                                            $duplicate[] = $array[$key];
+                                        }
+                                    }
+                                }
+                                return $duplicate;
+                            }
+
+                            //迷い抽出テスト用はじめ
+                            $word_array = array();//迷い単語格納用
+                            $Labelnum = 0;
+                            //迷い抽出テスト終わり
+                            $word_array = array();//迷い単語格納用
+                            $Labelnum = 0;
+                            foreach ($word_count as $key => $value) {
+                                if ($value >= 1) {
+                                    if (isset($diarray[$key])) {
+                                        $word_array[$Labelnum] = $diarray[$key];
+                                        $Labelnum++;
+                                    }
+
+                                }
+                            }
+                            /*
+                            foreach($DC_array3 as $key=>$value){
+                                $word_array[$Labelnum] = $Label_array[$key_sub3[$key]];
+                                $Labelnum++;
+                            }
+                            */
+                            foreach ($DC_array2 as $key => $value) {
+                                if (isset($key_sub2[$key]) && isset($Label_array[$key_sub2[$key]])) {
+                                    $word_array[$Labelnum] = $Label_array[$key_sub2[$key]];
+                                    $Labelnum++;
+                                }
+                            }
+                            foreach ($DC_array1 as $key => $value) {
+                                if (isset($key_sub1[$key]) && isset($Label_array[$key_sub1[$key]])) {
+                                    $word_array[$Labelnum] = $Label_array[$key_sub1[$key]];
+                                    $Labelnum++;
+                                }
+                            }
+                            foreach ($DC_array075 as $key => $value) {
+                                if (isset($key_sub075[$key]) && isset($Label_array[$key_sub075[$key]])) {
+                                    $word_array[$Labelnum] = $Label_array[$key_sub075[$key]];
+                                    $Labelnum++;
+                                }
+                            }
+                            ?>
+                            <b><u><?= translate('mousemove.php_1078行目_迷い候補リスト') ?></u></b><br>
+                            <?php
+                            //2023/11/29追加 phpからpythonを呼び出す
+                            $filename = "Python/helloworld.py";
+                            $command = "py " . $filename;
+                            // exec($command, $dum,$rtn);
+                            // echo "python:" . (isset($dum[0]) ? $dum[0] : '');
+                            
+
+
+                            $word_array = array_unique($word_array);
+                            $hesitate_word = "";
+                            $hesitate_cnt = 0;
+                            foreach ($word_array as $value) {
+                                echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "<br>";
+                                if ($hesitate_cnt == 0)
+                                    $hesitate_word = $value;
+                                else
+                                    $hesitate_word = $hesitate_word . "#" . $value;
+                                $hesitate_cnt++;
+                            }
+                            // テーブルhesitate.への挿入.使いたいときはコメントを外してください
+                            /*
+                            $sql_insert_ready="select * from hesitate where uid=".$uid." and wid=".$wid;
+                            $res_insert_ready=mysqli_query($conn,$sql_insert_ready);
+                            $num_ready=mysqli_num_rows($res_insert_ready);
+                            if($num_ready == 0){
+                                $sql_insert="insert into hesitate values(".$uid.",".$wid.",\"".$hesitate_word."\")";
+                                $res_insert= mysqli_query($conn,$sql_insert) or die("接続エラー");
+                            }
+                            */
+
+                            ?>
+                            <br>
+                            <b><u><?= translate('mousemove.php_1107行目_余分なDD動作') ?></u></b><br>
+                            <?php
+                            $p = 0;
+                            $q = 0;
+                            foreach ($word_count as $key => $value) {
+                                if ($p == 0) {
+                                    ?>
+                                    <u><?= translate('mousemove.php_1113行目_複数回') ?></u><br>
+                                    <?php
+                                }
+                                if ($value >= 2) {
+                                    echo " " . (isset($diarray[$key]) ? htmlspecialchars($diarray[$key], ENT_QUOTES, 'UTF-8') : '') . "(" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . "): " . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " " . translate('mousemove.php_1117行目_回') . "<br>";
+                                    $p++;
+                                } else if ($value >= 1) {
+                                    if ($q == 0) {
+                                        ?>
+                                            <u><?= translate('mousemove.php_1121行目_1回') ?></u><br>
+                                        <?php
+                                    }
+                                    if (isset($diarray[$key])) {
+                                        echo " " . htmlspecialchars($diarray[$key], ENT_QUOTES, 'UTF-8') . "(" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . ")<br>";
+                                    }
+                                    $q++;
+                                }
+                            }
+                            ?>
+                            <br>
+                            <b><u><?= translate('mousemove.php_1128行目_入れ替え間時間') ?></u></b><br>
+                            <u><?= translate('mousemove.php_1129行目_長いもの') ?></u><br>
+                            <?php
+                            foreach ($DC_array2 as $key => $value) {
+                                if (isset($key_sub2[$key])) {
+                                    echo htmlspecialchars($Label_array[$key_sub2[$key]], ENT_QUOTES, 'UTF-8') . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " [" . translate('mousemove.php_1131行目_経過時間') . htmlspecialchars($Time_array[$key_sub2[$key]], ENT_QUOTES, 'UTF-8') . "ms～]<br>";
+                                }
+                            }
+                            ?>
+                            <u>1.0</u><br>
+                            <?php
+                            foreach ($DC_array1 as $key => $value) {
+                                if (isset($key_sub1[$key])) {
+                                    echo htmlspecialchars($Label_array[$key_sub1[$key]], ENT_QUOTES, 'UTF-8') . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " [" . translate('mousemove.php_1136行目_経過時間') . htmlspecialchars($Time_array[$key_sub1[$key]], ENT_QUOTES, 'UTF-8') . "ms～]<br>";
+                                }
+                            }
+                            ?>
+                            <u>0.75</u><br>
+                            <?php
+                            foreach ($DC_array075 as $key => $value) {
+                                if (isset($key_sub075[$key])) {
+                                    echo htmlspecialchars($Label_array[$key_sub075[$key]], ENT_QUOTES, 'UTF-8') . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " [" . translate('mousemove.php_1141行目_経過時間') . htmlspecialchars($Time_array[$key_sub075[$key]], ENT_QUOTES, 'UTF-8') . "ms～]<br>";
+                                }
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
     </table>
     <script type="text/javascript">
         // 初期の英単語の並び情報を|で区切って入れる
@@ -1086,28 +1177,28 @@ require "../../lang.php";
                 var string_y = 100;
                 jg_canvas = jg3
                 jg_canvas2 = jg2
-            }else if (md_flag == 1) {
+            } else if (md_flag == 1) {
                 now_list = list_r1.slice(0);
                 Label_x = Label_r1.slice(0);
                 var string_x = 30;
                 var string_y = 250;
                 jg_canvas = jg3_1
                 jg_canvas2 = jg2_1
-            }else if (md_flag == 2) {
+            } else if (md_flag == 2) {
                 now_list = list_r2.slice(0);
                 Label_x = Label_r2.slice(0);
                 var string_x = 30;
                 var string_y = 330;
                 jg_canvas = jg3_2
                 jg_canvas2 = jg2_2
-            }else if (md_flag == 3) {
+            } else if (md_flag == 3) {
                 now_list = list_r3.slice(0);
                 Label_x = Label_r3.slice(0);
                 var string_x = 30;
                 var string_y = 410;
                 jg_canvas = jg3_3
                 jg_canvas2 = jg2_3
-            }else if (md_flag == 4) {
+            } else if (md_flag == 4) {
                 now_list = list_a.slice(0);
                 Label_x = Label_a.slice(0);
                 var string_x = 30;
@@ -1138,7 +1229,7 @@ require "../../lang.php";
                     jg_canvas2.paint();
                     string_x = string_x + w_width + 18;
                 }
-            }else {
+            } else {
                 for (l = 0; l < now_list.length; l++) {
                     //単語のフォント設定
                     jg_canvas.setFont("arial", "16px", Font.Plain);
@@ -1154,16 +1245,16 @@ require "../../lang.php";
             if (md_flag == 0) {
                 list_q = now_list.slice(0);
                 Label_q = Label_x.slice(0);
-            }else if (md_flag == 1) {
+            } else if (md_flag == 1) {
                 list_r1 = now_list.slice(0);
                 Label_r1 = Label_x.slice(0);
-            }else if (md_flag == 2) {
+            } else if (md_flag == 2) {
                 list_r2 = now_list.slice(0);
                 Label_r2 = Label_x.slice(0);
-            }else if (md_flag == 3) {
+            } else if (md_flag == 3) {
                 list_r3 = now_list.slice(0);
                 Label_r3 = Label_x.slice(0);
-            }else if (md_flag == 4) {
+            } else if (md_flag == 4) {
                 list_a = now_list.slice(0);
                 Label_a = Label_x.slice(0);
             }
@@ -1234,10 +1325,10 @@ require "../../lang.php";
                     if (DD_point[m + 1] == 2 && grouptest[1] == undefined) {
                         //ここでイベントが起こった場所によって場合分け
                         if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
-                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                        else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                        else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                         WordDrag();
                         wordmove = 1;
                     }
@@ -1245,11 +1336,11 @@ require "../../lang.php";
                     //グループ化された場合(複数選択されている場合)
                     if (DD_point[m + 1] == 2 && grouptest[1] != undefined) {
                         //ここでイベントが起こった場所によって場合分け
-                        if (parseInt(y_point[m + 1]) <= 130){ md_flag = 0; }
-                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                        else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                        if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
+                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                        else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                         WordGroup();
                         wordmove = 1;
                     }
@@ -1257,11 +1348,11 @@ require "../../lang.php";
                     //ドラッグ＆ドロップが行われた場合に、単語の並び順等を変更
                     if (DD_point[m + 1] == 1) {
                         //ここでイベントが起こった場所によって場合分け
-                        if (parseInt(y_point[m + 1]) <= 130){ md_flag = 0; }
-                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                        else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                        if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
+                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                        else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                         WordDrop();
                         wordmove = 0;
                         jg4.clear();
@@ -1274,7 +1365,7 @@ require "../../lang.php";
                 }
             }
 
-            if(labelDDTime != 0 && slider == 0){
+            if (labelDDTime != 0 && slider == 0) {
                 for (n = t; n < labelDDTime; n++) {
                     t = t + 1;
                     if (m + 1 < t_point.length && t == t_point[m + 1]) {
@@ -1283,10 +1374,10 @@ require "../../lang.php";
                         if (DD_point[m + 1] == 2 && grouptest[1] == undefined) {
                             //ここでイベントが起こった場所によって場合分け
                             if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
-                            else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                            else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                            else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                            else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                            else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                            else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                            else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                            else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                             WordDrag();
                             wordmove = 1;
                         }
@@ -1294,11 +1385,11 @@ require "../../lang.php";
                         //グループ化された場合(複数選択されている場合)
                         if (DD_point[m + 1] == 2 && grouptest[1] != undefined) {
                             //ここでイベントが起こった場所によって場合分け
-                            if (parseInt(y_point[m + 1]) <= 130){ md_flag = 0; }
-                            else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                            else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                            else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                            else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                            if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
+                            else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                            else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                            else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                            else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                             WordGroup();
                             wordmove = 1;
                         }
@@ -1306,11 +1397,11 @@ require "../../lang.php";
                         //ドラッグ＆ドロップが行われた場合に、単語の並び順等を変更
                         if (DD_point[m + 1] == 1) {
                             //ここでイベントが起こった場所によって場合分け
-                            if (parseInt(y_point[m + 1]) <= 130){ md_flag = 0; }
-                            else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                            else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                            else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                            else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                            if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
+                            else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                            else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                            else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                            else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                             WordDrop();
                             wordmove = 0;
                             jg4.clear();
@@ -1351,11 +1442,11 @@ require "../../lang.php";
                     //グループ化されていない場合
                     if (DD_point[m + 1] == 2 && grouptest[1] == undefined) {
                         //ここでイベントが起こった場所によって場合分け
-                        if (parseInt(y_point[m + 1]) <= 130){ md_flag = 0; }
-                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                        else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                        if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
+                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                        else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                         WordDrag();
                         wordmove = 1;
                     }
@@ -1363,11 +1454,11 @@ require "../../lang.php";
                     //グループ化された場合(複数選択されている場合)
                     if (DD_point[m + 1] == 2 && grouptest[1] != undefined) {
                         //ここでイベントが起こった場所によって場合分け
-                        if (parseInt(y_point[m + 1]) <= 130){ md_flag = 0; }
-                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                        else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                        if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
+                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                        else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                         WordGroup();
                         wordmove = 1;
                     }
@@ -1375,11 +1466,11 @@ require "../../lang.php";
                     //ドラッグ＆ドロップが行われた場合に、単語の並び順等を変更
                     if (DD_point[m + 1] == 1) {
                         //ここでイベントが起こった場所によって場合分け
-                        if (parseInt(y_point[m + 1]) <= 130){ md_flag = 0; }
-                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130){ md_flag = 4; }
-                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215){ md_flag = 1; }
-                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295){ md_flag = 2; }
-                        else if (parseInt(y_point[m + 1]) > 375){ md_flag = 3; }
+                        if (parseInt(y_point[m + 1]) <= 130) { md_flag = 0; }
+                        else if (parseInt(y_point[m + 1]) <= 215 && parseInt(y_point[m + 1]) > 130) { md_flag = 4; }
+                        else if (parseInt(y_point[m + 1]) <= 295 && parseInt(y_point[m + 1]) > 215) { md_flag = 1; }
+                        else if (parseInt(y_point[m + 1]) <= 375 && parseInt(y_point[m + 1]) > 295) { md_flag = 2; }
+                        else if (parseInt(y_point[m + 1]) > 375) { md_flag = 3; }
                         WordDrop();
                         wordmove = 0;
                         jg4.clear();
@@ -1413,7 +1504,7 @@ require "../../lang.php";
             /*console.log(t_word);*/
             //ドラッグ中の単語を退避させておく
             parse_t = parseInt(t_word);
-            console.log("parse_t is" + parse_t )
+            console.log("parse_t is" + parse_t)
             //word[0]の中にどの単語であるかが含まれている．
             word[0] = now_list[parse_t];
             console.log("word[0] is " + word[0])
@@ -1460,16 +1551,16 @@ require "../../lang.php";
             if (md_flag == 0) {
                 now_list = list_q.slice(0);
                 Label_x = Label_q.slice(0);
-            }else if (md_flag == 1) {
+            } else if (md_flag == 1) {
                 now_list = list_r1.slice(0);
                 Label_x = Label_r1.slice(0);
-            }else if (md_flag == 2) {
+            } else if (md_flag == 2) {
                 now_list = list_r2.slice(0);
                 Label_x = Label_r2.slice(0);
-            }else if (md_flag == 3) {
+            } else if (md_flag == 3) {
                 now_list = list_r3.slice(0);
                 Label_x = Label_r3.slice(0);
-            }else if (md_flag == 4) {
+            } else if (md_flag == 4) {
                 now_list = list_a.slice(0);
                 Label_x = Label_a.slice(0);
             }
@@ -1487,7 +1578,7 @@ require "../../lang.php";
                 for (j = 0; j < word.length; j++) {
                     tmplist.splice(0 + j, 0, word[j]);
                 }
-            }else {
+            } else {
                 // 1番左端だったときの検査
                 if (parseInt(x_point[m + 1]) <= Label_x[0]) {
                     for (j = 0; j < word.length; j++) {
@@ -1524,12 +1615,12 @@ require "../../lang.php";
         //線を描画
         function DrawLine() {
             jg6.clear();
-            
-            if      (t%50000 <= 10000)              { jg.setColor("pink"); }
-            else if (t%50000 > 10000 && t%50000 <= 20000) { jg.setColor("blue"); }
-            else if (t%50000 > 20000 && t%50000 <= 30000) { jg.setColor("orange"); }
-            else if (t%50000 > 30000 && t%50000 <= 40000) { jg.setColor("green"); }
-            else if (t%50000 > 40000 && t%50000 <= 50000) { jg.setColor("red"); }
+
+            if (t % 50000 <= 10000) { jg.setColor("pink"); }
+            else if (t % 50000 > 10000 && t % 50000 <= 20000) { jg.setColor("blue"); }
+            else if (t % 50000 > 20000 && t % 50000 <= 30000) { jg.setColor("orange"); }
+            else if (t % 50000 > 30000 && t % 50000 <= 40000) { jg.setColor("green"); }
+            else if (t % 50000 > 40000 && t % 50000 <= 50000) { jg.setColor("red"); }
             //else if (t%50000 > 50000)               { jg.setColor("black"); }
 
 
@@ -1543,15 +1634,15 @@ require "../../lang.php";
             var yu = parseInt(UTurnY_point[m]);
             jg.drawLine(x1, y1, x2, y2);
             /*ｘ軸Uターン：☆、Y軸Uターン:★、どっちも：■、どっちもない：○*/
-            if (yu == 1 && xu==1){
+            if (yu == 1 && xu == 1) {
                 jg.fillRect(x1, y1, 10, 10);
-            }else if(xu==1 && yu!=1){
-                jg.drawString("☆",x1-5, y1-5);
-            }else if(xu!=1 && yu==1){
-                jg.drawString("★",x1-5, y1-5);
-            }else{
+            } else if (xu == 1 && yu != 1) {
+                jg.drawString("☆", x1 - 5, y1 - 5);
+            } else if (xu != 1 && yu == 1) {
+                jg.drawString("★", x1 - 5, y1 - 5);
+            } else {
                 jg.drawEllipse(x1, y1 - 2, 4, 4);
-            } 
+            }
             jg.paint();
             //マウスポインター
             jg6.drawImage("pointer001.png", x2, y2, 10, 18);
@@ -1646,6 +1737,7 @@ require "../../lang.php";
         var jg5 = new jsGraphics("myCanvas5");
         //マウスカーソル表示用
         var jg6 = new jsGraphics("myCanvas6");
-    </script>   
+    </script>
 </body>
+
 </html>
