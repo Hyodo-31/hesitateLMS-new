@@ -347,3 +347,142 @@ margin-bottom: 6px;
     font-size: 14px;
     color: #999;
 }
+
+/* =====================================================
+   セクションレイアウト改善 (ここから追記)
+   ===================================================== */
+
+/* セクション全体をカード化するスタイル */
+.section-box {
+    background-color: #ffffff;
+    border-radius: 8px; /* 角を丸くする */
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* 影をつけて立体感を出す */
+    border: 1px solid #e0e0e0;
+}
+
+/* セクションの見出し部分のスタイル */
+.section-header {
+    display: flex;
+    justify-content: space-between; /* 見出しとボタンを両端に配置 */
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee; /* 区切り線 */
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1.4em;
+    color: #333;
+}
+
+/* 「もっとみる」ボタンのスタイル */
+.more-btn {
+    text-decoration: none;
+    background-color: #007bff;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.more-btn:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px); /* ホバー時に少し浮き上がる効果 */
+}
+
+/* =========================
+   テーブルのスタイル改善
+   ========================= */
+
+.section-box table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 8px; /* テーブル全体の角を丸くする */
+    overflow: hidden; /* 角丸デザインを適用するため */
+}
+
+.section-box table th,
+.section-box table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e0e0e0; /* 行の区切り線 */
+}
+
+.section-box table th {
+    background-color: #f8f9fa; /* ヘッダーの背景色 */
+    font-weight: bold;
+    color: #555;
+}
+
+.section-box table tbody tr:last-child td {
+    border-bottom: none; /* 最後の行の下線を消す */
+}
+
+.section-box table tbody tr:hover {
+    background-color: #f1f8ff; /* ホバーした行の背景色 */
+}
+
+/* 既存のステータス色をより分かりやすく変更 */
+table .status-unanswered { color: #dc3545; font-weight: bold; } /* 赤 */
+table .status-in-progress { color: #ffc107; font-weight: bold; } /* オレンジ */
+table .status-completed { color: #28a745; font-weight: bold; } /* 完了を黒から緑に変更 */
+
+
+/* =========================
+   成績ダッシュボードのセレクトボックス
+   ========================= */
+.summary .select-container {
+    margin-bottom: 20px;
+}
+
+.summary label {
+    font-weight: bold;
+    margin-right: 10px;
+    color: #555;
+    vertical-align: middle;
+}
+
+.summary select#testSelect {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1em;
+    min-width: 250px;
+    background-color: #fff;
+    vertical-align: middle;
+}
+
+/* =========================
+   レスポンシブ対応 (画面幅が狭い場合)
+   ========================= */
+@media screen and (max-width: 600px) {
+    .section-header {
+        flex-direction: column; /* 見出しとボタンを縦並びにする */
+        align-items: flex-start;
+    }
+    .more-btn {
+        margin-top: 10px;
+        width: 100%;
+        text-align: center; /* ボタンを中央揃えにする */
+    }
+    .summary .select-container {
+        display: flex;
+        flex-direction: column;
+    }
+    .summary label {
+        margin-bottom: 5px;
+    }
+    .summary select#testSelect {
+        width: 100%;
+    }
+}
+
+/* =====================================================
+   (追記ここまで)
+   ===================================================== */

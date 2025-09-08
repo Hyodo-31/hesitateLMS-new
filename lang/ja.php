@@ -932,6 +932,7 @@ return array (
   'test.php_105行目_解答状況' => '解答状況',
   'test.php_106行目_解答' => '解答',
   'test.php_125行目_テストはありません' => '登録されたテストはありません。',
+  'test.php_view_results' => '結果表示',
   'status_unanswered' => '未回答',
   'status_in_progress' => '解答途中',
   'status_completed' => '解答済み',

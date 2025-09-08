@@ -17,8 +17,15 @@ unset($_SESSION['conditions']);
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
 <script>
+    // ▼▼▼ ここから追加 ▼▼▼
+    // PHPの言語設定をJavaScriptの変数に保存します
+    var currentLang = "<?php echo $lang; ?>";
+    // ▲▲▲ ここまで追加 ▲▲▲
+
     function openwin(Qid) {
-        window.open("ques.php?Qid=" + Qid, "new", "width=861,height=700,resizable=0,menubar=0");
+        // ▼▼▼ ここを修正 ▼▼▼
+        // URLの末尾に言語情報を追加します
+        window.open("ques.php?Qid=" + Qid + "&lang=" + currentLang, "new", "width=861,height=700,resizable=0,menubar=0");
     }
 </script>
 
@@ -86,6 +93,8 @@ unset($_SESSION['conditions']);
             </div>
 
             <div class="test-list section-box">
+                <h2>最新のテスト(最新3件)</h2>
+                <a href="./test.php" class="more-btn">もっとみる</a>
                 <?php
                 $group_ids_str = implode(",", $_SESSION['GroupIDs']);
                 $student_id = $_SESSION['MemberID'];
@@ -112,8 +121,6 @@ unset($_SESSION['conditions']);
                 $stmt->execute();
                 $testsResult = $stmt->get_result();
                 ?>
-                <h2>最新のテスト(最新3件)</h2>
-                <a href="./test.php" class="more-btn">もっとみる</a>
                 <?php if ($testsResult->num_rows > 0): ?>
                     <table class="test-table" border="1">
                         <thead>
@@ -128,15 +135,24 @@ unset($_SESSION['conditions']);
                             <?php while ($row = $testsResult->fetch_assoc()): ?>
                                 <?php
                                 $status_class =
-                                    ($row['status'] === '未回答') ? 'status-unanswered' :
-                                    (($row['status'] === '解答途中') ? 'status-in-progress' :
+                                    ($row['status'] === '未回答') ? 'status-unanswered' : (($row['status'] === '解答途中') ? 'status-in-progress' :
                                         'status-completed');
                                 ?>
                                 <tr>
                                     <td><?= htmlspecialchars($row['test_name'], ENT_QUOTES, 'UTF-8'); ?></td>
                                     <td><?= $row['created_at']; ?></td>
                                     <td class="<?= $status_class; ?>"><?= $row['status']; ?></td>
-                                    <td><a href="javascript:openwin(<?= $row['id']; ?>)">解答</a></td>
+                                    <td>
+                                        <?php if ($row['status'] === '解答済み'): ?>
+
+                                            <a href="result.php?Qid=<?= $row['id']; ?>&lang=<?= $lang; ?>" target="_blank"><?= translate('test.php_view_results') ?></a>
+
+                                        <?php else: ?>
+
+                                            <a href="javascript:openwin(<?= $row['id']; ?>)"><?= translate('test.php_106行目_解答') ?></a>
+
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endwhile; ?>
                         </tbody>
@@ -148,35 +164,39 @@ unset($_SESSION['conditions']);
             </div>
 
             <div class="summary section-box">
-                <h2>成績ダッシュボード</h2>
-                <a href="./Analytics/analytics.php" class="more-btn">解いた問題ごとに成績確認</a>
+                <div class="section-header">
+                    <h2>成績ダッシュボード</h2>
+                    <a href="./Analytics/analytics.php" class="more-btn">解いた問題ごとに確認</a>
+                </div>
 
-                <!-- ▼ テスト選択プルダウン（従来どおり） ▼ -->
-                <label for="testSelect">テストを選択:</label>
-                <select id="testSelect">
-                    <option value="">選択してください</option>
-                    <?php
-                    // ▼ 上段で $testsResult を consume しているため再クエリ
-                    $group_ids_str = implode(",", $_SESSION['GroupIDs']);
-                    $student_id = $_SESSION['MemberID'];
-                    $class_id = $_SESSION['ClassID'];
-                    $sqlSel = "SELECT t.id, t.test_name, t.created_at
+                <div class="select-container">
+                    <p>-解いたテストごとに確認-</p>
+                    <label for="testSelect">テストを選択:</label>
+                    <select id="testSelect">
+                        <option value="">選択してください</option>
+                        <?php
+                        // ▼ 上段で $testsResult を consume しているため再クエリ
+                        $group_ids_str = implode(",", $_SESSION['GroupIDs']);
+                        $student_id = $_SESSION['MemberID'];
+                        $class_id = $_SESSION['ClassID'];
+                        $sqlSel = "SELECT t.id, t.test_name, t.created_at
                    FROM tests t
                    WHERE (t.target_type = 'class' AND t.target_group = ?)
                       OR (t.target_type = 'group' AND t.target_group IN ($group_ids_str))
                    ORDER BY t.created_at DESC";
-                    $stmt2 = $conn->prepare($sqlSel);
-                    $stmt2->bind_param("i", $class_id);
-                    $stmt2->execute();
-                    $res2 = $stmt2->get_result();
-                    while ($opt = $res2->fetch_assoc()):
+                        $stmt2 = $conn->prepare($sqlSel);
+                        $stmt2->bind_param("i", $class_id);
+                        $stmt2->execute();
+                        $res2 = $stmt2->get_result();
+                        while ($opt = $res2->fetch_assoc()):
                         ?>
-                        <option value="<?= (int) $opt['id']; ?>">
-                            <?= htmlspecialchars($opt['test_name'], ENT_QUOTES, 'UTF-8'); ?>
-                        </option>
-                    <?php endwhile;
-                    $stmt2->close(); ?>
-                </select>
+                            <option value="<?= (int) $opt['id']; ?>">
+                                <?= htmlspecialchars($opt['test_name'], ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endwhile;
+                        $stmt2->close(); ?>
+                    </select>
+                </div>
 
                 <!-- ▼ 解答情報（WID / 迷い / 正誤 / 軌跡）をここに描画 ▼ -->
                 <div id="answerInfo" style="margin-top:16px; display:none;">
@@ -206,6 +226,7 @@ unset($_SESSION['conditions']);
                     if (code === 4 || code === '4') return '迷い無し';
                     return '不明';
                 }
+
                 function mapTfLabel(code) {
                     if (code === 1 || code === '1') return '正解';
                     if (code === 0 || code === '0') return '不正解';
@@ -283,10 +304,10 @@ unset($_SESSION['conditions']);
             </script>
 
             <script>
-                document.addEventListener('DOMContentLoaded', function () {
+                document.addEventListener('DOMContentLoaded', function() {
                     const newsItems = document.querySelectorAll('.news-item');
                     newsItems.forEach(item => {
-                        item.addEventListener('dblclick', function () {
+                        item.addEventListener('dblclick', function() {
                             const id = this.getAttribute('data-id');
                             window.location.href = 'notification_detail.php?id=' + id;
                         });

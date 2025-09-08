@@ -114,7 +114,18 @@ unset($_SESSION['conditions']);
                                 echo "<td>" . htmlspecialchars($row['test_name']) . "</td>";
                                 echo "<td>" . $row['created_at'] . "</td>";
                                 echo "<td class='$status_class'>" . htmlspecialchars($translated_status) . "</td>";
-                                echo "<td><a href='javascript:openwin(" . $row['id'] . ")'>" . translate('test.php_106行目_解答') . "</a></td>";
+                                // ======================= ▼▼▼ ここからが修正箇所です ▼▼▼ =======================
+                                echo "<td>";
+                                if ($status_key == 'completed') {
+                                    // 【完了】の場合：result.phpへのリンクを生成（言語情報も追加）
+                                    // target="_blank"で新しいタブで開く
+                                    echo "<a href='result.php?Qid=" . $row['id'] . "&lang=" . $lang . "' target='_blank'>" . translate('test.php_view_results') . "</a>";
+                                } else {
+                                    // 【未解答・解答中】の場合：これまで通りques.phpをポップアップで開く
+                                    echo "<a href='javascript:openwin(" . $row['id'] . ")'>" . translate('test.php_106行目_解答') . "</a>";
+                                }
+                                echo "</td>";
+                                // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
                                 echo "</tr>";
                             }
                         ?>
