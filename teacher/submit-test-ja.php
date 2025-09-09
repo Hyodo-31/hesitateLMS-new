@@ -18,12 +18,12 @@
         <div class="logo"><?= translate('submit-test.php_18行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php"><?= translate('submit-test.php_21行目_ホーム') ?></a></li>
-                <li><a href="#"><?= translate('submit-test.php_22行目_コース管理') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('submit-test.php_23行目_迷い推定・機械学習') ?></a></li>
+                <!-- <li><a href="teachertrue.php"><?= translate('submit-test.php_21行目_ホーム') ?></a></li> -->
+                <!-- <li><a href="#"><?= translate('submit-test.php_22行目_コース管理') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('submit-test.php_23行目_迷い推定・機械学習') ?></a></li> -->
                 <!-- 下のは参照先が無い！ -->
-                <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-test.php_24行目_学生分析') ?></a></li>
-                <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-test.php_25行目_問題分析') ?></a></li>
+                <!-- <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-test.php_24行目_学生分析') ?></a></li> -->
+                <!-- <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-test.php_25行目_問題分析') ?></a></li> -->
             </ul>
         </nav>
     </header>
@@ -31,10 +31,11 @@
         <aside>
             <ul>
                 <li><a href="teachertrue.php"><?= translate('submit-test.php_31行目_ホーム') ?></a></li>
-                <li><a href="#"><?= translate('submit-test.php_32行目_コース管理') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('submit-test.php_33行目_迷い推定・機械学習') ?></a></li>
-                <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-test.php_34行目_学生分析') ?></a></li>
-                <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-test.php_35行目_問題分析') ?></a></li>
+                <li><a href="./create_ja/new.php?mode=0"><?= translate('teachertrue.php_1078行目_新規日本語問題作成') ?></a></li>
+                <!-- <li><a href="#"><?= translate('submit-test.php_32行目_コース管理') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('submit-test.php_33行目_迷い推定・機械学習') ?></a></li> -->
+                <!-- <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-test.php_34行目_学生分析') ?></a></li> -->
+                <!-- <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-test.php_35行目_問題分析') ?></a></li> -->
             </ul>
         </aside>
         <main>

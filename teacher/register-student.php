@@ -20,9 +20,9 @@
         <div class="logo"><?= translate('register-student.php_18行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php"><?= translate('register-student.php_21行目_ホーム') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('register-student.php_22行目_迷い推定・機械学習') ?></a></li>
-                <li><a href="register-student.php"><?= translate('register-student.php_23行目_新規学生登録') ?></a></li>
+                <!-- <li><a href="teachertrue.php"><?= translate('register-student.php_21行目_ホーム') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('register-student.php_22行目_迷い推定・機械学習') ?></a></li> -->
+                <!-- <li><a href="register-student.php"><?= translate('register-student.php_23行目_新規学生登録') ?></a></li> -->
             </ul>
         </nav>
     </header>
@@ -30,8 +30,8 @@
         <aside>
             <ul>
                 <li><a href="teachertrue.php"><?= translate('register-student.php_29行目_ホーム') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('register-student.php_30行目_迷い推定・機械学習') ?></a></li>
-                <li><a href="register-student.php"><?= translate('register-student.php_31行目_新規学生登録') ?></a></li>
+                <li><a href="register-classteacher.php"><?= translate('register-student.php_30行目_教師-クラス登録') ?></a></li>
+                <!-- <li><a href="register-student.php"><?= translate('register-student.php_31行目_新規学生登録') ?></a></li> -->
             </ul>
         </aside>
         <main>

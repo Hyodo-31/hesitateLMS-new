@@ -43,7 +43,7 @@ unset($_SESSION['conditions']);
         <aside>
             <ul>
                 <li><a href="#"><?= translate('student.php_26行目_ホーム') ?></a></li>
-                <li><a href="../logout.php"><?= translate('student.php_27行目_ログアウト') ?></a></li>
+                <!-- <li><a href="../logout.php"><?= translate('student.php_27行目_ログアウト') ?></a></li> -->
             </ul>
         </aside>
         <main>

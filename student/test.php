@@ -48,7 +48,7 @@ unset($_SESSION['conditions']);
         <nav>
             <ul>
                 <!-- <li><a href="student.php"><?= translate('test.php_48行目_ホーム') ?></a></li> -->
-                <li><a href="../logout.php"><?= translate('test.php_49行目_ログアウト') ?></a></li>
+                <!-- <li><a href="../logout.php"><?= translate('test.php_49行目_ログアウト') ?></a></li> -->
             </ul>
         </nav>
     </header>

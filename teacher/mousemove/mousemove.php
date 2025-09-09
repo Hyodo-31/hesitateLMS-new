@@ -259,41 +259,16 @@ require "../../lang.php";
         $uid = $ID[0];
         $wid = $ID[1];
 
-    } elseif (isset($_GET["UID"]) && isset($_GET["WID"]) && isset($_GET["LogID"])) {
-        // GETで受け取ったデータの処理（デフォルトのケース）
-        $uid = $_GET["UID"];
-        $wid = $_GET["WID"];
-        $log_id = $_GET["LogID"]; // LogID を受け取る
-    } else {
-        // エラーメッセージまたはデフォルト値
-        echo "必要なパラメータが不足しています。";
-        exit;
-    }
-
-    // データベースから値を取り出す (プリペアドステートメントに変更)
-// linedatamouseテーブルに `attempt` カラムが存在することを想定
-    $sql = "SELECT DISTINCT(Time), X, Y, DD, DPos, hLabel, Label, UTurnX, UTurnY 
-        FROM linedatamouse 
-        WHERE uid = ? AND WID = ? AND attempt = ? 
-        ORDER BY Time";
-
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
-        die("Error: SQL prepare failed: " . $conn->error);
-    }
-
-    $stmt->bind_param("iii", $uid, $wid, $log_id);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    // } elseif (isset($_GET["UID"]) && isset($_GET["WID"])) {
+    
+     } elseif (isset($_GET["UID"]) && isset($_GET["WID"])) {
     // GETで受け取ったデータの処理（デフォルトのケース）
-    // $uid = $_GET["UID"];
-    // $wid = $_GET["WID"];
-// } else {
+     $uid = $_GET["UID"];
+     $wid = $_GET["WID"];
+ } else {
     // エラーメッセージ
-    // $uid = 30914025;
-    // $wid = 22;
-// }
+     $uid = 30914025;
+     $wid = 22;
+ }
 // データベースから値を取り出す
     $query = "select distinct(Time),X,Y,DD,DPos,hLabel,Label,UTurnX,UTurnY from linedatamouse where uid = $uid and WID = $wid order by Time";
     $res = mysqli_query($conn, $query) or die("Error:query1");

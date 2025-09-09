@@ -26,7 +26,7 @@ unset($_SESSION['conditions']);
         <nav>
             <ul>
                 <!-- <li><a href="../student.php"><?= translate('analytics.php_24行目_ホーム') ?></a></li> -->
-                <li><a href="../../logout.php"><?= translate('analytics.php_25行目_ログアウト') ?></a></li>
+                <!-- <li><a href="../../logout.php"><?= translate('analytics.php_25行目_ログアウト') ?></a></li> -->
             </ul>
         </nav>
     </header>

@@ -20,11 +20,11 @@
         <div class="logo"><?= translate('submit-notification.php_18行目_英単語並べ替え問題LMS') ?></div>
         <nav>
             <ul>
-                <li><a href="teachertrue.php"><?= translate('submit-notification.php_21行目_ホーム') ?></a></li>
-                <li><a href="#"><?= translate('submit-notification.php_22行目_コース管理') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('submit-notification.php_23行目_迷い推定・機械学習') ?></a></li>
-                <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-notification.php_24行目_学生分析') ?></a></li>
-                <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-notification.php_25行目_問題分析') ?></a></li>
+                <!-- <li><a href="teachertrue.php"><?= translate('submit-notification.php_21行目_ホーム') ?></a></li> -->
+                <!-- <li><a href="#"><?= translate('submit-notification.php_22行目_コース管理') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('submit-notification.php_23行目_迷い推定・機械学習') ?></a></li> -->
+                <!-- <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-notification.php_24行目_学生分析') ?></a></li> -->
+                <!-- <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-notification.php_25行目_問題分析') ?></a></li> -->
             </ul>
         </nav>
     </header>
@@ -32,10 +32,10 @@
         <aside>
             <ul>
                 <li><a href="teachertrue.php"><?= translate('submit-notification.php_32行目_ホーム') ?></a></li>
-                <li><a href="#"><?= translate('submit-notification.php_33行目_コース管理') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('submit-notification.php_34行目_迷い推定・機械学習') ?></a></li>
-                <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-notification.php_35行目_学生分析') ?></a></li>
-                <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-notification.php_36行目_問題分析') ?></a></li>
+                <!-- <li><a href="#"><?= translate('submit-notification.php_33行目_コース管理') ?></a></li> -->
+                <!-- <li><a href="machineLearning_sample.php"><?= translate('submit-notification.php_34行目_迷い推定・機械学習') ?></a></li> -->
+                <!-- <li><a href="Analytics/studentAnalytics.php"><?= translate('submit-notification.php_35行目_学生分析') ?></a></li> -->
+                <!-- <li><a href="Analytics/questionAnalytics.php"><?= translate('submit-notification.php_36行目_問題分析') ?></a></li> -->
             </ul>
         </aside>
         <main>

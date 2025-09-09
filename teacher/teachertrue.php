@@ -67,6 +67,7 @@ if ($teacher_id) {
                 <li><a href="#"><?= translate('teachertrue.php_39行目_ホーム') ?></a></li>
                 <li><a href="machineLearning_sample.php"><?= translate('teachertrue.php_40行目_迷い推定・機械学習') ?></a></li>
                 <li><a href="register-student.php"><?= translate('teachertrue.php_45行目_新規学生登録') ?></a></li>
+                <li><a href="register-classteacher.php"><?= translate('teachertrue.php_46行目_教師-クラス登録') ?></a></li>
             </ul>
         </aside>
         <main>
