@@ -83,7 +83,7 @@
         <main>
             <p id="loadTime"></p>
             <script>
-                window.addEventListener('load', function() {
+                window.addEventListener('load', function () {
                     var loadTime = performance.now();
                     console.log('ページの表示時間: ' + loadTime.toFixed(2) + 'ミリ秒');
                     document.getElementById('loadTime').textContent = <?= json_encode(translate('machineLearning_sample.php_77行目_ページの表示時間')) ?> + ': ' + loadTime.toFixed(2) + <?= json_encode(translate('machineLearning_sample.php_77行目_ミリ秒')) ?>;
@@ -137,7 +137,7 @@
 
                         $stmt_scores->close();
                         $result_scores->free(); // メモリ解放
-
+            
                         //学生ごとの名前を取得
                         $stmt_name = $conn->prepare("SELECT Name FROM students WHERE uid = ?");
                         $stmt_name->bind_param("i", $students_id);
@@ -299,7 +299,7 @@
                 */
             $_SESSION['sql'] = $sql;
             // echo $_SESSION['sql'];
-
+            
 
 
             // SQL実行  
@@ -312,7 +312,7 @@
             // フォームがPOSTされた場合
             if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 // echo "<h2>POSTされたデータ:</h2>";
-
+            
 
                 // UIDの選択値を表示
                 /*
@@ -367,7 +367,7 @@
                 if (isset($_POST['featureLabel']) && !empty($_POST['featureLabel'])) {
 
                     // --- 修正コード開始 ---
-
+            
                     // データベース接続とセッション開始
                     require "../dbc.php";
                     if (session_status() == PHP_SESSION_NONE) {
@@ -379,7 +379,7 @@
                     $timestamp = time();
                     $test_filename = "./pydata/test_{$uniqueId}_{$timestamp}.csv";      // 教師データ用
                     $testdata_filename = "./pydata/testdata_{$uniqueId}_{$timestamp}.csv"; // テストデータ用
-
+            
                     // 1. ログイン中の教員IDを取得
                     $teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
 
@@ -417,7 +417,7 @@
                     $uid_list_str_for_sql = implode(',', $allowed_student_uids_for_sql);
 
                     // --- 修正コードここまで ---
-
+            
                     // 元のコードの変数定義
                     $allresult = array();
                     $tempwhere = array();
@@ -430,7 +430,20 @@
 
                     // クラスタを教師データにする場合の処理 (元の実装を維持)
                     if (isset($_SESSION['group_students']) && !empty($_SESSION['group_students'])) {
-                        $tempgroupsql = "SELECT UID,WID,Understand," . $selectcolumn . " FROM featurevalue1 WHERE UID IN (" . $_SESSION['group_students'] . ")";
+                        // ★★★★★【重要】ここを修正します ★★★★★
+                        $group_students_list = $_SESSION['group_students'];
+
+                        // featurevalue1用のSELECT文 (attemptカラムをNULLとして補う)
+                        $select_fv1 = "SELECT UID,WID,Understand,NULL AS attempt," . $selectcolumn;
+
+                        // test_featurevalue用のSELECT文 (attemptカラムをそのまま使用)
+                        $select_tfv = "SELECT UID,WID,Understand,attempt," . $selectcolumn;
+
+                        $tempgroupsql = "($select_fv1 FROM featurevalue1 WHERE UID IN ($group_students_list))";
+                        //UNION ALLなので二つのテーブルからの重複があったとしても許している。許さない場合はUNIONを使う。
+                        $tempgroupsql .= " UNION ALL ";
+                        $tempgroupsql .= "($select_tfv FROM test_featurevalue WHERE UID IN ($group_students_list))";
+                        // ★★★★★ 修正ここまで ★★★★★
                         $result_groupsql = mysqli_query($conn, $tempgroupsql);
                         $allresult_group = [];
                         while ($row = mysqli_fetch_assoc($result_groupsql)) {
@@ -462,7 +475,7 @@
                     }
 
                     // --- この後のCSVファイル生成とPython実行部分は元のコードのまま ---
-
+            
                     // 教師データ(featurevalue)の取得とCSV書き出し
                     $result = mysqli_query($conn, $sql);
                     while ($row = mysqli_fetch_assoc($result)) {
@@ -569,7 +582,7 @@
                     document.getElementById('feature-modal-graph').style.display = 'block';
 
                     // 特徴量選択後の適用ボタンに対して適切な配列とインデックスを設定
-                    document.getElementById('apply-features-btn').onclick = function() {
+                    document.getElementById('apply-features-btn').onclick = function () {
                         applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
                     };
                 }
@@ -581,7 +594,7 @@
                 const groupData = <?php echo json_encode($groups); ?>;
                 console.log(groupData);
 
-                document.addEventListener("DOMContentLoaded", function() {
+                document.addEventListener("DOMContentLoaded", function () {
                     const container = document.getElementById('group-chart-container');
 
                     groupData.forEach((group, index) => {
@@ -638,21 +651,21 @@
                         data: {
                             labels: labels,
                             datasets: [{
-                                    label: label1,
-                                    data: data1,
-                                    backgroundColor: color1,
-                                    borderColor: color1,
-                                    yAxisID: 'y1',
-                                    borderWidth: 1
-                                },
-                                {
-                                    label: label2,
-                                    data: data2,
-                                    backgroundColor: color2,
-                                    borderColor: color2,
-                                    yAxisID: 'y2',
-                                    borderWidth: 1
-                                }
+                                label: label1,
+                                data: data1,
+                                backgroundColor: color1,
+                                borderColor: color1,
+                                yAxisID: 'y1',
+                                borderWidth: 1
+                            },
+                            {
+                                label: label2,
+                                data: data2,
+                                backgroundColor: color2,
+                                borderColor: color2,
+                                yAxisID: 'y2',
+                                borderWidth: 1
+                            }
                             ]
                         },
                         options: {
@@ -757,12 +770,12 @@
 
                         // もう1つの特徴量のデータをfetchで取得
                         fetch('fetch_feature_data.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: params.toString()
-                            })
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: params.toString()
+                        })
                             .then(response => response.json())
                             .then(data => {
                                 if (data.error) {
@@ -816,12 +829,12 @@
                         });
 
                         fetch('fetch_feature_data.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: params.toString()
-                            })
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: params.toString()
+                        })
                             .then(response => response.json())
                             .then(data => {
                                 if (data.error) {
@@ -1614,7 +1627,7 @@
                             //exec("python3 {$pyscript} {$test_filename} {$testdata_filename} {$csvFile} {$metricsFile} 2>&1", $output, $status);
                             exec("python {$pyscript} {$test_filename} {$testdata_filename} {$csvFile} {$metricsFile} 2>&1", $output, $status);  //XAMPP版に変更したもの
                             //デスクトップ版の方は情報を返してくれるプログラムをここに書いてる
-
+                        
                             if ($status != 0) {
                                 echo "実行エラー: ステータスコード " . $status;
                                 echo "エラーメッセージ:\n" . implode("\n", $output);
@@ -1663,13 +1676,13 @@
                                     $studentStats = []; // UIDをキーにしたデータ構造
                                     // UIDごとの迷い率を計算するためにデータを集計
                                     $uidData = []; // UIDごとのデータを格納
-
+                        
 
 
                                     foreach ($csvData as $data) {
                                         $uid = $data[0];
                                         $understand = $data[2]; // Predictes_Understand カラム
-
+                        
                                         if (!isset($uidData[$uid])) {
                                             $uidData[$uid] = [
                                                 'total' => 0,
@@ -1722,7 +1735,7 @@
                                     }
                                     $stmt->close();
                                     // 以下、データ表示の処理
-
+                        
                                     //データベースから正解率と各特徴量の平均値をとってきて，学習者ごとに配列に保存
                                     //重複無しでUIDを取得
                                     $sql_UID = "SELECT DISTINCT UID FROM temporary_results WHERE teacher_id = ?";
@@ -1831,77 +1844,77 @@
 
 
 
-                        ?>
+                                    ?>
                                     <div id="table-container">
                                         <table border="1" id="results-table" class="table2">
                                             <tr>
-                                    <?php
-                                    foreach ($header as $col_name) {
-                                        if ($col_name == "Understand") {
-                                            echo "<th>" . translate('machineLearning_sample.php_1188行目_迷いの有無') . "</th>";
-                                        } else if ($col_name == "attempt") {
-                                            continue;
-                                        } else {
-                                            echo "<th>" . htmlspecialchars($col_name) . "</th>";
-                                        }
-                                    }
-                                    echo "<th>" . translate('machineLearning_sample.php_1195行目_正誤') . "</th>";
-                                    echo "<th>" . translate('machineLearning_sample.php_1196行目_軌跡再現リンク') . "</th>";
-                                    echo '</tr>';
-                                    foreach ($topData as $data) {
-                                        $uid = $data[0];
-                                        $wid = $data[1];
-                                        $understand = $data[2];
-                                        $attempt = $data[3];
-                                        //var_dump($uid);
-                                        //var_dump($wid);
+                                                <?php
+                                                foreach ($header as $col_name) {
+                                                    if ($col_name == "Understand") {
+                                                        echo "<th>" . translate('machineLearning_sample.php_1188行目_迷いの有無') . "</th>";
+                                                    } else if ($col_name == "attempt") {
+                                                        continue;
+                                                    } else {
+                                                        echo "<th>" . htmlspecialchars($col_name) . "</th>";
+                                                    }
+                                                }
+                                                echo "<th>" . translate('machineLearning_sample.php_1195行目_正誤') . "</th>";
+                                                echo "<th>" . translate('machineLearning_sample.php_1196行目_軌跡再現リンク') . "</th>";
+                                                echo '</tr>';
+                                                foreach ($topData as $data) {
+                                                    $uid = $data[0];
+                                                    $wid = $data[1];
+                                                    $understand = $data[2];
+                                                    $attempt = $data[3];
+                                                    //var_dump($uid);
+                                                    //var_dump($wid);
+                                    
+                                                    // linedata テーブルから該当する UID と WID に基づいて TF を取得
+                                                    $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ?";
+                                                    $stmt = $conn->prepare($getTFQuery);
+                                                    $stmt->bind_param('ii', $uid, $wid);
+                                                    $stmt->execute();
+                                                    $tf_result = $stmt->get_result();
+                                                    $tf_result = $tf_result->fetch_assoc();
+                                                    $tf_value = $tf_result['TF'];
 
-                                        // linedata テーブルから該当する UID と WID に基づいて TF を取得
-                                        $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ?";
-                                        $stmt = $conn->prepare($getTFQuery);
-                                        $stmt->bind_param('ii', $uid, $wid);
-                                        $stmt->execute();
-                                        $tf_result = $stmt->get_result();
-                                        $tf_result = $tf_result->fetch_assoc();
-                                        $tf_value = $tf_result['TF'];
+                                                    // HTMLテーブルに行を追加
+                                                    echo "<tr>";
+                                                    echo "<td>" . htmlspecialchars($uid) . "</td>";
+                                                    //widの横に-attemptを追加
+                                                    echo "<td>" . htmlspecialchars($wid) . "-" . htmlspecialchars($attempt) . "</td>";
 
-                                        // HTMLテーブルに行を追加
-                                        echo "<tr>";
-                                        echo "<td>" . htmlspecialchars($uid) . "</td>";
-                                        //widの横に-attemptを追加
-                                        echo "<td>" . htmlspecialchars($wid) . "-" . htmlspecialchars($attempt) . "</td>";
+                                                    echo "<td>";
+                                                    if ($understand == 4) {
+                                                        echo translate('machineLearning_sample.php_1213行目_迷い無し');
+                                                    } elseif ($understand == 2) {
+                                                        echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1215行目_迷い有り') . "</span>";
+                                                    } else {
+                                                        echo translate('machineLearning_sample.php_1217行目_不明');
+                                                    }
+                                                    echo "</td>";
+                                                    echo "<td>";
 
-                                        echo "<td>";
-                                        if ($understand == 4) {
-                                            echo translate('machineLearning_sample.php_1213行目_迷い無し');
-                                        } elseif ($understand == 2) {
-                                            echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1215行目_迷い有り') . "</span>";
-                                        } else {
-                                            echo translate('machineLearning_sample.php_1217行目_不明');
-                                        }
-                                        echo "</td>";
-                                        echo "<td>";
-
-                                        if ($tf_value == '1') {
-                                            echo translate('machineLearning_sample.php_1222行目_正解');
-                                        } elseif ($tf_value == '0') {
-                                            echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1224行目_不正解') . "</span>";
-                                        } else {
-                                            echo "N/A";
-                                        }
-                                        echo "</td>";
-                                        //echo "<td><a href=\"./mousemove/mousemove.php?uid=" . urlencode($uid) . "&wid=" . urlencode($wid) . "\">軌跡再現</a></td>";
-                                        echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "\" target=\"_blank\" rel=\"noopener noreferrer\">" . translate('machineLearning_sample.php_1228行目_軌跡再現') . "</a></td>";
-                                        echo "</tr>";
-                                    }
-                                    echo '</table>';
+                                                    if ($tf_value == '1') {
+                                                        echo translate('machineLearning_sample.php_1222行目_正解');
+                                                    } elseif ($tf_value == '0') {
+                                                        echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1224行目_不正解') . "</span>";
+                                                    } else {
+                                                        echo "N/A";
+                                                    }
+                                                    echo "</td>";
+                                                    //echo "<td><a href=\"./mousemove/mousemove.php?uid=" . urlencode($uid) . "&wid=" . urlencode($wid) . "\">軌跡再現</a></td>";
+                                                    echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "\" target=\"_blank\" rel=\"noopener noreferrer\">" . translate('machineLearning_sample.php_1228行目_軌跡再現') . "</a></td>";
+                                                    echo "</tr>";
+                                                }
+                                                echo '</table>';
                                 } else {
                                     echo translate('machineLearning_sample.php_1233行目_結果のCSVファイルを読み込めませんでした');
                                 }
                             }
                         }
-                                    ?>
-                                    </div>
+                        ?>
+                        </div>
                     </div>
                 </div>
                 <div id="clustering-modal" class="modal">
@@ -1950,7 +1963,7 @@
                         document.getElementById('clustering-feature-form').reset();
                     }
                     // 特徴量を送信してクラスタリングを実行
-                    document.getElementById('apply-clustering-btn').onclick = function() {
+                    document.getElementById('apply-clustering-btn').onclick = function () {
                         const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
                             .map(input => input.value);
                         if (selectedFeatures.length !== 2) {
@@ -1970,12 +1983,12 @@
                         });
 
                         fetch('perform_clustering_hesitate_accuracy.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: params.toString()
-                            })
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: params.toString()
+                        })
                             .then(response => response.text()) // JSON の代わりにテキストとして受け取る
                             .then(data => {
                                 //console.log("サーバーからのレスポンス:", data); // レスポンスを確認
@@ -2090,12 +2103,12 @@
 
                         // サーバーにリクエストを送信
                         fetch('group_students.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(clustersData) // JSON形式で送信
-                            })
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(clustersData) // JSON形式で送信
+                        })
                             .then(response => response.text())
                             .then(data => {
                                 alert(<?= json_encode(translate('machineLearning_sample.php_1363行目_選択されたクラスタのグループ化が完了しました')) ?>);
@@ -2185,7 +2198,7 @@
                                     },
                                     tooltip: {
                                         callbacks: {
-                                            label: function(context) {
+                                            label: function (context) {
                                                 return `${context.raw.label}: (${context.raw.x}, ${context.raw.y})`;
                                             }
                                         }
@@ -2260,7 +2273,7 @@
                     <div id="wid-details-maininfo-all"></div>
                     <script>
                         //uidが選択されたときにwidを表示するためのscript
-                        document.addEventListener('DOMContentLoaded', function() {
+                        document.addEventListener('DOMContentLoaded', function () {
                             const uidSelect = document.getElementById('uid-select');
                             const widSelect = document.getElementById('wid-select');
                             const studentDetailsmaininfo = document.getElementById('student-details-maininfo');
@@ -2268,7 +2281,7 @@
                             const widDetailsmaininfoall = document.getElementById('wid-details-maininfo-all');
 
                             //学習者選択時の処理
-                            uidSelect.addEventListener('change', async function() {
+                            uidSelect.addEventListener('change', async function () {
                                 const selectedUid = uidSelect.value;
 
                                 //プルダウンのリセット
@@ -2333,7 +2346,7 @@
                                 }
                             });
                             //問題選択時の処理
-                            widSelect.addEventListener('change', async function() {
+                            widSelect.addEventListener('change', async function () {
                                 const selectedWid = this.value;
                                 const selectedUid = uidSelect.value;
                                 console.log("selectedWid", selectedWid);
@@ -2419,25 +2432,25 @@
                                                 row.style = "border-bottom: 1px solid #ddd;";
 
                                                 const cells = [{
-                                                        value: item.Label,
-                                                        style: "padding: 10px;"
-                                                    },
-                                                    {
-                                                        value: item.TF_1_Count,
-                                                        style: "padding: 10px; text-align: center;"
-                                                    },
-                                                    {
-                                                        value: item.TF_0_Count,
-                                                        style: "padding: 10px; text-align: center;"
-                                                    },
-                                                    {
-                                                        value: item.Understand_2_Count,
-                                                        style: "padding: 10px; text-align: center;"
-                                                    },
-                                                    {
-                                                        value: item.Understand_4_Count,
-                                                        style: "padding: 10px; text-align: center;"
-                                                    }
+                                                    value: item.Label,
+                                                    style: "padding: 10px;"
+                                                },
+                                                {
+                                                    value: item.TF_1_Count,
+                                                    style: "padding: 10px; text-align: center;"
+                                                },
+                                                {
+                                                    value: item.TF_0_Count,
+                                                    style: "padding: 10px; text-align: center;"
+                                                },
+                                                {
+                                                    value: item.Understand_2_Count,
+                                                    style: "padding: 10px; text-align: center;"
+                                                },
+                                                {
+                                                    value: item.Understand_4_Count,
+                                                    style: "padding: 10px; text-align: center;"
+                                                }
                                                 ];
 
                                                 cells.forEach(cellData => {
@@ -2496,7 +2509,7 @@
                                     }
 
                                     // attemptSelect の change イベント
-                                    attemptSelect.addEventListener('change', function() {
+                                    attemptSelect.addEventListener('change', function () {
                                         console.log("Attempt changed");
                                         const selectedAttempt = this.value;
                                         console.log("selectedAttempt", selectedAttempt);
@@ -2618,19 +2631,19 @@
                                     data: {
                                         labels: labels,
                                         datasets: [{
-                                                label: <?= json_encode(translate('machineLearning_sample.php_1744行目_不正解率(%)')) ?>,
-                                                data: accuracyData,
-                                                backgroundColor: 'rgba(75, 192, 192, 0.6)', // 青系
-                                                borderColor: 'rgba(75, 192, 192, 1)',
-                                                borderWidth: 1,
-                                            },
-                                            {
-                                                label: <?= json_encode(translate('machineLearning_sample.php_1745行目_迷い率(%)')) ?>,
-                                                data: hesitationData,
-                                                backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
-                                                borderColor: 'rgba(255,99,132,1)',
-                                                borderWidth: 1,
-                                            }
+                                            label: <?= json_encode(translate('machineLearning_sample.php_1744行目_不正解率(%)')) ?>,
+                                            data: accuracyData,
+                                            backgroundColor: 'rgba(75, 192, 192, 0.6)', // 青系
+                                            borderColor: 'rgba(75, 192, 192, 1)',
+                                            borderWidth: 1,
+                                        },
+                                        {
+                                            label: <?= json_encode(translate('machineLearning_sample.php_1745行目_迷い率(%)')) ?>,
+                                            data: hesitationData,
+                                            backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
+                                            borderColor: 'rgba(255,99,132,1)',
+                                            borderWidth: 1,
+                                        }
                                         ]
                                     },
                                     options: {
@@ -2647,7 +2660,7 @@
                                                 mode: 'index',
                                                 intersect: false,
                                                 callbacks: {
-                                                    label: function(context) {
+                                                    label: function (context) {
                                                         return `${context.dataset.label}: ${context.parsed.y}%`;
                                                     }
                                                 }
@@ -2708,21 +2721,21 @@
                             data: {
                                 labels: labels,
                                 datasets: [{
-                                        label: label1,
-                                        data: data1,
-                                        backgroundColor: color1,
-                                        borderColor: color1,
-                                        yAxisID: 'y1',
-                                        borderWidth: 1
-                                    },
-                                    {
-                                        label: label2,
-                                        data: data2,
-                                        backgroundColor: color2,
-                                        borderColor: color2,
-                                        yAxisID: 'y2',
-                                        borderWidth: 1
-                                    }
+                                    label: label1,
+                                    data: data1,
+                                    backgroundColor: color1,
+                                    borderColor: color1,
+                                    yAxisID: 'y1',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: label2,
+                                    data: data2,
+                                    backgroundColor: color2,
+                                    borderColor: color2,
+                                    yAxisID: 'y2',
+                                    borderWidth: 1
+                                }
                                 ]
                             },
                             options: {
@@ -2920,7 +2933,7 @@
             "hesitation": "<?= translate('machineLearning_sample.php_description_hesitation') ?>"
         };
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const infoIcons = document.querySelectorAll('.info-icon');
             const detailModal = document.getElementById('feature-detail-modal');
             const detailTitle = document.getElementById('detail-feature-title');
@@ -2928,7 +2941,7 @@
             const closeDetailModal = document.querySelector('#feature-detail-modal .close-detail-modal');
 
             infoIcons.forEach(icon => {
-                icon.addEventListener('click', function(event) {
+                icon.addEventListener('click', function (event) {
                     event.stopPropagation(); // 親要素へのイベント伝播を停止
                     event.preventDefault(); // デフォルトの動作（ここではlabelのinputへのクリック伝播）をキャンセル
 
@@ -2957,11 +2970,11 @@
                 });
             });
 
-            closeDetailModal.addEventListener('click', function() {
+            closeDetailModal.addEventListener('click', function () {
                 detailModal.style.display = 'none';
             });
 
-            window.addEventListener('click', function(event) {
+            window.addEventListener('click', function (event) {
                 if (event.target == detailModal) {
                     detailModal.style.display = 'none';
                 }
