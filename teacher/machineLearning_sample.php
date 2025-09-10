@@ -83,7 +83,7 @@
         <main>
             <p id="loadTime"></p>
             <script>
-                window.addEventListener('load', function () {
+                window.addEventListener('load', function() {
                     var loadTime = performance.now();
                     console.log('ページの表示時間: ' + loadTime.toFixed(2) + 'ミリ秒');
                     document.getElementById('loadTime').textContent = <?= json_encode(translate('machineLearning_sample.php_77行目_ページの表示時間')) ?> + ': ' + loadTime.toFixed(2) + <?= json_encode(translate('machineLearning_sample.php_77行目_ミリ秒')) ?>;
@@ -137,7 +137,7 @@
 
                         $stmt_scores->close();
                         $result_scores->free(); // メモリ解放
-            
+
                         //学生ごとの名前を取得
                         $stmt_name = $conn->prepare("SELECT Name FROM students WHERE uid = ?");
                         $stmt_name->bind_param("i", $students_id);
@@ -299,7 +299,7 @@
                 */
             $_SESSION['sql'] = $sql;
             // echo $_SESSION['sql'];
-            
+
 
 
             // SQL実行  
@@ -312,7 +312,7 @@
             // フォームがPOSTされた場合
             if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 // echo "<h2>POSTされたデータ:</h2>";
-            
+
 
                 // UIDの選択値を表示
                 /*
@@ -364,112 +364,133 @@
             ?>
             <?php
             if ($_SERVER["REQUEST_METHOD"] == "POST") {
-                if (isset($_POST['featureLabel'])) {
+                if (isset($_POST['featureLabel']) && !empty($_POST['featureLabel'])) {
+
+                    // --- 修正コード開始 ---
+
+                    // データベース接続とセッション開始
+                    require "../dbc.php";
+                    if (session_status() == PHP_SESSION_NONE) {
+                        session_start();
+                    }
+
+                    // CSVファイル名を事前に定義
+                    $uniqueId = session_id();
+                    $timestamp = time();
+                    $test_filename = "./pydata/test_{$uniqueId}_{$timestamp}.csv";      // 教師データ用
+                    $testdata_filename = "./pydata/testdata_{$uniqueId}_{$timestamp}.csv"; // テストデータ用
+
+                    // 1. ログイン中の教員IDを取得
+                    $teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
+
+                    // 2. 教員が担当するクラスの学習者UIDリストを取得（テストデータ絞り込み用）
+                    $allowed_student_uids_for_sql = [];
+                    if ($teacher_id) {
+                        $class_ids = [];
+                        $stmt_classes = $conn->prepare("SELECT ClassID FROM classteacher WHERE TID = ?");
+                        if ($stmt_classes) {
+                            $stmt_classes->bind_param("s", $teacher_id);
+                            $stmt_classes->execute();
+                            $result_classes = $stmt_classes->get_result();
+                            while ($row_class = $result_classes->fetch_assoc()) {
+                                $class_ids[] = $row_class['ClassID'];
+                            }
+                            $stmt_classes->close();
+                        }
+
+                        if (!empty($class_ids)) {
+                            $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
+                            $sql_students = "SELECT UID FROM students WHERE ClassID IN ($placeholders)";
+                            $stmt_students = $conn->prepare($sql_students);
+                            if ($stmt_students) {
+                                $types = str_repeat('i', count($class_ids));
+                                $stmt_students->bind_param($types, ...$class_ids);
+                                $stmt_students->execute();
+                                $result_students = $stmt_students->get_result();
+                                while ($row_student = $result_students->fetch_assoc()) {
+                                    $allowed_student_uids_for_sql[] = "'" . $conn->real_escape_string($row_student['UID']) . "'";
+                                }
+                                $stmt_students->close();
+                            }
+                        }
+                    }
+                    $uid_list_str_for_sql = implode(',', $allowed_student_uids_for_sql);
+
+                    // --- 修正コードここまで ---
+
+                    // 元のコードの変数定義
                     $allresult = array();
-                    //取得したデータに応じてSQLを生成
                     $tempwhere = array();
                     $sql = "SELECT UID,WID,Understand,attempt,";
                     $sql_test = "SELECT UID,WID,Understand,attempt,";
                     $selectcolumn = implode(",", $_POST['featureLabel']);
-                    $sql .= $selectcolumn . " FROM featurevalue";   //データベースの列名が入っている． 教師データ
-                    $sql_test .= $selectcolumn . " FROM test_featurevalue";
+                    $sql .= $selectcolumn . " FROM featurevalue";    // 教師データSQL (ベース)
+                    $sql_test .= $selectcolumn . " FROM test_featurevalue"; // テストデータSQL (ベース)
+                    $column_name = "UID,WID,Understand,attempt," . $selectcolumn;
 
-                    //csvfileに書く用の変数
-                    $column_name = "UID,WID,Understand,attempt,";
-                    $column_name .= $selectcolumn;
-                    //デバッグ
-                    //echo "生成されたSQLは",$sql,"です<br>";
+                    // クラスタを教師データにする場合の処理 (元の実装を維持)
                     if (isset($_SESSION['group_students']) && !empty($_SESSION['group_students'])) {
-                        $tempgroupsql = "";
-                        $tempgroupsql .= "SELECT UID,WID,Understand," . $selectcolumn . " FROM featurevalue1 WHERE UID IN (" . $_SESSION['group_students'] . ")";
-                        //echo "グループSQLは",$tempgroupsql,"です<br>";
+                        $tempgroupsql = "SELECT UID,WID,Understand," . $selectcolumn . " FROM featurevalue1 WHERE UID IN (" . $_SESSION['group_students'] . ")";
                         $result_groupsql = mysqli_query($conn, $tempgroupsql);
+                        $allresult_group = [];
                         while ($row = mysqli_fetch_assoc($result_groupsql)) {
                             $allresult_group[] = $row;
                         }
-                        //csvfileに記述
-                        //echo getcwd();
-                        //$filename = "/home/yamakawa/public_html/hesitateLMS/teacher/pydata/testdata_{$uniqueId}_{$timestamp}.csv";
-                        $filename = "/xampp/htdocs/hesitateLMS/teacher/pydata/testdata_{$uniqueId}_{$timestamp}.csv";   //ここを変更した
-                        //$filename = './pydata/testdata.csv';
-                        //$filename = "/home/hyodo2/public_html/hesitateLMS/teacher/pydata/testdata_{$uniqueId}_{$timestamp}.csv";
-            
-                        // ファイルを開こうとする
+                        $filename = "/xampp/htdocs/hesitateLMS/teacher/pydata/testdata_{$uniqueId}_{$timestamp}.csv";
                         $fp_group = fopen($filename, 'w');
-
-                        // fopen が失敗した場合のエラー処理
-                        if (!$fp_group) {
-                            $error = error_get_last();
-                            die("ファイルを開けませんでした: " . $error['message']);
+                        if ($fp_group) {
+                            fputcsv($fp_group, explode(',', $column_name));
+                            foreach ($allresult_group as $row) {
+                                fputcsv($fp_group, $row);
+                            }
+                            fclose($fp_group);
                         }
-
-                        fputcsv($fp_group, explode(',', $column_name));
-                        foreach ($allresult_group as $row) {
-                            fputcsv($fp_group, $row);
-                        }
-                        fclose($fp_group);
-                        // echo "csvファイル_groupを生成しました";
-            
                     }
 
-                    //WHERE句の追加
+                    // 【教師データSQLの最終調整】(元の実装を維持)
                     if (isset($_SESSION['conditions']) && !empty($_SESSION['conditions'])) {
                         $tempwhere = $_SESSION['conditions'];
                     }
-
-                    // WHERE句の追加
                     if (!empty($tempwhere)) {
                         $sql .= " WHERE " . implode(" AND ", $tempwhere);
                     }
 
-                    // 最終的なSQLをデバッグ用に出力
-                    // echo "最終的な生成されたSQL(教師データ)は " . $sql . " です<br>";
-                    // echo "最終的な生成されたSQL(テストデータ)は " . $sql_test . " です<br>";
-                    // ここでSQLを実行する
-                    $result = mysqli_query($conn, $sql);
-                    //データベースの行数取得
-                    $rows = mysqli_num_rows($result);
+                    // ★★★【テストデータSQLの最終調整】(修正箇所) ★★★
+                    // 担当クラスの学習者でのみ絞り込み、$_SESSION['conditions']は適用しない
+                    if (!empty($uid_list_str_for_sql)) {
+                        $sql_test .= " WHERE UID IN (" . $uid_list_str_for_sql . ")";
+                    }
 
-                    //echo "抽出したデータ数は",$rows,"件です<br>";
-            
+                    // --- この後のCSVファイル生成とPython実行部分は元のコードのまま ---
+
+                    // 教師データ(featurevalue)の取得とCSV書き出し
+                    $result = mysqli_query($conn, $sql);
                     while ($row = mysqli_fetch_assoc($result)) {
                         $allresult[] = $row;
                     }
-                    $result_test = mysqli_query($conn, $sql_test);
-                    $rows_test = mysqli_num_rows($result_test);
-
-                    while ($row = mysqli_fetch_assoc($result_test)) {
-                        $allresult_test[] = $row;
-                    }
-                    //csvfileに記述
-                    //カラム名のみ先にcsvに記述
-            
-                    //$fp = fopen('./pydata/test.csv', 'w');
-                    $test_filename = "./pydata/test_{$uniqueId}_{$timestamp}.csv";          #教師データ
                     $fp = fopen($test_filename, 'w');
-                    $testdata_filename = "./pydata/testdata_{$uniqueId}_{$timestamp}.csv";  #テストデータ
-                    $fp_test = fopen($testdata_filename, 'w');
-
                     fputcsv($fp, explode(',', $column_name));
                     foreach ($allresult as $row) {
                         fputcsv($fp, $row);
                     }
                     fclose($fp);
 
+                    // テストデータ(test_featurevalue)の取得とCSV書き出し
+                    $allresult_test = [];
+                    $result_test = mysqli_query($conn, $sql_test);
+                    while ($row = mysqli_fetch_assoc($result_test)) {
+                        $allresult_test[] = $row;
+                    }
+                    $fp_test = fopen($testdata_filename, 'w');
                     fputcsv($fp_test, explode(',', $column_name));
                     foreach ($allresult_test as $row) {
                         fputcsv($fp_test, $row);
                     }
                     fclose($fp_test);
-
-                    // echo "csvファイルを生成しました" . "ファイル名:" . $test_filename;
                 } else {
-                    //javascriptでアラートを出す．
                     echo '<script type="text/javascript">alert("' . translate('machineLearning_sample.php_424行目_データを選択してください') . '");</script>';
                 }
             }
-
-
             ?>
             <!--
             <section id = "class-overview" class="overview">
@@ -548,7 +569,7 @@
                     document.getElementById('feature-modal-graph').style.display = 'block';
 
                     // 特徴量選択後の適用ボタンに対して適切な配列とインデックスを設定
-                    document.getElementById('apply-features-btn').onclick = function () {
+                    document.getElementById('apply-features-btn').onclick = function() {
                         applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
                     };
                 }
@@ -560,7 +581,7 @@
                 const groupData = <?php echo json_encode($groups); ?>;
                 console.log(groupData);
 
-                document.addEventListener("DOMContentLoaded", function () {
+                document.addEventListener("DOMContentLoaded", function() {
                     const container = document.getElementById('group-chart-container');
 
                     groupData.forEach((group, index) => {
@@ -617,21 +638,21 @@
                         data: {
                             labels: labels,
                             datasets: [{
-                                label: label1,
-                                data: data1,
-                                backgroundColor: color1,
-                                borderColor: color1,
-                                yAxisID: 'y1',
-                                borderWidth: 1
-                            },
-                            {
-                                label: label2,
-                                data: data2,
-                                backgroundColor: color2,
-                                borderColor: color2,
-                                yAxisID: 'y2',
-                                borderWidth: 1
-                            }
+                                    label: label1,
+                                    data: data1,
+                                    backgroundColor: color1,
+                                    borderColor: color1,
+                                    yAxisID: 'y1',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: label2,
+                                    data: data2,
+                                    backgroundColor: color2,
+                                    borderColor: color2,
+                                    yAxisID: 'y2',
+                                    borderWidth: 1
+                                }
                             ]
                         },
                         options: {
@@ -736,12 +757,12 @@
 
                         // もう1つの特徴量のデータをfetchで取得
                         fetch('fetch_feature_data.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            },
-                            body: params.toString()
-                        })
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: params.toString()
+                            })
                             .then(response => response.json())
                             .then(data => {
                                 if (data.error) {
@@ -795,12 +816,12 @@
                         });
 
                         fetch('fetch_feature_data.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            },
-                            body: params.toString()
-                        })
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: params.toString()
+                            })
                             .then(response => response.json())
                             .then(data => {
                                 if (data.error) {
@@ -1593,7 +1614,7 @@
                             //exec("python3 {$pyscript} {$test_filename} {$testdata_filename} {$csvFile} {$metricsFile} 2>&1", $output, $status);
                             exec("python {$pyscript} {$test_filename} {$testdata_filename} {$csvFile} {$metricsFile} 2>&1", $output, $status);  //XAMPP版に変更したもの
                             //デスクトップ版の方は情報を返してくれるプログラムをここに書いてる
-                        
+
                             if ($status != 0) {
                                 echo "実行エラー: ステータスコード " . $status;
                                 echo "エラーメッセージ:\n" . implode("\n", $output);
@@ -1642,13 +1663,13 @@
                                     $studentStats = []; // UIDをキーにしたデータ構造
                                     // UIDごとの迷い率を計算するためにデータを集計
                                     $uidData = []; // UIDごとのデータを格納
-                        
+
 
 
                                     foreach ($csvData as $data) {
                                         $uid = $data[0];
                                         $understand = $data[2]; // Predictes_Understand カラム
-                        
+
                                         if (!isset($uidData[$uid])) {
                                             $uidData[$uid] = [
                                                 'total' => 0,
@@ -1701,7 +1722,7 @@
                                     }
                                     $stmt->close();
                                     // 以下、データ表示の処理
-                        
+
                                     //データベースから正解率と各特徴量の平均値をとってきて，学習者ごとに配列に保存
                                     //重複無しでUIDを取得
                                     $sql_UID = "SELECT DISTINCT UID FROM temporary_results WHERE teacher_id = ?";
@@ -1810,77 +1831,77 @@
 
 
 
-                                    ?>
+                        ?>
                                     <div id="table-container">
                                         <table border="1" id="results-table" class="table2">
                                             <tr>
-                                                <?php
-                                                foreach ($header as $col_name) {
-                                                    if ($col_name == "Understand") {
-                                                        echo "<th>" . translate('machineLearning_sample.php_1188行目_迷いの有無') . "</th>";
-                                                    } else if ($col_name == "attempt") {
-                                                        continue;
-                                                    } else {
-                                                        echo "<th>" . htmlspecialchars($col_name) . "</th>";
-                                                    }
-                                                }
-                                                echo "<th>" . translate('machineLearning_sample.php_1195行目_正誤') . "</th>";
-                                                echo "<th>" . translate('machineLearning_sample.php_1196行目_軌跡再現リンク') . "</th>";
-                                                echo '</tr>';
-                                                foreach ($topData as $data) {
-                                                    $uid = $data[0];
-                                                    $wid = $data[1];
-                                                    $understand = $data[2];
-                                                    $attempt = $data[3];
-                                                    //var_dump($uid);
-                                                    //var_dump($wid);
-                                    
-                                                    // linedata テーブルから該当する UID と WID に基づいて TF を取得
-                                                    $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ?";
-                                                    $stmt = $conn->prepare($getTFQuery);
-                                                    $stmt->bind_param('ii', $uid, $wid);
-                                                    $stmt->execute();
-                                                    $tf_result = $stmt->get_result();
-                                                    $tf_result = $tf_result->fetch_assoc();
-                                                    $tf_value = $tf_result['TF'];
+                                    <?php
+                                    foreach ($header as $col_name) {
+                                        if ($col_name == "Understand") {
+                                            echo "<th>" . translate('machineLearning_sample.php_1188行目_迷いの有無') . "</th>";
+                                        } else if ($col_name == "attempt") {
+                                            continue;
+                                        } else {
+                                            echo "<th>" . htmlspecialchars($col_name) . "</th>";
+                                        }
+                                    }
+                                    echo "<th>" . translate('machineLearning_sample.php_1195行目_正誤') . "</th>";
+                                    echo "<th>" . translate('machineLearning_sample.php_1196行目_軌跡再現リンク') . "</th>";
+                                    echo '</tr>';
+                                    foreach ($topData as $data) {
+                                        $uid = $data[0];
+                                        $wid = $data[1];
+                                        $understand = $data[2];
+                                        $attempt = $data[3];
+                                        //var_dump($uid);
+                                        //var_dump($wid);
 
-                                                    // HTMLテーブルに行を追加
-                                                    echo "<tr>";
-                                                    echo "<td>" . htmlspecialchars($uid) . "</td>";
-                                                    //widの横に-attemptを追加
-                                                    echo "<td>" . htmlspecialchars($wid) . "-" . htmlspecialchars($attempt) . "</td>";
+                                        // linedata テーブルから該当する UID と WID に基づいて TF を取得
+                                        $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ?";
+                                        $stmt = $conn->prepare($getTFQuery);
+                                        $stmt->bind_param('ii', $uid, $wid);
+                                        $stmt->execute();
+                                        $tf_result = $stmt->get_result();
+                                        $tf_result = $tf_result->fetch_assoc();
+                                        $tf_value = $tf_result['TF'];
 
-                                                    echo "<td>";
-                                                    if ($understand == 4) {
-                                                        echo translate('machineLearning_sample.php_1213行目_迷い無し');
-                                                    } elseif ($understand == 2) {
-                                                        echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1215行目_迷い有り') . "</span>";
-                                                    } else {
-                                                        echo translate('machineLearning_sample.php_1217行目_不明');
-                                                    }
-                                                    echo "</td>";
-                                                    echo "<td>";
+                                        // HTMLテーブルに行を追加
+                                        echo "<tr>";
+                                        echo "<td>" . htmlspecialchars($uid) . "</td>";
+                                        //widの横に-attemptを追加
+                                        echo "<td>" . htmlspecialchars($wid) . "-" . htmlspecialchars($attempt) . "</td>";
 
-                                                    if ($tf_value == '1') {
-                                                        echo translate('machineLearning_sample.php_1222行目_正解');
-                                                    } elseif ($tf_value == '0') {
-                                                        echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1224行目_不正解') . "</span>";
-                                                    } else {
-                                                        echo "N/A";
-                                                    }
-                                                    echo "</td>";
-                                                    //echo "<td><a href=\"./mousemove/mousemove.php?uid=" . urlencode($uid) . "&wid=" . urlencode($wid) . "\">軌跡再現</a></td>";
-                                                    echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "\" target=\"_blank\" rel=\"noopener noreferrer\">" . translate('machineLearning_sample.php_1228行目_軌跡再現') . "</a></td>";
-                                                    echo "</tr>";
-                                                }
-                                                echo '</table>';
+                                        echo "<td>";
+                                        if ($understand == 4) {
+                                            echo translate('machineLearning_sample.php_1213行目_迷い無し');
+                                        } elseif ($understand == 2) {
+                                            echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1215行目_迷い有り') . "</span>";
+                                        } else {
+                                            echo translate('machineLearning_sample.php_1217行目_不明');
+                                        }
+                                        echo "</td>";
+                                        echo "<td>";
+
+                                        if ($tf_value == '1') {
+                                            echo translate('machineLearning_sample.php_1222行目_正解');
+                                        } elseif ($tf_value == '0') {
+                                            echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1224行目_不正解') . "</span>";
+                                        } else {
+                                            echo "N/A";
+                                        }
+                                        echo "</td>";
+                                        //echo "<td><a href=\"./mousemove/mousemove.php?uid=" . urlencode($uid) . "&wid=" . urlencode($wid) . "\">軌跡再現</a></td>";
+                                        echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "\" target=\"_blank\" rel=\"noopener noreferrer\">" . translate('machineLearning_sample.php_1228行目_軌跡再現') . "</a></td>";
+                                        echo "</tr>";
+                                    }
+                                    echo '</table>';
                                 } else {
                                     echo translate('machineLearning_sample.php_1233行目_結果のCSVファイルを読み込めませんでした');
                                 }
                             }
                         }
-                        ?>
-                        </div>
+                                    ?>
+                                    </div>
                     </div>
                 </div>
                 <div id="clustering-modal" class="modal">
@@ -1929,7 +1950,7 @@
                         document.getElementById('clustering-feature-form').reset();
                     }
                     // 特徴量を送信してクラスタリングを実行
-                    document.getElementById('apply-clustering-btn').onclick = function () {
+                    document.getElementById('apply-clustering-btn').onclick = function() {
                         const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
                             .map(input => input.value);
                         if (selectedFeatures.length !== 2) {
@@ -1949,12 +1970,12 @@
                         });
 
                         fetch('perform_clustering_hesitate_accuracy.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded'
-                            },
-                            body: params.toString()
-                        })
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: params.toString()
+                            })
                             .then(response => response.text()) // JSON の代わりにテキストとして受け取る
                             .then(data => {
                                 //console.log("サーバーからのレスポンス:", data); // レスポンスを確認
@@ -2069,12 +2090,12 @@
 
                         // サーバーにリクエストを送信
                         fetch('group_students.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(clustersData) // JSON形式で送信
-                        })
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(clustersData) // JSON形式で送信
+                            })
                             .then(response => response.text())
                             .then(data => {
                                 alert(<?= json_encode(translate('machineLearning_sample.php_1363行目_選択されたクラスタのグループ化が完了しました')) ?>);
@@ -2164,7 +2185,7 @@
                                     },
                                     tooltip: {
                                         callbacks: {
-                                            label: function (context) {
+                                            label: function(context) {
                                                 return `${context.raw.label}: (${context.raw.x}, ${context.raw.y})`;
                                             }
                                         }
@@ -2239,7 +2260,7 @@
                     <div id="wid-details-maininfo-all"></div>
                     <script>
                         //uidが選択されたときにwidを表示するためのscript
-                        document.addEventListener('DOMContentLoaded', function () {
+                        document.addEventListener('DOMContentLoaded', function() {
                             const uidSelect = document.getElementById('uid-select');
                             const widSelect = document.getElementById('wid-select');
                             const studentDetailsmaininfo = document.getElementById('student-details-maininfo');
@@ -2247,7 +2268,7 @@
                             const widDetailsmaininfoall = document.getElementById('wid-details-maininfo-all');
 
                             //学習者選択時の処理
-                            uidSelect.addEventListener('change', async function () {
+                            uidSelect.addEventListener('change', async function() {
                                 const selectedUid = uidSelect.value;
 
                                 //プルダウンのリセット
@@ -2312,7 +2333,7 @@
                                 }
                             });
                             //問題選択時の処理
-                            widSelect.addEventListener('change', async function () {
+                            widSelect.addEventListener('change', async function() {
                                 const selectedWid = this.value;
                                 const selectedUid = uidSelect.value;
                                 console.log("selectedWid", selectedWid);
@@ -2398,25 +2419,25 @@
                                                 row.style = "border-bottom: 1px solid #ddd;";
 
                                                 const cells = [{
-                                                    value: item.Label,
-                                                    style: "padding: 10px;"
-                                                },
-                                                {
-                                                    value: item.TF_1_Count,
-                                                    style: "padding: 10px; text-align: center;"
-                                                },
-                                                {
-                                                    value: item.TF_0_Count,
-                                                    style: "padding: 10px; text-align: center;"
-                                                },
-                                                {
-                                                    value: item.Understand_2_Count,
-                                                    style: "padding: 10px; text-align: center;"
-                                                },
-                                                {
-                                                    value: item.Understand_4_Count,
-                                                    style: "padding: 10px; text-align: center;"
-                                                }
+                                                        value: item.Label,
+                                                        style: "padding: 10px;"
+                                                    },
+                                                    {
+                                                        value: item.TF_1_Count,
+                                                        style: "padding: 10px; text-align: center;"
+                                                    },
+                                                    {
+                                                        value: item.TF_0_Count,
+                                                        style: "padding: 10px; text-align: center;"
+                                                    },
+                                                    {
+                                                        value: item.Understand_2_Count,
+                                                        style: "padding: 10px; text-align: center;"
+                                                    },
+                                                    {
+                                                        value: item.Understand_4_Count,
+                                                        style: "padding: 10px; text-align: center;"
+                                                    }
                                                 ];
 
                                                 cells.forEach(cellData => {
@@ -2475,7 +2496,7 @@
                                     }
 
                                     // attemptSelect の change イベント
-                                    attemptSelect.addEventListener('change', function () {
+                                    attemptSelect.addEventListener('change', function() {
                                         console.log("Attempt changed");
                                         const selectedAttempt = this.value;
                                         console.log("selectedAttempt", selectedAttempt);
@@ -2597,19 +2618,19 @@
                                     data: {
                                         labels: labels,
                                         datasets: [{
-                                            label: <?= json_encode(translate('machineLearning_sample.php_1744行目_不正解率(%)')) ?>,
-                                            data: accuracyData,
-                                            backgroundColor: 'rgba(75, 192, 192, 0.6)', // 青系
-                                            borderColor: 'rgba(75, 192, 192, 1)',
-                                            borderWidth: 1,
-                                        },
-                                        {
-                                            label: <?= json_encode(translate('machineLearning_sample.php_1745行目_迷い率(%)')) ?>,
-                                            data: hesitationData,
-                                            backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
-                                            borderColor: 'rgba(255,99,132,1)',
-                                            borderWidth: 1,
-                                        }
+                                                label: <?= json_encode(translate('machineLearning_sample.php_1744行目_不正解率(%)')) ?>,
+                                                data: accuracyData,
+                                                backgroundColor: 'rgba(75, 192, 192, 0.6)', // 青系
+                                                borderColor: 'rgba(75, 192, 192, 1)',
+                                                borderWidth: 1,
+                                            },
+                                            {
+                                                label: <?= json_encode(translate('machineLearning_sample.php_1745行目_迷い率(%)')) ?>,
+                                                data: hesitationData,
+                                                backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
+                                                borderColor: 'rgba(255,99,132,1)',
+                                                borderWidth: 1,
+                                            }
                                         ]
                                     },
                                     options: {
@@ -2626,7 +2647,7 @@
                                                 mode: 'index',
                                                 intersect: false,
                                                 callbacks: {
-                                                    label: function (context) {
+                                                    label: function(context) {
                                                         return `${context.dataset.label}: ${context.parsed.y}%`;
                                                     }
                                                 }
@@ -2687,21 +2708,21 @@
                             data: {
                                 labels: labels,
                                 datasets: [{
-                                    label: label1,
-                                    data: data1,
-                                    backgroundColor: color1,
-                                    borderColor: color1,
-                                    yAxisID: 'y1',
-                                    borderWidth: 1
-                                },
-                                {
-                                    label: label2,
-                                    data: data2,
-                                    backgroundColor: color2,
-                                    borderColor: color2,
-                                    yAxisID: 'y2',
-                                    borderWidth: 1
-                                }
+                                        label: label1,
+                                        data: data1,
+                                        backgroundColor: color1,
+                                        borderColor: color1,
+                                        yAxisID: 'y1',
+                                        borderWidth: 1
+                                    },
+                                    {
+                                        label: label2,
+                                        data: data2,
+                                        backgroundColor: color2,
+                                        borderColor: color2,
+                                        yAxisID: 'y2',
+                                        borderWidth: 1
+                                    }
                                 ]
                             },
                             options: {
@@ -2899,7 +2920,7 @@
             "hesitation": "<?= translate('machineLearning_sample.php_description_hesitation') ?>"
         };
 
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const infoIcons = document.querySelectorAll('.info-icon');
             const detailModal = document.getElementById('feature-detail-modal');
             const detailTitle = document.getElementById('detail-feature-title');
@@ -2907,7 +2928,7 @@
             const closeDetailModal = document.querySelector('#feature-detail-modal .close-detail-modal');
 
             infoIcons.forEach(icon => {
-                icon.addEventListener('click', function (event) {
+                icon.addEventListener('click', function(event) {
                     event.stopPropagation(); // 親要素へのイベント伝播を停止
                     event.preventDefault(); // デフォルトの動作（ここではlabelのinputへのクリック伝播）をキャンセル
 
@@ -2936,11 +2957,11 @@
                 });
             });
 
-            closeDetailModal.addEventListener('click', function () {
+            closeDetailModal.addEventListener('click', function() {
                 detailModal.style.display = 'none';
             });
 
-            window.addEventListener('click', function (event) {
+            window.addEventListener('click', function(event) {
                 if (event.target == detailModal) {
                     detailModal.style.display = 'none';
                 }
