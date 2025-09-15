@@ -159,6 +159,126 @@ if ($teacher_id) {
                 </div>
             </div>
 
+            <section>
+
+                <h2><?= translate('teachertrue.php_最新の解答結果') ?></h2>
+                <p class="text-muted"><?= translate('teachertrue.php_迷い推定実施前の解答結果のみ表示しています') ?></p>
+
+                <div style="max-height: 450px; overflow-y: auto; border: 1px solid #ccc; padding: 20px; margin-top: 20px; border-radius: .25rem;">
+
+                    <table class="table table-striped table-hover table-bordered">
+                        <thead class="thead-light" style="position: sticky; top: -20px; z-index: 1; background-color: #f8f9fa;">
+                            <tr>
+                                <th><?= translate('teachertrue.php_学習者ID') ?></th>
+                                <th><?= translate('teachertrue.php_学習者名') ?></th>
+                                <th><?= translate('teachertrue.php_問題ID') ?></th>
+                                <th><?= translate('teachertrue.php_正誤') ?></th>
+                                <th><?= translate('teachertrue.php_解答日時') ?></th>
+                                <th><?= translate('teachertrue.php_軌跡') ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            // ステップA: 担当生徒リストの取得 (ロジックは変更なし)
+                            $allowed_students = [];
+                            if (isset($teacher_id) && $teacher_id) {
+                                $class_ids = [];
+                                $stmt_classes = $conn->prepare("SELECT ClassID FROM classteacher WHERE TID = ?");
+                                if ($stmt_classes) {
+                                    $stmt_classes->bind_param("s", $teacher_id);
+                                    $stmt_classes->execute();
+                                    $result_classes = $stmt_classes->get_result();
+                                    while ($row_class = $result_classes->fetch_assoc()) {
+                                        $class_ids[] = $row_class['ClassID'];
+                                    }
+                                    $stmt_classes->close();
+                                }
+                                if (!empty($class_ids)) {
+                                    $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
+                                    $sql_students = "SELECT UID, Name FROM students WHERE ClassID IN ($placeholders)";
+                                    $stmt_students = $conn->prepare($sql_students);
+                                    if ($stmt_students) {
+                                        $types = str_repeat('i', count($class_ids));
+                                        $stmt_students->bind_param($types, ...$class_ids);
+                                        $stmt_students->execute();
+                                        $result_students = $stmt_students->get_result();
+                                        while ($row_student = $result_students->fetch_assoc()) {
+                                            $allowed_students[$row_student['UID']] = $row_student['Name'];
+                                        }
+                                        $stmt_students->close();
+                                    }
+                                }
+                            }
+
+                            // ステップB: 未処理の解答結果のみをDBから取得
+                            if (!empty($allowed_students)) {
+                                $uid_list_for_sql = implode(',', array_map(function ($uid) use ($conn) {
+                                    return "'" . $conn->real_escape_string($uid) . "'";
+                                }, array_keys($allowed_students)));
+
+                                $sql_unprocessed = "
+    WITH LinedataWithRank AS (
+        SELECT UID, WID, Date, TF, Time,
+        DENSE_RANK() OVER (PARTITION BY UID, WID ORDER BY Date) as attempt
+        FROM linedata WHERE UID IN ($uid_list_for_sql)
+    ), LastActionPerAttempt AS (
+        SELECT UID, WID, Date, TF, attempt,
+        ROW_NUMBER() OVER (PARTITION BY UID, WID, Date ORDER BY Time DESC) as rn
+        FROM LinedataWithRank
+    )
+    SELECT L.UID, L.WID, L.Date, L.TF, L.attempt
+    FROM LastActionPerAttempt AS L
+    LEFT JOIN temporary_results AS T ON L.UID = T.UID AND L.WID = T.WID AND L.attempt = T.attempt
+    WHERE L.rn = 1 AND T.UID IS NULL
+    ORDER BY L.UID ASC, L.WID ASC
+    LIMIT 100;
+    ";
+
+                                $result_attempts = $conn->query($sql_unprocessed);
+                                $unprocessed_results_found = false;
+
+                                if ($result_attempts && $result_attempts->num_rows > 0) {
+                                    $unprocessed_results_found = true;
+                                    while ($attempt = $result_attempts->fetch_assoc()) {
+                                        // ▼▼▼【ここから変更】不正解の場合に太字スタイルを追加 ▼▼▼
+                                        $correctness = '---';
+                                        if ($attempt['TF'] === '1') {
+                                            $correctness = htmlspecialchars(translate('正解'));
+                                        } elseif ($attempt['TF'] === '0') {
+                                            // 不正解の文字を赤色の太字にする
+                                            $correctness = "<span style='color: red; font-weight: bold;'>" . htmlspecialchars(translate('不正解')) . "</span>";
+                                        }
+                                        // ▲▲▲【ここまで変更】▲▲▲
+
+                                        $replay_url = "./mousemove/mousemove.php?UID=" . urlencode($attempt['UID']) . "&WID=" . urlencode($attempt['WID']) . "&LogID=" . urlencode($attempt['attempt']);
+                            ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($attempt['UID']) ?></td>
+                                            <td><?= htmlspecialchars($allowed_students[$attempt['UID']] ?? 'N/A') ?></td>
+                                            <td><?= htmlspecialchars($attempt['WID']) ?></td>
+                                            <td><?= $correctness ?></td>
+                                            <td><?= htmlspecialchars($attempt['Date']) ?></td>
+                                            <td>
+                                                <a href="<?= $replay_url ?>" class="btn btn-info btn-sm" target="_blank"><?= translate('再現する') ?></a>
+                                            </td>
+                                        </tr>
+                            <?php
+                                    } // whileループ終了
+                                }
+
+                                if (!$unprocessed_results_found) {
+                                    echo "<tr><td colspan='6' class='text-center p-3'>" . translate('未処理の解答結果はありません。') . "</td></tr>";
+                                }
+                            } else {
+                                echo "<tr><td colspan='6' class='text-center p-3'>" . translate('担当クラスに学習者がいません。') . "</td></tr>";
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+
+            </section>
+
             <section class="previous-results">
                 <h2><?= translate('teachertrue.php_前回の迷い推定結果') ?></h2>
                 <?php
@@ -543,7 +663,7 @@ if ($teacher_id) {
         // ======================= ▲▲▲ 修正はここまで ▲▲▲ =======================
 
         document.addEventListener('DOMContentLoaded', function() {
-            
+
             // 特徴量ごとの説明データを定義
             const featureDescriptions = {
                 "notaccuracy": "<?= translate('teachertrue.php_description_notaccuracy', '解答全体のうち、正解しなかった問題の割合。') ?>",
@@ -584,8 +704,8 @@ if ($teacher_id) {
 
             infoIcons.forEach(icon => {
                 icon.addEventListener('click', function(event) {
-                    event.stopPropagation(); 
-                    event.preventDefault(); 
+                    event.stopPropagation();
+                    event.preventDefault();
 
                     const featureName = this.dataset.featureName;
                     const description = featureDescriptions[featureName] || "<?= translate('teachertrue.php_description_not_found', 'この特徴量の説明はまだありません。') ?>";
@@ -609,7 +729,7 @@ if ($teacher_id) {
                 });
             });
 
-            if(closeDetailModal) {
+            if (closeDetailModal) {
                 closeDetailModal.addEventListener('click', function() {
                     detailModal.style.display = 'none';
                 });
@@ -932,10 +1052,16 @@ if ($teacher_id) {
                         },
                         scales: {
                             x: {
-                                title: { display: true, text: translations.grammarItem }
+                                title: {
+                                    display: true,
+                                    text: translations.grammarItem
+                                }
                             },
                             y: {
-                                title: { display: true, text: translations.chartYAxisLabel }
+                                title: {
+                                    display: true,
+                                    text: translations.chartYAxisLabel
+                                }
                             }
                         }
                     }
@@ -999,17 +1125,29 @@ if ($teacher_id) {
                             title: {
                                 display: true,
                                 text: translations.username,
-                                font: { size: 20 }
+                                font: {
+                                    size: 20
+                                }
                             },
-                            ticks: { font: { size: 16 } }
+                            ticks: {
+                                font: {
+                                    size: 16
+                                }
+                            }
                         },
                         y1: {
                             title: {
                                 display: true,
                                 text: yText1,
-                                font: { size: 20 }
+                                font: {
+                                    size: 20
+                                }
                             },
-                            ticks: { font: { size: 16 } },
+                            ticks: {
+                                font: {
+                                    size: 16
+                                }
+                            },
                             position: 'left',
                             beginAtZero: true
                         },
@@ -1017,16 +1155,26 @@ if ($teacher_id) {
                             title: {
                                 display: true,
                                 text: yText2,
-                                font: { size: 20 }
+                                font: {
+                                    size: 20
+                                }
                             },
-                            ticks: { font: { size: 16 } },
+                            ticks: {
+                                font: {
+                                    size: 16
+                                }
+                            },
                             position: 'right',
                             beginAtZero: true
                         }
                     },
                     plugins: {
                         legend: {
-                            labels: { font: { size: 20 } }
+                            labels: {
+                                font: {
+                                    size: 20
+                                }
+                            }
                         }
                     }
                 }
