@@ -1870,9 +1870,9 @@
                                                     //var_dump($wid);
                                     
                                                     // linedata テーブルから該当する UID と WID に基づいて TF を取得
-                                                    $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ?";
+                                                    $getTFQuery = "SELECT TF FROM linedata WHERE UID = ? AND WID = ? AND attempt = ?";
                                                     $stmt = $conn->prepare($getTFQuery);
-                                                    $stmt->bind_param('ii', $uid, $wid);
+                                                    $stmt->bind_param('iii', $uid, $wid, $attempt);
                                                     $stmt->execute();
                                                     $tf_result = $stmt->get_result();
                                                     $tf_result = $tf_result->fetch_assoc();
@@ -1904,7 +1904,7 @@
                                                     }
                                                     echo "</td>";
                                                     //echo "<td><a href=\"./mousemove/mousemove.php?uid=" . urlencode($uid) . "&wid=" . urlencode($wid) . "\">軌跡再現</a></td>";
-                                                    echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "\" target=\"_blank\" rel=\"noopener noreferrer\">" . translate('machineLearning_sample.php_1228行目_軌跡再現') . "</a></td>";
+                                                    echo "<td><a href=\"./mousemove/mousemove.php?UID=" . urlencode($uid) . "&WID=" . urlencode($wid) . "&LogID=" . urlencode($attempt) ."\" target=\"_blank\" rel=\"noopener noreferrer\">" . translate('machineLearning_sample.php_1228行目_軌跡再現') . "</a></td>";
                                                     echo "</tr>";
                                                 }
                                                 echo '</table>';

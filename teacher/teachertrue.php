@@ -308,23 +308,35 @@ if ($teacher_id) {
                             }
                         }
 
+                        // ▼▼▼【ここから変更】正誤(TF)情報を、試行回数(attempt)を含めて取得するロジックに修正 ▼▼▼
                         $tf_lookup_map = [];
                         if (!empty($student_uids)) {
-                            $placeholders = implode(',', array_fill(0, count($student_uids), '?'));
-                            $types = str_repeat('i', count($student_uids));
-                            $get_all_tf_query = "SELECT UID, WID, TF FROM linedata WHERE UID IN ($placeholders)";
-                            $stmt = $conn->prepare($get_all_tf_query);
-                            if ($stmt) {
-                                $stmt->bind_param($types, ...$student_uids);
-                                $stmt->execute();
-                                $result = $stmt->get_result();
+                            $placeholders = implode(',', array_map(function ($uid) use ($conn) {
+                                return "'" . $conn->real_escape_string($uid) . "'";
+                            }, $student_uids));
+
+                            // linedataから解答日時を基準にattemptを動的に計算し、TF値を取得する
+                            $get_all_tf_query = "
+                WITH LinedataWithRank AS (
+                    SELECT 
+                        UID, WID, TF,
+                        DENSE_RANK() OVER (PARTITION BY UID, WID ORDER BY Date) as attempt
+                    FROM linedata 
+                    WHERE UID IN ($placeholders)
+                )
+                SELECT UID, WID, TF, attempt FROM LinedataWithRank;
+            ";
+
+                            $result = $conn->query($get_all_tf_query);
+                            if ($result) {
                                 while ($db_row = $result->fetch_assoc()) {
-                                    $key = "{$db_row['UID']}-{$db_row['WID']}";
+                                    // キーを「UID-WID-attempt」に変更
+                                    $key = "{$db_row['UID']}-{$db_row['WID']}-{$db_row['attempt']}";
                                     $tf_lookup_map[$key] = $db_row['TF'];
                                 }
-                                $stmt->close();
                             }
                         }
+                        // ▲▲▲【ここまで変更】▲▲▲
 
                         $ml_results = [];
                         if ($teacher_id) {
@@ -357,7 +369,7 @@ if ($teacher_id) {
                                     $wid = $row['WID'];
                                     $understand = $row['Understand'];
                                     $attempt = $row['attempt'];
-                                    $lookup_key = "{$uid}-{$wid}";
+                                    $lookup_key = "{$uid}-{$wid}-{$attempt}";
                                     $tf_value = $tf_lookup_map[$lookup_key] ?? null;
                                 ?>
                                     <tr>
