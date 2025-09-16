@@ -172,9 +172,9 @@ if ($teacher_id) {
                                 <th><?= translate('teachertrue.php_学習者ID') ?></th>
                                 <th><?= translate('teachertrue.php_学習者名') ?></th>
                                 <th><?= translate('teachertrue.php_問題ID') ?></th>
-                                <th><?= translate('teachertrue.php_正誤') ?></th>
+                                <th><?= translate('machineLearning_sample.php_1195行目_正誤') ?></th>
                                 <th><?= translate('teachertrue.php_解答日時') ?></th>
-                                <th><?= translate('teachertrue.php_軌跡') ?></th>
+                                <th><?= translate('teachertrue.php_軌跡再現') ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -243,10 +243,10 @@ if ($teacher_id) {
                                         // ▼▼▼【ここから変更】不正解の場合に太字スタイルを追加 ▼▼▼
                                         $correctness = '---';
                                         if ($attempt['TF'] === '1') {
-                                            $correctness = htmlspecialchars(translate('正解'));
+                                            $correctness = htmlspecialchars(translate('machineLearning_sample.php_1222行目_正解'));
                                         } elseif ($attempt['TF'] === '0') {
                                             // 不正解の文字を赤色の太字にする
-                                            $correctness = "<span style='color: red; font-weight: bold;'>" . htmlspecialchars(translate('不正解')) . "</span>";
+                                            $correctness = "<span style='color: red; font-weight: bold;'>" . htmlspecialchars(translate('machineLearning_sample.php_1224行目_不正解')) . "</span>";
                                         }
                                         // ▲▲▲【ここまで変更】▲▲▲
 
@@ -259,7 +259,7 @@ if ($teacher_id) {
                                             <td><?= $correctness ?></td>
                                             <td><?= htmlspecialchars($attempt['Date']) ?></td>
                                             <td>
-                                                <a href="<?= $replay_url ?>" class="btn btn-info btn-sm" target="_blank"><?= translate('再現する') ?></a>
+                                                <a href="<?= $replay_url ?>" class="btn btn-info btn-sm" target="_blank"><?= translate('teachertrue.php_軌跡再現') ?></a>
                                             </td>
                                         </tr>
                             <?php
@@ -267,10 +267,10 @@ if ($teacher_id) {
                                 }
 
                                 if (!$unprocessed_results_found) {
-                                    echo "<tr><td colspan='6' class='text-center p-3'>" . translate('未処理の解答結果はありません。') . "</td></tr>";
+                                    echo "<tr><td colspan='6' class='text-center p-3'>" . translate('teachertrue.php_未処理の解答結果はありません。') . "</td></tr>";
                                 }
                             } else {
-                                echo "<tr><td colspan='6' class='text-center p-3'>" . translate('担当クラスに学習者がいません。') . "</td></tr>";
+                                echo "<tr><td colspan='6' class='text-center p-3'>" . translate('teachertrue.php_担当クラスに学習者がいません。') . "</td></tr>";
                             }
                             ?>
                         </tbody>
@@ -279,108 +279,125 @@ if ($teacher_id) {
 
             </section>
 
-            <section class="previous-results">
+            <section class="previous-results container-fluid mt-4 mb-5">
+
                 <h2><?= translate('teachertrue.php_前回の迷い推定結果') ?></h2>
-                <?php
+
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto; border: 1px solid #ddd; border-radius: .25rem;">
+                    <?php
+                        // ---------------------------------------------------------------------
+                        // 必要な情報を事前に取得する
+                        // ---------------------------------------------------------------------
+
                         $student_uids = [];
+                        $allowed_students = []; // UIDをキー、名前を値とする連想配列
+                        $tf_lookup_map = [];      // 正誤情報格納用の連想配列
+                        $date_lookup_map = [];    // 解答日時格納用の連想配列
+
                         if ($teacher_id) {
-                            $class_stmt = $conn->prepare("SELECT ClassID FROM ClassTeacher WHERE TID = ?");
-                            $class_stmt->bind_param("i", $teacher_id);
-                            $class_stmt->execute();
-                            $class_result = $class_stmt->get_result();
+                            // ステップA: 担当教員のクラスIDリストを取得
                             $class_ids = [];
-                            while ($row = $class_result->fetch_assoc()) {
-                                $class_ids[] = $row['ClassID'];
+                            $class_stmt = $conn->prepare("SELECT ClassID FROM ClassTeacher WHERE TID = ?");
+                            if ($class_stmt) {
+                                $class_stmt->bind_param("i", $teacher_id);
+                                $class_stmt->execute();
+                                $class_result = $class_stmt->get_result();
+                                while ($row = $class_result->fetch_assoc()) {
+                                    $class_ids[] = $row['ClassID'];
+                                }
+                                $class_stmt->close();
                             }
-                            $class_stmt->close();
 
                             if (!empty($class_ids)) {
+                                // ステップB: クラスIDから担当の学生リスト(UIDと名前)を取得
                                 $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
                                 $types = str_repeat('i', count($class_ids));
-                                $student_stmt = $conn->prepare("SELECT uid FROM students WHERE ClassID IN ($placeholders)");
-                                $student_stmt->bind_param($types, ...$class_ids);
-                                $student_stmt->execute();
-                                $student_result = $student_stmt->get_result();
-                                while ($row = $student_result->fetch_assoc()) {
-                                    $student_uids[] = $row['uid'];
+                                $student_stmt = $conn->prepare("SELECT uid, name FROM students WHERE ClassID IN ($placeholders)");
+                                if ($student_stmt) {
+                                    $student_stmt->bind_param($types, ...$class_ids);
+                                    $student_stmt->execute();
+                                    $student_result = $student_stmt->get_result();
+                                    while ($row = $student_result->fetch_assoc()) {
+                                        $student_uids[] = $row['uid'];
+                                        $allowed_students[$row['uid']] = $row['name']; // UID => 名前 のマップを作成
+                                    }
+                                    $student_stmt->close();
                                 }
-                                $student_stmt->close();
                             }
                         }
 
-                        // ▼▼▼【ここから変更】正誤(TF)情報を、試行回数(attempt)を含めて取得するロジックに修正 ▼▼▼
-                        $tf_lookup_map = [];
                         if (!empty($student_uids)) {
-                            $placeholders = implode(',', array_map(function ($uid) use ($conn) {
-                                return "'" . $conn->real_escape_string($uid) . "'";
-                            }, $student_uids));
-
-                            // linedataから解答日時を基準にattemptを動的に計算し、TF値を取得する
+                            // ステップC: 担当学生の解答情報（正誤、解答日時）をまとめて取得
+                            $placeholders = implode(',', array_map(fn($uid) => "'" . $conn->real_escape_string($uid) . "'", $student_uids));
                             $get_all_tf_query = "
                 WITH LinedataWithRank AS (
                     SELECT 
-                        UID, WID, TF,
+                        UID, WID, TF, Date,
                         DENSE_RANK() OVER (PARTITION BY UID, WID ORDER BY Date) as attempt
                     FROM linedata 
                     WHERE UID IN ($placeholders)
                 )
-                SELECT UID, WID, TF, attempt FROM LinedataWithRank;
+                SELECT UID, WID, TF, Date, attempt FROM LinedataWithRank;
             ";
-
                             $result = $conn->query($get_all_tf_query);
                             if ($result) {
                                 while ($db_row = $result->fetch_assoc()) {
-                                    // キーを「UID-WID-attempt」に変更
                                     $key = "{$db_row['UID']}-{$db_row['WID']}-{$db_row['attempt']}";
                                     $tf_lookup_map[$key] = $db_row['TF'];
+                                    $date_lookup_map[$key] = $db_row['Date']; // 解答日時のマップも作成
                                 }
                             }
                         }
-                        // ▲▲▲【ここまで変更】▲▲▲
 
+                        // ステップD: 機械学習の結果を取得
                         $ml_results = [];
                         if ($teacher_id) {
                             $ml_stmt = $conn->prepare("SELECT UID, WID, Understand, attempt FROM temporary_results WHERE teacher_id = ? ORDER BY UID, WID, attempt");
-                            $ml_stmt->bind_param("i", $teacher_id);
-                            $ml_stmt->execute();
-                            $result = $ml_stmt->get_result();
-                            $ml_results = $result->fetch_all(MYSQLI_ASSOC);
-                            $ml_stmt->close();
+                            if ($ml_stmt) {
+                                $ml_stmt->bind_param("i", $teacher_id);
+                                $ml_stmt->execute();
+                                $result = $ml_stmt->get_result();
+                                $ml_results = $result->fetch_all(MYSQLI_ASSOC);
+                                $ml_stmt->close();
+                            }
                         }
-                ?>
 
-                <div id="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
-                    <h3><?= translate('teachertrue.php_100行目_迷い推定結果') ?></h3>
-                    <?php if (!empty($ml_results)): ?>
-                        <table id="results-table" class="results-table">
-                            <thead>
+                        if (!empty($ml_results)): ?>
+                        <table class="table table-striped table-hover table-bordered mb-0">
+                            <thead class="thead-light" style="position: sticky; top: 0; z-index: 1;">
                                 <tr>
-                                    <th>UID</th>
-                                    <th>WID</th>
+                                    <th><?= translate('teachertrue.php_学習者ID') ?></th>
+                                    <th><?= translate('teachertrue.php_学習者名') ?></th>
+                                    <th><?= translate('teachertrue.php_問題ID-～回目の解答') ?></th>
                                     <th><?= translate('machineLearning_sample.php_1188行目_迷いの有無') ?></th>
                                     <th><?= translate('machineLearning_sample.php_1195行目_正誤') ?></th>
+                                    <th><?= translate('teachertrue.php_解答日時') ?></th>
                                     <th><?= translate('teachertrue.php_軌跡再現') ?></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php
-                                foreach ($ml_results as $row):
+                                <?php foreach ($ml_results as $row):
                                     $uid = $row['UID'];
                                     $wid = $row['WID'];
                                     $understand = $row['Understand'];
                                     $attempt = $row['attempt'];
                                     $lookup_key = "{$uid}-{$wid}-{$attempt}";
+
+                                    // マップから情報を取得
+                                    $student_name = $allowed_students[$uid] ?? 'N/A';
                                     $tf_value = $tf_lookup_map[$lookup_key] ?? null;
+                                    $answer_date = $date_lookup_map[$lookup_key] ?? 'N/A';
                                 ?>
                                     <tr>
                                         <td><?= htmlspecialchars($uid) ?></td>
+                                        <td><?= htmlspecialchars($student_name) ?></td>
                                         <td><?= htmlspecialchars($wid) ?>-<?= htmlspecialchars($attempt) ?></td>
                                         <td>
                                             <?php
                                             if ($understand == 4) {
-                                                echo translate('machineLearning_sample.php_1213行目_迷い無し');
+                                                echo htmlspecialchars(translate('machineLearning_sample.php_1213行目_迷い無し'));
                                             } elseif ($understand == 2) {
-                                                echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1215行目_迷い有り') . "</span>";
+                                                echo "<span style='color: red; font-weight: bold;'>" . htmlspecialchars(translate('machineLearning_sample.php_1215行目_迷い有り')) . "</span>";
                                             } else {
                                                 echo htmlspecialchars($understand);
                                             }
@@ -389,16 +406,17 @@ if ($teacher_id) {
                                         <td>
                                             <?php
                                             if ($tf_value === '1' || $tf_value === 1) {
-                                                echo translate('machineLearning_sample.php_1222行目_正解');
+                                                echo htmlspecialchars(translate('machineLearning_sample.php_1222行目_正解'));
                                             } elseif ($tf_value === '0' || $tf_value === 0) {
-                                                echo "<span style='color: red; font-weight: bold;'>" . translate('machineLearning_sample.php_1224行目_不正解') . "</span>";
+                                                echo "<span style='color: red; font-weight: bold;'>" . htmlspecialchars(translate('machineLearning_sample.php_1224行目_不正解')) . "</span>";
                                             } else {
                                                 echo "N/A";
                                             }
                                             ?>
                                         </td>
+                                        <td><?= htmlspecialchars($answer_date) ?></td>
                                         <td>
-                                            <a href="./mousemove/mousemove.php?UID=<?= urlencode($uid) ?>&WID=<?= urlencode($wid) ?>&LogID=<?= urlencode($attempt) ?>" target="_blank">
+                                            <a href="./mousemove/mousemove.php?UID=<?= urlencode($uid) ?>&WID=<?= urlencode($wid) ?>&LogID=<?= urlencode($attempt) ?>" class="btn btn-info btn-sm" target="_blank">
                                                 <?= translate('teachertrue.php_軌跡再現') ?>
                                             </a>
                                         </td>
@@ -407,7 +425,9 @@ if ($teacher_id) {
                             </tbody>
                         </table>
                     <?php else: ?>
-                        <p><?= translate('teachertrue.php_前回の推定結果はありません。') ?><a href="machinelearning_sample.php"><?= translate('teachertrue.php_こちら') ?></a><?= translate('teachertrue.php_から推定を実行してください。') ?></p>
+                        <div class="p-3">
+                            <p><?= translate('teachertrue.php_前回の推定結果はありません。') ?><a href="machinelearning_sample.php"><?= translate('teachertrue.php_こちら') ?></a><?= translate('teachertrue.php_から推定を実行してください。') ?></p>
+                        </div>
                     <?php endif; ?>
                 </div>
             </section>

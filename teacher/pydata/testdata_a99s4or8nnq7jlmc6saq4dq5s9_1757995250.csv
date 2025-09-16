@@ -1,0 +1,3 @@
+UID,WID,Understand,attempt,time,distance,averageSpeed,maxSpeed,maxStopTime,xUTurnCount,yUTurnCount,thinkingTime,answeringTime,maxDDTime,DDCount,maxDDIntervalTime,totalDDIntervalTime
+101,0,4,1,17678,5334.29,0.301747,4.92723,1166,28,29,3079,12004,0,0,0,0
+101,4,4,1,15155,3544.27,0.233868,29.4109,754,23,27,2616,9969,0,0,0,0
