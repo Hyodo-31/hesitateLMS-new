@@ -1,552 +1,320 @@
+/* 基本スタイル */
+:root {
+    --primary-color: #007bff;
+    --background-color: #f4f7f6;
+    --card-background-color: #ffffff;
+    --text-color: #333;
+    --header-height: 60px;
+    --sidebar-width: 250px;
+}
+
 body {
-    font-family: Arial, sans-serif; /* ページ全体のフォントをArial, sans-serifに設定 */
-    margin: 0; /* ページ全体の余白をなしにする */
-    padding: 0; /* ページ全体の内側余白をなしにする */
+    margin: 0;
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
 }
 
-header {
-    display: flex; /* ヘッダーを横方向に並べるフレックスボックスに設定 */
-    justify-content: space-between; /* ロゴとナビゲーションメニューを左右に配置 */
-    align-items: center; /* アイテムを縦方向で中央に配置 */
-    padding: 10px 20px; /* ヘッダーの内側余白を設定 */
-    background-color: #f8f8f8; /* ヘッダーの背景色を設定 */
-    border-bottom: 1px solid #ddd; /* ヘッダーの下に薄いボーダーを追加 */
-}
-
-header .logo {
-    font-size: 1.5em; /* ロゴのフォントサイズを1.5emに設定 */
-    font-weight: bold; /* ロゴを太字にする */
-}
-
-header nav ul {
-    list-style: none; /* リストのマーカーを非表示にする */
-    padding: 0; /* リストの内側余白をなしにする */
-    margin: 0; /* リストの外側余白をなしにする */
-    display: flex; /* リスト項目を横方向に並べる */
-}
-
-header nav ul li {
-    margin: 0 15px; /* リスト項目同士の間に15pxの余白を作る */
-}
-
-header nav ul li a {
-    text-decoration: none; /* リンクの下線を除去 */
-    color: #333; /* リンクの文字色を濃い灰色に設定 */
-}
-
-header .profile {
-    font-size: 1em; /* プロフィール部分のフォントサイズを1emに設定 */
-}
-
-.container {
-    display: flex; /* メインコンテンツとサイドバーを横に並べるためのフレックスボックスを使用 */
-}
-
-aside {
-    width: 200px; /* サイドバーの幅を200pxに固定 */
-    min-width: 200px; /* サイドバーの最小幅を200pxに設定し、画面が狭くなってもこれ以下にはならないようにする */
-    background-color: #f1f1f1; /* サイドバーの背景色を薄いグレーに設定 */
-    padding: 20px; /* サイドバー内の要素に20pxの内側余白を設定 */
-    border-right: 1px solid #ddd; /* サイドバーの右に薄いボーダーを追加 */
-}
-
-aside ul {
-    list-style: none; /* サイドバーのリストのマーカーを非表示にする */
-    padding: 0; /* リストの内側余白をなしにする */
-}
-
-aside ul li {
-    margin-bottom: 10px; /* リスト項目の下に10pxの余白を追加 */
-}
-
-aside ul li a {
-    text-decoration: none; /* サイドバーのリンクの下線を除去 */
-    color: #333; /* サイドバーのリンクの文字色を濃い灰色に設定 */
-}
-
-main {
-    flex-grow: 1; /* メインコンテンツがサイドバー以外の余ったスペースを埋めるようにする */
-    padding: 20px; /* メインコンテンツの内側余白を20pxに設定 */
-}
-
-main section {
-    margin-bottom: 20px; /* 各セクションの下に20pxの余白を追加 */
-}
-
-.notifications, .class-overview, .all-overview, .create-new,.content-class{
-    display: flex;
-    flex-direction: column; /* 子要素を縦方向に並べる */
-    justify-content: center;/*水平方向の中央揃え*/
-    align-items: center; /* 水平方向の中央揃え */
-    width: 100%;
-    margin: 10px 5px;
-    border: 2px solid aqua; /* 枠の太さ、スタイル、色を指定 */
-    background-color: #e7f7ff; /* セクションの背景色を追加 */
-    padding: 20px; /* 内側余白を増やして読みやすくする */
-    border-radius: 10px; /* 角丸を追加して視覚的に柔らかい印象に */
-}
-/* 各セクションのタイトルの視覚的な強調 */
-.notifications h2, .class-overview h2, .all-overview h2, .create-new h2 {
-    font-size: 1.6em; /* タイトルのフォントサイズを大きくする */
-    color: #333; /* タイトルの文字色を濃いグレーに */
-    margin-bottom: 10px; /* タイトルの下に少し余白を追加 */
-}
-
-/*テーブルのスタイル*/
-/* テーブルのスタイルを追加 */
-table {
-    width: 100%; /* テーブル幅を100%に拡張 */
-    border-collapse: collapse; /* テーブルボーダーを重ならせて表示 */
-}
-
-table th, table td {
-    padding: 10px; /* テーブルセルの内側余白を設定 */
-    text-align: left; /* セル内テキストを左揃えに */
-    border-bottom: 1px solid #ddd; /* 下にボーダーを追加 */
-}
-
-table th {
-    background-color: #f2f2f2; /* テーブルヘッダーに薄いグレー背景 */
-    font-weight: bold; /* ヘッダーを太字に */
-}
-
-table tr:nth-child(even) {
-    background-color: #f9f9f9; /* 偶数行に背景色を設定し、行を区別しやすく */
-}
-
-table tr:hover {
-    background-color: #e7f7ff; /* 行にホバーしたときの背景色 */
-}
-
-
-/*ボタンのスタイル*/
-.button1 a {
-    background: #eee;
-    border-radius: 3px;
-    position: relative;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    margin: 0 auto;
-    max-width: 250px;
-    padding: 10px 25px;
-    font-family: "Noto Sans Japanese";
-    color: #333;
-    line-height: 1.8;
-    text-decoration: none;
-    transition: 0.3s ease-in-out;
-    font-weight: 500;
-}
-.button1 a:hover {
-    background: #333;
-    color: #FFF;
-    padding-left: 35px; /* ホバー時にリンクが少し右に移動する */
-}
-.button1 a:after {
-    content: '';
-    width: 5px;
-    height: 5px;
-    border-top: 3px solid #333;
-    border-right: 3px solid #333;
-    transform: rotate(45deg) translateY(-50%);
-    position: absolute;
-    top: 50%;
-    right: 20px;
-    border-radius: 1px;
-    transition: 0.3s ease-in-out;
-}
-.button1 a:hover:after {
-    border-color: #FFF;
-}
-
-/*お知らせフォームのスタイル*/
-#notify-form {
-    width: 100%;
-    max-width: 600px;
-    margin: 20px auto;
-    padding: 20px;
-    border: 1px solid #ddd;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-}
-
-#notify-form div {
-    margin-bottom: 15px;
-}
-
-#notify-form label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-#notify-form input[type="text"],
-#notify-form textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-#notify-form button {
-    padding: 10px 20px;
-    background-color: #4CAF50;
+/* サイドバー */
+.sidebar {
+    height: 100%;
+    width: var(--sidebar-width);
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    background-color: #2c3e50;
+    overflow-x: hidden;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    padding-top: 20px;
     color: white;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+}
+
+body.sidebar-open .sidebar {
+    transform: translateX(0);
+}
+
+.sidebar-header {
+    padding: 0 20px 20px 20px;
+    border-bottom: 1px solid #34495e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    color: #ecf0f1;
+}
+
+.sidebar-close-button {
+    background: none;
     border: none;
-    border-radius: 4px;
+    color: #bdc3c7;
+    font-size: 2.5rem;
     cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+.sidebar-close-button:hover {
+    color: white;
 }
 
-#notify-form button:hover {
-    background-color: #45a049;
-}
-/*お知らせのスタイル*/
-.notify-scroll {
-    width: 90%;
-    margin: 0 auto;
-    max-height: 350px; /* スクロール可能な最大高さを設定 */
-    overflow-y: auto;  /* 縦方向のスクロールを有効化 */
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    padding: 10px;
-    background-color: #f9f9f9;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-.notify {
-    width: 90%;
-    margin: 0 auto;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    padding: 10px;
-    background-color: #f9f9f9;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.notification-item {
-    margin: 10px auto;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background-color: #fff;
-    transition: background-color 0.3s, box-shadow 0.3s;
-    cursor: pointer;
-}
-
-.notification-item:hover {
-    background-color: #f0f8ff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.notification-title {
-    font-size: 18px;
-    font-weight: bold;
+.sidebar ul {
+    list-style-type: none;
+    padding: 0;
     margin: 0;
-    color: #333;
 }
 
-.notification-content {
+.sidebar ul li a {
+    padding: 15px 20px;
+    text-decoration: none;
     font-size: 16px;
-    color: #555;
-    margin-top: 5px;
+    color: #bdc3c7;
+    display: block;
+    transition: background-color 0.2s, color 0.2s;
 }
 
-
-
-/* リスト全体のスタイル */
-.student-list {
-    display: grid; /* グリッドレイアウトを使用 */
-    grid-template-columns: repeat(4, 1fr); /* 1行に必ず4列表示 */
-    gap: 15px; /* 各アイテム間の余白 */
-    padding: 0;
-    margin: 0;
-    list-style: none; /* デフォルトのリストスタイルを無効化 */
+.sidebar ul li a:hover {
+    background-color: #34495e;
+    color: #ffffff;
 }
 
-
-/* 各リスト項目のスタイル */
-.student-item {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 10px;
-    background-color: #f9f9f9;
-    display: flex;
-    flex-direction: column; /* 各情報を縦方向に配置 */
-    gap: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 視覚的に区別 */
-}
-
-
-/* チェックボックスのスタイル */
-.student-item label {
-    font-size: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-/* 各データのスタイル */
-.student-detail {
-    margin: 0;
-    padding: 0;
-    font-size: 14px;
-}
-
-/* 強調するラベル */
-.student-detail .label {
-    font-weight: bold;
-    margin-right: 5px;
-}
-
-/* ホバー効果 */
-.student-item:hover {
-    background-color: #e6f7ff; /* ホバー時の背景色 */
-}
-
-
-
-
-
-/*モーダルウィンドウのスタイル*/
-.modal{
-    display: none; /* デフォルトでは非表示 */
-    position: fixed; /* 画面に固定 */
+/* Sidebar Backdrop */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    max-width: 100%;
-    max-height: 100%;
-    /*overflow: auto; /* スクロール可能に */
-    background: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999; /* Below sidebar, above content */
 }
-.modal-content {
-    position: relative;
-    text-align: center;
-    background: #fff;
-    width: 80%;
-    height: 80%;
-    max-height: 800px;
-    max-width: 1000px;
-    overflow-y : auto;
-    margin: 50px auto;
+
+body.sidebar-open .sidebar-backdrop {
+    display: block;
+}
+
+
+/* メインコンテンツ */
+.main-content {
+    margin-left: 0;
+}
+
+.page-content {
     padding: 20px;
-    border-radius: 10px;
-}
-.close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
+    padding-top: calc(var(--header-height) + 20px);
 }
 
-.close:hover,
-.close:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-/* 親コンテナを横並びにする */
-.all-data-chart {
+/* ヘッダー */
+.fixed-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 900;
+    background-color: var(--card-background-color);
+    height: var(--header-height);
+    padding: 0 20px;
     display: flex;
-    justify-content: space-around;
-    align-items: stretch; /* 高さを揃えて親要素にフィットさせる */
-    width: 100%;
-}
-
-.all-data-accuracy-chart, .all-data-hesitate-chart {
-    flex-grow: 1; /* 各コンテナが等しくスペースを使う */
-    min-width: 450px; /* 最小幅を設定 */
-    min-height: 350px; /* 最小高さを設定 */
-    margin: 0 20px; /* 左右にスペースを確保 */
-}
-
-.all-data-accuracy-chart h3, .all-data-hesitate-chart h3 {
-    text-align: center; /* 見出しを中央に配置 */
-}
-
-canvas {
-    width: 100% !important; /* グラフの幅を100%に固定 */
-    height: 350px !important; /* 高さを自動調整 */
-}
-
-/*class-dataのフレックス*/
-.class-data {
-    display: grid;
-    grid-template-columns:1fr;    /*自動的に列の数を調整*/
-    gap: 20px;  /*各カード間のスペース*/
-}
-.class-card {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-.chart-row {
-    display: flex;
+    align-items: center;
     justify-content: space-between;
-    gap: 20px; /* グラフ間のスペース */
-}
-.class-card h3 {
-    font-size: 24px; /* クラス名の文字サイズを大きく */
-    font-weight: bold; /* 太字 */
-}
-
-.class-card p {
-    font-size: 18px; /* 学生数と進捗の文字サイズを大きく */
-    font-weight: bold; /* 太字 */
-}
-
-
-/* 検索フォームのスタイル */
-#search-form {
-    display: flex;
-    flex-direction: column; /* 縦方向に要素を配置 */
-    align-items: center; /* 要素を中央揃え */
-    gap: 15px; /* 各要素間の余白 */
-    padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    background-color: #f9f9f9;
-    margin-bottom: 20px;
-    max-width: 1000px; /* フォーム全体の最大幅を設定 */
-    margin-left: auto;
-    margin-right: auto;
-}
-
-#search-form label {
-    width: 100%; /* ラベルをフォーム全体の幅に */
-    font-weight: bold;
-    text-align: left; /* 左揃えにして見やすく */
-}
-
-#search-form input,
-#search-form button {
-    width: 100%; /* 入力フィールドとボタンをフォーム全体の幅に */
-    max-width: 400px; /* 最大幅を設定 */
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
     box-sizing: border-box;
 }
 
-#search-form button {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    cursor: pointer;
+.header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
-#search-form button:hover {
+header h1 {
+    font-size: 1.4rem;
+    margin: 0;
+}
+
+.menu-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.user-name {
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.logout-link {
+    text-decoration: none;
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+/* メインエリア */
+.card {
+    background-color: var(--card-background-color);
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.card h2 {
+    margin-top: 0;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #2c3e50;
+}
+
+/* お知らせセクション */
+.announcement-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+.announcements-list .announcement-item {
+    border-bottom: 1px solid #eee;
+    padding: 15px 5px;
+    transition: background-color 0.2s;
+}
+.announcement-link:hover .announcement-item {
+    background-color: #f9f9f9;
+}
+.announcements-list .announcement-link:last-child .announcement-item {
+    border-bottom: none;
+}
+.announcement-title {
+    margin: 0 0 5px 0;
+    font-size: 1.1rem;
+}
+.announcement-content {
+    margin: 0;
+    color: #666;
+    line-height: 1.6;
+}
+
+/* 成績セクション */
+.grades-section {
+    margin-top: 25px;
+}
+.grades-section h3 {
+    font-size: 1.2rem;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.controls label {
+    font-weight: bold;
+}
+
+select {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 1rem;
+}
+
+.results-container {
+    margin-top: 15px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+    overflow-x: auto; /* テーブルがはみ出す場合スクロール */
+}
+
+/* テーブルスタイル */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    white-space: nowrap; /* セル内での改行を防ぐ */
+}
+
+thead th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+.hesitation-yes {
+    color: #e74c3c;
+    font-weight: bold;
+}
+.incorrect {
+    color: #e74c3c;
+}
+
+.link-button {
+    display: inline-block;
+    padding: 5px 10px;
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    text-align: center;
+}
+.link-button:hover {
     background-color: #0056b3;
 }
 
-/* コンテナのスタイル */
-.list-container {
-    display: grid; /* グリッドレイアウトを使用 */
-    grid-template-columns: repeat(5, 1fr); /* 画面幅に応じて列数を自動調整 */
-    gap: 15px; /* 要素間の余白 */
-    margin-top: 20px;
-    align-items: flex-start;
+/* 学習者詳細サマリー */
+.student-summary {
+    background-color: #e9f7fd;
+    border-left: 5px solid var(--primary-color);
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+.student-summary h4 {
+    margin-top: 0;
+}
+.student-summary p {
+    margin: 5px 0;
 }
 
-/* 各項目のスタイル */
-.list-item {
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 10px;
-    text-align: center; /* 内容を中央揃え */
-}
-
-.list-item label {
-    display: flex; /* フレックスボックスで横並びにする */
-    justify-content: center; /* 内容を中央揃え */
-    align-items: center; /* 垂直方向を中央揃え */
-    gap: 5px; /* 「名前:」と名前の間の余白 */
-    font-size: 14px;
-}
-
-.list-item input[type="checkbox"] {
-    margin-top: 10px; /* チェックボックスの余白 */
-}
-
-/* 絞り込みフォームのタイトル */
-.filter-form-title {
-    font-size: 24px; /* サイズを指定 */
-    font-weight: bold; /* 太文字 */
-    text-align: center; /* 中央揃え */
-    margin-bottom: 15px; /* 下に余白 */
-}
-
-.label-text {
-    white-space: nowrap; /* 改行を禁止 */
-    font-weight: bold; /* 強調 */
-}
-
-/* 特徴量説明機能について */
-/* モーダル背景 */
-.feature-detail-modal {
-    display: none; /* 初期は非表示 */
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.4);
-}
-
-/* モーダルコンテンツ */
-.feature-detail-modal .modal-content {
-    background-color: #fefefe;
-    margin: 15% auto;
+/* ローディング・エラー表示 */
+.loading, .error {
+    color: #888;
     padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    height: 80%;
-    max-height: 200px;
-    max-width: 500px;
-    border-radius: 8px;
-    position: relative;
-    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
-}
-
-/* 閉じるボタン */
-.feature-detail-modal .close-detail-modal {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-}
-.feature-detail-modal .close-detail-modal:hover,
-.feature-detail-modal .close-detail-modal:focus {
-    color: black;
-    text-decoration: none;
-}
-
-/* 情報アイコン */
-.info-icon {
-    cursor: pointer;
-    margin-left: 5px;
-    color: #007bff; /* 青色の情報アイコン */
-    font-weight: bold;
-    font-size: 0.9em;
-    display: inline-block;
-    vertical-align: middle;
-    line-height: 1;
-    border: 1px solid #007bff;
-    border-radius: 50%;
-    width: 1.2em;
-    height: 1.2em;
     text-align: center;
 }
-.info-icon:hover {
-    background-color: #e9f5ff;
+.error {
+    color: #e74c3c;
 }
 
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .user-name {
+        display: none;
+    }
 
+    header h1 {
+        font-size: 1.1rem;
+    }
+}
