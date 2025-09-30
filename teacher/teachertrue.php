@@ -200,19 +200,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // アクション: 学習者詳細を、選択された問題IDで絞り込んで取得（「学習者ごとの詳細」用）
         // 【ここを修正】: 学習者ごとの詳細結果に、文法項目分析を追加
+        // 【ここを修正】: 学習者ごとの詳細結果に、文法項目分析を追加 + 初期表示用の全問題リスト取得を追加
         elseif ($_POST['action'] === 'get_student_details' && isset($_POST['student_id'])) {
             $student_id = $_POST['student_id'];
             $wids = isset($_POST['wids']) ? json_decode($_POST['wids']) : [];
             $summary = ['total_attempts' => 0, 'accuracy' => 'N/A', 'hesitation_rate' => 'N/A'];
             $attempts = [];
             $grammar_stats = [];
+            $all_questions = []; // 初期表示用に全問題リストを格納する配列
 
-            // --- 1. 選択された問題に対するサマリーと解答履歴 (既存の処理) ---
+            // --- 1. 選択された問題に対するサマリーと解答履歴 (widsが指定されている場合のみ) ---
             if (!empty($wids) && is_array($wids)) {
                 $placeholders = implode(',', array_fill(0, count($wids), '?'));
                 $types = 's' . 's' . str_repeat('i', count($wids));
                 $params = array_merge([$teacher_id, $student_id], $wids);
-                
+
                 $stmt_stats = $conn->prepare("SELECT COUNT(l.WID) as selected_total, SUM(CASE WHEN l.TF = 1 THEN 1 ELSE 0 END) as selected_correct, SUM(CASE WHEN tr.Understand = 2 THEN 1 ELSE 0 END) as hesitated_count, SUM(CASE WHEN tr.Understand IN (2, 4) THEN 1 ELSE 0 END) as estimated_count FROM linedata l LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? WHERE l.UID = ? AND l.WID IN ($placeholders)");
                 $stmt_stats->bind_param($types, ...$params);
                 $stmt_stats->execute();
@@ -223,30 +225,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if ($stats_result['estimated_count'] > 0) $summary['hesitation_rate'] = round(($stats_result['hesitated_count'] / $stats_result['estimated_count']) * 100, 1) . '%';
                 }
                 $stmt_stats->close();
-                
+
                 $stmt_attempts = $conn->prepare("SELECT l.WID, l.Date as date, l.attempt, l.test_id, t.test_name, CASE WHEN l.TF = 1 THEN '正解' ELSE '不正解' END as correctness, CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation FROM linedata l LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? LEFT JOIN tests t ON l.test_id = t.id WHERE l.UID = ? AND l.WID IN ($placeholders) ORDER BY l.WID, l.attempt");
                 $stmt_attempts->bind_param($types, ...$params);
                 $stmt_attempts->execute();
                 $result_attempts = $stmt_attempts->get_result();
                 while ($row = $result_attempts->fetch_assoc()) $attempts[] = $row;
                 $stmt_attempts->close();
+            } else {
+                // widsが指定されていない場合（＝学習者選択時）は、チェックボックス表示用に全問題リストを取得
+                $stmt_all_q = $conn->prepare("SELECT DISTINCT l.WID, q.Sentence FROM linedata l LEFT JOIN question_info q ON l.WID = q.WID WHERE l.UID = ? ORDER BY l.WID");
+                $stmt_all_q->bind_param("s", $student_id);
+                $stmt_all_q->execute();
+                $result_all_q = $stmt_all_q->get_result();
+                while ($row = $result_all_q->fetch_assoc()) $all_questions[] = $row;
+                $stmt_all_q->close();
             }
 
-            // --- 2. 文法項目ごとの分析 (新規追加処理) ---
-            // この処理は選択されたWIDに関係なく、学習者の全解答履歴を対象とする
+            // --- 2. 文法項目ごとの分析 (常に学習者の全解答履歴を対象とする) ---
             $gid_map = [];
             $stmt_gid = $conn->prepare("SELECT GID, Item FROM grammar_translations WHERE language = 'ja'");
             $stmt_gid->execute();
             $gid_result = $stmt_gid->get_result();
-            while($row = $gid_result->fetch_assoc()) $gid_map[$row['GID']] = $row['Item'];
+            while ($row = $gid_result->fetch_assoc()) $gid_map[$row['GID']] = $row['Item'];
             $stmt_gid->close();
 
             $raw_data_stmt = $conn->prepare(
                 "SELECT l.WID, l.TF, l.attempt, qi.grammar, tr.Understand 
-                 FROM linedata l 
-                 JOIN question_info qi ON l.WID = qi.WID 
-                 LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
-                 WHERE l.UID = ?"
+         FROM linedata l 
+         JOIN question_info qi ON l.WID = qi.WID 
+         LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
+         WHERE l.UID = ?"
             );
             $raw_data_stmt->bind_param("ss", $teacher_id, $student_id);
             $raw_data_stmt->execute();
@@ -282,8 +291,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'hesitation_rate' => ($stats['estimated'] > 0) ? round(($stats['hesitated'] / $stats['estimated']) * 100, 2) : 0,
                 ];
             }
-            
-            $response = ['summary' => $summary, 'attempts' => $attempts, 'grammar_stats' => $grammar_stats];
+
+            // all_questions をレスポンスに追加
+            $response = ['summary' => $summary, 'attempts' => $attempts, 'grammar_stats' => $grammar_stats, 'all_questions' => $all_questions];
         }
     } catch (Exception $e) {
         http_response_code(500);
@@ -303,23 +313,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <title>LMS 教師用ホーム画面</title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .grammar-analysis-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .grammar-table-container {
-            flex: 1 1 500px; /* テーブルの幅を調整 */
-            overflow-x: auto;
-        }
-        .grammar-chart-container {
-            flex: 1 1 400px; /* グラフの幅を調整 */
-            min-width: 300px;
-        }
-    </style>
-    </head>
+</head>
 
 <body>
     <div id="sidebar" class="sidebar">
@@ -517,6 +511,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <div id="student-details-container" class="results-container">
                         <p>学習者を選択すると、解答した問題リストが表示されます。</p>
                     </div>
+                    <div id="grammar-analysis-wrapper" style="display: none; margin-top: 25px;">
+                    </div>
                 </div>
             </section>
         </main>
@@ -529,6 +525,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const sidebarClose = document.getElementById('sidebar-close');
             const backdrop = document.getElementById('sidebar-backdrop');
             const body = document.body;
+
+            // 「担当クラス」の要素
+            const classStudentCheckboxContainer = document.getElementById('class-student-checkbox-container');
+            const showClassResultsBtn = document.getElementById('show-class-results-btn');
+            const classResultsContainer = document.getElementById('class-results-container');
 
             // 「テストごと」の要素
             const testSelect = document.getElementById('test-select');
@@ -544,8 +545,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const studentControls = document.getElementById('student-controls');
             const showStudentDetailsBtn = document.getElementById('show-student-details-btn');
             const studentDetailsContainer = document.getElementById('student-details-container');
+            const grammarAnalysisWrapper = document.getElementById('grammar-analysis-wrapper'); // 新しく追加
 
-            // サイドバーの開閉処理
+            // --- 1. サイドバーの開閉処理 ---
             function openSidebar() {
                 body.classList.add('sidebar-open');
             }
@@ -557,113 +559,142 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             sidebarClose.addEventListener('click', closeSidebar);
             backdrop.addEventListener('click', closeSidebar);
 
-            // 【新規追加】担当クラスの結果表示のための要素取得とイベントリスナー
-            const classStudentCheckboxContainer = document.getElementById('class-student-checkbox-container');
-            const showClassResultsBtn = document.getElementById('show-class-results-btn');
-            const classResultsContainer = document.getElementById('class-results-container');
-            const selectAllClassStudents = classStudentCheckboxContainer.querySelector('.select-all');
-
-            // 「全て選択/解除」チェックボックスのイベント
-            if (selectAllClassStudents) {
-                selectAllClassStudents.addEventListener('change', function(e) {
-                    classStudentCheckboxContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                        cb.checked = e.target.checked;
+            // --- 2. 担当クラスの結果表示 ---
+            if (classStudentCheckboxContainer) {
+                const selectAllClassStudents = classStudentCheckboxContainer.querySelector('.select-all');
+                if (selectAllClassStudents) {
+                    selectAllClassStudents.addEventListener('change', (e) => {
+                        classStudentCheckboxContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = e.target.checked);
                     });
+                }
+                showClassResultsBtn.addEventListener('click', async () => {
+                    const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('input:checked:not(.select-all)')).map(cb => cb.value);
+                    if (selectedStudents.length === 0) return alert('学習者を1名以上選択してください。');
+                    classResultsContainer.innerHTML = '<p class="loading">結果を読み込んでいます...</p>';
+                    try {
+                        const results = await fetchData({
+                            action: 'get_class_results',
+                            student_ids: JSON.stringify(selectedStudents)
+                        });
+                        renderClassResults(results);
+                    } catch (error) {
+                        console.error('Error fetching class results:', error);
+                        classResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
+                    }
                 });
             }
 
-            // 「結果を表示」ボタンのイベント
-            showClassResultsBtn.addEventListener('click', async function() {
-                const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('input[type="checkbox"]:checked:not(.select-all)'))
-                    .map(cb => cb.value);
-
-                if (selectedStudents.length === 0) {
-                    alert('学習者を1名以上選択してください。');
-                    return;
-                }
-
-                classResultsContainer.innerHTML = '<p class="loading">結果を読み込んでいます...</p>';
-                try {
-                    const results = await fetchData({
-                        action: 'get_class_results',
-                        student_ids: JSON.stringify(selectedStudents)
-                    });
-                    renderClassResults(results); // 新しい描画関数を呼び出す
-                } catch (error) {
-                    console.error('Error fetching class results:', error);
-                    classResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
-                }
-            });
-
-            // 【新規追加】担当クラス結果テーブルを描画する関数
-            // 【ここを修正】担当クラス結果テーブルを描画する関数
-            function renderClassResults(data) {
-                if (!data || data.length === 0) {
-                    classResultsContainer.innerHTML = '<p>選択された学習者の解答結果はありません。</p>';
-                    return;
-                }
-                let tableHtml = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>クラス名</th>
-                            <th>学習者名 (ID)</th>
-                            <th>テスト名</th>
-                            <th>問題ID (回数)</th>
-                            <th>正誤</th>
-                            <th>迷い推定</th>
-                            <th>解答日時</th>
-                            <th>軌跡再現</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-                data.forEach(row => {
-                    const hesitationClass = row.hesitation === '迷い有り' ? 'hesitation-yes' : '';
-                    const correctnessClass = row.correctness === '不正解' ? 'incorrect' : '';
-                    tableHtml += `
-                    <tr>
-                        <td>${row.ClassName}</td>
-                        <td>${row.student_name} (${row.student_id})</td>
-                        <td>${row.test_name}</td>
-                        <td>${row.WID} (${row.attempt}回目)</td>
-                        <td class="${correctnessClass}">${row.correctness}</td>
-                        <td class="${hesitationClass}">${row.hesitation}</td>
-                        <td>${row.date}</td>
-                        <td><a href="./mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
-                    </tr>`;
+            // --- 3. テストごとの結果表示 ---
+            if (testSelect) {
+                testSelect.addEventListener('change', async function() {
+                    const testId = this.value;
+                    studentCheckboxContainer.innerHTML = '';
+                    testQuestionCheckboxContainer.innerHTML = '';
+                    testControls.style.display = 'none';
+                    testResultsContainer.innerHTML = '<p>テストを選択してください。</p>';
+                    if (!testId) return;
+                    studentCheckboxContainer.innerHTML = '<p class="loading">受験者を読み込んでいます...</p>';
+                    try {
+                        const students = await fetchData({
+                            action: 'get_students_for_test',
+                            test_id: testId
+                        });
+                        renderCheckboxes(studentCheckboxContainer, students, 'student', '2. 学習者を選択:');
+                        studentCheckboxContainer.addEventListener('change', handleStudentSelectionChangeForTest);
+                    } catch (error) {
+                        studentCheckboxContainer.innerHTML = '<p class="error">受験者の読み込みに失敗しました。</p>';
+                    }
                 });
-                tableHtml += '</tbody></table>';
-                classResultsContainer.innerHTML = tableHtml;
+
+                showTestResultsBtn.addEventListener('click', async () => {
+                    const testId = testSelect.value;
+                    const selectedStudents = Array.from(studentCheckboxContainer.querySelectorAll('input:checked:not(.select-all)')).map(cb => cb.value);
+                    const selectedWids = Array.from(testQuestionCheckboxContainer.querySelectorAll('input:checked:not(.select-all)')).map(cb => cb.value);
+                    if (selectedStudents.length === 0) return alert('学習者を1名以上選択してください。');
+                    if (selectedWids.length === 0) return alert('問題を1つ以上選択してください。');
+                    testResultsContainer.innerHTML = '<p class="loading">結果を読み込んでいます...</p>';
+                    try {
+                        const results = await fetchData({
+                            action: 'get_test_results',
+                            test_id: testId,
+                            student_ids: JSON.stringify(selectedStudents),
+                            wids: JSON.stringify(selectedWids)
+                        });
+                        renderTestResults(results);
+                    } catch (error) {
+                        testResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
+                    }
+                });
             }
 
-            // --- 2. テストごとの結果表示 ---
+            // --- 4. 学習者ごとの詳細結果 ---
+            if (studentSelect) {
+                studentSelect.addEventListener('change', async function() {
+                    const studentId = this.value;
+                    // 各コンテナを初期化
+                    studentDetailsContainer.innerHTML = '<p>学習者を選択すると、解答した問題リストが表示されます。</p>';
+                    questionCheckboxContainerStudent.innerHTML = '';
+                    grammarAnalysisWrapper.style.display = 'none';
+                    grammarAnalysisWrapper.innerHTML = '';
+                    studentControls.style.display = 'none';
 
-            testSelect.addEventListener('change', async function() {
-                const testId = this.value;
-                studentCheckboxContainer.innerHTML = '';
-                testQuestionCheckboxContainer.innerHTML = '';
-                testControls.style.display = 'none';
-                testResultsContainer.innerHTML = '<p>テストを選択してください。</p>';
+                    if (!studentId) return;
 
-                if (!testId) return;
+                    questionCheckboxContainerStudent.innerHTML = '<p class="loading">問題リストと分析データを読み込んでいます...</p>';
+                    try {
+                        const data = await fetchData({
+                            action: 'get_student_details',
+                            student_id: studentId
+                        });
+                        renderGrammarAnalysis(data.grammar_stats); // 文法分析を先に描画
+                        renderCheckboxes(questionCheckboxContainerStudent, data.all_questions, 'question', '問題');
+                        if (data.all_questions && data.all_questions.length > 0) {
+                            studentControls.style.display = 'block';
+                        } else {
+                            questionCheckboxContainerStudent.innerHTML = '<p>この学習者の解答履歴はありません。</p>';
+                        }
+                    } catch (error) {
+                        console.error('Error fetching initial student data:', error);
+                        questionCheckboxContainerStudent.innerHTML = '<p class="error">データ読み込みに失敗しました。</p>';
+                        grammarAnalysisWrapper.innerHTML = '<p class="error">分析データの読み込みに失敗しました。</p>';
+                        grammarAnalysisWrapper.style.display = 'block';
+                    }
+                });
 
-                studentCheckboxContainer.innerHTML = '<p class="loading">受験者を読み込んでいます...</p>';
-                try {
-                    const students = await fetchData({
-                        action: 'get_students_for_test',
-                        test_id: testId
-                    });
-                    renderCheckboxes(studentCheckboxContainer, students, 'student', '2. 学習者を選択:');
-                    studentCheckboxContainer.addEventListener('change', handleStudentSelectionChange);
-                } catch (error) {
-                    studentCheckboxContainer.innerHTML = '<p class="error">受験者の読み込みに失敗しました。</p>';
-                }
-            });
+                showStudentDetailsBtn.addEventListener('click', async () => {
+                    const studentId = studentSelect.value;
+                    const selectedWids = Array.from(questionCheckboxContainerStudent.querySelectorAll('input:checked:not(.select-all)')).map(cb => cb.value);
+                    if (selectedWids.length === 0) return alert('問題を1つ以上選択してください。');
+                    studentDetailsContainer.innerHTML = '<p class="loading">詳細を読み込んでいます...</p>';
+                    try {
+                        const data = await fetchData({
+                            action: 'get_student_details',
+                            student_id: studentId,
+                            wids: JSON.stringify(selectedWids)
+                        });
+                        renderStudentProblemResults(data, studentId); // 問題ごとの結果のみを描画
+                    } catch (error) {
+                        console.error('Error fetching student details:', error);
+                        studentDetailsContainer.innerHTML = '<p class="error">詳細の読み込みに失敗しました。</p>';
+                    }
+                });
+            }
 
-            async function handleStudentSelectionChange() {
-                const selectedStudents = studentCheckboxContainer.querySelectorAll('input[type="checkbox"]:checked');
+            // --- 5. 共通の描画・補助関数 ---
+            async function fetchData(bodyObj) {
+                const formData = new FormData();
+                for (const key in bodyObj) formData.append(key, bodyObj[key]);
+                const response = await fetch('teachertrue.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) throw new Error(`Network response was not ok, status: ${response.status}`);
+                return await response.json();
+            }
+
+            async function handleStudentSelectionChangeForTest() {
+                const selectedStudents = studentCheckboxContainer.querySelectorAll('input:checked');
                 const testId = testSelect.value;
-
                 if (selectedStudents.length > 0) {
                     testQuestionCheckboxContainer.style.display = 'block';
                     testQuestionCheckboxContainer.innerHTML = '<p class="loading">問題リストを読み込んでいます...</p>';
@@ -684,349 +715,164 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
             }
 
-            showTestResultsBtn.addEventListener('click', async function() {
-                const testId = testSelect.value;
-                // :not(.select-all) を追加して、「全て選択」チェックボックスを除外
-                const selectedStudents = Array.from(studentCheckboxContainer.querySelectorAll('input[type="checkbox"]:checked:not(.select-all)')).map(cb => cb.value);
-                const selectedWids = Array.from(testQuestionCheckboxContainer.querySelectorAll('input[type="checkbox"]:checked:not(.select-all)')).map(cb => cb.value);
-
-                if (selectedStudents.length === 0) {
-                    alert('学習者を1名以上選択してください。');
-                    return;
-                }
-                if (selectedWids.length === 0) {
-                    alert('問題を1つ以上選択してください。');
-                    return;
-                }
-
-                testResultsContainer.innerHTML = '<p class="loading">結果を読み込んでいます...</p>';
-                try {
-                    const results = await fetchData({
-                        action: 'get_test_results',
-                        test_id: testId,
-                        student_ids: JSON.stringify(selectedStudents),
-                        wids: JSON.stringify(selectedWids)
-                    });
-                    renderTestResults(results);
-                } catch (error) {
-                    testResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
-                }
-            });
-
-
-            // --- 3. 学習者ごとの詳細結果 ---
-            studentSelect.addEventListener('change', async function() {
-                const studentId = this.value;
-                studentDetailsContainer.innerHTML = '';
-                questionCheckboxContainerStudent.innerHTML = '';
-                studentControls.style.display = 'none';
-
-                if (!studentId) {
-                    studentDetailsContainer.innerHTML = '<p>学習者を選択すると、解答した問題リストが表示されます。</p>';
-                    return;
-                }
-
-                questionCheckboxContainerStudent.innerHTML = '<p class="loading">問題リストを読み込んでいます...</p>';
-                try {
-                    const questions = await fetchData({
-                        action: 'get_questions_for_student',
-                        student_id: studentId
-                    });
-                    renderCheckboxes(questionCheckboxContainerStudent, questions, 'question', '問題');
-                    if (questions.length > 0) {
-                        studentControls.style.display = 'block';
-                    }
-                } catch (error) {
-                    questionCheckboxContainerStudent.innerHTML = '<p class="error">問題リストの読み込みに失敗しました。</p>';
-                }
-            });
-
-            showStudentDetailsBtn.addEventListener('click', async function() {
-                const studentId = studentSelect.value;
-                // :not(.select-all) を追加して、「全て選択」チェックボックスを除外
-                const selectedWids = Array.from(questionCheckboxContainerStudent.querySelectorAll('input[type="checkbox"]:checked:not(.select-all)')).map(cb => cb.value);
-
-                if (selectedWids.length === 0) {
-                    alert('問題を1つ以上選択してください。');
-                    return;
-                }
-
-                studentDetailsContainer.innerHTML = '<p class="loading">詳細を読み込んでいます...</p>';
-                try {
-                    const data = await fetchData({
-                        action: 'get_student_details',
-                        student_id: studentId,
-                        wids: JSON.stringify(selectedWids)
-                    });
-                    renderStudentDetails(data, studentId);
-                } catch (error) {
-                    console.error('Error fetching student details:', error);
-                    studentDetailsContainer.innerHTML = '<p class="error">詳細の読み込みに失敗しました。</p>';
-                }
-            });
-
-
-            // --- 4. 共通の描画・補助関数 ---
-            async function fetchData(bodyObj) {
-                const formData = new FormData();
-                for (const key in bodyObj) {
-                    formData.append(key, bodyObj[key]);
-                }
-                const response = await fetch('teachertrue.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!response.ok) {
-                    throw new Error(`Network response was not ok, status: ${response.status}`);
-                }
-                return await response.json();
-            }
-
             function renderCheckboxes(container, items, type, title) {
                 if (!items || items.length === 0) {
                     container.innerHTML = `<p>対象の${type === 'student' ? '学習者' : '問題'}はありません。</p>`;
                     return;
                 }
-
-                let idKey, nameKey;
-                if (type === 'student') {
-                    idKey = 'uid';
-                    nameKey = 'Name';
-                } else { // question
-                    idKey = 'WID';
-                    nameKey = 'Sentence';
-                }
-
+                const idKey = type === 'student' ? 'uid' : 'WID';
+                const nameKey = type === 'student' ? 'Name' : 'Sentence';
                 let checkboxesHtml = `<h4>${title}</h4>
-                <div class="checkbox-controls">
-                    <label><input type="checkbox" class="select-all" checked> 全て選択 / 解除</label>
-                </div>
-                <div class="checkbox-list">`;
+            <div class="checkbox-controls"><label><input type="checkbox" class="select-all" checked> 全て選択 / 解除</label></div>
+            <div class="checkbox-list">`;
                 items.forEach(item => {
                     const displayName = type === 'student' ?
-                        `${item[nameKey]} (${item[idKey]})` :
-                        `WID:${item[idKey]}` + (item[nameKey] ? ` : ${item[nameKey]}` : '');
-
+                        `${item[nameKey]} (${item[idKey]})` : `WID:${item[idKey]}` + (item[nameKey] ? ` : ${item[nameKey]}` : '');
                     const asterisk = (item.is_unanswered) ? ' <span style="color: red; font-weight: bold;">*</span>' : '';
-
-                    checkboxesHtml += `
-                    <label class="checkbox-item">
-                        <input type="checkbox" value="${item[idKey]}" checked>
-                        ${displayName}
-                        ${asterisk}
-                    </label>`;
+                    checkboxesHtml += `<label class="checkbox-item"><input type="checkbox" value="${item[idKey]}" checked> ${displayName} ${asterisk}</label>`;
                 });
                 checkboxesHtml += '</div>';
                 container.innerHTML = checkboxesHtml;
 
                 container.querySelector('.select-all').addEventListener('change', function(e) {
-                    const isChecked = e.target.checked;
-                    container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                        cb.checked = isChecked;
-                    });
-                    if (container === studentCheckboxContainer) {
-                        handleStudentSelectionChange();
-                    }
+                    container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = e.target.checked);
+                    if (container === studentCheckboxContainer) handleStudentSelectionChangeForTest();
                 });
+                if (container === studentCheckboxContainer) handleStudentSelectionChangeForTest();
+            }
 
-                if (container === studentCheckboxContainer) {
-                    handleStudentSelectionChange();
-                }
+            function renderClassResults(data) {
+                if (!data || data.length === 0) return classResultsContainer.innerHTML = '<p>選択された学習者の解答結果はありません。</p>';
+                let tableHtml = `<table><thead><tr><th>クラス名</th><th>学習者名 (ID)</th><th>テスト名</th><th>問題ID (回数)</th><th>正誤</th><th>迷い推定</th><th>解答日時</th><th>軌跡再現</th></tr></thead><tbody>`;
+                data.forEach(row => {
+                    tableHtml += `<tr>
+                <td>${row.ClassName}</td>
+                <td>${row.student_name} (${row.student_id})</td>
+                <td>${row.test_name}</td>
+                <td>${row.WID} (${row.attempt}回目)</td>
+                <td class="${row.correctness === '不正解' ? 'incorrect' : ''}">${row.correctness}</td>
+                <td class="${row.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${row.hesitation}</td>
+                <td>${row.date}</td>
+                <td><a href="./mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
+            </tr>`;
+                });
+                classResultsContainer.innerHTML = tableHtml + '</tbody></table>';
             }
 
             function renderTestResults(data) {
-                if (!data || data.length === 0) {
-                    testResultsContainer.innerHTML = '<p>該当する解答結果はありません。</p>';
-                    return;
-                }
-                let tableHtml = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>学習者名 (ID)</th>
-                            <th>問題ID</th>
-                            <th>正誤</th>
-                            <th>迷い推定</th>
-                            <th>解答日時</th>
-                            <th>軌跡再現</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
+                if (!data || data.length === 0) return testResultsContainer.innerHTML = '<p>該当する解答結果はありません。</p>';
+                let tableHtml = `<table><thead><tr><th>学習者名 (ID)</th><th>問題ID</th><th>正誤</th><th>迷い推定</th><th>解答日時</th><th>軌跡再現</th></tr></thead><tbody>`;
                 data.forEach(row => {
                     const isUnanswered = row.correctness === '未解答';
-                    const hesitationClass = row.hesitation === '迷い有り' ? 'hesitation-yes' : '';
-                    const correctnessClass = row.correctness === '不正解' ? 'incorrect' : '';
-
-                    tableHtml += `
-                    <tr>
-                        <td>${row.student_name} (${row.student_id})</td>
-                        <td>${row.WID}</td>
-                        <td class="${isUnanswered ? '' : correctnessClass}">${row.correctness}</td>
-                        <td class="${isUnanswered ? '' : hesitationClass}">${row.hesitation}</td>
-                        <td>${row.date}</td>
-                        <td>`;
-                    if (!isUnanswered) {
-                        tableHtml += `<a href="./mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${testSelect.value}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a>`;
-                    } else {
-                        tableHtml += `-`;
-                    }
-                    tableHtml += `</td></tr>`;
+                    tableHtml += `<tr>
+                <td>${row.student_name} (${row.student_id})</td>
+                <td>${row.WID}</td>
+                <td class="${isUnanswered ? '' : (row.correctness === '不正解' ? 'incorrect' : '')}">${row.correctness}</td>
+                <td class="${isUnanswered ? '' : (row.hesitation === '迷い有り' ? 'hesitation-yes' : '')}">${row.hesitation}</td>
+                <td>${row.date}</td>
+                <td>${isUnanswered ? '-' : `<a href="./mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${testSelect.value}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a>`}</td>
+            </tr>`;
                 });
-                tableHtml += '</tbody></table>';
-                testResultsContainer.innerHTML = tableHtml;
+                testResultsContainer.innerHTML = tableHtml + '</tbody></table>';
             }
-            
+
             // ▼▼▼【ここから修正】▼▼▼
-            function renderStudentDetails(data, studentId) {
+            // 「問題ごとの結果」を描画する関数（サマリー + 解答履歴）
+            function renderStudentProblemResults(data, studentId) {
                 if (!data || !data.summary) {
                     studentDetailsContainer.innerHTML = '<p>この学習者のデータはありません。</p>';
                     return;
                 }
-                const infoPopupHtml = `
-                <span class="info-icon">i
-                    <div class="info-popup">
-                        <strong>各指標の説明</strong>
-                        <ul>
-                            <li><strong>総解答数:</strong> 選択された問題において、この学習者が解答した総数です。</li>
-                            <li><strong>正答率:</strong> 選択された問題における正解の割合です。</li>
-                            <li><strong>迷い率:</strong> 選択された問題のうち、推定結果が「迷い有り」または「迷い無し」の問題における「迷い有り」の割合です。（「未推定」は計算から除外）</li>
-                        </ul>
-                    </div>
-                </span>`;
-
-                let detailsHtml = `
-                <div class="student-summary">
-                    <h4>総合評価 ${infoPopupHtml}</h4>
-                    <p><strong>総解答数 (選択問題):</strong> ${data.summary.total_attempts}</p>
-                    <p><strong>正答率 (選択問題):</strong> ${data.summary.accuracy}</p>
-                    <p><strong>迷い率 (選択問題):</strong> ${data.summary.hesitation_rate}</p>
-                </div>
-                <h4>問題ごとの結果</h4>`;
+                const infoPopupHtml = `<span class="info-icon">i<div class="info-popup"><strong>各指標の説明</strong><ul><li><strong>総解答数:</strong> 選択された問題において、この学習者が解答した総数です。</li><li><strong>正答率:</strong> 選択された問題における正解の割合です。</li><li><strong>迷い率:</strong> 選択された問題のうち、推定結果が「迷い有り」または「迷い無し」の問題における「迷い有り」の割合です。（「未推定」は計算から除外）</li></ul></div></span>`;
+                let detailsHtml = `<div class="student-summary"><h4>総合評価 ${infoPopupHtml}</h4><p><strong>総解答数 (選択問題):</strong> ${data.summary.total_attempts}</p><p><strong>正答率 (選択問題):</strong> ${data.summary.accuracy}</p><p><strong>迷い率 (選択問題):</strong> ${data.summary.hesitation_rate}</p></div><h4>問題ごとの結果</h4>`;
 
                 if (!data.attempts || data.attempts.length === 0) {
                     detailsHtml += '<p>選択された問題の解答履歴はありません。</p>';
                 } else {
-                    detailsHtml += `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>問題ID</th>
-                                <th>テスト名</th>
-                                <th>正誤</th>
-                                <th>迷い推定</th>
-                                <th>解答日時</th>
-                                <th>軌跡再現</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
+                    detailsHtml += `<table><thead><tr><th>問題ID</th><th>テスト名</th><th>正誤</th><th>迷い推定</th><th>解答日時</th><th>軌跡再現</th></tr></thead><tbody>`;
                     data.attempts.forEach(attempt => {
-                        const hesitationClass = attempt.hesitation === '迷い有り' ? 'hesitation-yes' : '';
-                        const correctnessClass = attempt.correctness === '不正解' ? 'incorrect' : '';
                         const testName = attempt.test_name || '（不明なテスト）';
-                        detailsHtml += `
-                        <tr>
-                            <td>${attempt.WID} (${attempt.attempt}回目)</td>
-                            <td>${testName}</td>
-                            <td class="${correctnessClass}">${attempt.correctness}</td>
-                            <td class="${hesitationClass}">${attempt.hesitation}</td>
-                            <td>${attempt.date}</td>
-                            <td>
-                                <a href="./mousemove/mousemove.php?UID=${studentId}&WID=${attempt.WID}&test_id=${attempt.test_id}&LogID=${attempt.attempt}" target="_blank" class="link-button">表示</a>
-                            </td>
-                        </tr>`;
+                        detailsHtml += `<tr>
+                    <td>${attempt.WID} (${attempt.attempt}回目)</td>
+                    <td>${testName}</td>
+                    <td class="${attempt.correctness === '不正解' ? 'incorrect' : ''}">${attempt.correctness}</td>
+                    <td class="${attempt.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${attempt.hesitation}</td>
+                    <td>${attempt.date}</td>
+                    <td><a href="./mousemove/mousemove.php?UID=${studentId}&WID=${attempt.WID}&test_id=${attempt.test_id}&LogID=${attempt.attempt}" target="_blank" class="link-button">表示</a></td>
+                </tr>`;
                     });
                     detailsHtml += '</tbody></table>';
                 }
+                studentDetailsContainer.innerHTML = detailsHtml;
+            }
 
-                // --- ここから文法項目分析のHTMLを生成 ---
-                if (data.grammar_stats && data.grammar_stats.length > 0) {
-                    detailsHtml += `
-                        <h4>文法項目ごとの分析</h4>
-                        <div class="grammar-analysis-container">
-                            <div class="grammar-table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>文法項目</th>
-                                            <th>総解答数</th>
-                                            <th>正解数</th>
-                                            <th>迷い数</th>
-                                            <th>不正解率</th>
-                                            <th>迷い率</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                    `;
-                    data.grammar_stats.forEach(stat => {
-                        const incorrectRate = (100 - stat.correct_rate).toFixed(2);
-                        detailsHtml += `
-                            <tr>
-                                <td>${stat.grammar_name}</td>
-                                <td>${stat.total_attempts}</td>
-                                <td>${stat.correct_count}</td>
-                                <td>${stat.hesitated_count}</td>
-                                <td>${incorrectRate}%</td>
-                                <td>${stat.hesitation_rate.toFixed(2)}%</td>
-                            </tr>
-                        `;
-                    });
-                    detailsHtml += `
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="grammar-chart-container">
-                                <canvas id="grammarAnalysisChart"></canvas>
-                            </div>
-                        </div>
-                    `;
+            // 「文法項目ごとの分析」を描画する関数
+            function renderGrammarAnalysis(grammarStats) {
+                grammarAnalysisWrapper.style.display = 'block'; // コンテナを表示
+                if (!grammarStats || grammarStats.length === 0) {
+                    grammarAnalysisWrapper.innerHTML = '<h4>文法項目ごとの分析</h4><p>この学習者の文法分析データはありません。</p>';
+                    return;
                 }
 
-                studentDetailsContainer.innerHTML = detailsHtml;
+                let grammarHtml = `<h4>文法項目ごとの分析</h4><div class="grammar-analysis-container"><div class="grammar-table-container">
+            <table><thead><tr><th>文法項目</th><th>総解答数</th><th>正解数</th><th>迷い数</th><th>不正解率</th><th>迷い率</th></tr></thead><tbody>`;
+                grammarStats.forEach(stat => {
+                    const incorrectRate = (100 - stat.correct_rate).toFixed(2);
+                    grammarHtml += `<tr>
+                <td>${stat.grammar_name}</td>
+                <td>${stat.total_attempts}</td>
+                <td>${stat.correct_count}</td>
+                <td>${stat.hesitated_count}</td>
+                <td>${incorrectRate}%</td>
+                <td>${stat.hesitation_rate.toFixed(2)}%</td>
+            </tr>`;
+                });
+                grammarHtml += `</tbody></table></div><div class="grammar-chart-container"><canvas id="grammarAnalysisChart"></canvas></div></div>`;
+                grammarAnalysisWrapper.innerHTML = grammarHtml;
 
-                // --- グラフを描画 ---
-                if (data.grammar_stats && data.grammar_stats.length > 0) {
-                    const ctx = document.getElementById('grammarAnalysisChart').getContext('2d');
-                    
-                    const labels = data.grammar_stats.map(s => s.grammar_name);
-                    const incorrectData = data.grammar_stats.map(s => (100 - s.correct_rate).toFixed(2));
-                    const hesitationData = data.grammar_stats.map(s => s.hesitation_rate.toFixed(2));
-
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: '不正解率 (%)',
-                                data: incorrectData,
-                                backgroundColor: 'rgba(54, 162, 235, 0.6)', // 青系
-                            }, {
-                                label: '迷い率 (%)',
-                                data: hesitationData,
-                                backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
-                            }]
+                // グラフを描画
+                const ctx = document.getElementById('grammarAnalysisChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: grammarStats.map(s => s.grammar_name),
+                        datasets: [{
+                            label: '不正解率 (%)',
+                            data: grammarStats.map(s => (100 - s.correct_rate).toFixed(2)),
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        }, {
+                            label: '迷い率 (%)',
+                            data: grammarStats.map(s => s.hesitation_rate.toFixed(2)),
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '文法項目ごとの不正解率と迷い率'
+                            }
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
+                        scales: {
+                            x: {
                                 title: {
                                     display: true,
-                                    text: '文法項目ごとの不正解率と迷い率'
+                                    text: '文法項目'
                                 }
                             },
-                            scales: {
-                                x: {
-                                    title: { display: true, text: '文法項目' }
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '割合 (%)'
                                 },
-                                y: {
-                                    title: { display: true, text: '割合 (%)' },
-                                    min: 0,
-                                    max: 100
-                                }
+                                min: 0,
+                                max: 100
                             }
                         }
-                    });
-                }
+                    }
+                });
             }
             // ▲▲▲【ここまで修正】▲▲▲
         });
