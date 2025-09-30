@@ -302,7 +302,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS 教師用ホーム画面</title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
-</head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .grammar-analysis-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .grammar-table-container {
+            flex: 1 1 500px; /* テーブルの幅を調整 */
+            overflow-x: auto;
+        }
+        .grammar-chart-container {
+            flex: 1 1 400px; /* グラフの幅を調整 */
+            min-width: 300px;
+        }
+    </style>
+    </head>
 
 <body>
     <div id="sidebar" class="sidebar">
@@ -697,7 +714,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             });
 
 
-            // --- 2. 学習者ごとの詳細結果 ---
+            // --- 3. 学習者ごとの詳細結果 ---
             studentSelect.addEventListener('change', async function() {
                 const studentId = this.value;
                 studentDetailsContainer.innerHTML = '';
@@ -749,7 +766,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             });
 
 
-            // --- 3. 共通の描画・補助関数 ---
+            // --- 4. 共通の描画・補助関数 ---
             async function fetchData(bodyObj) {
                 const formData = new FormData();
                 for (const key in bodyObj) {
@@ -765,7 +782,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 return await response.json();
             }
 
-            // 【ここを修正】: チェックボックス生成時に未解答アスタリスクを追加する処理
             function renderCheckboxes(container, items, type, title) {
                 if (!items || items.length === 0) {
                     container.innerHTML = `<p>対象の${type === 'student' ? '学習者' : '問題'}はありません。</p>`;
@@ -787,7 +803,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 </div>
                 <div class="checkbox-list">`;
                 items.forEach(item => {
-                    // 問題文の省略処理を削除
                     const displayName = type === 'student' ?
                         `${item[nameKey]} (${item[idKey]})` :
                         `WID:${item[idKey]}` + (item[nameKey] ? ` : ${item[nameKey]}` : '');
@@ -819,7 +834,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
             }
 
-            // 【ここを修正】: 結果テーブル描画時に「未解答」の場合の処理を追加
             function renderTestResults(data) {
                 if (!data || data.length === 0) {
                     testResultsContainer.innerHTML = '<p>該当する解答結果はありません。</p>';
@@ -851,7 +865,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         <td class="${isUnanswered ? '' : hesitationClass}">${row.hesitation}</td>
                         <td>${row.date}</td>
                         <td>`;
-                    // 未解答でない場合のみ軌跡再現リンクを表示
                     if (!isUnanswered) {
                         tableHtml += `<a href="./mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${testSelect.value}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a>`;
                     } else {
@@ -862,13 +875,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 tableHtml += '</tbody></table>';
                 testResultsContainer.innerHTML = tableHtml;
             }
-
+            
+            // ▼▼▼【ここから修正】▼▼▼
             function renderStudentDetails(data, studentId) {
                 if (!data || !data.summary) {
                     studentDetailsContainer.innerHTML = '<p>この学習者のデータはありません。</p>';
                     return;
                 }
-                // ポップアップ付きのⓘアイコンのHTMLを生成
                 const infoPopupHtml = `
                 <span class="info-icon">i
                     <div class="info-popup">
@@ -924,8 +937,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     });
                     detailsHtml += '</tbody></table>';
                 }
+
+                // --- ここから文法項目分析のHTMLを生成 ---
+                if (data.grammar_stats && data.grammar_stats.length > 0) {
+                    detailsHtml += `
+                        <h4>文法項目ごとの分析</h4>
+                        <div class="grammar-analysis-container">
+                            <div class="grammar-table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>文法項目</th>
+                                            <th>総解答数</th>
+                                            <th>正解数</th>
+                                            <th>迷い数</th>
+                                            <th>不正解率</th>
+                                            <th>迷い率</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                    `;
+                    data.grammar_stats.forEach(stat => {
+                        const incorrectRate = (100 - stat.correct_rate).toFixed(2);
+                        detailsHtml += `
+                            <tr>
+                                <td>${stat.grammar_name}</td>
+                                <td>${stat.total_attempts}</td>
+                                <td>${stat.correct_count}</td>
+                                <td>${stat.hesitated_count}</td>
+                                <td>${incorrectRate}%</td>
+                                <td>${stat.hesitation_rate.toFixed(2)}%</td>
+                            </tr>
+                        `;
+                    });
+                    detailsHtml += `
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="grammar-chart-container">
+                                <canvas id="grammarAnalysisChart"></canvas>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 studentDetailsContainer.innerHTML = detailsHtml;
+
+                // --- グラフを描画 ---
+                if (data.grammar_stats && data.grammar_stats.length > 0) {
+                    const ctx = document.getElementById('grammarAnalysisChart').getContext('2d');
+                    
+                    const labels = data.grammar_stats.map(s => s.grammar_name);
+                    const incorrectData = data.grammar_stats.map(s => (100 - s.correct_rate).toFixed(2));
+                    const hesitationData = data.grammar_stats.map(s => s.hesitation_rate.toFixed(2));
+
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: '不正解率 (%)',
+                                data: incorrectData,
+                                backgroundColor: 'rgba(54, 162, 235, 0.6)', // 青系
+                            }, {
+                                label: '迷い率 (%)',
+                                data: hesitationData,
+                                backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: '文法項目ごとの不正解率と迷い率'
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    title: { display: true, text: '文法項目' }
+                                },
+                                y: {
+                                    title: { display: true, text: '割合 (%)' },
+                                    min: 0,
+                                    max: 100
+                                }
+                            }
+                        }
+                    });
+                }
             }
+            // ▲▲▲【ここまで修正】▲▲▲
         });
     </script>
 </body>
