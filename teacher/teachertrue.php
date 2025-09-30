@@ -20,6 +20,13 @@ if ($teacher_id) {
     }
 }
 
+//不正侵入対策
+if (empty($_SESSION['MemberID'])) {
+    http_response_code(401);
+    echo "<p>ログイン情報が見つかりません。</p>";
+    exit;
+}
+
 // --- AJAXリクエストの処理 ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
@@ -201,6 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         // アクション: 学習者詳細を、選択された問題IDで絞り込んで取得（「学習者ごとの詳細」用）
         // 【ここを修正】: 学習者ごとの詳細結果に、文法項目分析を追加
         // 【ここを修正】: 学習者ごとの詳細結果に、文法項目分析を追加 + 初期表示用の全問題リスト取得を追加
+        // 【ここを修正】: 学習者ごとの詳細結果に、文法項目分析を追加 + 初期表示用の全問題リスト取得を追加 + 資格レベル取得を追加
         elseif ($_POST['action'] === 'get_student_details' && isset($_POST['student_id'])) {
             $student_id = $_POST['student_id'];
             $wids = isset($_POST['wids']) ? json_decode($_POST['wids']) : [];
@@ -208,9 +216,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $attempts = [];
             $grammar_stats = [];
             $all_questions = []; // 初期表示用に全問題リストを格納する配列
+            $student_levels = ['toeic' => null, 'eiken' => null]; // 資格レベルを格納する配列
+
+            // ★★★ 新規追加: 学習者の資格レベルを取得 ★★★
+            $stmt_levels = $conn->prepare("SELECT toeic_level, eiken_level FROM students WHERE uid = ?");
+            if ($stmt_levels) {
+                $stmt_levels->bind_param("s", $student_id);
+                $stmt_levels->execute();
+                $result_levels = $stmt_levels->get_result()->fetch_assoc();
+                if ($result_levels) {
+                    $student_levels['toeic'] = $result_levels['toeic_level'];
+                    $student_levels['eiken'] = $result_levels['eiken_level'];
+                }
+                $stmt_levels->close();
+            }
+            // ★★★ ここまで新規追加 ★★★
 
             // --- 1. 選択された問題に対するサマリーと解答履歴 (widsが指定されている場合のみ) ---
             if (!empty($wids) && is_array($wids)) {
+                // ... (このifブロックの中身は変更ありません) ...
                 $placeholders = implode(',', array_fill(0, count($wids), '?'));
                 $types = 's' . 's' . str_repeat('i', count($wids));
                 $params = array_merge([$teacher_id, $student_id], $wids);
@@ -233,7 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 while ($row = $result_attempts->fetch_assoc()) $attempts[] = $row;
                 $stmt_attempts->close();
             } else {
-                // widsが指定されていない場合（＝学習者選択時）は、チェックボックス表示用に全問題リストを取得
+                // ... (このelseブロックの中身も変更ありません) ...
                 $stmt_all_q = $conn->prepare("SELECT DISTINCT l.WID, q.Sentence FROM linedata l LEFT JOIN question_info q ON l.WID = q.WID WHERE l.UID = ? ORDER BY l.WID");
                 $stmt_all_q->bind_param("s", $student_id);
                 $stmt_all_q->execute();
@@ -243,13 +267,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
 
             // --- 2. 文法項目ごとの分析 (常に学習者の全解答履歴を対象とする) ---
+            // ... (このセクションの中身も変更ありません) ...
             $gid_map = [];
             $stmt_gid = $conn->prepare("SELECT GID, Item FROM grammar_translations WHERE language = 'ja'");
             $stmt_gid->execute();
             $gid_result = $stmt_gid->get_result();
             while ($row = $gid_result->fetch_assoc()) $gid_map[$row['GID']] = $row['Item'];
             $stmt_gid->close();
-
             $raw_data_stmt = $conn->prepare(
                 "SELECT l.WID, l.TF, l.attempt, qi.grammar, tr.Understand 
          FROM linedata l 
@@ -261,7 +285,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $raw_data_stmt->execute();
             $all_attempts = $raw_data_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             $raw_data_stmt->close();
-
             $temp_grammar_stats = [];
             foreach ($all_attempts as $attempt) {
                 if (!empty($attempt['grammar'])) {
@@ -269,7 +292,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     foreach ($grammar_ids as $gid) {
                         if (empty($gid) || !isset($gid_map[$gid])) continue;
                         $grammar_name = $gid_map[$gid];
-
                         if (!isset($temp_grammar_stats[$grammar_name])) {
                             $temp_grammar_stats[$grammar_name] = ['total' => 0, 'correct' => 0, 'hesitated' => 0, 'estimated' => 0];
                         }
@@ -280,7 +302,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 }
             }
-
             foreach ($temp_grammar_stats as $name => $stats) {
                 $grammar_stats[] = [
                     'grammar_name' => $name,
@@ -292,8 +313,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 ];
             }
 
-            // all_questions をレスポンスに追加
-            $response = ['summary' => $summary, 'attempts' => $attempts, 'grammar_stats' => $grammar_stats, 'all_questions' => $all_questions];
+            // ★★★ 変更: student_levels をレスポンスに追加 ★★★
+            $response = ['summary' => $summary, 'attempts' => $attempts, 'grammar_stats' => $grammar_stats, 'all_questions' => $all_questions, 'student_levels' => $student_levels];
         }
     } catch (Exception $e) {
         http_response_code(500);
@@ -322,14 +343,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             <button id="sidebar-close" class="sidebar-close-button">&times;</button>
         </div>
         <ul>
-            <li><a href="#">ホーム</a></li>
-            <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-            <li><a href="register-student.php">新規学生登録</a></li>
-            <li><a href="register-classteacher.php">教師-クラス登録</a></li>
-            <li><a href="./create/new.php?mode=0">新規英語問題作成</a></li>
-            <li><a href="create-test.php">新規英語テスト作成</a></li>
-            <li><a href='create-student-group.php'>学習者グルーピング作成</a></li>
             <li><a href='create-notification.php'>お知らせ作成</a></li>
+            <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
+            <li><a href="register-student.php">新規学習者
+                登録</a></li>
+            <li><a href="register-classteacher.php">クラス登録</a></li>
+            <li><a href="./create/new.php?mode=0">新規英語問題作成</a></li>
+            <li><a href="./create_ja/new.php?mode=0">新規日本語問題作成</a></li>
+            <li><a href="create-test.php">新規英語テスト作成</a></li>
+            <li><a href="create-test-ja.php">新規日本語テスト作成</a></li>
+            <li><a href=''>特徴量検索機能</a></li>
+            <li><a href=''>学習者グラフ表示</a></li>
+            <li><a href='create-student-group.php'>学習者グルーピング作成</a></li>
         </ul>
     </div>
     <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
@@ -351,10 +376,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 <h2>お知らせ一覧</h2>
                 <div class="announcements-list">
                     <?php
-                    $result = $conn->query("SELECT id, subject, content FROM notifications ORDER BY created_at DESC LIMIT 5");
+                    $result = $conn->query("SELECT id, subject, content FROM notifications ORDER BY created_at DESC");
                     if ($result && $result->num_rows > 0) {
                         while ($row = $result->fetch_assoc()) {
-                            echo "<a href='notification_detail.php?id=" . $row['id'] . "' class='announcement-link'>";
+                            echo "<a href='notification-detail.php?id=" . $row['id'] . "' class='announcement-link'>";
                             echo "<div class='announcement-item'>";
                             echo "<h3 class='announcement-title'>" . htmlspecialchars($row['subject']) . "</h3>";
                             $content_preview = mb_substr(strip_tags($row['content']), 0, 50);
@@ -415,7 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 }
                             } else {
                                 echo '<p>担当しているクラスに学習者がいません。もしくは担当しているクラスがありません。</p>';
-                                echo '<p><a href="register-classteacher.php">教師-クラス登録</a>からクラスの作成や登録、<a href="register-student.php">新規学習者登録</a>からクラスに学習者の登録を行ってください。</p>';
+                                echo '<p><a href="register-classteacher.php">クラス登録</a>からクラスの作成や登録、<a href="register-student.php">新規学習者登録</a>からクラスに学習者の登録を行ってください。</p>';
                             }
                         }
                         ?>
@@ -646,7 +671,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             action: 'get_student_details',
                             student_id: studentId
                         });
-                        renderGrammarAnalysis(data.grammar_stats); // 文法分析を先に描画
+
+                        // ★★★ 変更: student_levels も renderGrammarAnalysis に渡す ★★★
+                        renderGrammarAnalysis(data.grammar_stats, data.student_levels);
+
                         renderCheckboxes(questionCheckboxContainerStudent, data.all_questions, 'question', '問題');
                         if (data.all_questions && data.all_questions.length > 0) {
                             studentControls.style.display = 'block';
@@ -672,7 +700,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             student_id: studentId,
                             wids: JSON.stringify(selectedWids)
                         });
-                        renderStudentProblemResults(data, studentId); // 問題ごとの結果のみを描画
+                        renderStudentProblemResults(data, studentId);
                     } catch (error) {
                         console.error('Error fetching student details:', error);
                         studentDetailsContainer.innerHTML = '<p class="error">詳細の読み込みに失敗しました。</p>';
@@ -681,6 +709,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
 
             // --- 5. 共通の描画・補助関数 ---
+            // ... (fetchData, handleStudentSelectionChangeForTest, renderCheckboxes, renderClassResults, renderTestResults は変更なし) ...
             async function fetchData(bodyObj) {
                 const formData = new FormData();
                 for (const key in bodyObj) formData.append(key, bodyObj[key]);
@@ -691,7 +720,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if (!response.ok) throw new Error(`Network response was not ok, status: ${response.status}`);
                 return await response.json();
             }
-
             async function handleStudentSelectionChangeForTest() {
                 const selectedStudents = studentCheckboxContainer.querySelectorAll('input:checked');
                 const testId = testSelect.value;
@@ -720,11 +748,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     container.innerHTML = `<p>対象の${type === 'student' ? '学習者' : '問題'}はありません。</p>`;
                     return;
                 }
+
+                // ▼▼▼ ここから追加 ▼▼▼
+                let infoPopupHtml = '';
+                // 「テストごと」の学習者選択の時だけポップアップを追加する
+                if (title.includes('学習者を選択')) {
+                    infoPopupHtml = `
+        <span class="info-icon">i
+            <div class="info-popup" style="width: 280px; text-align: left;">
+                <strong>アスタリスク（*）について</strong>
+                <p style="margin: 5px 0 0 0; font-style: normal;">
+                    学習者名の横にアスタリスクが表示されている場合、その学習者はまだこのテストを解答していません。
+                </p>
+            </div>
+        </span>`;
+                }
+                // ▲▲▲ ここまで追加 ▲▲▲
                 const idKey = type === 'student' ? 'uid' : 'WID';
                 const nameKey = type === 'student' ? 'Name' : 'Sentence';
-                let checkboxesHtml = `<h4>${title}</h4>
-            <div class="checkbox-controls"><label><input type="checkbox" class="select-all" checked> 全て選択 / 解除</label></div>
-            <div class="checkbox-list">`;
+                let checkboxesHtml = `<h4>${title} ${infoPopupHtml}</h4>
+        <div class="checkbox-controls"><label><input type="checkbox" class="select-all" checked> 全て選択 / 解除</label></div>
+        <div class="checkbox-list">`;
                 items.forEach(item => {
                     const displayName = type === 'student' ?
                         `${item[nameKey]} (${item[idKey]})` : `WID:${item[idKey]}` + (item[nameKey] ? ` : ${item[nameKey]}` : '');
@@ -746,15 +790,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 let tableHtml = `<table><thead><tr><th>クラス名</th><th>学習者名 (ID)</th><th>テスト名</th><th>問題ID (回数)</th><th>正誤</th><th>迷い推定</th><th>解答日時</th><th>軌跡再現</th></tr></thead><tbody>`;
                 data.forEach(row => {
                     tableHtml += `<tr>
-                <td>${row.ClassName}</td>
-                <td>${row.student_name} (${row.student_id})</td>
-                <td>${row.test_name}</td>
-                <td>${row.WID} (${row.attempt}回目)</td>
-                <td class="${row.correctness === '不正解' ? 'incorrect' : ''}">${row.correctness}</td>
-                <td class="${row.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${row.hesitation}</td>
-                <td>${row.date}</td>
-                <td><a href="./mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
-            </tr>`;
+            <td>${row.ClassName}</td>
+            <td>${row.student_name} (${row.student_id})</td>
+            <td>${row.test_name}</td>
+            <td>${row.WID} (${row.attempt}回目)</td>
+            <td class="${row.correctness === '不正解' ? 'incorrect' : ''}">${row.correctness}</td>
+            <td class="${row.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${row.hesitation}</td>
+            <td>${row.date}</td>
+            <td><a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
+        </tr>`;
                 });
                 classResultsContainer.innerHTML = tableHtml + '</tbody></table>';
             }
@@ -765,13 +809,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 data.forEach(row => {
                     const isUnanswered = row.correctness === '未解答';
                     tableHtml += `<tr>
-                <td>${row.student_name} (${row.student_id})</td>
-                <td>${row.WID}</td>
-                <td class="${isUnanswered ? '' : (row.correctness === '不正解' ? 'incorrect' : '')}">${row.correctness}</td>
-                <td class="${isUnanswered ? '' : (row.hesitation === '迷い有り' ? 'hesitation-yes' : '')}">${row.hesitation}</td>
-                <td>${row.date}</td>
-                <td>${isUnanswered ? '-' : `<a href="./mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${testSelect.value}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a>`}</td>
-            </tr>`;
+            <td>${row.student_name} (${row.student_id})</td>
+            <td>${row.WID}</td>
+            <td class="${isUnanswered ? '' : (row.correctness === '不正解' ? 'incorrect' : '')}">${row.correctness}</td>
+            <td class="${isUnanswered ? '' : (row.hesitation === '迷い有り' ? 'hesitation-yes' : '')}">${row.hesitation}</td>
+            <td>${row.date}</td>
+            <td>${isUnanswered ? '-' : `<a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${testSelect.value}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a>`}</td>
+        </tr>`;
                 });
                 testResultsContainer.innerHTML = tableHtml + '</tbody></table>';
             }
@@ -793,13 +837,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     data.attempts.forEach(attempt => {
                         const testName = attempt.test_name || '（不明なテスト）';
                         detailsHtml += `<tr>
-                    <td>${attempt.WID} (${attempt.attempt}回目)</td>
-                    <td>${testName}</td>
-                    <td class="${attempt.correctness === '不正解' ? 'incorrect' : ''}">${attempt.correctness}</td>
-                    <td class="${attempt.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${attempt.hesitation}</td>
-                    <td>${attempt.date}</td>
-                    <td><a href="./mousemove/mousemove.php?UID=${studentId}&WID=${attempt.WID}&test_id=${attempt.test_id}&LogID=${attempt.attempt}" target="_blank" class="link-button">表示</a></td>
-                </tr>`;
+                <td>${attempt.WID} (${attempt.attempt}回目)</td>
+                <td>${testName}</td>
+                <td class="${attempt.correctness === '不正解' ? 'incorrect' : ''}">${attempt.correctness}</td>
+                <td class="${attempt.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${attempt.hesitation}</td>
+                <td>${attempt.date}</td>
+                <td><a href="../mousemove/mousemove.php?UID=${studentId}&WID=${attempt.WID}&test_id=${attempt.test_id}&LogID=${attempt.attempt}" target="_blank" class="link-button">表示</a></td>
+            </tr>`;
                     });
                     detailsHtml += '</tbody></table>';
                 }
@@ -807,25 +851,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
 
             // 「文法項目ごとの分析」を描画する関数
-            function renderGrammarAnalysis(grammarStats) {
-                grammarAnalysisWrapper.style.display = 'block'; // コンテナを表示
+            function renderGrammarAnalysis(grammarStats, studentLevels) {
+                grammarAnalysisWrapper.style.display = 'block';
+
+                // ▼▼▼ ここから追加 ▼▼▼
+                const grammarInfoPopupHtml = `
+    <span class="info-icon">i
+        <div class="info-popup">
+            <strong>各指標の説明</strong>
+            <ul>
+                <li><strong>迷い率:</strong> 推定結果が「迷い有り」または「迷い無し」の問題における「迷い有り」の割合です。（「未推定」は計算から除外）</li>
+                <li><strong>総解答数について:</strong> 1つの問題に複数の文法項目が関連付けられている場合があるため、この表の総解答数の合計は、問題ごとの解答総数と一致しないことがあります。</li>
+            </ul>
+        </div>
+    </span>`;
+                // ▲▲▲ ここまで追加 ▲▲▲
+
+                let levelsHtml = '';
+                if (studentLevels && (studentLevels.toeic || studentLevels.eiken)) {
+                    const eikenMap = {
+                        '1': '1級',
+                        'pre1': '準1級',
+                        '2': '2級',
+                        'pre2': '準2級',
+                        '3': '3級',
+                        '4': '4級',
+                        '5': '5級'
+                    };
+                    levelsHtml += '<div class="student-levels">';
+                    if (studentLevels.toeic) levelsHtml += `<span class="level-item"><strong>TOEIC:</strong> ${studentLevels.toeic}点台</span>`;
+                    if (studentLevels.eiken) levelsHtml += `<span class="level-item"><strong>英検:</strong> ${eikenMap[studentLevels.eiken] || studentLevels.eiken}</span>`;
+                    levelsHtml += '</div>';
+                }
+
+                let grammarHtml = `<h4>文法項目ごとの分析 ${grammarInfoPopupHtml}</h4>${levelsHtml}`;
+
                 if (!grammarStats || grammarStats.length === 0) {
-                    grammarAnalysisWrapper.innerHTML = '<h4>文法項目ごとの分析</h4><p>この学習者の文法分析データはありません。</p>';
+                    grammarAnalysisWrapper.innerHTML = grammarHtml + '<p>この学習者の文法分析データはありません。</p>';
                     return;
                 }
 
-                let grammarHtml = `<h4>文法項目ごとの分析</h4><div class="grammar-analysis-container"><div class="grammar-table-container">
-            <table><thead><tr><th>文法項目</th><th>総解答数</th><th>正解数</th><th>迷い数</th><th>不正解率</th><th>迷い率</th></tr></thead><tbody>`;
+                grammarHtml += `<div class="grammar-analysis-container"><div class="grammar-table-container">
+        <table><thead><tr><th>文法項目</th><th>総解答数</th><th>正解数</th><th>迷い数</th><th>正解率</th><th>迷い率</th></tr></thead><tbody>`;
                 grammarStats.forEach(stat => {
-                    const incorrectRate = (100 - stat.correct_rate).toFixed(2);
                     grammarHtml += `<tr>
-                <td>${stat.grammar_name}</td>
-                <td>${stat.total_attempts}</td>
-                <td>${stat.correct_count}</td>
-                <td>${stat.hesitated_count}</td>
-                <td>${incorrectRate}%</td>
-                <td>${stat.hesitation_rate.toFixed(2)}%</td>
-            </tr>`;
+            <td>${stat.grammar_name}</td>
+            <td>${stat.total_attempts}</td>
+            <td>${stat.correct_count}</td>
+            <td>${stat.hesitated_count}</td>
+            <td>${stat.correct_rate.toFixed(2)}%</td>
+            <td>${stat.hesitation_rate.toFixed(2)}%</td>
+        </tr>`;
                 });
                 grammarHtml += `</tbody></table></div><div class="grammar-chart-container"><canvas id="grammarAnalysisChart"></canvas></div></div>`;
                 grammarAnalysisWrapper.innerHTML = grammarHtml;
@@ -837,13 +913,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     data: {
                         labels: grammarStats.map(s => s.grammar_name),
                         datasets: [{
-                            label: '不正解率 (%)',
-                            data: grammarStats.map(s => (100 - s.correct_rate).toFixed(2)),
-                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            label: '正解率 (%)',
+                            data: grammarStats.map(s => s.correct_rate.toFixed(2)),
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)', // 青系
                         }, {
                             label: '迷い率 (%)',
                             data: grammarStats.map(s => s.hesitation_rate.toFixed(2)),
-                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
                         }]
                     },
                     options: {
@@ -852,7 +928,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         plugins: {
                             title: {
                                 display: true,
-                                text: '文法項目ごとの不正解率と迷い率'
+                                text: '文法項目ごとの正解率と迷い率'
                             }
                         },
                         scales: {

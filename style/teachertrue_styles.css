@@ -482,3 +482,69 @@ tbody tr:hover {
     /* グラフの幅を調整 */
     min-width: 300px;
 }
+
+/* ======== ▼▼▼ ここから追加 ▼▼▼ ======== */
+
+/* 学習者の資格レベル表示 */
+.student-levels {
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 15px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.level-item {
+    font-size: 0.9rem;
+}
+
+.level-item strong {
+    margin-right: 5px;
+}
+
+/* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */
+
+/* ======== ▼▼▼ ここから追加 ▼▼▼ ======== */
+
+/* 成績情報セクションの区切りを明確にするスタイル */
+
+/* 2番目以降の成績セクションの上に区切り線を追加 */
+.grades-section + .grades-section {
+    border-top: 1px solid #3b4398;
+    padding-top: 25px;
+}
+
+/* 各成績セクションの見出し(h3)に左のアクセント線を追加 */
+.grades-section h3 {
+    position: relative; /* アクセント線の位置の基準とする */
+    padding-left: 15px; /* テキストと線の間に余白を確保 */
+}
+
+.grades-section h3::before {
+    content: '';
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%); /* 上下中央に配置 */
+    height: 70%; /* テキストより少し短い高さにする */
+    width: 4px;
+    background-color: var(--primary-color); /* テーマのメインカラーを使用 */
+    border-radius: 2px;
+}
+
+/* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */
+
+/* ======== ▼▼▼ ここから追加 ▼▼▼ ======== */
+
+/* お知らせセクションをスクロール可能にする */
+.announcements-list {
+    max-height: 450px; /* 5件程度が表示される高さに調整 */
+    overflow-y: auto;  /* 内容が最大の高さを超えたら縦スクロールバーを表示 */
+    padding-right: 10px; /* スクロールバーと内容が重ならないように余白を追加 */
+}
+
+/* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */
