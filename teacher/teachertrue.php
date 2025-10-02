@@ -59,7 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->bind_param($types, ...$params);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                while ($row = $result->fetch_assoc()) $response[] = $row;
+                while ($row = $result->fetch_assoc())
+                    $response[] = $row;
                 $stmt->close();
             }
         }
@@ -120,7 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt->bind_param("i", $_POST['test_id']);
             $stmt->execute();
             $result = $stmt->get_result();
-            while ($row = $result->fetch_assoc()) $response[] = $row;
+            while ($row = $result->fetch_assoc())
+                $response[] = $row;
             $stmt->close();
         }
 
@@ -135,7 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt->bind_param("i", $_POST['student_id']);
             $stmt->execute();
             $result = $stmt->get_result();
-            while ($row = $result->fetch_assoc()) $response[] = $row;
+            while ($row = $result->fetch_assoc())
+                $response[] = $row;
             $stmt->close();
         }
 
@@ -245,8 +248,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stats_result = $stmt_stats->get_result()->fetch_assoc();
                 if ($stats_result) {
                     $summary['total_attempts'] = $stats_result['selected_total'] ?? 0;
-                    if ($stats_result['selected_total'] > 0) $summary['accuracy'] = round(($stats_result['selected_correct'] / $stats_result['selected_total']) * 100, 1) . '%';
-                    if ($stats_result['estimated_count'] > 0) $summary['hesitation_rate'] = round(($stats_result['hesitated_count'] / $stats_result['estimated_count']) * 100, 1) . '%';
+                    if ($stats_result['selected_total'] > 0)
+                        $summary['accuracy'] = round(($stats_result['selected_correct'] / $stats_result['selected_total']) * 100, 1) . '%';
+                    if ($stats_result['estimated_count'] > 0)
+                        $summary['hesitation_rate'] = round(($stats_result['hesitated_count'] / $stats_result['estimated_count']) * 100, 1) . '%';
                 }
                 $stmt_stats->close();
 
@@ -254,7 +259,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt_attempts->bind_param($types, ...$params);
                 $stmt_attempts->execute();
                 $result_attempts = $stmt_attempts->get_result();
-                while ($row = $result_attempts->fetch_assoc()) $attempts[] = $row;
+                while ($row = $result_attempts->fetch_assoc())
+                    $attempts[] = $row;
                 $stmt_attempts->close();
             } else {
                 // ... (このelseブロックの中身も変更ありません) ...
@@ -262,7 +268,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt_all_q->bind_param("s", $student_id);
                 $stmt_all_q->execute();
                 $result_all_q = $stmt_all_q->get_result();
-                while ($row = $result_all_q->fetch_assoc()) $all_questions[] = $row;
+                while ($row = $result_all_q->fetch_assoc())
+                    $all_questions[] = $row;
                 $stmt_all_q->close();
             }
 
@@ -272,7 +279,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt_gid = $conn->prepare("SELECT GID, Item FROM grammar_translations WHERE language = 'ja'");
             $stmt_gid->execute();
             $gid_result = $stmt_gid->get_result();
-            while ($row = $gid_result->fetch_assoc()) $gid_map[$row['GID']] = $row['Item'];
+            while ($row = $gid_result->fetch_assoc())
+                $gid_map[$row['GID']] = $row['Item'];
             $stmt_gid->close();
             $raw_data_stmt = $conn->prepare(
                 "SELECT l.WID, l.TF, l.attempt, qi.grammar, tr.Understand 
@@ -290,15 +298,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if (!empty($attempt['grammar'])) {
                     $grammar_ids = explode('#', trim($attempt['grammar'], '#'));
                     foreach ($grammar_ids as $gid) {
-                        if (empty($gid) || !isset($gid_map[$gid])) continue;
+                        if (empty($gid) || !isset($gid_map[$gid]))
+                            continue;
                         $grammar_name = $gid_map[$gid];
                         if (!isset($temp_grammar_stats[$grammar_name])) {
                             $temp_grammar_stats[$grammar_name] = ['total' => 0, 'correct' => 0, 'hesitated' => 0, 'estimated' => 0];
                         }
                         $temp_grammar_stats[$grammar_name]['total']++;
-                        if ($attempt['TF'] == 1) $temp_grammar_stats[$grammar_name]['correct']++;
-                        if ($attempt['Understand'] == 2) $temp_grammar_stats[$grammar_name]['hesitated']++;
-                        if (in_array($attempt['Understand'], [2, 4])) $temp_grammar_stats[$grammar_name]['estimated']++;
+                        if ($attempt['TF'] == 1)
+                            $temp_grammar_stats[$grammar_name]['correct']++;
+                        if ($attempt['Understand'] == 2)
+                            $temp_grammar_stats[$grammar_name]['hesitated']++;
+                        if (in_array($attempt['Understand'], [2, 4]))
+                            $temp_grammar_stats[$grammar_name]['estimated']++;
                     }
                 }
             }
@@ -346,7 +358,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             <li><a href='create-notification.php'>お知らせ作成</a></li>
             <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
             <li><a href="register-student.php">新規学習者
-                登録</a></li>
+                    登録</a></li>
             <li><a href="register-classteacher.php">クラス登録</a></li>
             <li><a href="./create/new.php?mode=0">新規英語問題作成</a></li>
             <li><a href="./create_ja/new.php?mode=0">新規日本語問題作成</a></li>
@@ -418,7 +430,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 $stmt_classes->bind_param("s", $teacher_id);
                                 $stmt_classes->execute();
                                 $class_result = $stmt_classes->get_result();
-                                while ($row = $class_result->fetch_assoc()) $class_ids[] = $row['ClassID'];
+                                while ($row = $class_result->fetch_assoc())
+                                    $class_ids[] = $row['ClassID'];
                                 $stmt_classes->close();
                             }
 
@@ -471,15 +484,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
 
                     if (empty($tests_list)):
-                    ?>
-                        <p>テスト作成がまだ行われていません。<a href="create-test.php">新規英語テスト作成</a>もしくは<a href="create-test-ja.php">新規日本語テスト作成</a>からテストを作成してください</p>
+                        ?>
+                        <p>テスト作成がまだ行われていません。<a href="create-test.php">新規英語テスト作成</a>もしくは<a
+                                href="create-test-ja.php">新規日本語テスト作成</a>からテストを作成してください</p>
                     <?php else: ?>
                         <div class="controls">
                             <label for="test-select">1. テストを選択:</label>
                             <select id="test-select" name="test-select">
                                 <option value="">-- 選択してください --</option>
                                 <?php foreach ($tests_list as $test): ?>
-                                    <option value="<?= htmlspecialchars($test['id']) ?>"><?= htmlspecialchars($test['test_name']) ?></option>
+                                    <option value="<?= htmlspecialchars($test['id']) ?>">
+                                        <?= htmlspecialchars($test['test_name']) ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -508,7 +524,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     $stmt_classes->bind_param("s", $teacher_id);
                                     $stmt_classes->execute();
                                     $result_classes = $stmt_classes->get_result();
-                                    while ($row_class = $result_classes->fetch_assoc()) $class_ids[] = $row_class['ClassID'];
+                                    while ($row_class = $result_classes->fetch_assoc())
+                                        $class_ids[] = $row_class['ClassID'];
                                     $stmt_classes->close();
                                 }
                                 if (!empty($class_ids)) {
@@ -544,7 +561,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // 要素の取得
             const menuToggle = document.getElementById('menu-toggle');
             const sidebarClose = document.getElementById('sidebar-close');
@@ -571,6 +588,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const showStudentDetailsBtn = document.getElementById('show-student-details-btn');
             const studentDetailsContainer = document.getElementById('student-details-container');
             const grammarAnalysisWrapper = document.getElementById('grammar-analysis-wrapper'); // 新しく追加
+
+            // ▼▼▼【変更点】各セクションのデータとソート状態を保持する変数を追加 ▼▼▼
+            let currentClassData = [];
+            let currentClassSort = { column: null, direction: 'asc' };
+
+            let currentTestData = [];
+            let currentTestSort = { column: null, direction: 'asc' };
+
+            let currentStudentDetailsData = [];
+            let currentStudentDetailsSort = { column: null, direction: 'asc' };
+            // ▲▲▲【変更点】ここまで ▲▲▲
 
             // --- 1. サイドバーの開閉処理 ---
             function openSidebar() {
@@ -611,12 +639,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             // --- 3. テストごとの結果表示 ---
             if (testSelect) {
-                testSelect.addEventListener('change', async function() {
+                testSelect.addEventListener('change', async function () {
                     const testId = this.value;
                     studentCheckboxContainer.innerHTML = '';
                     testQuestionCheckboxContainer.innerHTML = '';
                     testControls.style.display = 'none';
                     testResultsContainer.innerHTML = '<p>テストを選択してください。</p>';
+                    currentTestData = []; // データリセット
                     if (!testId) return;
                     studentCheckboxContainer.innerHTML = '<p class="loading">受験者を読み込んでいます...</p>';
                     try {
@@ -654,7 +683,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             // --- 4. 学習者ごとの詳細結果 ---
             if (studentSelect) {
-                studentSelect.addEventListener('change', async function() {
+                studentSelect.addEventListener('change', async function () {
                     const studentId = this.value;
                     // 各コンテナを初期化
                     studentDetailsContainer.innerHTML = '<p>学習者を選択すると、解答した問題リストが表示されます。</p>';
@@ -662,6 +691,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     grammarAnalysisWrapper.style.display = 'none';
                     grammarAnalysisWrapper.innerHTML = '';
                     studentControls.style.display = 'none';
+                    currentStudentDetailsData = []; // データリセット
 
                     if (!studentId) return;
 
@@ -778,77 +808,220 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 checkboxesHtml += '</div>';
                 container.innerHTML = checkboxesHtml;
 
-                container.querySelector('.select-all').addEventListener('change', function(e) {
+                container.querySelector('.select-all').addEventListener('change', function (e) {
                     container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = e.target.checked);
                     if (container === studentCheckboxContainer) handleStudentSelectionChangeForTest();
                 });
                 if (container === studentCheckboxContainer) handleStudentSelectionChangeForTest();
             }
 
-            function renderClassResults(data) {
-                if (!data || data.length === 0) return classResultsContainer.innerHTML = '<p>選択された学習者の解答結果はありません。</p>';
-                let tableHtml = `<table><thead><tr><th>クラス名</th><th>学習者名 (ID)</th><th>テスト名</th><th>問題ID (回数)</th><th>正誤</th><th>迷い推定</th><th>解答日時</th><th>軌跡再現</th></tr></thead><tbody>`;
-                data.forEach(row => {
-                    tableHtml += `<tr>
-            <td>${row.ClassName}</td>
-            <td>${row.student_name} (${row.student_id})</td>
-            <td>${row.test_name}</td>
-            <td>${row.WID} (${row.attempt}回目)</td>
-            <td class="${row.correctness === '不正解' ? 'incorrect' : ''}">${row.correctness}</td>
-            <td class="${row.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${row.hesitation}</td>
-            <td>${row.date}</td>
-            <td><a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
-        </tr>`;
+            // --- 汎用ソート関数 ---
+            function sortData(data, column, direction) {
+                const sortedData = [...data].sort((a, b) => {
+                    let valA = a[column];
+                    let valB = b[column];
+                    let result = 0;
+
+                    // 各列の特殊なソートロジック
+                    switch (column) {
+                        case 'hesitation':
+                            const hesitationOrder = { '迷い有り': 1, '迷い無し': 2, '未推定': 3, '-': 4 };
+                            result = (hesitationOrder[valA] || 99) - (hesitationOrder[valB] || 99);
+                            break;
+                        case 'correctness':
+                            const correctnessOrder = { '正解': 1, '不正解': 2, '未解答': 3 };
+                            result = (correctnessOrder[valA] || 99) - (correctnessOrder[valB] || 99);
+                            break;
+                        case 'date':
+                            result = new Date(valB) - new Date(valA); // 新しい順
+                            break;
+                        case 'test_id': // テスト名で代用
+                        case 'test_name':
+                            result = b.test_id - a.test_id; // IDの降順（新しい順）
+                            break;
+                        case 'ClassName':
+                        case 'student_name':
+                        case 'WID':
+                            const idA = parseInt(a[column.replace('name', 'id').replace('Name', 'id').replace('WID', 'WID')] || 0);
+                            const idB = parseInt(b[column.replace('name', 'id').replace('Name', 'id').replace('WID', 'WID')] || 0);
+                            result = idA - idB;
+                            break;
+                        default:
+                            // デフォルトの文字列/数値比較
+                            if (valA < valB) result = -1;
+                            if (valA > valB) result = 1;
+                            break;
+                    }
+                    return result * (direction === 'asc' ? 1 : -1);
                 });
-                classResultsContainer.innerHTML = tableHtml + '</tbody></table>';
+                return sortedData;
+            }
+
+            // --- テーブル描画関数の再定義 ---
+
+            function renderClassResults(data) {
+                currentClassData = data; // 元データを保存
+                currentClassSort = { column: null, direction: 'asc' }; // ソート状態をリセット
+                renderClassTable();
+            }
+            function renderClassTable() {
+                const container = classResultsContainer;
+                const dataToSort = currentClassSort.column ? sortData(currentClassData, currentClassSort.column, currentClassSort.direction) : currentClassData;
+
+                if (!dataToSort || dataToSort.length === 0) {
+                    container.innerHTML = '<p>選択された学習者の解答結果はありません。</p>';
+                    return;
+                }
+
+                let tableHtml = `<table><thead><tr>
+            <th data-sort="ClassName">クラス名</th>
+            <th data-sort="student_name">学習者名 (ID)</th>
+            <th data-sort="test_name">テスト名</th>
+            <th data-sort="WID">問題ID (回数)</th>
+            <th data-sort="correctness">正誤</th>
+            <th data-sort="hesitation">迷い推定</th>
+            <th data-sort="date">解答日時</th>
+            <th>軌跡再現</th>
+        </tr></thead><tbody>`;
+
+                dataToSort.forEach(row => {
+                    tableHtml += `<tr>
+                <td>${row.ClassName}</td>
+                <td>${row.student_name} (${row.student_id})</td>
+                <td>${row.test_name}</td>
+                <td>${row.WID} (${row.attempt}回目)</td>
+                <td class="${row.correctness === '不正解' ? 'incorrect' : ''}">${row.correctness}</td>
+                <td class="${row.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${row.hesitation}</td>
+                <td>${row.date}</td>
+                <td><a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
+            </tr>`;
+                });
+                container.innerHTML = tableHtml + '</tbody></table>';
+                updateSortHeaders(container, currentClassSort);
             }
 
             function renderTestResults(data) {
-                if (!data || data.length === 0) return testResultsContainer.innerHTML = '<p>該当する解答結果はありません。</p>';
-                let tableHtml = `<table><thead><tr><th>学習者名 (ID)</th><th>問題ID</th><th>正誤</th><th>迷い推定</th><th>解答日時</th><th>軌跡再現</th></tr></thead><tbody>`;
-                data.forEach(row => {
-                    const isUnanswered = row.correctness === '未解答';
-                    tableHtml += `<tr>
-            <td>${row.student_name} (${row.student_id})</td>
-            <td>${row.WID}</td>
-            <td class="${isUnanswered ? '' : (row.correctness === '不正解' ? 'incorrect' : '')}">${row.correctness}</td>
-            <td class="${isUnanswered ? '' : (row.hesitation === '迷い有り' ? 'hesitation-yes' : '')}">${row.hesitation}</td>
-            <td>${row.date}</td>
-            <td>${isUnanswered ? '-' : `<a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${testSelect.value}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a>`}</td>
-        </tr>`;
-                });
-                testResultsContainer.innerHTML = tableHtml + '</tbody></table>';
+                currentTestData = data;
+                currentTestSort = { column: null, direction: 'asc' };
+                renderTestTable();
             }
+            function renderTestTable() {
+                const container = testResultsContainer;
+                const dataToSort = currentTestSort.column ? sortData(currentTestData, currentTestSort.column, currentTestSort.direction) : currentTestData;
 
-            // ▼▼▼【ここから修正】▼▼▼
-            // 「問題ごとの結果」を描画する関数（サマリー + 解答履歴）
-            function renderStudentProblemResults(data, studentId) {
-                if (!data || !data.summary) {
-                    studentDetailsContainer.innerHTML = '<p>この学習者のデータはありません。</p>';
+                if (!dataToSort || dataToSort.length === 0) {
+                    container.innerHTML = '<p>該当する解答結果はありません。</p>';
                     return;
                 }
-                const infoPopupHtml = `<span class="info-icon">i<div class="info-popup"><strong>各指標の説明</strong><ul><li><strong>総解答数:</strong> 選択された問題において、この学習者が解答した総数です。</li><li><strong>正答率:</strong> 選択された問題における正解の割合です。</li><li><strong>迷い率:</strong> 選択された問題のうち、推定結果が「迷い有り」または「迷い無し」の問題における「迷い有り」の割合です。（「未推定」は計算から除外）</li></ul></div></span>`;
-                let detailsHtml = `<div class="student-summary"><h4>総合評価 ${infoPopupHtml}</h4><p><strong>総解答数 (選択問題):</strong> ${data.summary.total_attempts}</p><p><strong>正答率 (選択問題):</strong> ${data.summary.accuracy}</p><p><strong>迷い率 (選択問題):</strong> ${data.summary.hesitation_rate}</p></div><h4>問題ごとの結果</h4>`;
 
-                if (!data.attempts || data.attempts.length === 0) {
+                let tableHtml = `<table><thead><tr>
+            <th data-sort="student_name">学習者名 (ID)</th>
+            <th data-sort="WID">問題ID</th>
+            <th data-sort="correctness">正誤</th>
+            <th data-sort="hesitation">迷い推定</th>
+            <th data-sort="date">解答日時</th>
+            <th>軌跡再現</th>
+        </tr></thead><tbody>`;
+
+                dataToSort.forEach(row => {
+                    const isUnanswered = row.correctness === '未解答';
+                    tableHtml += `<tr>
+                <td>${row.student_name} (${row.student_id})</td>
+                <td>${row.WID}</td>
+                <td class="${isUnanswered ? '' : (row.correctness === '不正解' ? 'incorrect' : '')}">${row.correctness}</td>
+                <td class="${isUnanswered ? '' : (row.hesitation === '迷い有り' ? 'hesitation-yes' : '')}">${row.hesitation}</td>
+                <td>${row.date}</td>
+                <td>${isUnanswered ? '-' : `<a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${testSelect.value}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a>`}</td>
+            </tr>`;
+                });
+                container.innerHTML = tableHtml + '</tbody></table>';
+                updateSortHeaders(container, currentTestSort);
+            }
+
+            function renderStudentProblemResults(data, studentId) {
+                currentStudentDetailsData = data.attempts || [];
+                currentStudentDetailsSort = { column: null, direction: 'asc' };
+                renderStudentDetailsTable(data, studentId);
+            }
+            function renderStudentDetailsTable(data = null, studentId = null) {
+                const container = studentDetailsContainer;
+                const dataToSort = currentStudentDetailsSort.column ? sortData(currentStudentDetailsData, currentStudentDetailsSort.column, currentStudentDetailsSort.direction) : currentStudentDetailsData;
+
+                // 総合評価部分はソートの影響を受けないので、初回描画時のみ生成
+                let detailsHtml = '';
+                if (data && data.summary) {
+                    const infoPopupHtml = `<span class="info-icon">i<div class="info-popup"><strong>各指標の説明</strong><ul><li><strong>総解答数:</strong> 選択された問題において、この学習者が解答した総数です。</li><li><strong>正答率:</strong> 選択された問題における正解の割合です。</li><li><strong>迷い率:</strong> 選択された問題のうち、推定結果が「迷い有り」または「迷い無し」の問題における「迷い有り」の割合です。（「未推定」は計算から除外）</li></ul></div></span>`;
+                    detailsHtml += `<div class="student-summary"><h4>総合評価 ${infoPopupHtml}</h4><p><strong>総解答数 (選択問題):</strong> ${data.summary.total_attempts}</p><p><strong>正答率 (選択問題):</strong> ${data.summary.accuracy}</p><p><strong>迷い率 (選択問題):</strong> ${data.summary.hesitation_rate}</p></div><h4>問題ごとの結果</h4>`;
+                } else {
+                    // ソート時（dataがない場合）は既存のサマリー部分を維持
+                    const summaryNode = container.querySelector('.student-summary');
+                    if (summaryNode) {
+                        detailsHtml += summaryNode.outerHTML + '<h4>問題ごとの結果</h4>';
+                    }
+                }
+
+                if (!dataToSort || dataToSort.length === 0) {
                     detailsHtml += '<p>選択された問題の解答履歴はありません。</p>';
                 } else {
-                    detailsHtml += `<table><thead><tr><th>問題ID</th><th>テスト名</th><th>正誤</th><th>迷い推定</th><th>解答日時</th><th>軌跡再現</th></tr></thead><tbody>`;
-                    data.attempts.forEach(attempt => {
+                    detailsHtml += `<table><thead><tr>
+                <th data-sort="WID">問題ID</th>
+                <th data-sort="test_name">テスト名</th>
+                <th data-sort="correctness">正誤</th>
+                <th data-sort="hesitation">迷い推定</th>
+                <th data-sort="date">解答日時</th>
+                <th>軌跡再現</th>
+            </tr></thead><tbody>`;
+                    dataToSort.forEach(attempt => {
                         const testName = attempt.test_name || '（不明なテスト）';
+                        const currentStudentId = studentId || studentSelect.value;
                         detailsHtml += `<tr>
-                <td>${attempt.WID} (${attempt.attempt}回目)</td>
-                <td>${testName}</td>
-                <td class="${attempt.correctness === '不正解' ? 'incorrect' : ''}">${attempt.correctness}</td>
-                <td class="${attempt.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${attempt.hesitation}</td>
-                <td>${attempt.date}</td>
-                <td><a href="../mousemove/mousemove.php?UID=${studentId}&WID=${attempt.WID}&test_id=${attempt.test_id}&LogID=${attempt.attempt}" target="_blank" class="link-button">表示</a></td>
-            </tr>`;
+                    <td>${attempt.WID} (${attempt.attempt}回目)</td>
+                    <td>${testName}</td>
+                    <td class="${attempt.correctness === '不正解' ? 'incorrect' : ''}">${attempt.correctness}</td>
+                    <td class="${attempt.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${attempt.hesitation}</td>
+                    <td>${attempt.date}</td>
+                    <td><a href="../mousemove/mousemove.php?UID=${currentStudentId}&WID=${attempt.WID}&test_id=${attempt.test_id}&LogID=${attempt.attempt}" target="_blank" class="link-button">表示</a></td>
+                </tr>`;
                     });
                     detailsHtml += '</tbody></table>';
                 }
-                studentDetailsContainer.innerHTML = detailsHtml;
+                container.innerHTML = detailsHtml;
+                updateSortHeaders(container, currentStudentDetailsSort);
             }
+
+            function updateSortHeaders(container, sortState) {
+                container.querySelectorAll('th[data-sort]').forEach(th => {
+                    th.classList.remove('sort-asc', 'sort-desc');
+                    if (th.dataset.sort === sortState.column) {
+                        th.classList.add(`sort-${sortState.direction}`);
+                    }
+                });
+            }
+
+            // --- ソート用のイベントリスナー ---
+            function handleSort(e, sortState, renderFunc) {
+                const th = e.target.closest('th[data-sort]');
+                if (!th) return;
+
+                const column = th.dataset.sort;
+                let direction = 'asc';
+
+                if (sortState.column === column) {
+                    direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    // 新しい列がクリックされた場合、基本は昇順。ただし特定の列は初回降順にする
+                    direction = ['date', 'test_name', 'test_id'].includes(column) ? 'desc' : 'asc';
+                }
+
+                sortState.column = column;
+                sortState.direction = direction;
+
+                renderFunc();
+            }
+
+            classResultsContainer.addEventListener('click', (e) => handleSort(e, currentClassSort, renderClassTable));
+            testResultsContainer.addEventListener('click', (e) => handleSort(e, currentTestSort, renderTestTable));
+            studentDetailsContainer.addEventListener('click', (e) => handleSort(e, currentStudentDetailsSort, () => renderStudentDetailsTable()));
 
             // 「文法項目ごとの分析」を描画する関数
             function renderGrammarAnalysis(grammarStats, studentLevels) {
