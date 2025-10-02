@@ -355,18 +355,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             <button id="sidebar-close" class="sidebar-close-button">&times;</button>
         </div>
         <ul>
-            <li><a href='create-notification.php'>お知らせ作成</a></li>
-            <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
-            <li><a href="register-student.php">新規学習者
-                    登録</a></li>
-            <li><a href="register-classteacher.php">クラス登録</a></li>
-            <li><a href="./create/new.php?mode=0">新規英語問題作成</a></li>
-            <li><a href="./create_ja/new.php?mode=0">新規日本語問題作成</a></li>
-            <li><a href="create-test.php">新規英語テスト作成</a></li>
-            <li><a href="create-test-ja.php">新規日本語テスト作成</a></li>
-            <li><a href=''>特徴量検索機能</a></li>
-            <li><a href=''>学習者グラフ表示</a></li>
-            <li><a href='create-student-group.php'>学習者グルーピング作成</a></li>
+            <li class="sidebar-item has-submenu">
+                <a href="#" class="submenu-toggle">迷い推定・機械学習関連</a>
+                <ul class="submenu">
+                    <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
+                    <li><a href="#">特徴量検索機能</a></li>
+                </ul>
+            </li>
+            <li class="sidebar-item has-submenu">
+                <a href="#" class="submenu-toggle">新規登録</a>
+                <ul class="submenu">
+                    <li><a href='create-notification.php'>お知らせ作成</a></li>
+                    <li><a href="register-student.php">新規学習者登録</a></li>
+                    <li><a href="register-classteacher.php">クラス登録</a></li>
+                </ul>
+            </li>
+            <li class="sidebar-item has-submenu">
+                <a href="#" class="submenu-toggle">新規問題作成</a>
+                <ul class="submenu">
+                    <li><a href="./create/new.php?mode=0">新規英語問題作成</a></li>
+                    <li><a href="./create_ja/new.php?mode=0">新規日本語問題作成</a></li>
+                </ul>
+            </li>
+            <li class="sidebar-item has-submenu">
+                <a href="#" class="submenu-toggle">新規テスト作成</a>
+                <ul class="submenu">
+                    <li><a href="create-test.php">新規英語テスト作成</a></li>
+                    <li><a href="create-test-ja.php">新規日本語テスト作成</a></li>
+                </ul>
+            </li>
+            <li class="sidebar-item has-submenu">
+                <a href="#" class="submenu-toggle">学習者関連</a>
+                <ul class="submenu">
+                    <li><a href="#">学習者グラフ表示</a></li>
+                    <li><a href='create-student-group.php'>学習者グルーピング作成</a></li>
+                </ul>
+            </li>
         </ul>
     </div>
     <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
@@ -645,10 +669,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             function closeSidebar() {
                 body.classList.remove('sidebar-open');
+
+                // ★★★ ここから追加 ★★★
+                // 開いている全てのサブメニューを探して閉じる
+                const openSubmenus = document.querySelectorAll('#sidebar .has-submenu.open');
+                openSubmenus.forEach(submenu => {
+                    submenu.classList.remove('open');
+                });
+                // ★★★ ここまで追加 ★★★
             }
             menuToggle.addEventListener('click', openSidebar);
             sidebarClose.addEventListener('click', closeSidebar);
             backdrop.addEventListener('click', closeSidebar);
+
+            // ★★★ 変更点: ここからサイドバーの階層メニュー処理を追加 ★★★
+            const sidebar = document.getElementById('sidebar');
+            sidebar.addEventListener('click', function (e) {
+                const toggle = e.target.closest('.submenu-toggle');
+                if (!toggle) return; // トグルボタン以外がクリックされた場合は何もしない
+
+                e.preventDefault(); // リンクのデフォルト動作をキャンセル
+                const parentLi = toggle.parentElement;
+
+                // クリックされたメニューの開閉状態を切り替える
+                parentLi.classList.toggle('open');
+            });
+            // ★★★ 変更点: ここまで ★★★
 
             // --- 2. 担当クラスの結果表示 ---
             if (classStudentCheckboxContainer) {

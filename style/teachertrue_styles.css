@@ -245,7 +245,7 @@ select {
 .results-container {
     margin-top: 15px;
     border-top: 1px solid #eee;
-    padding-top: 15px;
+    /* padding-top: 15px; */
     overflow-x: auto;
     /* テーブルがはみ出す場合スクロール */
 
@@ -512,15 +512,17 @@ tbody tr:hover {
 /* 成績情報セクションの区切りを明確にするスタイル */
 
 /* 2番目以降の成績セクションの上に区切り線を追加 */
-.grades-section + .grades-section {
+.grades-section+.grades-section {
     border-top: 1px solid #3b4398;
     padding-top: 25px;
 }
 
 /* 各成績セクションの見出し(h3)に左のアクセント線を追加 */
 .grades-section h3 {
-    position: relative; /* アクセント線の位置の基準とする */
-    padding-left: 15px; /* テキストと線の間に余白を確保 */
+    position: relative;
+    /* アクセント線の位置の基準とする */
+    padding-left: 15px;
+    /* テキストと線の間に余白を確保 */
 }
 
 .grades-section h3::before {
@@ -529,10 +531,13 @@ tbody tr:hover {
     position: absolute;
     left: 0;
     top: 50%;
-    transform: translateY(-50%); /* 上下中央に配置 */
-    height: 70%; /* テキストより少し短い高さにする */
+    transform: translateY(-50%);
+    /* 上下中央に配置 */
+    height: 70%;
+    /* テキストより少し短い高さにする */
     width: 4px;
-    background-color: var(--primary-color); /* テーマのメインカラーを使用 */
+    background-color: var(--primary-color);
+    /* テーマのメインカラーを使用 */
     border-radius: 2px;
 }
 
@@ -542,9 +547,12 @@ tbody tr:hover {
 
 /* お知らせセクションをスクロール可能にする */
 .announcements-list {
-    max-height: 450px; /* 5件程度が表示される高さに調整 */
-    overflow-y: auto;  /* 内容が最大の高さを超えたら縦スクロールバーを表示 */
-    padding-right: 10px; /* スクロールバーと内容が重ならないように余白を追加 */
+    max-height: 450px;
+    /* 5件程度が表示される高さに調整 */
+    overflow-y: auto;
+    /* 内容が最大の高さを超えたら縦スクロールバーを表示 */
+    padding-right: 10px;
+    /* スクロールバーと内容が重ならないように余白を追加 */
 }
 
 /* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */
@@ -552,9 +560,11 @@ tbody tr:hover {
 /* ソート可能なテーブルヘッダーのスタイル */
 .results-container th[data-sort] {
     cursor: pointer;
-    position: relative;
-    padding-right: 20px; /* 矢印用のスペース */
-    -webkit-user-select: none; /* テキスト選択を無効化 */
+    /* position: relative; */
+    padding-right: 20px;
+    /* 矢印用のスペース */
+    -webkit-user-select: none;
+    /* テキスト選択を無効化 */
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
@@ -599,13 +609,16 @@ tbody tr:hover {
     border-radius: 4px;
     margin-top: 15px;
 }
+
 .class-group-header:first-child {
     margin-top: 5px;
 }
+
 .class-group-header h5 {
     margin: 0;
     font-size: 1rem;
 }
+
 .class-group-header label {
     font-size: 0.9rem;
     font-weight: normal;
@@ -615,7 +628,62 @@ tbody tr:hover {
 .results-container thead th {
     position: sticky;
     top: 0;
-    z-index: 1; /* スクロールする内容より手前に表示 */
+    z-index: 1;
+    /* スクロールする内容より手前に表示 */
+}
+
+/* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */
+
+/* ======== ▼▼▼ ここから追加 ▼▼▼ ======== */
+
+/* サイドバーの階層化メニュー */
+.sidebar-item.has-submenu>a {
+    position: relative;
+}
+
+/* サブメニューを開閉するための矢印アイコン */
+.submenu-toggle::after {
+    content: '▶';
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7em;
+    transition: transform 0.2s ease;
+}
+
+/* サブメニューが開いているときの矢印アイコン */
+.sidebar-item.open>.submenu-toggle::after {
+    transform: translateY(-50%) rotate(90deg);
+}
+
+/* サブメニューのスタイル */
+.submenu {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    background-color: #2c3e50;
+    display: none;
+    /* デフォルトでは非表示 */
+}
+
+/* サブメニューが開いているときに表示 */
+.sidebar-item.open>.submenu {
+    display: block;
+}
+
+/* サブメニューの項目スタイル */
+.sidebar .submenu li a { /* ← セレクタをより強力なものに変更 */
+    padding-left: 60px; /* インデントを増やして階層をより明確に (この数値を調整してください) */
+    background-color: #34495e;
+    font-size: 15px;
+    border-left: 3px solid transparent; /* 通常時は線を透明にする */
+    transition: background-color 0.2s, border-left 0.2s; /* アニメーション効果 */
+}
+
+.sidebar .submenu li a:hover { /* ← こちらも同様にセレクタを変更 */
+    background-color: #46627f;
+    border-left: 3px solid var(--primary-color); /* ホバー時にテーマカラーの線を表示 */
 }
 
 /* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */
