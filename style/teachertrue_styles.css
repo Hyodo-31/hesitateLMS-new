@@ -585,3 +585,37 @@ tbody tr:hover {
     border-top-color: #333;
     opacity: 1;
 }
+
+/* ======== ▼▼▼ ここから追加 ▼▼▼ ======== */
+
+/* 【新機能】担当クラスごとのヘッダースタイル */
+.class-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-top: 15px;
+}
+.class-group-header:first-child {
+    margin-top: 5px;
+}
+.class-group-header h5 {
+    margin: 0;
+    font-size: 1rem;
+}
+.class-group-header label {
+    font-size: 0.9rem;
+    font-weight: normal;
+}
+
+/* 【新機能】スクロール時にテーブルヘッダーを固定 */
+.results-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1; /* スクロールする内容より手前に表示 */
+}
+
+/* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */

@@ -41,10 +41,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $types = 's' . str_repeat('s', count($student_ids));
                 $params = array_merge([$teacher_id], $student_ids);
 
-                // SQLを修正: classesテーブルをJOINしてクラス名を取得し、ORDER BY句を変更
+                // ★★★ 変更点(1): ClassIDをSELECT句に追加 ★★★
                 $stmt = $conn->prepare(
                     "SELECT 
-                        l.UID as student_id, s.Name as student_name, c.ClassName, l.WID, l.Date as date, l.attempt, l.test_id,
+                        l.UID as student_id, s.Name as student_name, c.ClassID, c.ClassName, l.WID, l.Date as date, l.attempt, l.test_id,
                         COALESCE(t.test_name, '（不明なテスト）') as test_name,
                         CASE WHEN l.TF = 1 THEN '正解' ELSE '不正解' END as correctness,
                         CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation
@@ -418,49 +418,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 <div class="grades-section">
                     <h3>担当クラス学習者の結果表示</h3>
-                    <div class="controls">
-                        <p>表示したい学習者を選択してください。</p>
-                    </div>
-                    <div id="class-student-checkbox-container" class="checkbox-section">
-                        <?php
-                        if ($teacher_id) {
-                            $class_ids = [];
-                            $stmt_classes = $conn->prepare("SELECT ClassID FROM classteacher WHERE TID = ?");
-                            if ($stmt_classes) {
-                                $stmt_classes->bind_param("s", $teacher_id);
-                                $stmt_classes->execute();
-                                $class_result = $stmt_classes->get_result();
-                                while ($row = $class_result->fetch_assoc())
-                                    $class_ids[] = $row['ClassID'];
-                                $stmt_classes->close();
+                    <?php
+                    if ($teacher_id) {
+                        // ログイン中の教師が担当するクラス情報を `classteacher` テーブルから取得
+                        $teacher_classes = [];
+                        $stmt_classes = $conn->prepare("SELECT c.ClassID, c.ClassName FROM classteacher ct JOIN classes c ON ct.ClassID = c.ClassID WHERE ct.TID = ? ORDER BY c.ClassName");
+                        if ($stmt_classes) {
+                            $stmt_classes->bind_param("s", $teacher_id);
+                            $stmt_classes->execute();
+                            $class_result = $stmt_classes->get_result();
+                            while ($row = $class_result->fetch_assoc()) {
+                                $teacher_classes[] = $row;
                             }
-
-                            if (!empty($class_ids)) {
-                                echo '<div class="checkbox-controls"><label><input type="checkbox" class="select-all" checked> 全て選択 / 解除</label></div>';
-                                echo '<div class="checkbox-list">';
-                                $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
-                                $types = str_repeat('i', count($class_ids));
-                                $stmt_students = $conn->prepare("SELECT s.uid, s.Name, c.ClassName FROM students s JOIN classes c ON s.ClassID = c.ClassID WHERE s.ClassID IN ($placeholders) ORDER BY c.ClassName, s.uid");
-                                if ($stmt_students) {
-                                    $stmt_students->bind_param($types, ...$class_ids);
-                                    $stmt_students->execute();
-                                    $student_result = $stmt_students->get_result();
-                                    while ($row = $student_result->fetch_assoc()) {
-                                        echo '<label class="checkbox-item"><input type="checkbox" value="' . htmlspecialchars($row['uid']) . '" checked> ' . htmlspecialchars($row['Name']) . ' (クラス: ' . htmlspecialchars($row['ClassName']) . ')</label>';
-                                    }
-                                    echo '</div>';
-                                    $stmt_students->close();
-                                }
-                            } else {
-                                echo '<p>担当しているクラスに学習者がいません。もしくは担当しているクラスがありません。</p>';
-                                echo '<p><a href="register-classteacher.php">クラス登録</a>からクラスの作成や登録、<a href="register-student.php">新規学習者登録</a>からクラスに学習者の登録を行ってください。</p>';
-                            }
+                            $stmt_classes->close();
                         }
-                        ?>
-                    </div>
-                    <div class="controls">
-                        <button id="show-class-results-btn" class="action-button">選択した学習者の結果を表示</button>
-                    </div>
+
+                        // 担当クラスが存在する場合のみ、フィルターと学習者一覧を表示
+                        if (!empty($teacher_classes)) {
+                            ?>
+                            <div class="controls">
+                                <label for="class-filter-select">クラスで絞り込み:</label>
+                                <select id="class-filter-select">
+                                    <option value="">全てのクラス</option>
+                                    <?php foreach ($teacher_classes as $class): ?>
+                                        <option value="<?= htmlspecialchars($class['ClassID']) ?>">
+                                            <?= htmlspecialchars($class['ClassName']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div id="class-student-checkbox-container" class="checkbox-section">
+                                <div class="checkbox-controls">
+                                    <label><input type="checkbox" class="select-all" checked> 全ての表示中学習者を 選択 / 解除</label>
+                                </div>
+                                <div class="checkbox-list">
+                                    <?php
+                                    $class_ids = array_column($teacher_classes, 'ClassID');
+                                    $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
+                                    $types = str_repeat('i', count($class_ids));
+
+                                    // 担当クラスに所属する全学習者を取得
+                                    $stmt_students = $conn->prepare("SELECT s.uid, s.Name, s.ClassID, c.ClassName FROM students s JOIN classes c ON s.ClassID = c.ClassID WHERE s.ClassID IN ($placeholders) ORDER BY c.ClassName, s.uid");
+                                    if ($stmt_students) {
+                                        $stmt_students->bind_param($types, ...$class_ids);
+                                        $stmt_students->execute();
+                                        $student_result = $stmt_students->get_result();
+
+                                        $students_by_class = [];
+                                        while ($row = $student_result->fetch_assoc()) {
+                                            $students_by_class[$row['ClassName']][] = $row;
+                                        }
+                                        $stmt_students->close();
+
+                                        foreach ($students_by_class as $class_name => $students) {
+                                            $class_id = $students[0]['ClassID'];
+
+                                            echo '<div class="class-group-header">';
+                                            echo '<h5>' . htmlspecialchars($class_name) . '</h5>';
+                                            echo '<label><input type="checkbox" class="select-all-class" data-class-id="' . $class_id . '" checked> このクラスを全て選択 / 解除</label>';
+                                            echo '</div>';
+
+                                            foreach ($students as $student) {
+                                                echo '<label class="checkbox-item" data-class-id="' . htmlspecialchars($student['ClassID']) . '"><input type="checkbox" value="' . htmlspecialchars($student['uid']) . '" checked> ' . htmlspecialchars($student['Name']) . '</label>';
+                                            }
+                                        }
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                            <div class="controls">
+                                <button id="show-class-results-btn" class="action-button">選択した学習者の結果を表示</button>
+                            </div>
+                            <?php
+                        } else {
+                            // 担当クラスが見つからない場合のメッセージ
+                            echo '<p>担当しているクラスに学習者がいません。もしくは担当しているクラスがありません。</p>';
+                            echo '<p><a href="register-classteacher.php">クラス登録</a>からクラスの作成や登録、<a href="register-student.php">新規学習者登録</a>からクラスに学習者の登録を行ってください。</p>';
+                        }
+                    }
+                    ?>
                     <div id="class-results-container" class="results-container">
                         <p>学習者を選択して結果を表示してください。</p>
                     </div>
@@ -589,6 +625,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const studentDetailsContainer = document.getElementById('student-details-container');
             const grammarAnalysisWrapper = document.getElementById('grammar-analysis-wrapper'); // 新しく追加
 
+            // ★★★ 変更点(3): クラス絞り込み用の要素を取得 ★★★
+            const classFilterSelect = document.getElementById('class-filter-select');
             // ▼▼▼【変更点】各セクションのデータとソート状態を保持する変数を追加 ▼▼▼
             let currentClassData = [];
             let currentClassSort = { column: null, direction: 'asc' };
@@ -614,21 +652,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             // --- 2. 担当クラスの結果表示 ---
             if (classStudentCheckboxContainer) {
-                const selectAllClassStudents = classStudentCheckboxContainer.querySelector('.select-all');
-                if (selectAllClassStudents) {
-                    selectAllClassStudents.addEventListener('change', (e) => {
-                        classStudentCheckboxContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = e.target.checked);
+                // ★★★ 変更点(3): クラスごとの全選択機能を追加 ★★★
+                classStudentCheckboxContainer.addEventListener('change', e => {
+                    const target = e.target;
+                    // クラスごとの「全て選択」チェックボックスの場合
+                    if (target.classList.contains('select-all-class')) {
+                        const classId = target.dataset.classId;
+                        const isChecked = target.checked;
+                        classStudentCheckboxContainer.querySelectorAll(`.checkbox-item[data-class-id="${classId}"] input[type="checkbox"]`).forEach(cb => {
+                            cb.checked = isChecked;
+                        });
+                    }
+                    // 全ての表示中学習者を対象とする「全て選択」の場合
+                    else if (target.classList.contains('select-all')) {
+                        const isChecked = target.checked;
+                        classStudentCheckboxContainer.querySelectorAll('.checkbox-item').forEach(label => {
+                            // 絞り込みで非表示になっているものは対象外
+                            if (label.style.display !== 'none') {
+                                label.querySelector('input[type="checkbox"]').checked = isChecked;
+                            }
+                        });
+                    }
+                });
+
+                // クラス絞り込み機能のイベントリスナー
+                if (classFilterSelect) {
+                    classFilterSelect.addEventListener('change', () => {
+                        const selectedClassId = classFilterSelect.value;
+                        const studentItems = classStudentCheckboxContainer.querySelectorAll('.checkbox-item');
+                        const classHeaders = classStudentCheckboxContainer.querySelectorAll('.class-group-header');
+
+                        studentItems.forEach(label => {
+                            const shouldShow = (selectedClassId === '' || label.dataset.classId === selectedClassId);
+                            label.style.display = shouldShow ? 'block' : 'none';
+                        });
+
+                        classHeaders.forEach(header => {
+                            const classId = header.querySelector('.select-all-class').dataset.classId;
+                            const shouldShow = (selectedClassId === '' || classId === selectedClassId);
+                            header.style.display = shouldShow ? 'flex' : 'none';
+                        });
                     });
                 }
+
                 showClassResultsBtn.addEventListener('click', async () => {
-                    const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('input:checked:not(.select-all)')).map(cb => cb.value);
+                    // ★★★ 変更点: 学習者のチェックボックスのみを正確に選択するように修正 ★★★
+                    const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('.checkbox-item input[type="checkbox"]:checked'))
+                        .filter(cb => cb.closest('.checkbox-item').style.display !== 'none')
+                        .map(cb => cb.value);
+
                     if (selectedStudents.length === 0) return alert('学習者を1名以上選択してください。');
+
                     classResultsContainer.innerHTML = '<p class="loading">結果を読み込んでいます...</p>';
                     try {
-                        const results = await fetchData({
-                            action: 'get_class_results',
-                            student_ids: JSON.stringify(selectedStudents)
-                        });
+                        const results = await fetchData({ action: 'get_class_results', student_ids: JSON.stringify(selectedStudents) });
                         renderClassResults(results);
                     } catch (error) {
                         console.error('Error fetching class results:', error);
@@ -822,7 +899,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     let valB = b[column];
                     let result = 0;
 
-                    // 各列の特殊なソートロジック
                     switch (column) {
                         case 'hesitation':
                             const hesitationOrder = { '迷い有り': 1, '迷い無し': 2, '未推定': 3, '-': 4 };
@@ -833,35 +909,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             result = (correctnessOrder[valA] || 99) - (correctnessOrder[valB] || 99);
                             break;
                         case 'date':
-                            result = new Date(valB) - new Date(valA); // 新しい順
+                            // ★★★ 変更点(2): 未解答を一番下に配置するロジック ★★★
+                            const isValADate = valA !== '-';
+                            const isValBDate = valB !== '-';
+                            if (isValADate && !isValBDate) { result = -1; }
+                            else if (!isValADate && isValBDate) { result = 1; }
+                            else if (!isValADate && !isValBDate) { result = 0; }
+                            else { result = new Date(valB) - new Date(valA); }
                             break;
-                        case 'test_id': // テスト名で代用
+                        case 'test_id':
                         case 'test_name':
-                            result = b.test_id - a.test_id; // IDの降順（新しい順）
+                            result = b.test_id - a.test_id;
                             break;
+                        // ★★★ 変更点(1): ClassNameのソートをClassIDで行うように修正 ★★★
                         case 'ClassName':
+                            result = (a.ClassID || 0) - (b.ClassID || 0);
+                            break;
                         case 'student_name':
+                            result = (a.student_id || 0) - (b.student_id || 0);
+                            break;
                         case 'WID':
-                            const idA = parseInt(a[column.replace('name', 'id').replace('Name', 'id').replace('WID', 'WID')] || 0);
-                            const idB = parseInt(b[column.replace('name', 'id').replace('Name', 'id').replace('WID', 'WID')] || 0);
-                            result = idA - idB;
+                            result = (a.WID || 0) - (b.WID || 0);
                             break;
                         default:
-                            // デフォルトの文字列/数値比較
                             if (valA < valB) result = -1;
                             if (valA > valB) result = 1;
                             break;
                     }
+                    // 昇順/降順の切り替え
                     return result * (direction === 'asc' ? 1 : -1);
                 });
                 return sortedData;
             }
 
-            // --- テーブル描画関数の再定義 ---
-
             function renderClassResults(data) {
-                currentClassData = data; // 元データを保存
-                currentClassSort = { column: null, direction: 'asc' }; // ソート状態をリセット
+                currentClassData = data;
+                currentClassSort = { column: null, direction: 'asc' };
                 renderClassTable();
             }
             function renderClassTable() {
@@ -869,32 +952,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 const dataToSort = currentClassSort.column ? sortData(currentClassData, currentClassSort.column, currentClassSort.direction) : currentClassData;
 
                 if (!dataToSort || dataToSort.length === 0) {
-                    container.innerHTML = '<p>選択された学習者の解答結果はありません。</p>';
-                    return;
+                    container.innerHTML = '<p>選択された学習者の解答結果はありません。</p>'; return;
                 }
 
+                // ★★★ 変更点(1): thに data-sort="ClassName" を追加 ★★★
                 let tableHtml = `<table><thead><tr>
-            <th data-sort="ClassName">クラス名</th>
-            <th data-sort="student_name">学習者名 (ID)</th>
-            <th data-sort="test_name">テスト名</th>
-            <th data-sort="WID">問題ID (回数)</th>
-            <th data-sort="correctness">正誤</th>
-            <th data-sort="hesitation">迷い推定</th>
-            <th data-sort="date">解答日時</th>
-            <th>軌跡再現</th>
-        </tr></thead><tbody>`;
+                <th data-sort="ClassName">クラス名</th>
+                <th data-sort="student_name">学習者名 (ID)</th>
+                <th data-sort="test_name">テスト名</th>
+                <th data-sort="WID">問題ID (回数)</th>
+                <th data-sort="correctness">正誤</th>
+                <th data-sort="hesitation">迷い推定</th>
+                <th data-sort="date">解答日時</th>
+                <th>軌跡再現</th>
+            </tr></thead><tbody>`;
 
                 dataToSort.forEach(row => {
                     tableHtml += `<tr>
-                <td>${row.ClassName}</td>
-                <td>${row.student_name} (${row.student_id})</td>
-                <td>${row.test_name}</td>
-                <td>${row.WID} (${row.attempt}回目)</td>
-                <td class="${row.correctness === '不正解' ? 'incorrect' : ''}">${row.correctness}</td>
-                <td class="${row.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${row.hesitation}</td>
-                <td>${row.date}</td>
-                <td><a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
-            </tr>`;
+                    <td>${row.ClassName}</td>
+                    <td>${row.student_name} (${row.student_id})</td>
+                    <td>${row.test_name}</td>
+                    <td>${row.WID} (${row.attempt}回目)</td>
+                    <td class="${row.correctness === '不正解' ? 'incorrect' : ''}">${row.correctness}</td>
+                    <td class="${row.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${row.hesitation}</td>
+                    <td>${row.date}</td>
+                    <td><a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
+                </tr>`;
                 });
                 container.innerHTML = tableHtml + '</tbody></table>';
                 updateSortHeaders(container, currentClassSort);
