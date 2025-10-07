@@ -373,7 +373,10 @@ tbody tr:hover {
 .checkbox-list {
     max-height: 200px;
     overflow-y: auto;
-    display: flex;
+    display: grid;
+    /* レイアウトをGridに変更 */
+    /* 利用可能な幅に応じて、最低300pxの列を自動的に作成 */
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     flex-direction: column;
     gap: 8px;
 }
@@ -610,6 +613,12 @@ tbody tr:hover {
     margin-top: 15px;
 }
 
+/* 【修正】クラスヘッダーがグリッドの全幅を使うようにする */
+.checkbox-list>.class-group-header {
+    grid-column: 1 / -1;
+}
+
+
 .class-group-header:first-child {
     margin-top: 5px;
 }
@@ -673,17 +682,23 @@ tbody tr:hover {
 }
 
 /* サブメニューの項目スタイル */
-.sidebar .submenu li a { /* ← セレクタをより強力なものに変更 */
-    padding-left: 60px; /* インデントを増やして階層をより明確に (この数値を調整してください) */
+.sidebar .submenu li a {
+    /* ← セレクタをより強力なものに変更 */
+    padding-left: 60px;
+    /* インデントを増やして階層をより明確に (この数値を調整してください) */
     background-color: #34495e;
     font-size: 15px;
-    border-left: 3px solid transparent; /* 通常時は線を透明にする */
-    transition: background-color 0.2s, border-left 0.2s; /* アニメーション効果 */
+    border-left: 3px solid transparent;
+    /* 通常時は線を透明にする */
+    transition: background-color 0.2s, border-left 0.2s;
+    /* アニメーション効果 */
 }
 
-.sidebar .submenu li a:hover { /* ← こちらも同様にセレクタを変更 */
+.sidebar .submenu li a:hover {
+    /* ← こちらも同様にセレクタを変更 */
     background-color: #46627f;
-    border-left: 3px solid var(--primary-color); /* ホバー時にテーマカラーの線を表示 */
+    border-left: 3px solid var(--primary-color);
+    /* ホバー時にテーマカラーの線を表示 */
 }
 
 /* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */

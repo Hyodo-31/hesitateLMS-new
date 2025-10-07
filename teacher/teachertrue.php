@@ -36,34 +36,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     try {
         if ($_POST['action'] === 'get_class_results' && isset($_POST['student_ids'])) {
             $student_ids = json_decode($_POST['student_ids']);
-            if (!empty($student_ids) && is_array($student_ids)) {
-                $placeholders = implode(',', array_fill(0, count($student_ids), '?'));
-                $types = 's' . str_repeat('s', count($student_ids));
-                $params = array_merge([$teacher_id], $student_ids);
+            // ★★★ 変更点: wids を受け取り、空の場合も考慮する ★★★
+            $wids = isset($_POST['wids']) && !empty($_POST['wids']) ? json_decode($_POST['wids']) : [];
 
-                // ★★★ 変更点(1): ClassIDをSELECT句に追加 ★★★
-                $stmt = $conn->prepare(
-                    "SELECT 
-                        l.UID as student_id, s.Name as student_name, c.ClassID, c.ClassName, l.WID, l.Date as date, l.attempt, l.test_id,
-                        COALESCE(t.test_name, '（不明なテスト）') as test_name,
-                        CASE WHEN l.TF = 1 THEN '正解' ELSE '不正解' END as correctness,
-                        CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation
-                     FROM linedata l
-                     JOIN students s ON l.UID = s.uid
-                     JOIN classes c ON s.ClassID = c.ClassID
-                     LEFT JOIN tests t ON l.test_id = t.id
-                     LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
-                     WHERE l.UID IN ($placeholders)
-                     ORDER BY c.ClassID, s.uid, l.WID, l.attempt"
-                );
+            if (!empty($student_ids) && is_array($student_ids)) {
+                $params = array_merge([$teacher_id], $student_ids);
+                $types = 's' . str_repeat('s', count($student_ids));
+                $placeholders_students = implode(',', array_fill(0, count($student_ids), '?'));
+
+                $sql = "SELECT 
+                    l.UID as student_id, s.Name as student_name, c.ClassID, c.ClassName, l.WID, l.Date as date, l.attempt, l.test_id,
+                    COALESCE(t.test_name, '（不明なテスト）') as test_name,
+                    CASE WHEN l.TF = 1 THEN '正解' ELSE '不正解' END as correctness,
+                    CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation
+                 FROM linedata l
+                 JOIN students s ON l.UID = s.uid
+                 JOIN classes c ON s.ClassID = c.ClassID
+                 LEFT JOIN tests t ON l.test_id = t.id
+                 LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
+                 WHERE l.UID IN ($placeholders_students)";
+
+                // ★★★ 変更点: wids があればSQL文とパラメータを追加 ★★★
+                if (!empty($wids) && is_array($wids)) {
+                    $placeholders_wids = implode(',', array_fill(0, count($wids), '?'));
+                    $sql .= " AND l.WID IN ($placeholders_wids)";
+                    $types .= str_repeat('i', count($wids));
+                    $params = array_merge($params, $wids);
+                }
+
+                $sql .= " ORDER BY c.ClassID, s.uid, l.WID, l.attempt";
+
+                $stmt = $conn->prepare($sql);
                 $stmt->bind_param($types, ...$params);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                while ($row = $result->fetch_assoc())
+                while ($row = $result->fetch_assoc()) {
                     $response[] = $row;
+                }
                 $stmt->close();
             }
         }
+
+        // ★★★ ここから新しいアクションを追加 ★★★
+        elseif ($_POST['action'] === 'get_wids_for_students' && isset($_POST['student_ids'])) {
+            $student_ids = json_decode($_POST['student_ids']);
+            if (!empty($student_ids) && is_array($student_ids)) {
+                $placeholders = implode(',', array_fill(0, count($student_ids), '?'));
+                $types = str_repeat('s', count($student_ids));
+                $stmt = $conn->prepare(
+                    "SELECT DISTINCT l.WID, qi.Sentence 
+             FROM linedata l
+             LEFT JOIN question_info qi ON l.WID = qi.WID
+             WHERE l.UID IN ($placeholders) ORDER BY l.WID"
+                );
+                $stmt->bind_param($types, ...$student_ids);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                while ($row = $result->fetch_assoc()) {
+                    $response[] = $row;
+                }
+                $stmt->close();
+            }
+        }
+        // ★★★ ここまで追加 ★★★
         // 【機能修正】アクション: 指定されたテストの受験対象者全員と、その解答状況を取得
         elseif ($_POST['action'] === 'get_students_for_test' && isset($_POST['test_id'])) {
             $test_id = $_POST['test_id'];
@@ -510,6 +545,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     ?>
                                 </div>
                             </div>
+                            <div id="class-question-checkbox-container" class="checkbox-section"
+                                style="display:none; margin-top: 15px;"></div>
                             <div class="controls">
                                 <button id="show-class-results-btn" class="action-button">選択した学習者の結果を表示</button>
                             </div>
@@ -630,6 +667,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             // 「担当クラス」の要素
             const classStudentCheckboxContainer = document.getElementById('class-student-checkbox-container');
+            const classQuestionCheckboxContainer = document.getElementById('class-question-checkbox-container');
             const showClassResultsBtn = document.getElementById('show-class-results-btn');
             const classResultsContainer = document.getElementById('class-results-container');
 
@@ -660,6 +698,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             let currentStudentDetailsData = [];
             let currentStudentDetailsSort = { column: null, direction: 'asc' };
+            let classWIDFetchDebounceTimer;
             // ▲▲▲【変更点】ここまで ▲▲▲
 
             // --- 1. サイドバーの開閉処理 ---
@@ -698,30 +737,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             // --- 2. 担当クラスの結果表示 ---
             if (classStudentCheckboxContainer) {
-                // ★★★ 変更点(3): クラスごとの全選択機能を追加 ★★★
+
+                async function updateWIDListForClassSection() {
+                    const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('.checkbox-item input[type="checkbox"]:checked'))
+                        .filter(cb => cb.closest('.checkbox-item').style.display !== 'none')
+                        .map(cb => cb.value);
+
+                    if (selectedStudents.length > 0) {
+                        classQuestionCheckboxContainer.style.display = 'block';
+                        classQuestionCheckboxContainer.innerHTML = '<p class="loading">関連する問題リストを読み込んでいます...</p>';
+                        try {
+                            const wids = await fetchData({ action: 'get_wids_for_students', student_ids: JSON.stringify(selectedStudents) });
+                            renderCheckboxes(classQuestionCheckboxContainer, wids, 'question', '問題で絞り込み (任意):');
+                        } catch (error) {
+                            classQuestionCheckboxContainer.innerHTML = '<p class="error">問題リストの読み込みに失敗しました。</p>';
+                        }
+                    } else {
+                        classQuestionCheckboxContainer.style.display = 'none';
+                        classQuestionCheckboxContainer.innerHTML = '';
+                    }
+                }
+
                 classStudentCheckboxContainer.addEventListener('change', e => {
                     const target = e.target;
-                    // クラスごとの「全て選択」チェックボックスの場合
                     if (target.classList.contains('select-all-class')) {
                         const classId = target.dataset.classId;
                         const isChecked = target.checked;
-                        classStudentCheckboxContainer.querySelectorAll(`.checkbox-item[data-class-id="${classId}"] input[type="checkbox"]`).forEach(cb => {
-                            cb.checked = isChecked;
-                        });
-                    }
-                    // 全ての表示中学習者を対象とする「全て選択」の場合
-                    else if (target.classList.contains('select-all')) {
+                        classStudentCheckboxContainer.querySelectorAll(`.checkbox-item[data-class-id="${classId}"] input[type="checkbox"]`).forEach(cb => { cb.checked = isChecked; });
+                    } else if (target.classList.contains('select-all')) {
                         const isChecked = target.checked;
                         classStudentCheckboxContainer.querySelectorAll('.checkbox-item').forEach(label => {
-                            // 絞り込みで非表示になっているものは対象外
                             if (label.style.display !== 'none') {
                                 label.querySelector('input[type="checkbox"]').checked = isChecked;
                             }
                         });
                     }
+                    clearTimeout(classWIDFetchDebounceTimer);
+                    classWIDFetchDebounceTimer = setTimeout(updateWIDListForClassSection, 500);
                 });
 
-                // クラス絞り込み機能のイベントリスナー
                 if (classFilterSelect) {
                     classFilterSelect.addEventListener('change', () => {
                         const selectedClassId = classFilterSelect.value;
@@ -738,26 +792,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             const shouldShow = (selectedClassId === '' || classId === selectedClassId);
                             header.style.display = shouldShow ? 'flex' : 'none';
                         });
+
+                        clearTimeout(classWIDFetchDebounceTimer);
+                        classWIDFetchDebounceTimer = setTimeout(updateWIDListForClassSection, 500);
                     });
                 }
 
                 showClassResultsBtn.addEventListener('click', async () => {
-                    // ★★★ 変更点: 学習者のチェックボックスのみを正確に選択するように修正 ★★★
                     const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('.checkbox-item input[type="checkbox"]:checked'))
                         .filter(cb => cb.closest('.checkbox-item').style.display !== 'none')
                         .map(cb => cb.value);
+
+                    const selectedWids = Array.from(classQuestionCheckboxContainer.querySelectorAll('.checkbox-item input[type="checkbox"]:checked')).map(cb => cb.value);
 
                     if (selectedStudents.length === 0) return alert('学習者を1名以上選択してください。');
 
                     classResultsContainer.innerHTML = '<p class="loading">結果を読み込んでいます...</p>';
                     try {
-                        const results = await fetchData({ action: 'get_class_results', student_ids: JSON.stringify(selectedStudents) });
+                        const results = await fetchData({
+                            action: 'get_class_results',
+                            student_ids: JSON.stringify(selectedStudents),
+                            wids: JSON.stringify(selectedWids)
+                        });
                         renderClassResults(results);
                     } catch (error) {
                         console.error('Error fetching class results:', error);
                         classResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
                     }
                 });
+
+                // 初期表示時にも問題リストを更新
+                updateWIDListForClassSection();
             }
 
             // --- 3. テストごとの結果表示 ---
