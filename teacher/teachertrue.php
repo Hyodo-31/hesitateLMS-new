@@ -32,18 +32,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
     $response = [];
 
-    // 【新規追加】アクション: 担当クラスの全学習者の結果を取得
     try {
+        // 【新規追加】アクション: 担当クラスの全学習者の結果を取得
         if ($_POST['action'] === 'get_class_results' && isset($_POST['student_ids'])) {
             $student_ids = json_decode($_POST['student_ids']);
-            // ★★★ 変更点: wids を受け取り、空の場合も考慮する ★★★
             $wids = isset($_POST['wids']) && !empty($_POST['wids']) ? json_decode($_POST['wids']) : [];
+            // ★★★ 新機能: 絞り込み条件を取得 ★★★
+            $correctness_filter = $_POST['correctness'] ?? 'all';
+            $hesitation_filter = $_POST['hesitation'] ?? 'all';
+
 
             if (!empty($student_ids) && is_array($student_ids)) {
-                $params = array_merge([$teacher_id], $student_ids);
-                $types = 's' . str_repeat('s', count($student_ids));
-                $placeholders_students = implode(',', array_fill(0, count($student_ids), '?'));
-
+                $params = [$teacher_id];
+                $types = 's';
+                
                 $sql = "SELECT 
                     l.UID as student_id, s.Name as student_name, c.ClassID, c.ClassName, l.WID, l.Date as date, l.attempt, l.test_id,
                     COALESCE(t.test_name, '（不明なテスト）') as test_name,
@@ -54,16 +56,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                  JOIN classes c ON s.ClassID = c.ClassID
                  LEFT JOIN tests t ON l.test_id = t.id
                  LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
-                 WHERE l.UID IN ($placeholders_students)";
+                 WHERE ";
 
-                // ★★★ 変更点: wids があればSQL文とパラメータを追加 ★★★
+                $conditions = [];
+                // Student IDs
+                $placeholders_students = implode(',', array_fill(0, count($student_ids), '?'));
+                $conditions[] = "l.UID IN ($placeholders_students)";
+                $types .= str_repeat('s', count($student_ids));
+                $params = array_merge($params, $student_ids);
+
+                // WIDs (if any)
                 if (!empty($wids) && is_array($wids)) {
                     $placeholders_wids = implode(',', array_fill(0, count($wids), '?'));
-                    $sql .= " AND l.WID IN ($placeholders_wids)";
+                    $conditions[] = "l.WID IN ($placeholders_wids)";
                     $types .= str_repeat('i', count($wids));
                     $params = array_merge($params, $wids);
                 }
 
+                // ★★★ 新機能: SQLに絞り込み条件を追加 ★★★
+                if ($correctness_filter === 'correct') {
+                    $conditions[] = "l.TF = 1";
+                } elseif ($correctness_filter === 'incorrect') {
+                    $conditions[] = "l.TF = 0";
+                }
+
+                if ($hesitation_filter === 'hesitated') {
+                    $conditions[] = "tr.Understand = 2";
+                } elseif ($hesitation_filter === 'not_hesitated') {
+                    $conditions[] = "tr.Understand = 4";
+                } elseif ($hesitation_filter === 'not_estimated') {
+                    $conditions[] = "(tr.Understand IS NULL OR tr.Understand NOT IN (2, 4))";
+                }
+                
+                $sql .= implode(' AND ', $conditions);
                 $sql .= " ORDER BY c.ClassID, s.uid, l.WID, l.attempt";
 
                 $stmt = $conn->prepare($sql);
@@ -76,8 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->close();
             }
         }
-
-        // ★★★ ここから新しいアクションを追加 ★★★
+        
         elseif ($_POST['action'] === 'get_wids_for_students' && isset($_POST['student_ids'])) {
             $student_ids = json_decode($_POST['student_ids']);
             if (!empty($student_ids) && is_array($student_ids)) {
@@ -98,25 +122,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->close();
             }
         }
-        // ★★★ ここまで追加 ★★★
-        // 【機能修正】アクション: 指定されたテストの受験対象者全員と、その解答状況を取得
         elseif ($_POST['action'] === 'get_students_for_test' && isset($_POST['test_id'])) {
             $test_id = $_POST['test_id'];
             $assigned_students = [];
 
-            // 1. テストの対象（クラスかグループか）を取得
             $stmt_test = $conn->prepare("SELECT target_type, target_group FROM tests WHERE id = ?");
             $stmt_test->bind_param("i", $test_id);
             $stmt_test->execute();
             $test_info = $stmt_test->get_result()->fetch_assoc();
             $stmt_test->close();
 
-            // 2. 対象に応じて、出題された学習者全員のリストを取得
             if ($test_info) {
                 if ($test_info['target_type'] === 'class') {
                     $stmt_assigned = $conn->prepare("SELECT uid, Name FROM students WHERE ClassID = ? ORDER BY uid");
                     $stmt_assigned->bind_param("i", $test_info['target_group']);
-                } else { // group
+                } else { 
                     $stmt_assigned = $conn->prepare(
                         "SELECT s.uid, s.Name FROM group_members gm JOIN students s ON gm.uid = s.uid WHERE gm.group_id = ? ORDER BY s.uid"
                     );
@@ -130,7 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt_assigned->close();
             }
 
-            // 3. 解答済みの学習者リストを取得
             $stmt_answered = $conn->prepare("SELECT DISTINCT UID FROM linedata WHERE test_id = ?");
             $stmt_answered->bind_param("i", $test_id);
             $stmt_answered->execute();
@@ -145,7 +164,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $response = array_values($assigned_students);
         }
 
-        // アクション: 指定されたテストに含まれる問題リストを取得
         elseif ($_POST['action'] === 'get_questions_for_test' && isset($_POST['test_id'])) {
             $stmt = $conn->prepare(
                 "SELECT tq.WID, qi.Sentence 
@@ -161,7 +179,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt->close();
         }
 
-        // アクション: 指定された学習者が解いた問題リストを取得（「学習者ごとの詳細」用）
         elseif ($_POST['action'] === 'get_questions_for_student' && isset($_POST['student_id'])) {
             $stmt = $conn->prepare(
                 "SELECT DISTINCT l.WID, q.Sentence 
@@ -169,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                  LEFT JOIN question_info q ON l.WID = q.WID
                  WHERE l.UID = ? ORDER BY l.WID"
             );
-            $stmt->bind_param("i", $_POST['student_id']);
+            $stmt->bind_param("s", $_POST['student_id']);
             $stmt->execute();
             $result = $stmt->get_result();
             while ($row = $result->fetch_assoc())
@@ -177,16 +194,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt->close();
         }
 
-        // 【機能修正】アクション: 未解答者を含めてテスト結果を生成
         elseif ($_POST['action'] === 'get_test_results' && isset($_POST['test_id'], $_POST['student_ids'], $_POST['wids'])) {
             $student_ids = json_decode($_POST['student_ids']);
             $wids = json_decode($_POST['wids']);
+            // ★★★ 新機能: 絞り込み条件を取得 ★★★
+            $correctness_filter = $_POST['correctness'] ?? 'all';
+            $hesitation_filter = $_POST['hesitation'] ?? 'all';
+
 
             if (!empty($student_ids) && is_array($student_ids) && !empty($wids) && is_array($wids)) {
                 $results_map = [];
                 $student_names_map = [];
+                $temp_response = []; // 一時的なレスポンス配列
 
-                // 1. 実際の解答データを取得し、マップに格納
                 $placeholders_students = implode(',', array_fill(0, count($student_ids), '?'));
                 $placeholders_wids = implode(',', array_fill(0, count($wids), '?'));
                 $types = 's' . 'i' . str_repeat('i', count($student_ids)) . str_repeat('i', count($wids));
@@ -206,11 +226,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute();
                 $result = $stmt->get_result();
                 while ($row = $result->fetch_assoc()) {
-                    $results_map[$row['student_id'] . '-' . $row['WID']] = $row; // 最後のattemptを格納
+                    $results_map[$row['student_id'] . '-' . $row['WID']] = $row;
                 }
                 $stmt->close();
 
-                // 2. 選択された全学習者の名前を取得
                 $stmt_names = $conn->prepare("SELECT uid, Name FROM students WHERE uid IN ($placeholders_students)");
                 $name_types = str_repeat('i', count($student_ids));
                 $stmt_names->bind_param($name_types, ...$student_ids);
@@ -221,14 +240,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
                 $stmt_names->close();
 
-                // 3. 全ての組み合わせを生成し、解答がない場合は「未解答」で埋める
                 foreach ($student_ids as $sid) {
                     foreach ($wids as $wid) {
                         $key = $sid . '-' . $wid;
                         if (isset($results_map[$key])) {
-                            $response[] = $results_map[$key];
+                            $temp_response[] = $results_map[$key];
                         } else {
-                            $response[] = [
+                            $temp_response[] = [
                                 'student_id' => $sid,
                                 'student_name' => $student_names_map[$sid] ?? '不明',
                                 'WID' => $wid,
@@ -240,23 +258,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         }
                     }
                 }
+                // ★★★ 新機能: PHP側でフィルタリングを実行 ★★★
+                foreach ($temp_response as $item) {
+                    $correct_match = false;
+                    switch ($correctness_filter) {
+                        case 'correct': $correct_match = ($item['correctness'] === '正解'); break;
+                        case 'incorrect': $correct_match = ($item['correctness'] === '不正解'); break;
+                        case 'unanswered': $correct_match = ($item['correctness'] === '未解答'); break;
+                        default: $correct_match = true; break;
+                    }
+
+                    $hesitation_match = false;
+                     switch ($hesitation_filter) {
+                        case 'hesitated': $hesitation_match = ($item['hesitation'] === '迷い有り'); break;
+                        case 'not_hesitated': $hesitation_match = ($item['hesitation'] === '迷い無し'); break;
+                        case 'not_estimated': $hesitation_match = ($item['hesitation'] === '未推定'); break;
+                        case 'na': $hesitation_match = ($item['hesitation'] === '-'); break;
+                        default: $hesitation_match = true; break;
+                    }
+
+                    if ($correct_match && $hesitation_match) {
+                        $response[] = $item;
+                    }
+                }
             }
         }
-
-        // アクション: 学習者詳細を、選択された問題IDで絞り込んで取得（「学習者ごとの詳細」用）
-        // 【ここを修正】: 学習者ごとの詳細結果に、文法項目分析を追加
-        // 【ここを修正】: 学習者ごとの詳細結果に、文法項目分析を追加 + 初期表示用の全問題リスト取得を追加
-        // 【ここを修正】: 学習者ごとの詳細結果に、文法項目分析を追加 + 初期表示用の全問題リスト取得を追加 + 資格レベル取得を追加
         elseif ($_POST['action'] === 'get_student_details' && isset($_POST['student_id'])) {
             $student_id = $_POST['student_id'];
             $wids = isset($_POST['wids']) ? json_decode($_POST['wids']) : [];
+            // ★★★ 新機能: 絞り込み条件を取得 ★★★
+            $correctness_filter = $_POST['correctness'] ?? 'all';
+            $hesitation_filter = $_POST['hesitation'] ?? 'all';
+
             $summary = ['total_attempts' => 0, 'accuracy' => 'N/A', 'hesitation_rate' => 'N/A'];
             $attempts = [];
             $grammar_stats = [];
-            $all_questions = []; // 初期表示用に全問題リストを格納する配列
-            $student_levels = ['toeic' => null, 'eiken' => null]; // 資格レベルを格納する配列
+            $all_questions = [];
+            $student_levels = ['toeic' => null, 'eiken' => null];
 
-            // ★★★ 新規追加: 学習者の資格レベルを取得 ★★★
             $stmt_levels = $conn->prepare("SELECT toeic_level, eiken_level FROM students WHERE uid = ?");
             if ($stmt_levels) {
                 $stmt_levels->bind_param("s", $student_id);
@@ -268,17 +307,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
                 $stmt_levels->close();
             }
-            // ★★★ ここまで新規追加 ★★★
 
-            // --- 1. 選択された問題に対するサマリーと解答履歴 (widsが指定されている場合のみ) ---
             if (!empty($wids) && is_array($wids)) {
-                // ... (このifブロックの中身は変更ありません) ...
                 $placeholders = implode(',', array_fill(0, count($wids), '?'));
-                $types = 's' . 's' . str_repeat('i', count($wids));
-                $params = array_merge([$teacher_id, $student_id], $wids);
+                $base_params = [$teacher_id, $student_id];
+                $base_types = 'ss';
+                
+                $summary_params = array_merge($base_params, $wids);
+                $summary_types = $base_types . str_repeat('i', count($wids));
 
                 $stmt_stats = $conn->prepare("SELECT COUNT(l.WID) as selected_total, SUM(CASE WHEN l.TF = 1 THEN 1 ELSE 0 END) as selected_correct, SUM(CASE WHEN tr.Understand = 2 THEN 1 ELSE 0 END) as hesitated_count, SUM(CASE WHEN tr.Understand IN (2, 4) THEN 1 ELSE 0 END) as estimated_count FROM linedata l LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? WHERE l.UID = ? AND l.WID IN ($placeholders)");
-                $stmt_stats->bind_param($types, ...$params);
+                $stmt_stats->bind_param($summary_types, ...$summary_params);
                 $stmt_stats->execute();
                 $stats_result = $stmt_stats->get_result()->fetch_assoc();
                 if ($stats_result) {
@@ -289,16 +328,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         $summary['hesitation_rate'] = round(($stats_result['hesitated_count'] / $stats_result['estimated_count']) * 100, 1) . '%';
                 }
                 $stmt_stats->close();
+                
+                // ★★★ 新機能: SQLに絞り込み条件を追加 ★★★
+                $sql_attempts = "SELECT l.WID, l.Date as date, l.attempt, l.test_id, t.test_name, CASE WHEN l.TF = 1 THEN '正解' ELSE '不正解' END as correctness, CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation FROM linedata l LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? LEFT JOIN tests t ON l.test_id = t.id WHERE l.UID = ? AND l.WID IN ($placeholders)";
+                $attempt_params = array_merge($base_params, $wids);
+                $attempt_types = $base_types . str_repeat('i', count($wids));
+                
+                if ($correctness_filter === 'correct') {
+                    $sql_attempts .= " AND l.TF = 1";
+                } elseif ($correctness_filter === 'incorrect') {
+                    $sql_attempts .= " AND l.TF = 0";
+                }
 
-                $stmt_attempts = $conn->prepare("SELECT l.WID, l.Date as date, l.attempt, l.test_id, t.test_name, CASE WHEN l.TF = 1 THEN '正解' ELSE '不正解' END as correctness, CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation FROM linedata l LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? LEFT JOIN tests t ON l.test_id = t.id WHERE l.UID = ? AND l.WID IN ($placeholders) ORDER BY l.WID, l.attempt");
-                $stmt_attempts->bind_param($types, ...$params);
+                if ($hesitation_filter === 'hesitated') {
+                    $sql_attempts .= " AND tr.Understand = 2";
+                } elseif ($hesitation_filter === 'not_hesitated') {
+                    $sql_attempts .= " AND tr.Understand = 4";
+                } elseif ($hesitation_filter === 'not_estimated') {
+                    $sql_attempts .= " AND (tr.Understand IS NULL OR tr.Understand NOT IN (2, 4))";
+                }
+                $sql_attempts .= " ORDER BY l.WID, l.attempt";
+
+                $stmt_attempts = $conn->prepare($sql_attempts);
+                $stmt_attempts->bind_param($attempt_types, ...$attempt_params);
                 $stmt_attempts->execute();
                 $result_attempts = $stmt_attempts->get_result();
                 while ($row = $result_attempts->fetch_assoc())
                     $attempts[] = $row;
                 $stmt_attempts->close();
             } else {
-                // ... (このelseブロックの中身も変更ありません) ...
                 $stmt_all_q = $conn->prepare("SELECT DISTINCT l.WID, q.Sentence FROM linedata l LEFT JOIN question_info q ON l.WID = q.WID WHERE l.UID = ? ORDER BY l.WID");
                 $stmt_all_q->bind_param("s", $student_id);
                 $stmt_all_q->execute();
@@ -308,8 +366,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt_all_q->close();
             }
 
-            // --- 2. 文法項目ごとの分析 (常に学習者の全解答履歴を対象とする) ---
-            // ... (このセクションの中身も変更ありません) ...
             $gid_map = [];
             $stmt_gid = $conn->prepare("SELECT GID, Item FROM grammar_translations WHERE language = 'ja'");
             $stmt_gid->execute();
@@ -359,8 +415,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'hesitation_rate' => ($stats['estimated'] > 0) ? round(($stats['hesitated'] / $stats['estimated']) * 100, 2) : 0,
                 ];
             }
-
-            // ★★★ 変更: student_levels をレスポンスに追加 ★★★
             $response = ['summary' => $summary, 'attempts' => $attempts, 'grammar_stats' => $grammar_stats, 'all_questions' => $all_questions, 'student_levels' => $student_levels];
         }
     } catch (Exception $e) {
@@ -381,6 +435,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <title>LMS 教師用ホーム画面</title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* フィルター用の追加スタイル */
+        .filter-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .filter-group label {
+            font-weight: normal;
+        }
+    </style>
 </head>
 
 <body>
@@ -479,7 +547,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <h3>担当クラス学習者の結果表示</h3>
                     <?php
                     if ($teacher_id) {
-                        // ログイン中の教師が担当するクラス情報を `classteacher` テーブルから取得
                         $teacher_classes = [];
                         $stmt_classes = $conn->prepare("SELECT c.ClassID, c.ClassName FROM classteacher ct JOIN classes c ON ct.ClassID = c.ClassID WHERE ct.TID = ? ORDER BY c.ClassName");
                         if ($stmt_classes) {
@@ -492,7 +559,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             $stmt_classes->close();
                         }
 
-                        // 担当クラスが存在する場合のみ、フィルターと学習者一覧を表示
                         if (!empty($teacher_classes)) {
                             ?>
                             <div class="controls">
@@ -515,8 +581,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     $class_ids = array_column($teacher_classes, 'ClassID');
                                     $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
                                     $types = str_repeat('i', count($class_ids));
-
-                                    // 担当クラスに所属する全学習者を取得
                                     $stmt_students = $conn->prepare("SELECT s.uid, s.Name, s.ClassID, c.ClassName FROM students s JOIN classes c ON s.ClassID = c.ClassID WHERE s.ClassID IN ($placeholders) ORDER BY c.ClassName, s.uid");
                                     if ($stmt_students) {
                                         $stmt_students->bind_param($types, ...$class_ids);
@@ -545,14 +609,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     ?>
                                 </div>
                             </div>
-                            <div id="class-question-checkbox-container" class="checkbox-section"
-                                style="display:none; margin-top: 15px;"></div>
+                            <div id="class-question-checkbox-container" class="checkbox-section" style="display:none; margin-top: 15px;"></div>
+                            
+                            <div id="class-filters" class="filter-group">
+                                <label for="class-correctness-filter">正誤で絞り込み:</label>
+                                <select id="class-correctness-filter">
+                                    <option value="all">すべて</option>
+                                    <option value="correct">正解</option>
+                                    <option value="incorrect">不正解</option>
+                                </select>
+                                <label for="class-hesitation-filter">迷い推定結果で絞り込み:</label>
+                                <select id="class-hesitation-filter">
+                                    <option value="all">すべて</option>
+                                    <option value="hesitated">迷い有り</option>
+                                    <option value="not_hesitated">迷い無し</option>
+                                    <option value="not_estimated">未推定</option>
+                                </select>
+                            </div>
+
                             <div class="controls">
                                 <button id="show-class-results-btn" class="action-button">選択した学習者の結果を表示</button>
                             </div>
                             <?php
                         } else {
-                            // 担当クラスが見つからない場合のメッセージ
                             echo '<p>担当しているクラスに学習者がいません。もしくは担当しているクラスがありません。</p>';
                             echo '<p><a href="register-classteacher.php">クラス登録</a>からクラスの作成や登録、<a href="register-student.php">新規学習者登録</a>からクラスに学習者の登録を行ってください。</p>';
                         }
@@ -598,6 +677,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         </div>
                         <div id="student-checkbox-container" class="checkbox-section"></div>
                         <div id="test-question-checkbox-container" class="checkbox-section" style="display:none;"></div>
+                        
+                        <div id="test-filters" class="filter-group" style="display:none;">
+                            <label for="test-correctness-filter">正誤で絞り込み:</label>
+                            <select id="test-correctness-filter">
+                                <option value="all">すべて</option>
+                                <option value="correct">正解</option>
+                                <option value="incorrect">不正解</option>
+                                <option value="unanswered">未解答</option>
+                            </select>
+                            <label for="test-hesitation-filter">迷い推定結果で絞り込み:</label>
+                            <select id="test-hesitation-filter">
+                                <option value="all">すべて</option>
+                                <option value="hesitated">迷い有り</option>
+                                <option value="not_hesitated">迷い無し</option>
+                                <option value="not_estimated">未推定</option>
+                                <option value="na">-(該当なし)</option>
+                            </select>
+                        </div>
+
                         <div id="test-controls" style="display:none;">
                             <button id="show-test-results-btn" class="action-button">結果を表示</button>
                         </div>
@@ -644,6 +742,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         </select>
                     </div>
                     <div id="question-checkbox-container-student" class="checkbox-section"></div>
+
+                     <div id="student-filters" class="filter-group" style="display:none;">
+                        <label for="student-correctness-filter">正誤で絞り込み:</label>
+                        <select id="student-correctness-filter">
+                            <option value="all">すべて</option>
+                            <option value="correct">正解</option>
+                            <option value="incorrect">不正解</option>
+                        </select>
+                        <label for="student-hesitation-filter">迷い推定結果で絞り込み:</label>
+                        <select id="student-hesitation-filter">
+                            <option value="all">すべて</option>
+                            <option value="hesitated">迷い有り</option>
+                            <option value="not_hesitated">迷い無し</option>
+                            <option value="not_estimated">未推定</option>
+                        </select>
+                    </div>
+
                     <div id="student-controls" style="display:none;">
                         <button id="show-student-details-btn" class="action-button">選択した問題の結果を表示</button>
                     </div>
@@ -670,6 +785,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const classQuestionCheckboxContainer = document.getElementById('class-question-checkbox-container');
             const showClassResultsBtn = document.getElementById('show-class-results-btn');
             const classResultsContainer = document.getElementById('class-results-container');
+            const classCorrectnessFilter = document.getElementById('class-correctness-filter');
+            const classHesitationFilter = document.getElementById('class-hesitation-filter');
 
             // 「テストごと」の要素
             const testSelect = document.getElementById('test-select');
@@ -678,6 +795,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const testControls = document.getElementById('test-controls');
             const showTestResultsBtn = document.getElementById('show-test-results-btn');
             const testResultsContainer = document.getElementById('test-results-container');
+            const testFilters = document.getElementById('test-filters');
+            const testCorrectnessFilter = document.getElementById('test-correctness-filter');
+            const testHesitationFilter = document.getElementById('test-hesitation-filter');
 
             // 「学習者ごと」の要素
             const studentSelect = document.getElementById('student-select');
@@ -685,11 +805,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const studentControls = document.getElementById('student-controls');
             const showStudentDetailsBtn = document.getElementById('show-student-details-btn');
             const studentDetailsContainer = document.getElementById('student-details-container');
-            const grammarAnalysisWrapper = document.getElementById('grammar-analysis-wrapper'); // 新しく追加
+            const grammarAnalysisWrapper = document.getElementById('grammar-analysis-wrapper');
+            const studentFilters = document.getElementById('student-filters');
+            const studentCorrectnessFilter = document.getElementById('student-correctness-filter');
+            const studentHesitationFilter = document.getElementById('student-hesitation-filter');
 
-            // ★★★ 変更点(3): クラス絞り込み用の要素を取得 ★★★
             const classFilterSelect = document.getElementById('class-filter-select');
-            // ▼▼▼【変更点】各セクションのデータとソート状態を保持する変数を追加 ▼▼▼
             let currentClassData = [];
             let currentClassSort = { column: null, direction: 'asc' };
 
@@ -699,45 +820,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             let currentStudentDetailsData = [];
             let currentStudentDetailsSort = { column: null, direction: 'asc' };
             let classWIDFetchDebounceTimer;
-            // ▲▲▲【変更点】ここまで ▲▲▲
 
             // --- 1. サイドバーの開閉処理 ---
-            function openSidebar() {
-                body.classList.add('sidebar-open');
-            }
-
+            function openSidebar() { body.classList.add('sidebar-open'); }
             function closeSidebar() {
                 body.classList.remove('sidebar-open');
-
-                // ★★★ ここから追加 ★★★
-                // 開いている全てのサブメニューを探して閉じる
                 const openSubmenus = document.querySelectorAll('#sidebar .has-submenu.open');
-                openSubmenus.forEach(submenu => {
-                    submenu.classList.remove('open');
-                });
-                // ★★★ ここまで追加 ★★★
+                openSubmenus.forEach(submenu => { submenu.classList.remove('open'); });
             }
             menuToggle.addEventListener('click', openSidebar);
             sidebarClose.addEventListener('click', closeSidebar);
             backdrop.addEventListener('click', closeSidebar);
 
-            // ★★★ 変更点: ここからサイドバーの階層メニュー処理を追加 ★★★
             const sidebar = document.getElementById('sidebar');
             sidebar.addEventListener('click', function (e) {
                 const toggle = e.target.closest('.submenu-toggle');
-                if (!toggle) return; // トグルボタン以外がクリックされた場合は何もしない
-
-                e.preventDefault(); // リンクのデフォルト動作をキャンセル
+                if (!toggle) return;
+                e.preventDefault();
                 const parentLi = toggle.parentElement;
-
-                // クリックされたメニューの開閉状態を切り替える
                 parentLi.classList.toggle('open');
             });
-            // ★★★ 変更点: ここまで ★★★
 
             // --- 2. 担当クラスの結果表示 ---
             if (classStudentCheckboxContainer) {
-
                 async function updateWIDListForClassSection() {
                     const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('.checkbox-item input[type="checkbox"]:checked'))
                         .filter(cb => cb.closest('.checkbox-item').style.display !== 'none')
@@ -812,7 +917,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         const results = await fetchData({
                             action: 'get_class_results',
                             student_ids: JSON.stringify(selectedStudents),
-                            wids: JSON.stringify(selectedWids)
+                            wids: JSON.stringify(selectedWids),
+                            correctness: classCorrectnessFilter.value,
+                            hesitation: classHesitationFilter.value
                         });
                         renderClassResults(results);
                     } catch (error) {
@@ -820,8 +927,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         classResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
                     }
                 });
-
-                // 初期表示時にも問題リストを更新
                 updateWIDListForClassSection();
             }
 
@@ -832,15 +937,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     studentCheckboxContainer.innerHTML = '';
                     testQuestionCheckboxContainer.innerHTML = '';
                     testControls.style.display = 'none';
+                    testFilters.style.display = 'none';
                     testResultsContainer.innerHTML = '<p>テストを選択してください。</p>';
-                    currentTestData = []; // データリセット
+                    currentTestData = [];
                     if (!testId) return;
                     studentCheckboxContainer.innerHTML = '<p class="loading">受験者を読み込んでいます...</p>';
                     try {
-                        const students = await fetchData({
-                            action: 'get_students_for_test',
-                            test_id: testId
-                        });
+                        const students = await fetchData({ action: 'get_students_for_test', test_id: testId });
                         renderCheckboxes(studentCheckboxContainer, students, 'student', '2. 学習者を選択:');
                         studentCheckboxContainer.addEventListener('change', handleStudentSelectionChangeForTest);
                     } catch (error) {
@@ -860,7 +963,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             action: 'get_test_results',
                             test_id: testId,
                             student_ids: JSON.stringify(selectedStudents),
-                            wids: JSON.stringify(selectedWids)
+                            wids: JSON.stringify(selectedWids),
+                            correctness: testCorrectnessFilter.value,
+                            hesitation: testHesitationFilter.value
                         });
                         renderTestResults(results);
                     } catch (error) {
@@ -873,29 +978,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if (studentSelect) {
                 studentSelect.addEventListener('change', async function () {
                     const studentId = this.value;
-                    // 各コンテナを初期化
                     studentDetailsContainer.innerHTML = '<p>学習者を選択すると、解答した問題リストが表示されます。</p>';
                     questionCheckboxContainerStudent.innerHTML = '';
                     grammarAnalysisWrapper.style.display = 'none';
                     grammarAnalysisWrapper.innerHTML = '';
                     studentControls.style.display = 'none';
-                    currentStudentDetailsData = []; // データリセット
+                    studentFilters.style.display = 'none';
+                    currentStudentDetailsData = [];
 
                     if (!studentId) return;
 
                     questionCheckboxContainerStudent.innerHTML = '<p class="loading">問題リストと分析データを読み込んでいます...</p>';
                     try {
-                        const data = await fetchData({
-                            action: 'get_student_details',
-                            student_id: studentId
-                        });
-
-                        // ★★★ 変更: student_levels も renderGrammarAnalysis に渡す ★★★
+                        const data = await fetchData({ action: 'get_student_details', student_id: studentId });
                         renderGrammarAnalysis(data.grammar_stats, data.student_levels);
-
                         renderCheckboxes(questionCheckboxContainerStudent, data.all_questions, 'question', '問題');
                         if (data.all_questions && data.all_questions.length > 0) {
                             studentControls.style.display = 'block';
+                            studentFilters.style.display = 'flex';
                         } else {
                             questionCheckboxContainerStudent.innerHTML = '<p>この学習者の解答履歴はありません。</p>';
                         }
@@ -916,7 +1016,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         const data = await fetchData({
                             action: 'get_student_details',
                             student_id: studentId,
-                            wids: JSON.stringify(selectedWids)
+                            wids: JSON.stringify(selectedWids),
+                            correctness: studentCorrectnessFilter.value,
+                            hesitation: studentHesitationFilter.value
                         });
                         renderStudentProblemResults(data, studentId);
                     } catch (error) {
@@ -925,30 +1027,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 });
             }
-
+            
             // --- 5. 共通の描画・補助関数 ---
-            // ... (fetchData, handleStudentSelectionChangeForTest, renderCheckboxes, renderClassResults, renderTestResults は変更なし) ...
             async function fetchData(bodyObj) {
                 const formData = new FormData();
                 for (const key in bodyObj) formData.append(key, bodyObj[key]);
-                const response = await fetch('teachertrue.php', {
-                    method: 'POST',
-                    body: formData
-                });
+                const response = await fetch('teachertrue.php', { method: 'POST', body: formData });
                 if (!response.ok) throw new Error(`Network response was not ok, status: ${response.status}`);
                 return await response.json();
             }
+
             async function handleStudentSelectionChangeForTest() {
                 const selectedStudents = studentCheckboxContainer.querySelectorAll('input:checked');
                 const testId = testSelect.value;
                 if (selectedStudents.length > 0) {
                     testQuestionCheckboxContainer.style.display = 'block';
+                    testFilters.style.display = 'flex';
                     testQuestionCheckboxContainer.innerHTML = '<p class="loading">問題リストを読み込んでいます...</p>';
                     try {
-                        const questions = await fetchData({
-                            action: 'get_questions_for_test',
-                            test_id: testId
-                        });
+                        const questions = await fetchData({ action: 'get_questions_for_test', test_id: testId });
                         renderCheckboxes(testQuestionCheckboxContainer, questions, 'question', '3. 問題を選択:');
                         testControls.style.display = 'block';
                     } catch (error) {
@@ -958,6 +1055,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     testQuestionCheckboxContainer.style.display = 'none';
                     testQuestionCheckboxContainer.innerHTML = '';
                     testControls.style.display = 'none';
+                    testFilters.style.display = 'none';
                 }
             }
 
@@ -966,27 +1064,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     container.innerHTML = `<p>対象の${type === 'student' ? '学習者' : '問題'}はありません。</p>`;
                     return;
                 }
-
-                // ▼▼▼ ここから追加 ▼▼▼
                 let infoPopupHtml = '';
-                // 「テストごと」の学習者選択の時だけポップアップを追加する
                 if (title.includes('学習者を選択')) {
                     infoPopupHtml = `
-        <span class="info-icon">i
-            <div class="info-popup" style="width: 280px; text-align: left;">
-                <strong>アスタリスク（*）について</strong>
-                <p style="margin: 5px 0 0 0; font-style: normal;">
-                    学習者名の横にアスタリスクが表示されている場合、その学習者はまだこのテストを解答していません。
-                </p>
-            </div>
-        </span>`;
+                <span class="info-icon">i
+                    <div class="info-popup" style="width: 280px; text-align: left;">
+                        <strong>アスタリスク（*）について</strong>
+                        <p style="margin: 5px 0 0 0; font-style: normal;">
+                            学習者名の横にアスタリスクが表示されている場合、その学習者はまだこのテストを解答していません。
+                        </p>
+                    </div>
+                </span>`;
                 }
-                // ▲▲▲ ここまで追加 ▲▲▲
                 const idKey = type === 'student' ? 'uid' : 'WID';
                 const nameKey = type === 'student' ? 'Name' : 'Sentence';
                 let checkboxesHtml = `<h4>${title} ${infoPopupHtml}</h4>
-        <div class="checkbox-controls"><label><input type="checkbox" class="select-all" checked> 全て選択 / 解除</label></div>
-        <div class="checkbox-list">`;
+                <div class="checkbox-controls"><label><input type="checkbox" class="select-all" checked> 全て選択 / 解除</label></div>
+                <div class="checkbox-list">`;
                 items.forEach(item => {
                     const displayName = type === 'student' ?
                         `${item[nameKey]} (${item[idKey]})` : `WID:${item[idKey]}` + (item[nameKey] ? ` : ${item[nameKey]}` : '');
@@ -1003,7 +1097,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if (container === studentCheckboxContainer) handleStudentSelectionChangeForTest();
             }
 
-            // --- 汎用ソート関数 ---
             function sortData(data, column, direction) {
                 const sortedData = [...data].sort((a, b) => {
                     let valA = a[column];
@@ -1020,7 +1113,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             result = (correctnessOrder[valA] || 99) - (correctnessOrder[valB] || 99);
                             break;
                         case 'date':
-                            // ★★★ 変更点(2): 未解答を一番下に配置するロジック ★★★
                             const isValADate = valA !== '-';
                             const isValBDate = valB !== '-';
                             if (isValADate && !isValBDate) { result = -1; }
@@ -1032,7 +1124,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         case 'test_name':
                             result = b.test_id - a.test_id;
                             break;
-                        // ★★★ 変更点(1): ClassNameのソートをClassIDで行うように修正 ★★★
                         case 'ClassName':
                             result = (a.ClassID || 0) - (b.ClassID || 0);
                             break;
@@ -1047,7 +1138,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             if (valA > valB) result = 1;
                             break;
                     }
-                    // 昇順/降順の切り替え
                     return result * (direction === 'asc' ? 1 : -1);
                 });
                 return sortedData;
@@ -1063,10 +1153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 const dataToSort = currentClassSort.column ? sortData(currentClassData, currentClassSort.column, currentClassSort.direction) : currentClassData;
 
                 if (!dataToSort || dataToSort.length === 0) {
-                    container.innerHTML = '<p>選択された学習者の解答結果はありません。</p>'; return;
+                    container.innerHTML = '<p>選択された条件に合致する解答結果はありません。</p>'; return;
                 }
 
-                // ★★★ 変更点(1): thに data-sort="ClassName" を追加 ★★★
                 let tableHtml = `<table><thead><tr>
                 <th data-sort="ClassName">クラス名</th>
                 <th data-sort="student_name">学習者名 (ID)</th>
@@ -1141,13 +1230,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 const container = studentDetailsContainer;
                 const dataToSort = currentStudentDetailsSort.column ? sortData(currentStudentDetailsData, currentStudentDetailsSort.column, currentStudentDetailsSort.direction) : currentStudentDetailsData;
 
-                // 総合評価部分はソートの影響を受けないので、初回描画時のみ生成
                 let detailsHtml = '';
                 if (data && data.summary) {
                     const infoPopupHtml = `<span class="info-icon">i<div class="info-popup"><strong>各指標の説明</strong><ul><li><strong>総解答数:</strong> 選択された問題において、この学習者が解答した総数です。</li><li><strong>正答率:</strong> 選択された問題における正解の割合です。</li><li><strong>迷い率:</strong> 選択された問題のうち、推定結果が「迷い有り」または「迷い無し」の問題における「迷い有り」の割合です。（「未推定」は計算から除外）</li></ul></div></span>`;
                     detailsHtml += `<div class="student-summary"><h4>総合評価 ${infoPopupHtml}</h4><p><strong>総解答数 (選択問題):</strong> ${data.summary.total_attempts}</p><p><strong>正答率 (選択問題):</strong> ${data.summary.accuracy}</p><p><strong>迷い率 (選択問題):</strong> ${data.summary.hesitation_rate}</p></div><h4>問題ごとの結果</h4>`;
                 } else {
-                    // ソート時（dataがない場合）は既存のサマリー部分を維持
                     const summaryNode = container.querySelector('.student-summary');
                     if (summaryNode) {
                         detailsHtml += summaryNode.outerHTML + '<h4>問題ごとの結果</h4>';
@@ -1155,7 +1242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 if (!dataToSort || dataToSort.length === 0) {
-                    detailsHtml += '<p>選択された問題の解答履歴はありません。</p>';
+                    detailsHtml += '<p>選択された条件に合致する解答履歴はありません。</p>';
                 } else {
                     detailsHtml += `<table><thead><tr>
                 <th data-sort="WID">問題ID</th>
@@ -1192,7 +1279,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 });
             }
 
-            // --- ソート用のイベントリスナー ---
             function handleSort(e, sortState, renderFunc) {
                 const th = e.target.closest('th[data-sort]');
                 if (!th) return;
@@ -1203,7 +1289,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if (sortState.column === column) {
                     direction = sortState.direction === 'asc' ? 'desc' : 'asc';
                 } else {
-                    // 新しい列がクリックされた場合、基本は昇順。ただし特定の列は初回降順にする
                     direction = ['date', 'test_name', 'test_id'].includes(column) ? 'desc' : 'asc';
                 }
 
@@ -1217,34 +1302,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             testResultsContainer.addEventListener('click', (e) => handleSort(e, currentTestSort, renderTestTable));
             studentDetailsContainer.addEventListener('click', (e) => handleSort(e, currentStudentDetailsSort, () => renderStudentDetailsTable()));
 
-            // 「文法項目ごとの分析」を描画する関数
             function renderGrammarAnalysis(grammarStats, studentLevels) {
                 grammarAnalysisWrapper.style.display = 'block';
 
-                // ▼▼▼ ここから追加 ▼▼▼
                 const grammarInfoPopupHtml = `
-    <span class="info-icon">i
-        <div class="info-popup">
-            <strong>各指標の説明</strong>
-            <ul>
-                <li><strong>迷い率:</strong> 推定結果が「迷い有り」または「迷い無し」の問題における「迷い有り」の割合です。（「未推定」は計算から除外）</li>
-                <li><strong>総解答数について:</strong> 1つの問題に複数の文法項目が関連付けられている場合があるため、この表の総解答数の合計は、問題ごとの解答総数と一致しないことがあります。</li>
-            </ul>
-        </div>
-    </span>`;
-                // ▲▲▲ ここまで追加 ▲▲▲
+            <span class="info-icon">i
+                <div class="info-popup">
+                    <strong>各指標の説明</strong>
+                    <ul>
+                        <li><strong>迷い率:</strong> 推定結果が「迷い有り」または「迷い無し」の問題における「迷い有り」の割合です。（「未推定」は計算から除外）</li>
+                        <li><strong>総解答数について:</strong> 1つの問題に複数の文法項目が関連付けられている場合があるため、この表の総解答数の合計は、問題ごとの解答総数と一致しないことがあります。</li>
+                    </ul>
+                </div>
+            </span>`;
 
                 let levelsHtml = '';
                 if (studentLevels && (studentLevels.toeic || studentLevels.eiken)) {
-                    const eikenMap = {
-                        '1': '1級',
-                        'pre1': '準1級',
-                        '2': '2級',
-                        'pre2': '準2級',
-                        '3': '3級',
-                        '4': '4級',
-                        '5': '5級'
-                    };
+                    const eikenMap = { '1': '1級', 'pre1': '準1級', '2': '2級', 'pre2': '準2級', '3': '3級', '4': '4級', '5': '5級' };
                     levelsHtml += '<div class="student-levels">';
                     if (studentLevels.toeic) levelsHtml += `<span class="level-item"><strong>TOEIC:</strong> ${studentLevels.toeic}点台</span>`;
                     if (studentLevels.eiken) levelsHtml += `<span class="level-item"><strong>英検:</strong> ${eikenMap[studentLevels.eiken] || studentLevels.eiken}</span>`;
@@ -1259,21 +1333,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 grammarHtml += `<div class="grammar-analysis-container"><div class="grammar-table-container">
-        <table><thead><tr><th>文法項目</th><th>総解答数</th><th>正解数</th><th>迷い数</th><th>正解率</th><th>迷い率</th></tr></thead><tbody>`;
+                <table><thead><tr><th>文法項目</th><th>総解答数</th><th>正解数</th><th>迷い数</th><th>正解率</th><th>迷い率</th></tr></thead><tbody>`;
                 grammarStats.forEach(stat => {
                     grammarHtml += `<tr>
-            <td>${stat.grammar_name}</td>
-            <td>${stat.total_attempts}</td>
-            <td>${stat.correct_count}</td>
-            <td>${stat.hesitated_count}</td>
-            <td>${stat.correct_rate.toFixed(2)}%</td>
-            <td>${stat.hesitation_rate.toFixed(2)}%</td>
-        </tr>`;
+                    <td>${stat.grammar_name}</td>
+                    <td>${stat.total_attempts}</td>
+                    <td>${stat.correct_count}</td>
+                    <td>${stat.hesitated_count}</td>
+                    <td>${stat.correct_rate.toFixed(2)}%</td>
+                    <td>${stat.hesitation_rate.toFixed(2)}%</td>
+                </tr>`;
                 });
                 grammarHtml += `</tbody></table></div><div class="grammar-chart-container"><canvas id="grammarAnalysisChart"></canvas></div></div>`;
                 grammarAnalysisWrapper.innerHTML = grammarHtml;
 
-                // グラフを描画
                 const ctx = document.getElementById('grammarAnalysisChart').getContext('2d');
                 new Chart(ctx, {
                     type: 'bar',
@@ -1282,42 +1355,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         datasets: [{
                             label: '正解率 (%)',
                             data: grammarStats.map(s => s.correct_rate.toFixed(2)),
-                            backgroundColor: 'rgba(54, 162, 235, 0.6)', // 青系
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
                         }, {
                             label: '迷い率 (%)',
                             data: grammarStats.map(s => s.hesitation_rate.toFixed(2)),
-                            backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: '文法項目ごとの正解率と迷い率'
-                            }
-                        },
+                        plugins: { title: { display: true, text: '文法項目ごとの正解率と迷い率' } },
                         scales: {
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: '文法項目'
-                                }
-                            },
-                            y: {
-                                title: {
-                                    display: true,
-                                    text: '割合 (%)'
-                                },
-                                min: 0,
-                                max: 100
-                            }
+                            x: { title: { display: true, text: '文法項目' } },
+                            y: { title: { display: true, text: '割合 (%)' }, min: 0, max: 100 }
                         }
                     }
                 });
             }
-            // ▲▲▲【ここまで修正】▲▲▲
         });
     </script>
 </body>
