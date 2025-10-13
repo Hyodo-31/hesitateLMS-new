@@ -261,17 +261,15 @@ require "../lang.php";
         $uid = $ID[0];
         $wid = $ID[1];
         $attempt_num = $ID[2];
+    } elseif (isset($_GET["UID"]) && isset($_GET["WID"]) && isset($_GET["LogID"])) {
+        // GETで受け取ったデータの処理（デフォルトのケース）
+        $uid = $_GET["UID"];
+        $wid = $_GET["WID"];
+        $attempt_num = $_GET["LogID"];
+    }
 
-    
-     } elseif (isset($_GET["UID"]) && isset($_GET["WID"]) && isset($_GET["LogID"])) {
-    // GETで受け取ったデータの処理（デフォルトのケース）
-     $uid = $_GET["UID"];
-     $wid = $_GET["WID"];
-     $attempt_num = $_GET["LogID"];
-     }
-    
-    
-// データベースから値を取り出す
+
+    // データベースから値を取り出す
     $query = "select distinct(Time),X,Y,DD,DPos,hLabel,Label,UTurnX,UTurnY from linedatamouse where uid = $uid and WID = $wid and attempt = $attempt_num order by Time";
     $res = mysqli_query($conn, $query) or die("Error:query1");
     $query2 = "select EndSentence,Understand from linedata where uid = $uid and WID = $wid and attempt = $attempt_num";
@@ -352,7 +350,7 @@ require "../lang.php";
 
         // ★★★★★★★★★★★★★★★★★★★ 修正箇所 ★★★★★★★★★★★★★★★★★★★
         // 多言語対応テーブルから、現在の言語設定に応じた文法名を取得する
-    
+
         // SQL文をループの外で一度だけ準備（効率化のため）
         // テーブル名はご自身の環境に合わせてください (例: grammar_translations)
         $sql_translate = "SELECT Item FROM grammar_translations WHERE GID = ? AND language = ?";
@@ -435,7 +433,6 @@ require "../lang.php";
             $addkstring .= "###";
             $UTurnXstring .= "###";
             $UTurnYstring .= "###";
-
         }
         $timestring .= $time[$i];
         $xstring .= $x[$i];
@@ -450,7 +447,6 @@ require "../lang.php";
         if ($DD[$i] == '2') {
             $DDdragTime[$hLabel[$i]] = $time[$i];
         }
-
     }
     $DDdragTime_json = json_encode($DDdragTime);
     ?>
@@ -497,6 +493,20 @@ require "../lang.php";
         Label_point = Labelstring.split("###");
         UTurnX_point = UTurnXstring.split("###");
         UTurnY_point = UTurnYstring.split("###");
+
+        // ▼▼▼ ここから追加 ▼▼▼
+        // 元のデータをバックアップしておく
+        const original_t_point = [...t_point];
+        const original_x_point = [...x_point];
+        const original_y_point = [...y_point];
+        const original_DD_point = [...DD_point];
+        const original_DPos_point = [...DPos_point];
+        const original_hLabel_point = [...hLabel_point];
+        const original_Label_point = [...Label_point];
+        const original_UTurnX_point = [...UTurnX_point];
+        const original_UTurnY_point = [...UTurnY_point];
+        // ▲▲▲ ここまで追加 ▲▲▲
+
         var DDdragTime = <?php echo $DDdragTime_json; ?>;
         UTurnFlag = 0;
         UTurnCount = 0;
@@ -526,14 +536,20 @@ require "../lang.php";
             <input type="button" value="<?= translate('mousemove.php_499行目_一時停止') ?>" name="stop"
                 onclick="stop_interval()">
             <input type="button" value="<?= translate('mousemove.php_501行目_リセット') ?>" name="reset" onclick="reset_c()">
-            <select name="labelDD" SIZE=1>
+
+            <select name="labelDD" id="word_select" style="margin-left: 10px;">
+                <option value="all">すべての単語の軌跡</option>
                 <?php
+                // $start変数から単語リストを生成
                 $tangoarray = isset($start) ? explode("|", $start) : [];
-                $tangocount = count($tangoarray);
-                echo '<option value= 100>' . translate('mousemove.php_504行目_------') . '</option>';
-                for ($i = 0; $i < $tangocount; $i++) {
-                    if ($i % 2 == 0) {
-                        echo '<option value="' . $i . '">' . htmlspecialchars($tangoarray[$i], ENT_QUOTES, 'UTF-8') . '</option>';
+                if (!empty($tangoarray)) {
+                    // 'if ($i % 2 == 0)' を削除し、全ての単語をループ
+                    for ($i = 0; $i < count($tangoarray); $i++) {
+                        // 空の要素でないことを確認
+                        if (trim($tangoarray[$i]) !== '') {
+                            // valueには単語のインデックス(hLabel)を、表示には単語そのものを指定
+                            echo '<option value="' . $i . '">' . htmlspecialchars($tangoarray[$i], ENT_QUOTES, 'UTF-8') . ' の軌跡のみ</option>';
+                        }
                     }
                 }
                 ?>
@@ -1278,6 +1294,77 @@ require "../lang.php";
 
         //インターバル開始
         function interval() {
+
+            // ▼▼▼ ここから追加 (ロジックを改善しました) ▼▼▼
+
+            // 1. 再生ボタンが押されるたびに、バックアップから元のデータを復元
+            t_point = [...original_t_point];
+            x_point = [...original_x_point];
+            y_point = [...original_y_point];
+            DD_point = [...original_DD_point];
+            DPos_point = [...original_DPos_point];
+            hLabel_point = [...original_hLabel_point];
+            Label_point = [...original_Label_point];
+            UTurnX_point = [...original_UTurnX_point];
+            UTurnY_point = [...original_UTurnY_point];
+
+            // 2. プルダウンで選択された単語のIDを取得
+            const selectedWordLabel = document.getElementById('word_select').value;
+
+            // 3. 「すべての単語」以外が選択されていたら、フィルタリングを実行
+            if (selectedWordLabel !== "all") {
+                const filtered_t_point = [];
+                const filtered_x_point = [];
+                const filtered_y_point = [];
+                const filtered_DD_point = [];
+                const filtered_DPos_point = [];
+                const filtered_hLabel_point = [];
+                const filtered_Label_point = [];
+                const filtered_UTurnX_point = [];
+                const filtered_UTurnY_point = [];
+
+                let is_dragging_target = false; // 「選択された単語をドラッグ中か」を示すフラグ
+
+                // 全てのデータ点をループしてチェック
+                for (let i = 0; i < original_t_point.length; i++) {
+                    // DDが'2'(ドラッグ開始)で、かつhLabelが選択された単語と一致する場合
+                    if (original_DD_point[i] === '2' && original_hLabel_point[i] === selectedWordLabel) {
+                        is_dragging_target = true; // ドラッグ開始！
+                    }
+
+                    // フラグが立っている間（対象の単語をドラッグ中）
+                    if (is_dragging_target) {
+                        // データを新しい配列に追加していく
+                        filtered_t_point.push(original_t_point[i]);
+                        filtered_x_point.push(original_x_point[i]);
+                        filtered_y_point.push(original_y_point[i]);
+                        filtered_DD_point.push(original_DD_point[i]);
+                        filtered_DPos_point.push(original_DPos_point[i]);
+                        filtered_hLabel_point.push(original_hLabel_point[i]);
+                        filtered_Label_point.push(original_Label_point[i]);
+                        filtered_UTurnX_point.push(original_UTurnX_point[i]);
+                        filtered_UTurnY_point.push(original_UTurnY_point[i]);
+
+                        // DDが'1'(ドロップ)の場合、ドラッグは終了
+                        if (original_DD_point[i] === '1') {
+                            is_dragging_target = false; // ドラッグ終了！
+                        }
+                    }
+                }
+
+                // 4. 再生に使うメインの配列を、フィルター後の配列に差し替える
+                t_point = filtered_t_point;
+                x_point = filtered_x_point;
+                y_point = filtered_y_point;
+                DD_point = filtered_DD_point;
+                DPos_point = filtered_DPos_point;
+                hLabel_point = filtered_hLabel_point;
+                Label_point = filtered_Label_point;
+                UTurnX_point = filtered_UTurnX_point;
+                UTurnY_point = filtered_UTurnY_point;
+            }
+            // ▲▲▲ ここまで追加 ▲▲▲
+
             document.getElementById("start_b").style.visibility = "hidden";
             // document.getElementById("jquery-ui-slider").style.visibility = "hidden";
 
