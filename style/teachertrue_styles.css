@@ -702,3 +702,48 @@ tbody tr:hover {
 }
 
 /* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */
+
+/* ======== ▼▼▼ ここから追加 ▼▼▼ ======== */
+
+/* 結果絞り込みフィルターのスタイル */
+.result-filters {
+    margin-top: 20px;
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.result-filters strong {
+    font-size: 0.9rem;
+    margin-right: 10px;
+}
+
+.result-filters fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.result-filters legend {
+    font-weight: bold;
+    font-size: 0.9rem;
+    padding: 0 10px 0 0;
+}
+
+.result-filters label {
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */
