@@ -274,12 +274,13 @@ require "../lang.php";
     // データベースから値を取り出す
     $query = "select distinct(Time),X,Y,DD,DPos,hLabel,Label,UTurnX,UTurnY from linedatamouse where uid = $uid and WID = $wid and attempt = $attempt_num order by Time";
     $res = mysqli_query($conn, $query) or die("Error:query1");
-    $query2 = "select EndSentence,Understand from linedata where uid = $uid and WID = $wid and attempt = $attempt_num";
+    $query2 = "select EndSentence,Understand,TF from linedata where uid = $uid and WID = $wid and attempt = $attempt_num";
     $res2 = mysqli_query($conn, $query2) or die("Error:query2");
     $query3 = "select Japanese,Sentence,grammar,level,start,divide from question_info where WID = $wid";
     $res3 = mysqli_query($conn, $query3) or die("Error:query3");
-    //trackdataが以下の部分だが、このテーブルにattemptが無く新しいデータも入れれないため、以下の部分を表示するためにはいろいろする必要がある。
-    $query4 = "select Distance,AveSpeed,MaxStopTime,point,GroupCount,UTurnCount_X,UTurnCount_Y,UTurnCount_XinDD,UTurnCount_YinDD,DragDropCount from trackdata where uid = $uid and WID = $wid";
+    // ▼▼▼▼▼ trackdataへのクエリを削除し、test_featurevalueへのクエリに変更 ▼▼▼▼▼
+    // attemptカラムで絞り込むことで、正しい試行回数のデータを取得
+    $query4 = "select distance, averageSpeed, maxStopTime, DDCount, xUTurnCount, yUTurnCount, xUTurnCountDD, yUTurnCountDD, groupingDDCount from test_featurevalue where uid = $uid and WID = $wid and attempt = $attempt_num";
     $res4 = mysqli_query($conn, $query4) or die("Error:query4");
     $query5 = "select Time from linedata where uid = $uid and WID = $wid and attempt = $attempt_num";
     $res5 = mysqli_query($conn, $query5) or die("Error:query5");
@@ -291,6 +292,11 @@ require "../lang.php";
     if (isset($row['Understand'])) {
         $us = $row['Understand'];
     }
+    // ▼▼▼▼▼ ここから追加 ▼▼▼▼▼
+    if (isset($row['TF'])) {
+        $tf_result = $row['TF']; // 正誤情報を新しい変数に格納
+    }
+    // ▲▲▲▲▲ ここまで追加 ▲▲▲▲▲
     $row2 = mysqli_fetch_array($res3);
     if (isset($row2['Japanese'])) {
         $js = $row2['Japanese'];
@@ -308,29 +314,29 @@ require "../lang.php";
         $start = $row2['start'];
     }
     $row3 = mysqli_fetch_array($res4);
-    if (isset($row3['point'])) {
-        $point = $row3['point'];
+    // 'point'の取得は不要になったため削除
+    
+    if (isset($row3['averageSpeed'])) {
+        $avespeed = $row3['averageSpeed'];
     }
-    if (isset($row3['AveSpeed'])) {
-        $avespeed = $row3['AveSpeed'];
+    if (isset($row3['distance'])) {
+        $distance = $row3['distance'];
     }
-    if (isset($row3['Distance'])) {
-        $distance = $row3['Distance'];
+    if (isset($row3['groupingDDCount'])) {
+        $groupcount = $row3['groupingDDCount'];
     }
-    if (isset($row3['GroupCount'])) {
-        $groupcount = $row3['GroupCount'];
+    // Uターン回数は、ドラッグ中とそうでないものを合算して表示
+    if (isset($row3['xUTurnCount']) && isset($row3['xUTurnCountDD'])) {
+        $uturncount_X = $row3['xUTurnCount'] + $row3['xUTurnCountDD'];
     }
-    if (isset($row3['UTurnCount_X']) && isset($row3['UTurnCount_XinDD'])) {
-        $uturncount_X = $row3['UTurnCount_X'] + $row3['UTurnCount_XinDD'];
+    if (isset($row3['yUTurnCount']) && isset($row3['yUTurnCountDD'])) {
+        $uturncount_Y = $row3['yUTurnCount'] + $row3['yUTurnCountDD'];
     }
-    if (isset($row3['UTurnCount_Y']) && isset($row3['UTurnCount_YinDD'])) {
-        $uturncount_Y = $row3['UTurnCount_Y'] + $row3['UTurnCount_YinDD'];
+    if (isset($row3['maxStopTime'])) { // 'M'を小文字に修正
+        $maxstoptime = $row3['maxStopTime'];
     }
-    if (isset($row3['MaxStopTime'])) {
-        $maxstoptime = $row3['MaxStopTime'];
-    }
-    if (isset($row3['DragDropCount'])) {
-        $dragdropcount = $row3['DragDropCount'];
+    if (isset($row3['DDCount'])) { // 'DragDropCount'を'DDCount'に修正
+        $dragdropcount = $row3['DDCount'];
     }
     $row4 = mysqli_fetch_array($res5);
     if (isset($row4['Time'])) {
@@ -607,7 +613,7 @@ require "../lang.php";
                                         </b><br>
                                         <b><u><?= translate('mousemove.php_550行目_正誤') ?></u>：
                                             <?php
-                                            if (isset($point) && $point == 10) {
+                                            if (isset($tf_result) && $tf_result == 1) { // $tf_resultが1なら正解
                                                 print ("○");
                                             } else {
                                                 print ("×");
@@ -643,11 +649,6 @@ require "../lang.php";
                                           }
                                           ?>
                                         <br><br>
-                                        <?= translate('mousemove.php_571行目_得点') ?>：<?php
-                                          if (isset($point)) {
-                                              echo htmlspecialchars($point, ENT_QUOTES, 'UTF-8');
-                                          }
-                                          ?><?= translate('mousemove.php_571行目_点') ?><br>
                                         <?= translate('mousemove.php_576行目_解答時間') ?>：<?php
                                           if (isset($a_time)) {
                                               echo htmlspecialchars($a_time, ENT_QUOTES, 'UTF-8');
@@ -683,7 +684,7 @@ require "../lang.php";
                                               echo htmlspecialchars($maxstoptime, ENT_QUOTES, 'UTF-8');
                                           }
                                           ?>ms<br>
-                                        <?= translate('mousemove.php_603行目_グループ化回数') ?>：<?php
+                                        <?= translate('グループ化DragDrop回数') ?>：<?php
                                           if (isset($groupcount)) {
                                               echo htmlspecialchars($groupcount, ENT_QUOTES, 'UTF-8');
                                           }
