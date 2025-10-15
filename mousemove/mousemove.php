@@ -1327,6 +1327,7 @@ require "../lang.php";
             console.log("labelDDTime is " + labelDDTime);
             console.log("slider is " + slider);
 
+            /*
             for (n = t; n < slider; n++) {
                 t = t + 1;
                 if (m + 1 < t_point.length && t == t_point[m + 1]) {
@@ -1394,6 +1395,7 @@ require "../lang.php";
                     }
                 }
             }
+            */
 
             if (labelDDTime != 0 && slider == 0) {
                 for (n = t; n < labelDDTime; n++) {
@@ -1815,6 +1817,92 @@ require "../lang.php";
             }
         }
 
+        // ▼▼▼▼▼ ここから追加 ▼▼▼▼▼
+        /**
+         * 指定された時間の状態を再計算して描画する関数
+         * @param {number} targetTime - 再描画したい時間 (ミリ秒)
+         */
+        function renderStateAtTime(targetTime) {
+            // 1. 動いている場合は停止し、画面と変数を完全にリセット
+            stop_interval();
+            reset_c();
+
+            // 2. 指定時間までイベント処理を（描画なしで）一気に進める
+            while (m + 1 < t_point.length && parseInt(t_point[m + 1]) <= targetTime) {
+                // イベントが発生したY座標に基づいて、どのエリアでの操作かを判断するフラグを設定
+                var current_y = parseInt(y_point[m + 1]);
+                if (current_y <= 130) {
+                    md_flag = 0; // 問題提示欄
+                } else if (current_y > 130 && current_y <= 215) {
+                    md_flag = 4; // 最終解答欄
+                } else if (current_y > 215 && current_y <= 295) {
+                    md_flag = 1; // レジスタ1
+                } else if (current_y > 295 && current_y <= 375) {
+                    md_flag = 2; // レジスタ2
+                } else if (current_y > 375) {
+                    md_flag = 3; // レジスタ3
+                }
+                // timer()関数内のイベント処理ロジックを流用
+                grouptest = Label_point[m + 1].split("#");
+                // グループ化されていない場合
+                if (DD_point[m + 1] == 2 && grouptest[1] == undefined) {
+                    WordDrag();
+                    wordmove = 1;
+                }
+                // グループ化された場合
+                if (DD_point[m + 1] == 2 && grouptest[1] != undefined) {
+                    WordGroup();
+                    wordmove = 1;
+                }
+                // ドロップされた場合
+                if (DD_point[m + 1] == 1) {
+                    WordDrop();
+                    wordmove = 0;
+                }
+                m = m + 1;
+                // 同じ時間のデータが連続する場合のスキップ処理
+                while (m + 1 < t_point.length && parseInt(t_point[m]) == parseInt(t_point[m + 1])) {
+                    m = m + 1;
+                }
+            }
+
+            // 3. 計算後の最終的な単語の位置を描画
+            DrawAline(); // 背景の枠線を描画
+            md_flag = 0; DrawString();
+            md_flag = 1; DrawString();
+            md_flag = 2; DrawString();
+            md_flag = 3; DrawString();
+            md_flag = 4; DrawString();
+
+            // 4. 最初から指定時間までのマウス軌跡を一気に描画
+            jg.clear(); // 軌跡キャンバスをクリア
+            for (var i = 0; i < m; i++) {
+                // DrawLine()のロジックを流用
+                if (parseInt(t_point[i]) % 50000 <= 10000) { jg.setColor("pink"); }
+                else if (parseInt(t_point[i]) % 50000 > 10000 && parseInt(t_point[i]) % 50000 <= 20000) { jg.setColor("blue"); }
+                else if (parseInt(t_point[i]) % 50000 > 20000 && parseInt(t_point[i]) % 50000 <= 30000) { jg.setColor("orange"); }
+                else if (parseInt(t_point[i]) % 50000 > 30000 && parseInt(t_point[i]) % 50000 <= 40000) { jg.setColor("green"); }
+                else if (parseInt(t_point[i]) % 50000 > 40000 && parseInt(t_point[i]) % 50000 <= 50000) { jg.setColor("red"); }
+
+                jg.drawLine(parseInt(x_point[i]), parseInt(y_point[i]), parseInt(x_point[i + 1]), parseInt(y_point[i + 1]));
+            }
+            jg.paint();
+
+            // 5. 最終的なマウスカーソルの位置を描画
+            jg6.clear();
+            if (m < t_point.length) {
+                jg6.drawImage("pointer001.png", x_point[m], y_point[m], 10, 18);
+                jg6.paint();
+            }
+
+            // 6. グローバルな時間とスライダーの値を更新して、再生再開に備える
+            t = targetTime;
+            document.myForm.time.value = t;
+            jQuery('#jquery-ui-slider').slider('value', t);
+            document.getElementById("start_b").style.visibility = "visible";
+        }
+        // ▲▲▲▲▲ ここまで追加 ▲▲▲▲▲
+
         jQuery(function () {
             jQuery('#jquery-ui-slider').slider({
                 range: 'min',
@@ -1822,10 +1910,14 @@ require "../lang.php";
                 min: 0,
                 max: t_point[t_point.length - 4],
                 step: 100,
+                // スライダーを動かしている最中は、時間表示のテキストだけ更新
                 slide: function (event, ui) {
                     jQuery('#jquery-ui-slider-value').val(ui.value + 'ms');
-                    document.myForm.time.value = ui.value;
-                    slider = ui.value;
+                },
+                // スライダーの操作が終わったら、再描画関数を呼び出す
+                stop: function (event, ui) {
+                    jQuery('#jquery-ui-slider-value').val(ui.value + 'ms');
+                    renderStateAtTime(ui.value); // 新しい関数を呼び出す
                 }
             });
             jQuery('#jquery-ui-slider-value').val(jQuery('#jquery-ui-slider').slider('value') + 'ms');
