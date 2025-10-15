@@ -447,7 +447,7 @@ require "../lang.php";
         //$addkstring .= $addk[$i];
         $UTurnXstring .= $UTurnX[$i];
         $UTurnYstring .= $UTurnY[$i];
-        if ($DD[$i] == '2') {
+        if ($DD[$i] == '2' && !isset($DDdragTime[$hLabel[$i]])) {
             $DDdragTime[$hLabel[$i]] = $time[$i];
         }
 
@@ -526,22 +526,23 @@ require "../lang.php";
             <input type="button" value="<?= translate('mousemove.php_499行目_一時停止') ?>" name="stop"
                 onclick="stop_interval()">
             <input type="button" value="<?= translate('mousemove.php_501行目_リセット') ?>" name="reset" onclick="reset_c()">
-            <select name="labelDD" SIZE=1>
+            <select name="labelDD" SIZE=1 onchange="togglePlaybackUI()">
                 <?php
                 $tangoarray = isset($start) ? explode("|", $start) : [];
                 $tangocount = count($tangoarray);
-                echo '<option value= 100>' . translate('すべての単語') . '</option>';
+                echo '<option value="100">' . translate('すべての単語') . '</option>';
                 for ($i = 0; $i < $tangocount; $i++) {
+                    // if文を削除して全ての単語を表示
                     echo '<option value="' . $i . '">' . htmlspecialchars($tangoarray[$i], ENT_QUOTES, 'UTF-8') . '</option>';
                 }
                 ?>
             </select>
-            <select name="playbackDuration" SIZE=1>
-                <option value="-1">最後まで再生</option>
-                <option value="1000">D&D後 1秒再生</option>
-                <option value="3000">D&D後 3秒再生</option>
-                <option value="5000">D&D後 5秒再生</option>
-            </select>
+
+            <span id="playback-controls" style="visibility: hidden;">
+                <label for="playbackDurationInput">D&D後 </label>
+                <input type="number" id="playbackDurationInput" value="3" min="1" style="width: 4em;">
+                <span> 秒間再生</span>
+            </span>
         </div>
     </form>
 
@@ -1247,6 +1248,10 @@ require "../lang.php";
             playbackStopTime = -1;
             document.myForm.time.value = "";
             stop_interval();
+
+            document.getElementById('playback-controls').style.visibility = 'hidden';
+            document.myForm.labelDD.value = '100'; // ドロップダウンを「------」に戻す
+
             jg_b.clear();
             jg.clear();
             jg2.clear();
@@ -1283,6 +1288,18 @@ require "../lang.php";
             document.getElementById("jquery-ui-slider").style.visibility = "visible";
         }
 
+        // 再生時間入力欄の表示/非表示を切り替える関数
+        function togglePlaybackUI() {
+            var labelSelect = document.myForm.labelDD;
+            var playbackControls = document.getElementById('playback-controls');
+            // 「------」以外が選択されたら入力欄を表示
+            if (labelSelect.value !== '100') {
+                playbackControls.style.visibility = 'visible';
+            } else {
+                playbackControls.style.visibility = 'hidden';
+            }
+        }
+
         //インターバル開始
         function interval() {
             document.getElementById("start_b").style.visibility = "hidden";
@@ -1290,24 +1307,21 @@ require "../lang.php";
 
             md_flag = 0;
             DrawString();
-            // ▼▼▼▼▼ ここから修正 ▼▼▼▼▼
             var labelDDvalue = document.myForm.labelDD.value;
-            var duration = parseInt(document.myForm.playbackDuration.value, 10);
-            var labelDDTime = 0; // D&D開始時間
+            var labelDDTime = 0; // 変数を関数の先頭で宣言します
 
-            // 「---」以外が選択されたかチェック
-            if (labelDDvalue != 100) {
-                labelDDTime = parseInt(DDdragTime[labelDDvalue]);
-                // 再生時間が指定されている場合（「最後まで」以外）
-                if (duration > 0 && !isNaN(labelDDTime)) {
-                    playbackStopTime = labelDDTime + duration;
+            if (labelDDvalue !== '100') { // 「------」以外が選択されている場合
+                var durationSec = parseInt(document.getElementById('playbackDurationInput').value, 10);
+                labelDDTime = DDdragTime[labelDDvalue];
+                // 再生時間が正しく入力されていれば停止時間を計算
+                if (!isNaN(durationSec) && durationSec > 0 && labelDDTime !== undefined) {
+                    playbackStopTime = parseInt(labelDDTime) + (durationSec * 1000);
                 } else {
                     playbackStopTime = -1; // 最後まで再生
                 }
             } else {
                 playbackStopTime = -1; // 最後まで再生
             }
-            // ▲▲▲▲▲ ここまで修正 ▲▲▲▲▲
 
             console.log("labelDDvalue" + labelDDvalue);
             console.log("labelDDTime is " + labelDDTime);
