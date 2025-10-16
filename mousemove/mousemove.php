@@ -223,12 +223,11 @@ require "../lang.php";
         }
 
         .wide-container {
-            width: 90%;
-            /* 画面幅の90%を使用 */
-            max-width: 980px;
-            /* ただし、最大幅は980pxに制限 */
-            margin: 10px auto;
-            /* 中央揃え */
+            width: 95%;
+            /* 幅を画面いっぱいに少し広げます */
+            max-width: 1000px;
+            margin: 10px 20px;
+            /* 上下10px、左右20pxの余白を確保して左寄せにします */
         }
         -->
     </style>
@@ -519,7 +518,8 @@ require "../lang.php";
             // イベント情報を配列に追加
             $all_dd_events[] = array(
                 'time' => $time[$i],
-                'label' => $label_id,
+                'hLabel' => $label_id, // クリックした単語のID
+                'labelGroup' => $Label[$i], // グループ化された全単語のID文字列
                 'count' => $dd_counts[$label_id]
             );
         }
@@ -2049,8 +2049,30 @@ require "../lang.php";
                 var threshold = maxTime * 0.015;
 
                 if (closestEvent && minDiff < threshold) {
-                    var wordName = start_point[closestEvent.label];
-                    $tooltip.html(wordName + " (" + closestEvent.count + "回目)")
+                    var tooltipText = "";
+                    // labelGroupに '#' が含まれているかチェック
+                    if (closestEvent.labelGroup.includes('#')) {
+                        // グループの場合：IDを '#' で分割し、空の要素を除外してから単語に変換
+                        var groupLabels = closestEvent.labelGroup.split('#').filter(Boolean);
+                        var wordNames = groupLabels.map(function (labelId) {
+                            return start_point[parseInt(labelId, 10)];
+                        });
+                        // グループ情報のみを表示
+                        tooltipText = "グループ: [ " + wordNames.join(', ') + " ]";
+                    } else {
+                        // 単一の単語の場合
+                        var wordName = start_point[parseInt(closestEvent.hLabel, 10)];
+                        var count = closestEvent.count;
+                        if (count > 1) {
+                            // 2回目以降のD&Dの場合、回数を表示
+                            tooltipText = wordName + " (" + count + "回目)";
+                        } else {
+                            // 1回目のD&Dの場合、単語名のみ表示
+                            tooltipText = wordName;
+                        }
+                    }
+
+                    $tooltip.html(tooltipText)
                         .css({
                             left: e.pageX + 15,
                             top: e.pageY - 30
