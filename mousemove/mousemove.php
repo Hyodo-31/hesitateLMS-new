@@ -600,6 +600,8 @@ require "../lang.php";
             <input type="button" value="<?= translate('mousemove.php_499行目_一時停止') ?>" name="stop"
                 onclick="stop_interval()">
             <input type="button" value="<?= translate('mousemove.php_501行目_リセット') ?>" name="reset" onclick="reset_c()">
+            <input type="button" value="リプレイ" name="replay" id="replay_b" onclick="replay_segment()"
+                style="display: none;">
             <select name="labelDD" SIZE=1 onchange="togglePlaybackUI()">
                 <?php
                 $tangoarray = isset($start) ? explode("|", $start) : [];
@@ -616,6 +618,8 @@ require "../lang.php";
                 <label for="playbackDurationInput">D&D後 </label>
                 <input type="number" id="playbackDurationInput" value="3" min="1" style="width: 4em;">
                 <span> 秒間再生</span>
+                <input type="checkbox" id="playToEndCheckbox" onchange="toggleDurationInput()">
+                <label for="playToEndCheckbox">最後まで</label>
             </span>
         </div>
     </form>
@@ -1207,6 +1211,9 @@ require "../lang.php";
         var wordmove = 0;
         //スライダー用
         var slider = 0;
+        // リプレイ機能用の変数
+        var lastPlaybackStartTime = 0;
+        var lastPlaybackDuration = 0;
         // D&D後の再生停止時間（ミリ秒）。-1の場合は最後まで再生
         var playbackStopTime = -1;
         //ドラッグした単語の順番
@@ -1327,6 +1334,7 @@ require "../lang.php";
 
             document.getElementById('playback-controls').style.visibility = 'hidden';
             document.myForm.labelDD.value = '100'; // ドロップダウンを「------」に戻す
+            document.getElementById('replay_b').style.display = 'none'; // リプレイボタンを隠す
 
             jg_b.clear();
             jg.clear();
@@ -1376,27 +1384,71 @@ require "../lang.php";
             }
         }
 
+        /**
+ * 「最後まで」チェックボックスの状態に応じて、秒数入力欄を無効化/有効化する関数
+ */
+        function toggleDurationInput() {
+            var checkbox = document.getElementById('playToEndCheckbox');
+            var numberInput = document.getElementById('playbackDurationInput');
+            numberInput.disabled = checkbox.checked;
+        }
+
+        /**
+         * 直前の単語スキップ＆指定秒数再生を繰り返す関数
+         */
+        function replay_segment() {
+            // 再生状態を、前回の再生開始時間まで巻き戻す
+            renderStateAtTime(lastPlaybackStartTime);
+
+            // 再生停止時間を再設定
+            if (lastPlaybackDuration > 0) {
+                playbackStopTime = lastPlaybackStartTime + lastPlaybackDuration;
+            } else {
+                playbackStopTime = -1; // 最後まで再生
+            }
+
+            // ボタンの状態を制御
+            document.getElementById("start_b").style.visibility = "hidden";
+            document.getElementById("replay_b").style.display = "none";
+
+            // 再生開始
+            timer1 = setInterval(timer, 5);
+        }
+
         //インターバル開始
         function interval() {
             document.getElementById("start_b").style.visibility = "hidden";
-            // document.getElementById("jquery-ui-slider").style.visibility = "hidden";
-
+            // ▼▼▼▼▼ ここから追加 ▼▼▼▼▼
+            document.getElementById("replay_b").style.display = "none"; // リプレイボタンを隠す
+            lastPlaybackDuration = 0; // リプレイ情報をリセット
+            // ▲▲▲▲▲ ここまで追加 ▲▲▲▲▲
             md_flag = 0;
             DrawString();
-            var labelDDvalue = document.myForm.labelDD.value;
-            var labelDDTime = 0; // 変数を関数の先頭で宣言します
 
-            if (labelDDvalue !== '100') { // 「------」以外が選択されている場合
-                var durationSec = parseInt(document.getElementById('playbackDurationInput').value, 10);
-                labelDDTime = DDdragTime[labelDDvalue];
-                // 再生時間が正しく入力されていれば停止時間を計算
-                if (!isNaN(durationSec) && durationSec > 0 && labelDDTime !== undefined) {
-                    playbackStopTime = parseInt(labelDDTime) + (durationSec * 1000);
+            var labelDDvalue = document.myForm.labelDD.value;
+            var labelDDTime = 0;
+
+            if (labelDDvalue !== '100') {
+                labelDDTime = parseInt(DDdragTime[labelDDvalue]);
+                var playToEnd = document.getElementById('playToEndCheckbox').checked;
+
+                if (playToEnd) {
+                    // 「最後まで再生」が選択された場合
+                    playbackStopTime = -1;
+                    lastPlaybackDuration = -1; // リプレイ用に「最後まで」を記録
                 } else {
-                    playbackStopTime = -1; // 最後まで再生
+                    // 秒数が指定された場合
+                    var durationSec = parseInt(document.getElementById('playbackDurationInput').value, 10);
+                    if (!isNaN(durationSec) && durationSec > 0 && !isNaN(labelDDTime)) {
+                        playbackStopTime = labelDDTime + (durationSec * 1000);
+                        lastPlaybackDuration = durationSec * 1000; // リプレイ用に秒数を記録
+                    } else {
+                        playbackStopTime = -1;
+                    }
                 }
+                lastPlaybackStartTime = labelDDTime; // リプレイ用に開始時間を記録
             } else {
-                playbackStopTime = -1; // 最後まで再生
+                playbackStopTime = -1;
             }
 
             console.log("labelDDvalue" + labelDDvalue);
@@ -1550,6 +1602,10 @@ require "../lang.php";
         function stop_interval() {
             clearInterval(timer1);
             document.getElementById("start_b").style.visibility = "visible";
+            // 直前が指定秒数再生だった場合のみリプレイボタンを表示
+            if (lastPlaybackDuration > 0) {
+                document.getElementById('replay_b').style.display = 'inline';
+            }
             $("#jquery-ui-slider").slider("value", document.myForm.time.value);
         }
 
