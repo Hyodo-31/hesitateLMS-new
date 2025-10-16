@@ -179,7 +179,56 @@ require "../lang.php";
 
         #jquery-ui-slider {
             margin: 0 10px;
-            width: 300px;
+            /* width: 300px; */
+        }
+
+        #slider-container .ui-slider-range {
+            background: #ef2929;
+        }
+
+        #slider-container .ui-slider-handle {
+            border-color: #ef2929;
+        }
+
+        #slider-ticks {
+            position: absolute;
+            top: 5px;
+            /* スライダーの位置に合わせて微調整 */
+            left: 0;
+            width: 100%;
+            height: 10px;
+            pointer-events: none;
+            /* マウス操作をスライダーに透過させる */
+        }
+
+        .tick {
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            top: -3px;
+            /* スライダーのバーの上にはみ出すように */
+        }
+
+        #slider-tooltip {
+            display: none;
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .wide-container {
+            width: 90%;
+            /* 画面幅の90%を使用 */
+            max-width: 980px;
+            /* ただし、最大幅は980pxに制限 */
+            margin: 10px auto;
+            /* 中央揃え */
         }
         -->
     </style>
@@ -427,7 +476,9 @@ require "../lang.php";
     $UTurnXstring = "";
     $UTurnYstring = "";
     $DDdragTime = array();
-
+    $all_dd_events = array(); // 全てのD&Dイベントを格納する配列
+    $dd_counts = array();     // 各単語のD&D回数をカウントする配列
+    
     // 繋げて配列へ格納(Javascriptへ値を渡すため)
     for ($i = 0; $i < count($time); $i++) {
         if ($i > 0) {
@@ -457,8 +508,24 @@ require "../lang.php";
             $DDdragTime[$hLabel[$i]] = $time[$i];
         }
 
+        if ($DD[$i] == '2') {
+            $label_id = $hLabel[$i];
+            // この単語のD&D回数をカウントアップ
+            if (!isset($dd_counts[$label_id])) {
+                $dd_counts[$label_id] = 0;
+            }
+            $dd_counts[$label_id]++;
+
+            // イベント情報を配列に追加
+            $all_dd_events[] = array(
+                'time' => $time[$i],
+                'label' => $label_id,
+                'count' => $dd_counts[$label_id]
+            );
+        }
     }
     $DDdragTime_json = json_encode($DDdragTime);
+    $all_dd_events_json = json_encode($all_dd_events); // 新しい配列をJSON形式に変換
     ?>
     <script type="text/javascript" src="wz_jsgraphics.js"></script>
     <script type="text/javascript">
@@ -504,6 +571,7 @@ require "../lang.php";
         UTurnX_point = UTurnXstring.split("###");
         UTurnY_point = UTurnYstring.split("###");
         var DDdragTime = <?php echo $DDdragTime_json; ?>;
+        var all_dd_events = <?php echo $all_dd_events_json; ?>;
         UTurnFlag = 0;
         UTurnCount = 0;
         console.log(DDdragTime);
@@ -552,13 +620,20 @@ require "../lang.php";
         </div>
     </form>
 
-    <p><?= translate('mousemove.php_516行目_途中から開始') ?>：<input type="text" id="jquery-ui-slider-value" /> /
-        <script type="text/javascript">
-            document.write(t_point[t_point.length - 4]);
-        </script>ms
-    </p>
+    <div class="wide-container">
+        <p><?= translate('mousemove.php_516行目_途中から開始') ?>：<input type="text" id="jquery-ui-slider-value" /> /
+            <script type="text/javascript">
+                document.write(t_point[t_point.length - 4]);
+            </script>ms
+        </p>
 
-    <div id="jquery-ui-slider"></div><br>
+        <div id="slider-container" style="position: relative; padding: 5px 0;">
+            <div id="jquery-ui-slider"></div>
+            <div id="slider-ticks"></div>
+        </div>
+        <div id="slider-tooltip"></div>
+    </div>
+    <br>
 
     <script type="text/javascript" src="excanvas.js"></script>
     <canvas id="canvas" width="0" height="0" style="visibility:hidden;position:absolute;"></canvas>
@@ -1494,7 +1569,7 @@ require "../lang.php";
                     return; // 関数を抜ける
                 }
                 document.myForm.time.value = t;
-                // $("#jquery-ui-slider").slider("value", t); // 連動するけど重すぎる
+                $("#jquery-ui-slider").slider("value", t); // 連動するけど重すぎる
 
                 if (m + 1 < t_point.length && t == t_point[m + 1]) {
                     grouptest = Label_point[m + 1].split("#");
@@ -1904,25 +1979,92 @@ require "../lang.php";
         }
         // ▲▲▲▲▲ ここまで追加 ▲▲▲▲▲
 
-        jQuery(function () {
-            jQuery('#jquery-ui-slider').slider({
+        jQuery(function ($) {
+            var $slider = $('#jquery-ui-slider');
+            var $sliderContainer = $('#slider-container');
+            var $tooltip = $('#slider-tooltip');
+            var maxTime = t_point[t_point.length - 4];
+
+            // D&Dイベントデータの時間プロパティを数値に変換（重要）
+            all_dd_events.forEach(function (event) {
+                event.time = parseInt(event.time, 10);
+            });
+
+            // 1. スライダーの初期化
+            $slider.slider({
                 range: 'min',
                 value: 0,
                 min: 0,
-                max: t_point[t_point.length - 4],
-                step: 100,
-                // スライダーを動かしている最中は、時間表示のテキストだけ更新
+                max: maxTime,
+                step: 1, // より滑らかに動かすためにstepを1に
                 slide: function (event, ui) {
-                    jQuery('#jquery-ui-slider-value').val(ui.value + 'ms');
+                    $('#jquery-ui-slider-value').val(ui.value + 'ms');
                 },
-                // スライダーの操作が終わったら、再描画関数を呼び出す
                 stop: function (event, ui) {
-                    jQuery('#jquery-ui-slider-value').val(ui.value + 'ms');
-                    renderStateAtTime(ui.value); // 新しい関数を呼び出す
+                    $('#jquery-ui-slider-value').val(ui.value + 'ms');
+                    renderStateAtTime(ui.value);
                 }
             });
-            jQuery('#jquery-ui-slider-value').val(jQuery('#jquery-ui-slider').slider('value') + 'ms');
+            $('#jquery-ui-slider-value').val($slider.slider('value') + 'ms');
+
+            // 2. D&Dイベントの目盛りをスライダー上に描画する
+            function drawTicks() {
+                var $ticksContainer = $('#slider-ticks');
+                $ticksContainer.empty(); // 描画前に一度クリア
+                var sliderWidth = $slider.width();
+                if (sliderWidth === 0 || !maxTime) return;
+
+                all_dd_events.forEach(function (event) {
+                    var leftPosition = (event.time / maxTime) * 100;
+                    if (leftPosition >= 0 && leftPosition <= 100) {
+                        $('<div>', { class: 'tick' }).css('left', leftPosition + '%').appendTo($ticksContainer);
+                    }
+                });
+            }
+            // ページ読み込み完了後に一度だけ実行
+            $(window).on('load', function () {
+                setTimeout(drawTicks, 100); // DOMの描画が安定するのを少し待つ
+            });
+
+
+            // 3. スライダーコンテナ上でのマウス移動でツールチップを表示
+            $sliderContainer.on('mousemove', function (e) {
+                var offsetX = e.pageX - $(this).offset().left;
+                var sliderWidth = $(this).width();
+                var hoverTime = (offsetX / sliderWidth) * maxTime;
+
+                // マウス位置に最も近いD&Dイベントを探す
+                var closestEvent = null;
+                var minDiff = Infinity; // 差分の最小値を記録する変数
+
+                all_dd_events.forEach(function (event) {
+                    var diff = Math.abs(event.time - hoverTime);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestEvent = event;
+                    }
+                });
+
+                // 一定の近さ（スライダー全長の1.5%以内）にあればツールチップを表示
+                var threshold = maxTime * 0.015;
+
+                if (closestEvent && minDiff < threshold) {
+                    var wordName = start_point[closestEvent.label];
+                    $tooltip.html(wordName + " (" + closestEvent.count + "回目)")
+                        .css({
+                            left: e.pageX + 15,
+                            top: e.pageY - 30
+                        })
+                        .show();
+                } else {
+                    $tooltip.hide();
+                }
+            }).on('mouseleave', function () {
+                $tooltip.hide(); // マウスが外れたらツールチップを隠す
+            });
         });
+
+
 
         //ボタン用
         var jg_b = new jsGraphics("myCanvasb");
