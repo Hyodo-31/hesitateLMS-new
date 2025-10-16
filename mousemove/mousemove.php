@@ -525,7 +525,18 @@ require "../lang.php";
         }
     }
     $DDdragTime_json = json_encode($DDdragTime);
-    $all_dd_events_json = json_encode($all_dd_events); // 新しい配列をJSON形式に変換
+    $all_dd_events_json = json_encode($all_dd_events);
+
+    // D&Dイベントログからユニークなグループを抽出
+    $unique_groups = array();
+    if (isset($all_dd_events) && is_array($all_dd_events)) {
+        foreach ($all_dd_events as $event) {
+            // '#'が含まれていればグループとみなす
+            if (strpos($event['labelGroup'], '#') !== false) {
+                $unique_groups[$event['labelGroup']] = true;
+            }
+        }
+    }
     ?>
     <script type="text/javascript" src="wz_jsgraphics.js"></script>
     <script type="text/javascript">
@@ -602,24 +613,41 @@ require "../lang.php";
             <input type="button" value="<?= translate('mousemove.php_501行目_リセット') ?>" name="reset" onclick="reset_c()">
             <input type="button" value="リプレイ" name="replay" id="replay_b" onclick="replay_segment()"
                 style="display: none;">
-            <select name="labelDD" SIZE=1 onchange="togglePlaybackUI()">
+            <select name="labelDD" SIZE=1 onchange="updateUIForSelection()">
+                <option value="100"><?= translate('すべての単語') ?></option>
                 <?php
                 $tangoarray = isset($start) ? explode("|", $start) : [];
-                $tangocount = count($tangoarray);
-                echo '<option value="100">' . translate('すべての単語') . '</option>';
-                for ($i = 0; $i < $tangocount; $i++) {
-                    // if文を削除して全ての単語を表示
-                    echo '<option value="' . $i . '">' . htmlspecialchars($tangoarray[$i], ENT_QUOTES, 'UTF-8') . '</option>';
+                // 個別の単語をリストに追加
+                foreach ($tangoarray as $i => $word) {
+                    if (!empty($word)) {
+                        echo '<option value="' . $i . '">' . htmlspecialchars($word, ENT_QUOTES, 'UTF-8') . '</option>';
+                    }
+                }
+                // グループ化された単語をリストに追加
+                foreach (array_keys($unique_groups) as $group_string) {
+                    $group_ids = explode('#', $group_string);
+                    $group_words = [];
+                    foreach ($group_ids as $id) {
+                        if (isset($tangoarray[$id])) {
+                            $group_words[] = $tangoarray[$id];
+                        }
+                    }
+                    $display_text = "グループ: [ " . implode(', ', $group_words) . " ]";
+                    echo '<option value="' . htmlspecialchars($group_string, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($display_text, ENT_QUOTES, 'UTF-8') . '</option>';
                 }
                 ?>
             </select>
-
             <span id="playback-controls" style="visibility: hidden;">
                 <label for="playbackDurationInput">D&D後 </label>
                 <input type="number" id="playbackDurationInput" value="3" min="1" style="width: 4em;">
                 <span> 秒間再生</span>
                 <input type="checkbox" id="playToEndCheckbox" onchange="toggleDurationInput()">
                 <label for="playToEndCheckbox">最後まで</label>
+            </span>
+            &nbsp;&nbsp;
+            <span id="instance-controls" style="display: none;">
+                <label for="dd_instance_select">移動回数: </label>
+                <select id="dd_instance_select"></select>
             </span>
         </div>
     </form>
@@ -1333,6 +1361,7 @@ require "../lang.php";
             stop_interval();
 
             document.getElementById('playback-controls').style.visibility = 'hidden';
+            document.getElementById('instance-controls').style.display = 'none'; // 移動回数UIを隠す
             document.myForm.labelDD.value = '100'; // ドロップダウンを「------」に戻す
             document.getElementById('replay_b').style.display = 'none'; // リプレイボタンを隠す
 
@@ -1372,15 +1401,50 @@ require "../lang.php";
             document.getElementById("jquery-ui-slider").style.visibility = "visible";
         }
 
-        // 再生時間入力欄の表示/非表示を切り替える関数
-        function togglePlaybackUI() {
-            var labelSelect = document.myForm.labelDD;
+        /**
+ * 単語/グループの選択に応じて、再生時間や移動回数のUIを更新する関数
+ */
+        function updateUIForSelection() {
+            var selection = document.myForm.labelDD.value;
             var playbackControls = document.getElementById('playback-controls');
-            // 「------」以外が選択されたら入力欄を表示
-            if (labelSelect.value !== '100') {
+            var instanceControls = document.getElementById('instance-controls');
+            var instanceSelect = document.getElementById('dd_instance_select');
+
+            // UIを初期状態にリセット
+            instanceSelect.innerHTML = '';
+            instanceControls.style.display = 'none';
+            playbackControls.style.visibility = 'hidden';
+
+            // 「------」が選択された場合は処理を終了
+            if (selection === '100') {
+                return;
+            }
+
+            // 選択された単語/グループに一致するD&Dイベントを全て検索
+            var matchingEvents = all_dd_events.filter(function (event) {
+                if (selection.includes('#')) {
+                    // グループが選択された場合
+                    return event.labelGroup === selection;
+                } else {
+                    // 個別の単語が選択された場合
+                    return event.hLabel === selection;
+                }
+            });
+
+            // 一致するイベントが1つでもあれば、再生時間UIを表示
+            if (matchingEvents.length > 0) {
                 playbackControls.style.visibility = 'visible';
-            } else {
-                playbackControls.style.visibility = 'hidden';
+            }
+
+            // 一致するイベントが複数ある場合は、移動回数選択UIを表示
+            if (matchingEvents.length > 1) {
+                instanceControls.style.display = 'inline';
+                matchingEvents.forEach(function (event, index) {
+                    var option = document.createElement('option');
+                    option.value = event.time; // valueにイベント発生時間を設定
+                    option.textContent = (index + 1) + '回目 (' + event.time + 'ms)';
+                    instanceSelect.appendChild(option);
+                });
             }
         }
 
@@ -1429,7 +1493,22 @@ require "../lang.php";
             var labelDDTime = 0;
 
             if (labelDDvalue !== '100') {
-                labelDDTime = parseInt(DDdragTime[labelDDvalue]);
+                var instanceControls = document.getElementById('instance-controls');
+                var instanceSelect = document.getElementById('dd_instance_select');
+
+                // 移動回数UIが表示されているかチェック
+                if (instanceControls.style.display !== 'none' && instanceSelect.value) {
+                    // 表示されていれば、選択された回数の時間をジャンプ先とする
+                    labelDDTime = parseInt(instanceSelect.value, 10);
+                } else {
+                    // 表示されていなければ、最初に見つかったD&Dイベントの時間をジャンプ先とする
+                    var firstMatch = all_dd_events.find(function (event) {
+                        return (labelDDvalue.includes('#')) ? (event.labelGroup === labelDDvalue) : (event.hLabel === labelDDvalue);
+                    });
+                    if (firstMatch) {
+                        labelDDTime = firstMatch.time;
+                    }
+                }
                 var playToEnd = document.getElementById('playToEndCheckbox').checked;
 
                 if (playToEnd) {
@@ -2041,6 +2120,16 @@ require "../lang.php";
             var $tooltip = $('#slider-tooltip');
             var maxTime = t_point[t_point.length - 4];
 
+            // 各単語・グループの総D&D回数を事前に計算しておく
+            var eventTotalCounts = {};
+            all_dd_events.forEach(function (event) {
+                var key = event.labelGroup.includes('#') ? event.labelGroup : event.hLabel;
+                if (!eventTotalCounts[key]) {
+                    eventTotalCounts[key] = 0;
+                }
+                eventTotalCounts[key]++;
+            });
+
             // D&Dイベントデータの時間プロパティを数値に変換（重要）
             all_dd_events.forEach(function (event) {
                 event.time = parseInt(event.time, 10);
@@ -2106,26 +2195,25 @@ require "../lang.php";
 
                 if (closestEvent && minDiff < threshold) {
                     var tooltipText = "";
-                    // labelGroupに '#' が含まれているかチェック
-                    if (closestEvent.labelGroup.includes('#')) {
-                        // グループの場合：IDを '#' で分割し、空の要素を除外してから単語に変換
+                    var key = closestEvent.labelGroup.includes('#') ? closestEvent.labelGroup : closestEvent.hLabel;
+                    var totalCount = eventTotalCounts[key]; // 事前に計算した総回数を取得
+
+                    // ベースとなるテキストを生成
+                    if (key.includes('#')) {
+                        // グループの場合
                         var groupLabels = closestEvent.labelGroup.split('#').filter(Boolean);
                         var wordNames = groupLabels.map(function (labelId) {
                             return start_point[parseInt(labelId, 10)];
                         });
-                        // グループ情報のみを表示
                         tooltipText = "グループ: [ " + wordNames.join(', ') + " ]";
                     } else {
                         // 単一の単語の場合
-                        var wordName = start_point[parseInt(closestEvent.hLabel, 10)];
-                        var count = closestEvent.count;
-                        if (count > 1) {
-                            // 2回目以降のD&Dの場合、回数を表示
-                            tooltipText = wordName + " (" + count + "回目)";
-                        } else {
-                            // 1回目のD&Dの場合、単語名のみ表示
-                            tooltipText = wordName;
-                        }
+                        tooltipText = start_point[parseInt(closestEvent.hLabel, 10)];
+                    }
+
+                    // 総回数が1回より大きい場合、何回目の操作かを表示
+                    if (totalCount > 1) {
+                        tooltipText += " (" + closestEvent.count + "回目)";
                     }
 
                     $tooltip.html(tooltipText)
