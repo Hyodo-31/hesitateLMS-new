@@ -625,18 +625,25 @@ require "../lang.php";
                 }
                 // グループ化された単語をリストに追加
                 foreach (array_keys($unique_groups) as $group_string) {
-                    // 文字列を分割し、array_filterで空の要素を完全に除去する
-                    $group_ids = array_filter(explode('#', $group_string));
+                    // ▼▼▼▼▼ このブロックで置き換え ▼▼▼▼▼
                     $group_words = [];
-                    foreach ($group_ids as $id) {
-                        // ▼▼▼▼▼ ここから修正 ▼▼▼▼▼
-                        // IDの前後にある空白を削除し、数値に変換してから単語を検索
-                        $numeric_id = intval(trim($id));
-                        if (isset($tangoarray[$numeric_id])) {
-                            $group_words[] = $tangoarray[$numeric_id];
+                    // 1. 文字列を '#' で分割する
+                    $group_ids_raw = explode('#', $group_string);
+
+                    // 2. 分割後の各IDをチェックし、有効なものだけを処理する
+                    foreach ($group_ids_raw as $id) {
+                        // IDの前後の空白を削除
+                        $trimmed_id = trim($id);
+                        // IDが空文字列でないことを確認
+                        if ($trimmed_id !== '') {
+                            $numeric_id = intval($trimmed_id);
+                            if (isset($tangoarray[$numeric_id])) {
+                                $group_words[] = $tangoarray[$numeric_id];
+                            }
                         }
-                        // ▲▲▲▲▲ ここまで修正 ▲▲▲▲▲
                     }
+                    // ▲▲▲▲▲ ここまで ▲▲▲▲▲
+                
                     $display_text = "グループ: [ " . implode(', ', $group_words) . " ]";
                     echo '<option value="' . htmlspecialchars($group_string, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($display_text, ENT_QUOTES, 'UTF-8') . '</option>';
                 }
