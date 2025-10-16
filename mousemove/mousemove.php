@@ -625,12 +625,17 @@ require "../lang.php";
                 }
                 // グループ化された単語をリストに追加
                 foreach (array_keys($unique_groups) as $group_string) {
-                    $group_ids = explode('#', $group_string);
+                    // 文字列を分割し、array_filterで空の要素を完全に除去する
+                    $group_ids = array_filter(explode('#', $group_string));
                     $group_words = [];
                     foreach ($group_ids as $id) {
-                        if (isset($tangoarray[$id])) {
-                            $group_words[] = $tangoarray[$id];
+                        // ▼▼▼▼▼ ここから修正 ▼▼▼▼▼
+                        // IDの前後にある空白を削除し、数値に変換してから単語を検索
+                        $numeric_id = intval(trim($id));
+                        if (isset($tangoarray[$numeric_id])) {
+                            $group_words[] = $tangoarray[$numeric_id];
                         }
+                        // ▲▲▲▲▲ ここまで修正 ▲▲▲▲▲
                     }
                     $display_text = "グループ: [ " . implode(', ', $group_words) . " ]";
                     echo '<option value="' . htmlspecialchars($group_string, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($display_text, ENT_QUOTES, 'UTF-8') . '</option>';
