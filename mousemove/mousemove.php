@@ -1745,7 +1745,7 @@ require "../lang.php";
             if (lastPlaybackDuration > 0) {
                 document.getElementById('replay_b').style.display = 'inline';
             }
-            $("#jquery-ui-slider").slider("value", document.myForm.time.value);
+            $("#jquery-ui-slider").slider("value", t); // ← 画面表示(time.value)ではなく、変数tを参照するように変更
         }
 
         //タイマーに合わせて描画
