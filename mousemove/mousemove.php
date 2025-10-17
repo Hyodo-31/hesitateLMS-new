@@ -883,27 +883,46 @@ require "../lang.php";
                             $diarray = isset($start) ? explode("|", $start) : [];
                             $word_count = array();
 
-                            // 「余分なDD動作」のカウントロジック
+                            // 「余分なDD動作」のカウントロジックを修正
                             $sql_DD = "select * from linedatamouse where UID = " . $uid . " and WID = " . $wid . " order by Time;";
                             $res_DD = mysqli_query($conn, $sql_DD) or die("接続エラー");
-                            $Array_Flag = 0;
-                            $Label_div_for_wc = array(); // word_count用のLabel_div
-                            $Label_for_wc = ""; // word_count用のLabel
+                            $Array_Flag = 0; // Drag開始時のエリアを保持するフラグ
+                            $Label_div_for_wc = array();
+                            $Label_for_wc = "";
                             while ($row_DD = mysqli_fetch_array($res_DD)) {
                                 if ($row_DD["DD"] == 2) { //Drag時
                                     $Label_for_wc = $row_DD["Label"];
                                     $Label_div_for_wc = explode("#", $Label_for_wc);
 
-                                    if ($row_DD["Y"] > 130 && $row_DD["Y"] <= 215) $Array_Flag = 4;
-                                    else if ($row_DD["Y"] > 215 && $row_DD["Y"] <= 295) $Array_Flag = 1;
-                                    else if ($row_DD["Y"] > 295 && $row_DD["Y"] <= 375) $Array_Flag = 2;
-                                    else if ($row_DD["Y"] > 375) $Array_Flag = 3;
-                                    else $Array_Flag = 0;
+                                    // Drag開始エリアを判定・保持
+                                    if ($row_DD["Y"] > 130 && $row_DD["Y"] <= 215) $Array_Flag = 4;      // 解答欄
+                                    else if ($row_DD["Y"] > 215 && $row_DD["Y"] <= 295) $Array_Flag = 1; // レジスタ1
+                                    else if ($row_DD["Y"] > 295 && $row_DD["Y"] <= 375) $Array_Flag = 2; // レジスタ2
+                                    else if ($row_DD["Y"] > 375) $Array_Flag = 3;                       // レジスタ3
+                                    else $Array_Flag = 0;                                              // 問題提示欄
+
                                 } else if ($row_DD["DD"] == 1) { //Drop時
-                                    //問題提示欄に戻された場合のみをカウントするロジック
-                                    if ($row_DD["Y"] <= 130) {
-                                        if ($Array_Flag != 0) {
-                                            foreach ($Label_div_for_wc as $value) {
+                                    $should_count = false;
+                                    $drop_Y = $row_DD["Y"];
+
+                                    // ケース1: 問題提示欄以外から問題提示欄に戻された場合
+                                    if ($drop_Y <= 130 && $Array_Flag != 0) {
+                                        $should_count = true;
+                                    }
+                                    // ケース2: 同じ解答欄や同じレジスタ内で移動した場合 (入れ替え)
+                                    else if (($drop_Y > 130 && $drop_Y <= 215) && $Array_Flag == 4) {
+                                        $should_count = true;
+                                    } else if (($drop_Y > 215 && $drop_Y <= 295) && $Array_Flag == 1) {
+                                        $should_count = true;
+                                    } else if (($drop_Y > 295 && $drop_Y <= 375) && $Array_Flag == 2) {
+                                        $should_count = true;
+                                    } else if ($drop_Y > 375 && $Array_Flag == 3) {
+                                        $should_count = true;
+                                    }
+
+                                    if ($should_count) {
+                                        foreach ($Label_div_for_wc as $value) {
+                                            if (trim($value) !== '') { // 空のIDはカウントしない
                                                 if (isset($word_count[$value])) $word_count[$value]++;
                                                 else $word_count[$value] = 1;
                                             }
@@ -1016,12 +1035,18 @@ require "../lang.php";
                                 if (isset($Label_array[$index])) $word_array_from_dc[] = $Label_array[$index];
                             }
                             $word_array = array_unique(array_merge($word_array_from_wc, $word_array_from_dc));
+
+                            // 配列から空の要素とコンマだけの要素をフィルタリングして削除
+                            $word_array = array_filter($word_array, function ($value) {
+                                $trimmed_value = trim($value); // 前後の空白を除去
+                                return $trimmed_value !== '' && $trimmed_value !== ','; // 空でもなく、コンマでもないものだけを残す
+                            });
                             ?>
 
                             <b><u><?= translate('mousemove.php_1078行目_迷い候補リスト') ?></u></b>
                             <span class="info-icon">ⓘ
                                 <span class="info-popup">
-                                    解答中に何度も移動された単語や、次の単語を操作するまでの間隔が特に長かった単語を「迷った単語」の候補としてリストアップしています。
+                                    以下の二つの項目に該当する単語を「迷った単語」の候補としてリストアップしています。
                                 </span>
                             </span>
                             <br>
@@ -1034,29 +1059,50 @@ require "../lang.php";
                             <b><u><?= translate('mousemove.php_1107行目_余分なDD動作') ?></u></b>
                             <span class="info-icon">ⓘ
                                 <span class="info-popup">
-                                    一度、解答欄や退避エリアに置かれた後、再び問題提示エリアに戻された単語のリストです。移動回数が多いほど、その単語の配置に迷ったことを示唆します。
+                                    一度、解答欄や退避エリアに置かれた後、再び問題提示エリアに戻された単語や、解答欄や各レジスタ（退避エリア）の中で、順番を入れ替えた単語のリストです。移動回数が多いほど、その単語の配置に迷ったことを示唆します。
                                 </span>
                             </span>
                             <br>
                             <?php
-                            $p = 0;
-                            $q = 0;
                             if (empty($word_count)) {
                                 echo "該当なし<br>";
                             } else {
+                                $multiple_hits = [];
+                                $single_hits = [];
                                 foreach ($word_count as $key => $value) {
-                                    if ($p == 0 && $value >= 2) {
-                                        echo "<u>" . translate('mousemove.php_1113行目_複数回') . "</u><br>";
-                                        $p = 1;
+                                    if ($value >= 2) {
+                                        $multiple_hits[$key] = $value;
+                                    } elseif ($value == 1) {
+                                        $single_hits[$key] = $value;
                                     }
-                                    if ($value >= 2) echo " " . (isset($diarray[$key]) ? htmlspecialchars($diarray[$key], ENT_QUOTES, 'UTF-8') : '') . "(" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . "): " . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . " " . translate('mousemove.php_1117行目_回') . "<br>";
                                 }
-                                foreach ($word_count as $key => $value) {
-                                    if ($q == 0 && $value == 1) {
-                                        echo "<u>" . translate('mousemove.php_1121行目_1回') . "</u><br>";
-                                        $q = 1;
+
+                                if (!empty($multiple_hits)) {
+                                    echo "<u>" . translate('複数回検出') . "</u><br>";
+                                    foreach ($multiple_hits as $key => $value) {
+                                        // ▼▼▼▼▼ ここを修正 ▼▼▼▼▼
+                                        $word_id = (int)$key; // キーを整数に変換
+                                        $word_name = isset($diarray[$word_id]) && trim($diarray[$word_id]) !== ''
+                                            ? htmlspecialchars($diarray[$word_id], ENT_QUOTES, 'UTF-8')
+                                            : "ID:" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); // 念のためフォールバック
+                                        // ▲▲▲▲▲ 修正はここまで ▲▲▲▲▲
+                                        echo "検出単語: " . $word_name
+                                            . " (" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8')
+                                            . translate('mousemove.php_1117行目_回') . ")<br>";
                                     }
-                                    if ($value == 1 && isset($diarray[$key])) echo " " . htmlspecialchars($diarray[$key], ENT_QUOTES, 'UTF-8') . "(" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . ")<br>";
+                                }
+
+                                if (!empty($single_hits)) {
+                                    echo "<u>" . translate('1回検出') . "</u><br>";
+                                    foreach ($single_hits as $key => $value) {
+                                        // ▼▼▼▼▼ ここを修正 ▼▼▼▼▼
+                                        $word_id = (int)$key; // キーを整数に変換
+                                        $word_name = isset($diarray[$word_id]) && trim($diarray[$word_id]) !== ''
+                                            ? htmlspecialchars($diarray[$word_id], ENT_QUOTES, 'UTF-8')
+                                            : "ID:" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); // 念のためフォールバック
+                                        // ▲▲▲▲▲ 修正はここまで ▲▲▲▲▲
+                                        echo "検出単語: " . $word_name . "<br>";
+                                    }
                                 }
                             }
                             ?>
@@ -1064,7 +1110,7 @@ require "../lang.php";
                             <b><u><?= translate('mousemove.php_1128行目_入れ替え間時間') ?></u></b>
                             <span class="info-icon">ⓘ
                                 <span class="info-popup">
-                                    ある単語を配置(Drop)してから、次に別の単語を掴む(Drag)までの時間を計測し、特に長かったものをリストアップしています。時間が長いほど、次の操作に迷った可能性を示します。
+                                    ある単語を配置(Drop)してから、次に別の単語を掴む(Drag)までの時間を計測し、特に長かったものをリストアップしています。時間が長いほど、次の操作に迷った可能性を示します。この学習者がこれまで解いた全ての問題を元に、入れ替え間の平均時間などを計算しています。
                                 </span>
                             </span>
                             <br>
