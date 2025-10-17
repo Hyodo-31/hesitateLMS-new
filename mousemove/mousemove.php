@@ -884,7 +884,7 @@ require "../lang.php";
                             $word_count = array();
 
                             // 「余分なDD動作」のカウントロジックを修正
-                            $sql_DD = "select * from linedatamouse where UID = " . $uid . " and WID = " . $wid . " order by Time;";
+                            $sql_DD = "select * from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num ." order by Time;";
                             $res_DD = mysqli_query($conn, $sql_DD) or die("接続エラー");
                             $Array_Flag = 0; // Drag開始時のエリアを保持するフラグ
                             $Label_div_for_wc = array();
@@ -933,7 +933,7 @@ require "../lang.php";
                             arsort($word_count);
 
                             // 「入れ替え間時間」の計算ロジック
-                            $sql_DD2 = "select * from linedatamouse where UID = " . $uid . " order by WID,Time;";
+                            $sql_DD2 = "select * from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num ." order by Time;";
                             $res_DD2 = mysqli_query($conn, $sql_DD2) or die("接続エラー");
                             $DC_Flag = 0;
                             $DC_array = array();
@@ -1120,11 +1120,11 @@ require "../lang.php";
                             <b><u><?= translate('mousemove.php_1128行目_入れ替え間時間') ?></u></b>
                             <span class="info-icon">ⓘ
                                 <span class="info-popup">
-                                    ある単語を配置(Drop)してから、次に別の単語を掴む(Drag)までの時間を計測し、特に長かったものをリストアップしています。(表記：→次に掴んだ単語 : 掴むまでの時間)  時間が長いほど、次の操作に迷った可能性を示します。この学習者がこれまで解いた全ての問題を元に、入れ替え間の平均時間などを計算しています。
+                                    ある単語を配置(Drop)してから、次に別の単語を掴む(Drag)までの時間を計測し、特に長かったものをリストアップしています。<br>(表記：→次に掴んだ単語 : 掴むまでの時間)  <br>時間が長いほど、次の操作に迷った可能性を示します。この学習者がこれまで解いた全ての問題を元に、入れ替え間の平均時間などを計算しています。
                                 </span>
                             </span>
                             <br>
-                            <u>特に長い時間 (平均 + 標準偏差×2以上)</u><br>
+                            <u>特に長い時間の単語 (平均 + 標準偏差×2以上に該当)</u><br>
                             <?php
                             foreach ($DC_array2 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
@@ -1132,7 +1132,7 @@ require "../lang.php";
                                 echo " → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒<br>";
                             }
                             ?>
-                            <u>やや長い時間 (平均 + 標準偏差×1以上)</u><br>
+                            <u>やや長い時間の単語 (平均 + 標準偏差×1以上に該当)</u><br>
                             <?php
                             foreach ($DC_array1 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
@@ -1140,7 +1140,7 @@ require "../lang.php";
                                 echo " → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒<br>";
                             }
                             ?>
-                            <u>少し長い時間 (平均 + 標準偏差×0.75以上)</u><br>
+                            <u>少し長い時間の単語 (平均 + 標準偏差×0.75以上に該当)</u><br>
                             <?php
                             foreach ($DC_array075 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
