@@ -248,16 +248,20 @@ require "../lang.php";
             vertical-align: middle;
         }
 
-        /* ▼▼▼▼▼ このスタイル定義に置き換えてください ▼▼▼▼▼ */
         .info-popup {
             visibility: hidden;
             position: absolute;
-            /* アイコンの右側に表示するよう変更 */
-            top: 50%;
-            left: 140%;
-            /* アイコンからの距離 */
-            transform: translateY(-50%);
-            width: 320px;
+            /* ▼▼▼▼▼ 変更箇所(ここから) ▼▼▼▼▼ */
+            top: 150%;
+            /* アイコンからの垂直方向の距離 */
+            left: 0;
+            /* ポップアップの右端をアイコンの右端に合わせる */
+            right: auto;
+            /* left指定を解除 */
+            transform: none;
+            /* transform指定を解除 */
+            /* ▲▲▲▲▲ 変更箇所(ここまで) ▲▲▲▲▲ */
+            width: 450px;
             background-color: #333;
             color: #fff;
             text-align: left;
@@ -272,17 +276,22 @@ require "../lang.php";
         }
 
         .info-popup::after {
-            /* 吹き出しの矢印 */
             content: "";
             position: absolute;
-            top: 50%;
-            right: 100%;
-            /* 矢印を左側（アイコン側）に配置 */
-            margin-top: -5px;
+            /* ▼▼▼▼▼ 変更箇所(ここから) ▼▼▼▼▼ */
+            bottom: 100%;
+            /* 矢印をポップアップの上に配置 */
+            left: 15px;
+            /* 矢印を右側に寄せる */
+            right: auto;
+            /* left指定を解除 */
+            margin-right: 0;
+            /* margin指定を解除 */
             border-width: 5px;
             border-style: solid;
-            /* 矢印が左を向くように変更 */
-            border-color: transparent #333 transparent transparent;
+            border-color: transparent transparent #333 transparent;
+            /* 矢印が上を向くように設定 */
+            /* ▲▲▲▲▲ 変更箇所(ここまで) ▲▲▲▲▲ */
         }
 
         .info-icon:hover .info-popup {
@@ -389,10 +398,14 @@ require "../lang.php";
     $res3 = mysqli_query($conn, $query3) or die("Error:query3");
     // ▼▼▼▼▼ trackdataへのクエリを削除し、test_featurevalueへのクエリに変更 ▼▼▼▼▼
     // attemptカラムで絞り込むことで、正しい試行回数のデータを取得
-    $query4 = "select distance, averageSpeed, maxStopTime, DDCount, xUTurnCount, yUTurnCount, xUTurnCountDD, yUTurnCountDD, groupingDDCount from test_featurevalue where uid = $uid and WID = $wid and attempt = $attempt_num";
+    //$query4 = "select distance, averageSpeed, maxStopTime, DDCount, xUTurnCount, yUTurnCount, xUTurnCountDD, yUTurnCountDD, groupingDDCount from test_featurevalue where uid = $uid and WID = $wid and attempt = $attempt_num";
+    $query4 = "select maxStopTime, DDCount, xUTurnCount, yUTurnCount, xUTurnCountDD, yUTurnCountDD, groupingDDCount, answeringTime, maxDDTime, totalStopTime, thinkingTime from test_featurevalue where uid = $uid and WID = $wid and attempt = $attempt_num";
     $res4 = mysqli_query($conn, $query4) or die("Error:query4");
     $query5 = "select Time from linedata where uid = $uid and WID = $wid and attempt = $attempt_num";
     $res5 = mysqli_query($conn, $query5) or die("Error:query5");
+    // temporary_resultsから迷い推定結果を取得するクエリ
+    $query_est = "SELECT Understand FROM temporary_results WHERE UID = " . $uid . " AND WID = " . $wid . " AND attempt = " . $attempt_num;
+    $res_est = mysqli_query($conn, $query_est) or die("Error:query_est");
 
     $row = mysqli_fetch_array($res2);
     if (isset($row['EndSentence'])) {
@@ -423,14 +436,7 @@ require "../lang.php";
         $start = $row2['start'];
     }
     $row3 = mysqli_fetch_array($res4);
-    // 'point'の取得は不要になったため削除
-    
-    if (isset($row3['averageSpeed'])) {
-        $avespeed = $row3['averageSpeed'];
-    }
-    if (isset($row3['distance'])) {
-        $distance = $row3['distance'];
-    }
+
     if (isset($row3['groupingDDCount'])) {
         $groupcount = $row3['groupingDDCount'];
     }
@@ -442,14 +448,33 @@ require "../lang.php";
         $uturncount_Y = $row3['yUTurnCount'] + $row3['yUTurnCountDD'];
     }
     if (isset($row3['maxStopTime'])) { // 'M'を小文字に修正
-        $maxstoptime = $row3['maxStopTime'];
+        $maxstoptime = $row3['maxStopTime'] / 1000;
     }
     if (isset($row3['DDCount'])) { // 'DragDropCount'を'DDCount'に修正
         $dragdropcount = $row3['DDCount'];
     }
+    if (isset($row3['maxDDTime'])) {
+        $maxDDTime = $row3['maxDDTime'] / 1000;
+    }
+    if (isset($row3['totalStopTime'])) {
+        $totalStopTime = $row3['totalStopTime'] / 1000;
+    }
+    if (isset($row3['thinkingTime'])) {
+        $thinkingTime = $row3['thinkingTime'] / 1000;
+    }
+    if (isset($row3['answeringTime'])) {
+        $answeringTime = $row3['answeringTime'] / 1000;
+    }
     $row4 = mysqli_fetch_array($res5);
     if (isset($row4['Time'])) {
         $a_time = $row4['Time'] / 1000;
+    }
+
+    $estimated_us = null; // デフォルト値を設定
+    if ($row_est = mysqli_fetch_array($res_est)) {
+        if (isset($row_est['Understand'])) {
+            $estimated_us = $row_est['Understand'];
+        }
     }
     $grammar_split = array();
     $grammar_print = array();
@@ -725,11 +750,34 @@ require "../lang.php";
     </form>
 
     <div class="wide-container">
-        <p><?= translate('mousemove.php_516行目_途中から開始') ?>：<input type="text" id="jquery-ui-slider-value" /> /
+        <div style="display: inline-block; vertical-align: middle;">
+            <?= translate('mousemove.php_516行目_途中から開始') ?>：<input type="text" id="jquery-ui-slider-value" /> /
             <script type="text/javascript">
                 document.write(t_point[t_point.length - 4]);
             </script>ms
-        </p>
+
+            <span class="info-icon">ⓘ
+                <span class="info-popup" style="width: 450px; text-align: left; padding: 12px; white-space: normal;">
+                    <b style="font-size: 14px; margin-bottom: 8px; display: block;"><?= translate('軌跡再現の操作方法') ?></b>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li style="margin-bottom: 8px;">
+                            <b><?= translate('再生/操作') ?>:</b> 「軌跡再現」ボタンで再生します。スライドバーを動かすと、任意の時点への早送りや巻き戻しが可能です。
+                        </li>
+                        <li style="margin-bottom: 8px;">
+                            <b><?= translate('イベント確認') ?>:</b>
+                            バー上の黒い縦線は、単語やグループのDrag&Dropが行われた箇所です。マウスカーソルを合わせると、操作された単語名がポップアップで表示されます。
+                        </li>
+                        <li style="margin-bottom: 8px;">
+                            <b><?= translate('特定場面の再生') ?>:</b>
+                            ドロップダウンから特定の単語やグループを選択すると、その単語が操作された場面へジャンプし、指定した秒数だけ（または最後まで）再生できます。
+                        </li>
+                        <li>
+                            <b><?= translate('詳細情報') ?>:</b> 学習者の詳細結果は画面下部で確認できます。
+                        </li>
+                    </ul>
+                </span>
+            </span>
+        </div>
 
         <div id="slider-container" style="position: relative; padding: 5px 0;">
             <div id="jquery-ui-slider"></div>
@@ -775,7 +823,7 @@ require "../lang.php";
                                         <b><u><?= translate('mousemove.php_539行目_日本語文') ?></u>：<?php echo isset($js) ? htmlspecialchars($js, ENT_QUOTES, 'UTF-8') : ''; ?></b><br>
                                         <b><u><?= translate('mousemove.php_540行目_正解文') ?></u>：<?php echo isset($se) ? htmlspecialchars($se, ENT_QUOTES, 'UTF-8') : ''; ?></b><br>
                                         <br>
-                                        <b><u><?= translate('mousemove.php_542行目_迷い度') ?></u>：
+                                        <b><u><?= translate('学習者の申告迷い度') ?></u>：
                                             <?php
                                             if (isset($us)) {
                                                 if ($us == 0) {
@@ -787,6 +835,19 @@ require "../lang.php";
                                                 } elseif ($us == 2) {
                                                     print (translate('mousemove.php_547行目_かなり迷った'));
                                                 }
+                                            }
+                                            ?>
+                                        </b><br>
+                                        <b><u><?= translate('迷い推定結果') ?></u>：
+                                            <?php
+                                            if ($estimated_us === null) {
+                                                echo translate('未推定');
+                                            } elseif ($estimated_us == 2) {
+                                                echo translate('迷い有り');
+                                            } elseif ($estimated_us == 4) {
+                                                echo translate('迷い無し');
+                                            } else {
+                                                echo translate('未推定');
                                             }
                                             ?>
                                         </b><br>
@@ -838,6 +899,11 @@ require "../lang.php";
                                               echo htmlspecialchars($dragdropcount, ENT_QUOTES, 'UTF-8');
                                           }
                                           ?><?= translate('mousemove.php_581行目_回') ?><br>
+                                        <?= translate('グループ化Drag&Drop回数') ?>：<?php
+                                          if (isset($groupcount)) {
+                                              echo htmlspecialchars($groupcount, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?><?= translate('mousemove.php_605行目_回') ?><br>
                                         <?= translate('mousemove.php_582行目_Uターン回数X') ?>：<?php
                                           if (isset($uturncount_X)) {
                                               echo htmlspecialchars($uturncount_X, ENT_QUOTES, 'UTF-8');
@@ -848,26 +914,31 @@ require "../lang.php";
                                               echo htmlspecialchars($uturncount_Y, ENT_QUOTES, 'UTF-8');
                                           }
                                           ?><?= translate('mousemove.php_587行目_回') ?><br>
-                                        <?= translate('mousemove.php_588行目_マウス移動距離') ?>：<?php
-                                          if (isset($distance)) {
-                                              echo htmlspecialchars($distance, ENT_QUOTES, 'UTF-8');
-                                          }
-                                          ?>pixel<br>
-                                        <?= translate('mousemove.php_593行目_平均マウス速度') ?>：<?php
-                                          if (isset($avespeed)) {
-                                              echo htmlspecialchars($avespeed, ENT_QUOTES, 'UTF-8');
-                                          }
-                                          ?>pixel/ms<br>
                                         <?= translate('mousemove.php_598行目_最大静止時間') ?>：<?php
                                           if (isset($maxstoptime)) {
                                               echo htmlspecialchars($maxstoptime, ENT_QUOTES, 'UTF-8');
                                           }
-                                          ?>ms<br>
-                                        <?= translate('グループ化DragDrop回数') ?>：<?php
-                                          if (isset($groupcount)) {
-                                              echo htmlspecialchars($groupcount, ENT_QUOTES, 'UTF-8');
+                                          ?>s<br>
+                                        <?= translate('総合静止時間') ?>：<?php
+                                          if (isset($totalStopTime)) {
+                                              echo htmlspecialchars($totalStopTime, ENT_QUOTES, 'UTF-8');
                                           }
-                                          ?><?= translate('mousemove.php_605行目_回') ?><br>
+                                          ?>s<br>
+                                        <?= translate('開始から最初の単語を触るまでの時間') ?>：<?php
+                                          if (isset($thinkingTime)) {
+                                              echo htmlspecialchars($thinkingTime, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?>s<br>
+                                        <?= translate('最初の単語を触ってから最後までの時間') ?>：<?php
+                                          if (isset($answeringTime)) {
+                                              echo htmlspecialchars($answeringTime, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?>s<br>
+                                        <?= translate('最大Drag&Drop時間') ?>：<?php
+                                          if (isset($maxDDTime)) {
+                                              echo htmlspecialchars($maxDDTime, ENT_QUOTES, 'UTF-8');
+                                          }
+                                          ?>s<br>
                                     </td>
                                 </tr>
                             </table>
@@ -1128,7 +1199,7 @@ require "../lang.php";
                             <span class="info-icon">ⓘ
                                 <span class="info-popup">
                                     ある単語を配置(Drop)してから、次に別の単語を掴む(Drag)までの時間を計測し、特に長かったものをリストアップしています。<br>(表記：→次に掴んだ単語 :
-                                    掴むまでの時間) <br>時間が長いほど、次の操作に迷った可能性を示します。この学習者がこれまで解いた全ての問題を元に、入れ替え間の平均時間などを計算しています。
+                                    掴むまでの時間) <br>時間が長いほど、次の操作に迷った可能性を示します。この問題解答時における解答データを元に、入れ替え間の平均時間などを計算しています。
                                 </span>
                             </span>
                             <br>
