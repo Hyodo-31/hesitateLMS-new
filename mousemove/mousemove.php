@@ -1021,26 +1021,36 @@ require "../lang.php";
                             arsort($DC_array1);
                             arsort($DC_array075);
 
-                            // 迷い候補リストの生成
-                            $word_array_from_wc = array();
+                            // ▼▼▼▼▼ 「迷い候補リスト」の生成ロジックを修正 ▼▼▼▼▼
+                            $raw_hesitation_words = [];
                             foreach ($word_count as $key => $value) {
-                                if ($value >= 1 && isset($diarray[$key])) {
-                                    $word_array_from_wc[] = $diarray[$key];
+                                $word_id = (int)$key;
+                                if ($value >= 1 && isset($diarray[$word_id])) {
+                                    $raw_hesitation_words[] = $diarray[$word_id];
                                 }
                             }
-                            $word_array_from_dc = array();
                             $all_dc_arrays = $DC_array2 + $DC_array1 + $DC_array075;
                             foreach ($all_dc_arrays as $index => $time) {
-                                if (isset($Before_Label_array[$index])) $word_array_from_dc[] = $Before_Label_array[$index];
-                                if (isset($Label_array[$index])) $word_array_from_dc[] = $Label_array[$index];
+                                if (isset($Before_Label_array[$index])) {
+                                    $raw_hesitation_words[] = $Before_Label_array[$index];
+                                }
+                                if (isset($Label_array[$index])) {
+                                    $raw_hesitation_words[] = $Label_array[$index];
+                                }
                             }
-                            $word_array = array_unique(array_merge($word_array_from_wc, $word_array_from_dc));
 
-                            // 配列から空の要素とコンマだけの要素をフィルタリングして削除
-                            $word_array = array_filter($word_array, function ($value) {
-                                $trimmed_value = trim($value); // 前後の空白を除去
-                                return $trimmed_value !== '' && $trimmed_value !== ','; // 空でもなく、コンマでもないものだけを残す
-                            });
+                            $final_word_list = [];
+                            foreach ($raw_hesitation_words as $word_entry) {
+                                $words = explode(',', str_replace('#', ',', $word_entry));
+                                foreach ($words as $word) {
+                                    $cleaned_word = trim($word, " \t\n\r\0\x0B,");
+                                    if ($cleaned_word !== '') {
+                                        $final_word_list[] = $cleaned_word;
+                                    }
+                                }
+                            }
+                            $final_word_list = array_unique($final_word_list);
+                            // ▲▲▲▲▲ 修正はここまで ▲▲▲▲▲
                             ?>
 
                             <b><u><?= translate('mousemove.php_1078行目_迷い候補リスト') ?></u></b>
@@ -1051,7 +1061,7 @@ require "../lang.php";
                             </span>
                             <br>
                             <?php
-                            foreach ($word_array as $value) {
+                            foreach ($final_word_list as $value){
                                 echo htmlspecialchars(str_replace('#', ', ', $value), ENT_QUOTES, 'UTF-8') . "<br>";
                             }
                             ?>
@@ -1110,7 +1120,7 @@ require "../lang.php";
                             <b><u><?= translate('mousemove.php_1128行目_入れ替え間時間') ?></u></b>
                             <span class="info-icon">ⓘ
                                 <span class="info-popup">
-                                    ある単語を配置(Drop)してから、次に別の単語を掴む(Drag)までの時間を計測し、特に長かったものをリストアップしています。時間が長いほど、次の操作に迷った可能性を示します。この学習者がこれまで解いた全ての問題を元に、入れ替え間の平均時間などを計算しています。
+                                    ある単語を配置(Drop)してから、次に別の単語を掴む(Drag)までの時間を計測し、特に長かったものをリストアップしています。(表記：→次に掴んだ単語 : 掴むまでの時間)  時間が長いほど、次の操作に迷った可能性を示します。この学習者がこれまで解いた全ての問題を元に、入れ替え間の平均時間などを計算しています。
                                 </span>
                             </span>
                             <br>
