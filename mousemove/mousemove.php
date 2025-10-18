@@ -826,7 +826,7 @@ require "../lang.php";
                                         <b><u><?= translate('学習者の申告迷い度') ?></u>：
                                             <?php
                                             if (isset($us)) {
-                                                if ($us == 0) {
+                                                if ($us == 1) {
                                                     print (translate('mousemove.php_544行目_間違って終了ボタン'));
                                                 } elseif ($us == 4) {
                                                     print (translate('mousemove.php_545行目_ほとんど迷わなかった'));
