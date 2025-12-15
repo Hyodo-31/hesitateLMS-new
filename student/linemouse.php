@@ -13,6 +13,12 @@ require "../dbc.php";
 $MemberID = $_SESSION["MemberID"];
 $FName4 = "linedatamouse";
 
+// ▼▼▼ 追加：一時ファイルの初期化処理 ▼▼▼ このプログラムで使ってる部分ここだけ
+// ページが読み込まれた時点で、そのユーザーの一時ファイルを空にする
+$TempFileName = sys_get_temp_dir() . "/tem" . $MemberID . ".tmp";
+file_put_contents($TempFileName, "");
+// ▲▲▲ 追加ここまで ▲▲▲
+
 $sql = "show tables like '".$FName4."'";
 $result = mysqli_query($conn, $sql);
 if(!$result) {

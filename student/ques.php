@@ -2151,6 +2151,19 @@ $stmt->close();
                 parameters: $params
             });
 
+            // ▼▼▼ 追加: マウス軌跡データ(linedatamouse)の保存(ewrite.php) ▼▼▼
+            // ここで呼び出すことで、1問終わるごとにデータがDBに確定されます
+            new Ajax.Request(URL + 'ewrite.php', {
+                method: 'get',
+                onSuccess: function(req) {
+                    // 成功時の処理（必要であればコンソールログなど）
+                    console.log("Mouse data saved for this question.");
+                },
+                onFailure: function(req) {
+                    alert("マウスデータの保存に失敗しました");
+                }
+            });
+
             function getA(req) {
                 //ここでuser_progressを更新する
                 $u = "u";

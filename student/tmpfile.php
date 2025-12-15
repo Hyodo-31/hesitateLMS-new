@@ -14,7 +14,7 @@ $str = "INSERT INTO ".$FName2." VALUES(".$MemberID.",".$_GET['param1'].",".$_GET
 
 //ファイル書き込みコード
 $TempFileName = sys_get_temp_dir()."/tem".$MemberID.".tmp";
-file_put_contents($TempFileName,$str."\n",FILE_APPEND);
+file_put_contents($TempFileName,$str."\n",FILE_APPEND | LOCK_EX);
 echo file_get_contents($TempFileName);
 
 ?>
