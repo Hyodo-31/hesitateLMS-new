@@ -1415,7 +1415,7 @@ $stmt->close();
         P.y = hl.top;
         mylabelarray2 = MyLabelSort(sender, event.x, event.y);
 
-        DPos = 0;
+        DPos = array_flag2;
         IsDragging = false;
 
         //▼マウスデータの取得
