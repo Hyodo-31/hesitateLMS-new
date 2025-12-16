@@ -266,8 +266,8 @@ $stmt->close();
 
 
     //ランダムに配列を並び替えるソース
-    Array.prototype.random = function() {
-        this.sort(function(a, b) {
+    Array.prototype.random = function () {
+        this.sort(function (a, b) {
             var i = Math.ceil(Math.random() * 100) % 2;
             if (i == 0) {
                 return -1;
@@ -279,7 +279,7 @@ $stmt->close();
     //-------------------------------------------------------------
     //配列に指定した値があるかチェック
     if (!Array.prototype.contains) {
-        Array.prototype.contains = function(value) {
+        Array.prototype.contains = function (value) {
             for (var i in this) {
                 if (this.hasOwnProperty(i) && this[i] === value) {
                     return true;
@@ -331,12 +331,12 @@ $stmt->close();
         new Ajax.Request(URL + 'linemouse.php', {
             method: 'get',
             onSuccess: getm,
-            onFailure: function(req) {
+            onFailure: function (req) {
                 getError(req, "linemouse.php")
             }
         });
 
-        function getm(res) {}
+        function getm(res) { }
         //======================================================
 
         //解答データのうち最大のOIDを計算。要は次に出題する問題を算出する。
@@ -345,7 +345,7 @@ $stmt->close();
         new Ajax.Request(URL + 'load.php', {
             method: 'get',
             onSuccess: getOID,
-            onFailure: function(req) {
+            onFailure: function (req) {
                 getError(req, "load.php")
             },
             parameters: $params
@@ -405,7 +405,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getAttempt,
-                        onFailure: function(req) {
+                        onFailure: function (req) {
                             getError(req, "getattempt.php")
                         },
                         parameters: $params_for_attempt
@@ -423,7 +423,7 @@ $stmt->close();
                     {
                         method: 'get',
                         onSuccess: getResponse,
-                        onFailure: function(req) {
+                        onFailure: function (req) {
                             getError(req, "dbsyori.php")
                         },
                         parameters: $params
@@ -444,7 +444,7 @@ $stmt->close();
                         {
                             method: 'get',
                             onSuccess: getStart,
-                            onFailure: function(req) {
+                            onFailure: function (req) {
                                 getError(req, "dbsyori.php")
                             },
                             parameters: $params
@@ -460,7 +460,7 @@ $stmt->close();
                             {
                                 method: 'get',
                                 onSuccess: getDivide,
-                                onFailure: function(req) {
+                                onFailure: function (req) {
                                     getError(req, "dbsyori.php")
                                 },
                                 parameters: $params
@@ -476,7 +476,7 @@ $stmt->close();
                                 {
                                     method: 'get',
                                     onSuccess: getFix,
-                                    onFailure: function(req) {
+                                    onFailure: function (req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -553,13 +553,13 @@ $stmt->close();
 
                                     el = YAHOO.util.Dom.getRegion(p);
                                     //イベントハンドラの追加
-                                    dd[i].onMouseDown = function(e) {
+                                    dd[i].onMouseDown = function (e) {
                                         MyLabels_MouseDown(this.getDragEl())
                                     }
-                                    dd[i].onMouseUp = function(e) {
+                                    dd[i].onMouseUp = function (e) {
                                         MyLabels_MouseUp(this.getDragEl())
                                     }
-                                    dd[i].onDrag = function(e) {
+                                    dd[i].onDrag = function (e) {
                                         MyLabels_MouseMove(this.getDragEl())
                                     }
                                     YAHOO.util.Event.addListener(Mylabels[i], 'mouseover', MyLabels_MouseEnter);
@@ -584,7 +584,7 @@ $stmt->close();
                                 new Ajax.Request(URL + 'dbsyori.php', {
                                     method: 'get',
                                     onSuccess: getJapanese,
-                                    onFailure: function(req) {
+                                    onFailure: function (req) {
                                         getError(req, "dbsyori.php")
                                     },
                                     parameters: $params
@@ -614,7 +614,7 @@ $stmt->close();
                                     new Ajax.Request(URL + 'dbsyori.php', {
                                         method: 'get',
                                         onSuccess: getSentence1,
-                                        onFailure: function(req) {
+                                        onFailure: function (req) {
                                             getError(req, "dbsyori.php")
                                         },
                                         parameters: $params
@@ -633,7 +633,7 @@ $stmt->close();
                                             new Ajax.Request(URL + 'dbsyori.php', {
                                                 method: 'get',
                                                 onSuccess: getSentence2,
-                                                onFailure: function(req) {
+                                                onFailure: function (req) {
                                                     getError(req, "dbsyori.php")
                                                 },
                                                 parameters: $params
@@ -1717,7 +1717,7 @@ $stmt->close();
             parameters: $params
         });
         //▲マウスデータの取得
-        function getA(req) {}
+        function getA(req) { }
 
         function getE(req) {
             alert("失敗g");
@@ -2144,49 +2144,62 @@ $stmt->close();
 
         if (!(linedataFlg)) {
             linedataFlg = true;
+
+            // 1. まず解答データ(linedata)を確実に保存する
             new Ajax.Request(URL + 'tmpfile2.php', {
                 method: 'get',
-                onSuccess: getA,
-                onFailure: getE,
-                parameters: $params
-            });
+                parameters: $params,
+                onSuccess: function (req) {
+                    // 解答データの保存に成功したら、getA(ユーザー進捗更新)を呼ぶ
+                    getA(req);
 
-            // ▼▼▼ 追加: マウス軌跡データ(linedatamouse)の保存(ewrite.php) ▼▼▼
-            // ここで呼び出すことで、1問終わるごとにデータがDBに確定されます
-            new Ajax.Request(URL + 'ewrite.php', {
-                method: 'get',
-                onSuccess: function(req) {
-                    // 成功時の処理（必要であればコンソールログなど）
-                    console.log("Mouse data saved for this question.");
+                    // 2. その後にマウス軌跡データ(linedatamouse)を保存する
+                    // これによりサーバーでの処理競合を防ぎます
+                    new Ajax.Request(URL + 'ewrite.php', {
+                        method: 'get',
+                        onSuccess: function (req_mouse) {
+                            console.log("Mouse data saved for this question.");
+                        },
+                        onFailure: function (req_mouse) {
+                            console.log("マウスデータの保存に失敗しましたが、解答データは保存されています。");
+                        }
+                    });
                 },
-                onFailure: function(req) {
-                    alert("マウスデータの保存に失敗しました");
+                onFailure: function (req) {
+                    // 失敗した場合はフラグを戻して、ユーザーが再試行できるようにする
+                    linedataFlg = false;
+                    alert("解答データの保存に失敗しました。通信環境を確認して、もう一度決定ボタンを押してください。");
+                    getE(req);
                 }
             });
 
             function getA(req) {
                 //ここでuser_progressを更新する
                 $u = "u";
-                $params = 'param1=' + encodeURIComponent(OID) +
+                // $params変数は上のスコープのものを使うと競合する可能性があるため再定義推奨ですが、
+                // 元のコードの構造上、ここで再利用しています。
+                // tmpfile2.phpのレスポンス処理
+                var $params_u = 'param1=' + encodeURIComponent(OID) +
                     '&param2=' + encodeURIComponent($u) +
                     '&lang=' + encodeURIComponent(testLangType);
                 new Ajax.Request(URL + 'dbsyori.php', //本番用
                     {
                         method: 'get',
                         onSuccess: getwriteuser_progress,
-                        onFailure: function(req) {
+                        onFailure: function (req) {
                             getError(req, "dbsyori.php")
                         },
-                        parameters: $params
+                        parameters: $params_u
                     });
             }
 
             function getwriteuser_progress(req) {
-
+                // 進捗更新完了
             }
 
             function getE(req) {
-                alert("失敗h");
+                // エラーログなど
+                console.log("tmpfile2.php failed: " + req.status);
             }
         }
         Mouse_Num = 0;
@@ -2774,7 +2787,8 @@ $stmt->close();
 
     <!-- ======================= ▼▼▼ 修正点 2/2 (HTML) ▼▼▼ ======================= -->
     <!-- ラベルの<font>タグにidを追加 -->
-    <font id="reference_text_label" color="red" style="position:absolute;left:12;top:7"><?= translate('ques.php_1554行目_日本文') ?></font>
+    <font id="reference_text_label" color="red" style="position:absolute;left:12;top:7">
+        <?= translate('ques.php_1554行目_日本文') ?></font>
     <!-- ======================= ▲▲▲ 修正点 2/2 (HTML) ▲▲▲ ======================= -->
     <div id="RichTextBox1" style="background-color:#ffa500;position:absolute;
      left:12;top:27;width:731;height:36;border-style:inset">
@@ -2801,7 +2815,8 @@ $stmt->close();
     </div>
 
     <font id="register" color="red" style="position:absolute;left:12;top:220">
-        <?= translate('ques.php_1573行目_単語退避レジスタ') ?></font>
+        <?= translate('ques.php_1573行目_単語退避レジスタ') ?>
+    </font>
     <div id="register1" style="padding: 10px; border: 2px dotted #333333;position:absolute;
     left:12;top:240;width:500;height:15;font-size:12;"></div>
 
@@ -2826,10 +2841,12 @@ $stmt->close();
 
     <div id="hearingT2" style="position:absolute;
      left:400;top:220;width:auto;height:20;font-size:12;background-color:#ff0000;display:none">
-        <?= translate('ques.php_1592行目_かなり迷った') ?></div>
+        <?= translate('ques.php_1592行目_かなり迷った') ?>
+    </div>
     <div id="hearingT1" style="position:absolute;
      left:500;top:220;width:auto;height:20;font-size:12;background-color:#ffee00;display:none">
-        <?= translate('ques.php_1594行目_少し迷った') ?></div>
+        <?= translate('ques.php_1594行目_少し迷った') ?>
+    </div>
 
     <div id="hearing" style="padding: 10px; border: 1px solid #333333;position:absolute;
     left:12;top:240;width:700;height:60;font-size:36;display:none;background-color: #ffffff">
@@ -2857,7 +2874,8 @@ $stmt->close();
 
     <div id="Fixmsg" style="position:absolute;
      left:320;top:530;width:200;height:80;font-size:12;background-color:#ffa500;display:block">
-        <?= translate('ques.php_364行目_情報') ?></div>
+        <?= translate('ques.php_364行目_情報') ?>
+    </div>
 
     <font id="exercise" color="red" style="position:absolute;
      left:768;top:10;width:80;height:18;font-size:18;color:red;display:none">
@@ -2901,13 +2919,13 @@ $stmt->close();
     <script type="text/javascript">
         function disableSelection(target) {
             if (typeof target.onselectstart != "undefined") //IE route
-                target.onselectstart = function() {
+                target.onselectstart = function () {
                     return false
                 }
             else if (typeof target.style.MozUserSelect != "undefined") //Firefox route
                 target.style.MozUserSelect = "none"
             else //All other route (ie: Opera)
-                target.onmousedown = function() {
+                target.onmousedown = function () {
                     return false
                 }
             target.style.cursor = "default"
