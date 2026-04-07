@@ -560,10 +560,13 @@ require "../lang.php";
     $addkstring = "";
     $UTurnXstring = "";
     $UTurnYstring = "";
+    // --- 修正後 ---
     $DDdragTime = array();
     $all_dd_events = array(); // 全てのD&Dイベントを格納する配列
     $dd_counts = array();     // 各単語のD&D回数をカウントする配列
-    
+    $dd_intervals = array();  // ★追加: ドラッグからドロップまでの区間を格納
+    $current_drag = null;     // ★追加: 現在ドラッグ中のデータ
+
     // 繋げて配列へ格納(Javascriptへ値を渡すため)
     for ($i = 0; $i < count($time); $i++) {
         if ($i > 0) {
@@ -585,32 +588,43 @@ require "../lang.php";
         $DPosstring .= $DPos[$i];
         $hLabelstring .= $hLabel[$i];
         $Labelstring .= $Label[$i];
-        //$addkstring .= $addk[$i];
         $UTurnXstring .= $UTurnX[$i];
         $UTurnYstring .= $UTurnY[$i];
+        
         if ($DD[$i] == '2' && !isset($DDdragTime[$hLabel[$i]])) {
             $DDdragTime[$hLabel[$i]] = $time[$i];
         }
 
         if ($DD[$i] == '2') {
             $label_id = $hLabel[$i];
-            // この単語のD&D回数をカウントアップ
             if (!isset($dd_counts[$label_id])) {
                 $dd_counts[$label_id] = 0;
             }
             $dd_counts[$label_id]++;
 
-            // イベント情報を配列に追加
             $all_dd_events[] = array(
                 'time' => $time[$i],
-                'hLabel' => $label_id, // クリックした単語のID
-                'labelGroup' => $Label[$i], // グループ化された全単語のID文字列
+                'hLabel' => $label_id,
+                'labelGroup' => $Label[$i],
                 'count' => $dd_counts[$label_id]
             );
+
+            // ★追加: ドラッグ開始情報の保持
+            $current_drag = array(
+                'startTime' => $time[$i],
+                'hLabel' => $label_id,
+                'labelGroup' => $Label[$i]
+            );
+        } else if ($DD[$i] == '1' && $current_drag !== null) { 
+            // ★追加: ドロップ時に終了時間を記録して区間データとして保存
+            $current_drag['endTime'] = $time[$i];
+            $dd_intervals[] = $current_drag;
+            $current_drag = null;
         }
     }
     $DDdragTime_json = json_encode($DDdragTime);
     $all_dd_events_json = json_encode($all_dd_events);
+    $dd_intervals_json = json_encode($dd_intervals); // ★追加
 
     // D&Dイベントログからユニークなグループを抽出
     $unique_groups = array();
@@ -668,6 +682,7 @@ require "../lang.php";
         UTurnY_point = UTurnYstring.split("###");
         var DDdragTime = <?php echo $DDdragTime_json; ?>;
         var all_dd_events = <?php echo $all_dd_events_json; ?>;
+        var dd_intervals = <?php echo $dd_intervals_json; ?>;
         UTurnFlag = 0;
         UTurnCount = 0;
         console.log(DDdragTime);
@@ -779,7 +794,7 @@ require "../lang.php";
             </span>
         </div>
 
-        <div id="slider-container" style="position: relative; padding: 5px 0;">
+        <div id="slider-container" style="position: relative; padding: 5px 0; margin-bottom: 40px;">
             <div id="jquery-ui-slider"></div>
             <div id="slider-ticks"></div>
         </div>
@@ -2232,16 +2247,58 @@ require "../lang.php";
                 // スライダーの幅が0、または最大時間が未定義の場合は処理を中断
                 if (sliderWidth === 0 || !maxTime) return;
 
-                all_dd_events.forEach(function (event) {
-                    // イベント時間の相対的な位置をパーセンテージで計算
-                    var leftPosition = (event.time / maxTime) * 100;
+                dd_intervals.forEach(function (interval, index) {
+                    var startPercent = (interval.startTime / maxTime) * 100;
+                    var endPercent = (interval.endTime / maxTime) * 100;
+                    var widthPercent = endPercent - startPercent;
 
-                    // 位置が0%から100%の範囲内にあることを確認
-                    if (leftPosition >= 0 && leftPosition <= 100) {
-                        // 新しい目盛り(tick)要素を作成し、計算した位置に配置
-                        $('<div>', {
-                            class: 'tick'
-                        }).css('left', leftPosition + '%').appendTo($ticksContainer);
+                    if (startPercent >= 0 && endPercent <= 100) {
+                        // ドラッグ開始位置の黒線
+                        $('<div>', { class: 'tick' }).css('left', startPercent + '%').appendTo($ticksContainer);
+                        // ドロップ位置の黒線
+                        $('<div>', { class: 'tick' }).css('left', endPercent + '%').appendTo($ticksContainer);
+
+                        // 区間の色付け (半透明の青色)
+                        $('<div>').css({
+                            position: 'absolute',
+                            left: startPercent + '%',
+                            width: widthPercent + '%',
+                            height: '10px',
+                            backgroundColor: 'rgba(74, 144, 226, 0.5)',
+                            top: '-3px',
+                            zIndex: 1,
+                            pointerEvents: 'none'
+                        }).appendTo($ticksContainer);
+
+                        // 対象単語のテキスト生成
+                        var wordText = "";
+                        if (interval.labelGroup && interval.labelGroup.includes('#')) {
+                            var groupLabels = interval.labelGroup.split('#').filter(Boolean);
+                            var wordNames = groupLabels.map(function(labelId) {
+                                var id = parseInt(labelId, 10);
+                                return (start_point[id] !== undefined) ? start_point[id] : '';
+                            }).filter(Boolean);
+                            wordText = wordNames.join(', ');
+                        } else {
+                            wordText = start_point[parseInt(interval.hLabel, 10)];
+                        }
+
+                        // 単語の表示 (操作が密集した際の重なりを軽減するため、高さを2段のジグザグに分ける)
+                        var topPosition = (index % 2 === 0) ? '15px' : '28px';
+                        var centerPercent = startPercent + (widthPercent / 2);
+
+                        $('<div>').text(wordText).css({
+                            position: 'absolute',
+                            left: centerPercent + '%',
+                            top: topPosition,
+                            fontSize: '11px',
+                            color: '#333',
+                            whiteSpace: 'nowrap',
+                            transform: 'translateX(-50%)', // バーの中央に配置
+                            zIndex: 2,
+                            pointerEvents: 'none',
+                            fontWeight: 'bold'
+                        }).appendTo($ticksContainer);
                     }
                 });
             }
