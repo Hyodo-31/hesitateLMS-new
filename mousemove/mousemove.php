@@ -1143,8 +1143,11 @@ require "../lang.php";
                                 }
                             }
                             $final_word_list = array_unique($final_word_list);
-                            // ▲▲▲▲▲ 修正はここまで ▲▲▲▲▲
                             ?>
+                            <script type="text/javascript">
+                                // JavaScript側で参照できるようにグローバル変数に格納
+                                window.hesitation_words = <?php echo json_encode(array_values($final_word_list)); ?>;
+                            </script>
 
                             <b><u><?= translate('mousemove.php_1078行目_迷い候補リスト') ?></u></b>
                             <span class="info-icon">ⓘ
@@ -2247,41 +2250,62 @@ require "../lang.php";
                 // スライダーの幅が0、または最大時間が未定義の場合は処理を中断
                 if (sliderWidth === 0 || !maxTime) return;
 
+                // 迷い単語のリストを取得 (未定義の場合は空配列)
+                var hes_words = window.hesitation_words || [];
+
                 dd_intervals.forEach(function (interval, index) {
                     var startPercent = (interval.startTime / maxTime) * 100;
                     var endPercent = (interval.endTime / maxTime) * 100;
                     var widthPercent = endPercent - startPercent;
 
                     if (startPercent >= 0 && endPercent <= 100) {
-                        // ドラッグ開始位置の黒線
+                        // ドラッグ開始位置とドロップ位置の黒線
                         $('<div>', { class: 'tick' }).css('left', startPercent + '%').appendTo($ticksContainer);
-                        // ドロップ位置の黒線
                         $('<div>', { class: 'tick' }).css('left', endPercent + '%').appendTo($ticksContainer);
 
-                        // 区間の色付け (半透明の青色)
-                        $('<div>').css({
-                            position: 'absolute',
-                            left: startPercent + '%',
-                            width: widthPercent + '%',
-                            height: '10px',
-                            backgroundColor: 'rgba(74, 144, 226, 0.5)',
-                            top: '-3px',
-                            zIndex: 1,
-                            pointerEvents: 'none'
-                        }).appendTo($ticksContainer);
-
-                        // 対象単語のテキスト生成
+                        // 対象単語のテキスト生成と、迷い単語かどうかの判定
                         var wordText = "";
+                        var isHesitation = false; // 迷い単語フラグ
+
                         if (interval.labelGroup && interval.labelGroup.includes('#')) {
+                            // グループ化されている場合
                             var groupLabels = interval.labelGroup.split('#').filter(Boolean);
                             var wordNames = groupLabels.map(function(labelId) {
                                 var id = parseInt(labelId, 10);
                                 return (start_point[id] !== undefined) ? start_point[id] : '';
                             }).filter(Boolean);
                             wordText = wordNames.join(', ');
+                            
+                            // グループ内のいずれかの単語が迷いリストに含まれているかチェック
+                            wordNames.forEach(function(wn) {
+                                if (hes_words.includes(wn)) {
+                                    isHesitation = true;
+                                }
+                            });
                         } else {
+                            // 単一の単語の場合
                             wordText = start_point[parseInt(interval.hLabel, 10)];
+                            if (hes_words.includes(wordText)) {
+                                isHesitation = true;
+                            }
                         }
+
+                        // ★ 迷い判定に応じた色の設定
+                        var barColor = isHesitation ? 'rgba(239, 41, 41, 0.6)' : 'rgba(74, 144, 226, 0.5)'; // 赤 or 青
+                        var textColor = isHesitation ? '#ef2929' : '#333'; // 文字色も赤字にして強調
+                        var zIndexValue = isHesitation ? 2 : 1; // 赤色を優先して手前に表示
+
+                        // 区間の色付け
+                        $('<div>').css({
+                            position: 'absolute',
+                            left: startPercent + '%',
+                            width: widthPercent + '%',
+                            height: '10px',
+                            backgroundColor: barColor,
+                            top: '-3px',
+                            zIndex: zIndexValue,
+                            pointerEvents: 'none'
+                        }).appendTo($ticksContainer);
 
                         // 単語の表示 (操作が密集した際の重なりを軽減するため、高さを2段のジグザグに分ける)
                         var topPosition = (index % 2 === 0) ? '15px' : '28px';
@@ -2292,10 +2316,10 @@ require "../lang.php";
                             left: centerPercent + '%',
                             top: topPosition,
                             fontSize: '11px',
-                            color: '#333',
+                            color: textColor,
                             whiteSpace: 'nowrap',
                             transform: 'translateX(-50%)', // バーの中央に配置
-                            zIndex: 2,
+                            zIndex: zIndexValue + 1, // 文字は常にバーの上のレイヤーに
                             pointerEvents: 'none',
                             fontWeight: 'bold'
                         }).appendTo($ticksContainer);
