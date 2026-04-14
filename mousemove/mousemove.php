@@ -1147,6 +1147,9 @@ require "../lang.php";
                             <script type="text/javascript">
                                 // JavaScript側で参照できるようにグローバル変数に格納
                                 window.hesitation_words = <?php echo json_encode(array_values($final_word_list)); ?>;
+                                window.long_time_word_indexes_2 = <?php echo json_encode(array_values($key2_array)); ?>;
+                                window.long_time_word_indexes_1 = <?php echo json_encode(array_values($key1_array)); ?>;
+                                window.long_time_word_indexes_075 = <?php echo json_encode(array_values($key075_array)); ?>;
                             </script>
 
                             <b><u><?= translate('mousemove.php_1078行目_迷い候補リスト') ?></u></b>
@@ -2250,8 +2253,10 @@ require "../lang.php";
                 // スライダーの幅が0、または最大時間が未定義の場合は処理を中断
                 if (sliderWidth === 0 || !maxTime) return;
 
-                // 迷い単語のリストを取得 (未定義の場合は空配列)
-                var hes_words = window.hesitation_words || [];
+                // 長時間カテゴリ（入れ替え間時間）に該当するインデックスを取得
+                var longTimeIndexes2 = window.long_time_word_indexes_2 || [];
+                var longTimeIndexes1 = window.long_time_word_indexes_1 || [];
+                var longTimeIndexes075 = window.long_time_word_indexes_075 || [];
 
                 dd_intervals.forEach(function (interval, index) {
                     var startPercent = (interval.startTime / maxTime) * 100;
@@ -2263,9 +2268,8 @@ require "../lang.php";
                         $('<div>', { class: 'tick' }).css('left', startPercent + '%').appendTo($ticksContainer);
                         $('<div>', { class: 'tick' }).css('left', endPercent + '%').appendTo($ticksContainer);
 
-                        // 対象単語のテキスト生成と、迷い単語かどうかの判定
+                        // 対象単語のテキスト生成
                         var wordText = "";
-                        var isHesitation = false; // 迷い単語フラグ
 
                         if (interval.labelGroup && interval.labelGroup.includes('#')) {
                             // グループ化されている場合
@@ -2275,25 +2279,22 @@ require "../lang.php";
                                 return (start_point[id] !== undefined) ? start_point[id] : '';
                             }).filter(Boolean);
                             wordText = wordNames.join(', ');
-                            
-                            // グループ内のいずれかの単語が迷いリストに含まれているかチェック
-                            wordNames.forEach(function(wn) {
-                                if (hes_words.includes(wn)) {
-                                    isHesitation = true;
-                                }
-                            });
                         } else {
                             // 単一の単語の場合
                             wordText = start_point[parseInt(interval.hLabel, 10)];
-                            if (hes_words.includes(wordText)) {
-                                isHesitation = true;
-                            }
                         }
 
-                        // ★ 迷い判定に応じた色の設定
-                        var barColor = isHesitation ? 'rgba(239, 41, 41, 0.6)' : 'rgba(74, 144, 226, 0.5)'; // 赤 or 青
-                        var textColor = isHesitation ? '#ef2929' : '#333'; // 文字色も赤字にして強調
-                        var zIndexValue = isHesitation ? 2 : 1; // 赤色を優先して手前に表示
+                        // スライダー上の単語のみ、長時間カテゴリに応じて色分けする
+                        var textColor = '#333';
+                        if (longTimeIndexes2.includes(index)) {
+                            textColor = '#ef2929'; // 特に長い: 赤
+                        } else if (longTimeIndexes1.includes(index)) {
+                            textColor = '#ff8c00'; // やや長い: オレンジ
+                        } else if (longTimeIndexes075.includes(index)) {
+                            textColor = '#e6c200'; // 少し長い: 黄色
+                        }
+                        var barColor = 'rgba(74, 144, 226, 0.5)';
+                        var zIndexValue = 1;
 
                         // 区間の色付け
                         $('<div>').css({
