@@ -5,6 +5,7 @@ import mysql.connector
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_val_score
+from mysql.connector import errorcode
 
 from word_sample_shap import generate_hesitation_feedback
 
@@ -25,6 +26,15 @@ FEATURES = [
     "dwell_time",
     "total_time",
 ]
+INSERT_BATCH_SIZE = 200
+
+
+def insert_rows_in_batches(cur, insert_sql, rows, batch_size=INSERT_BATCH_SIZE):
+    """Insert rows in manageable chunks to avoid max_allowed_packet errors."""
+    total = len(rows)
+    for start in range(0, total, batch_size):
+        batch = rows[start:start + batch_size]
+        cur.executemany(insert_sql, batch)
 
 
 def ensure_table(conn):
@@ -66,7 +76,10 @@ def main():
     conn = mysql.connector.connect(**DB_CONFIG)
     try:
         ensure_table(conn)
-        df = pd.read_sql("SELECT * FROM test_featurevalue_word", conn)
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM test_featurevalue_word")
+        df = pd.DataFrame(cur.fetchall())
+        cur.close()
         if df.empty:
             print("No rows found in test_featurevalue_word")
             return
@@ -126,7 +139,16 @@ def main():
                 )
             )
 
-        cur.executemany(insert_sql, rows)
+        try:
+            insert_rows_in_batches(cur, insert_sql, rows)
+        except mysql.connector.Error as err:
+            # Some environments still hit packet limits depending on row size;
+            # fall back to row-by-row insert for reliability.
+            if err.errno == errorcode.ER_NET_PACKET_TOO_LARGE:
+                for row in rows:
+                    cur.execute(insert_sql, row)
+            else:
+                raise
         conn.commit()
         print(f"Inserted/updated {len(rows)} rows into temporary_results_word")
         cur.close()
