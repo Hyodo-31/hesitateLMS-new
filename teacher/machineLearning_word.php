@@ -87,7 +87,7 @@ if ($stmt = $conn->prepare('SELECT COUNT(*) AS cnt FROM temporary_results_word W
     $resultCount = (int)($res['cnt'] ?? 0);
     $stmt->close();
 }
-if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Understand, tr.predicted_probability, tr.feedback_text, tr.created_at, tfw.word_text FROM temporary_results_word tr LEFT JOIN test_featurevalue_word tfw ON tfw.UID = tr.UID AND tfw.WID = tr.WID AND tfw.WWID = tr.WWID AND tfw.attempt = tr.attempt WHERE tr.teacher_id = ? ORDER BY tr.created_at DESC LIMIT 50')) {
+if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Understand, tr.predicted_probability, tr.feedback_text, tr.created_at, tfw.word_text FROM temporary_results_word tr LEFT JOIN test_featurevalue_word tfw ON tfw.UID = tr.UID AND tfw.WID = tr.WID AND tfw.WWID = tr.WWID AND tfw.attempt = tr.attempt WHERE tr.teacher_id = ? ORDER BY tr.created_at DESC')) {
     $stmt->bind_param('s', $teacherId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -116,6 +116,9 @@ if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Under
         th { background: #f5f5f5; }
         .status-hesitate { color: #c62828; font-weight: 700; }
         .status-no-hesitate { color: #2e7d32; font-weight: 700; }
+        .table-scroll-wrapper { max-height: 70vh; overflow: auto; border: 1px solid #ddd; border-radius: 6px; }
+        .table-scroll-wrapper table { min-width: 1000px; }
+        .table-scroll-wrapper thead th { position: sticky; top: 0; z-index: 1; }
     </style>
 </head>
 <body>
@@ -148,39 +151,41 @@ if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Under
         <?php endforeach; ?>
 
         <div class="card">
-            <h2>最新の推定結果 (50件)</h2>
-            <table>
-                <thead>
-                <tr>
-                    <th>UID</th><th>WID</th><th>WWID</th><th>word_text</th><th>attempt</th><th>Understand</th><th>推定確率</th><th>説明文</th><th>更新日時</th>
-                </tr>
-                </thead>
-                <tbody>
-                <?php if (empty($latestResults)): ?>
-                    <tr><td colspan="9">データがありません。</td></tr>
-                <?php else: ?>
-                    <?php foreach ($latestResults as $r): ?>
-                        <tr>
-                            <td><?= htmlspecialchars((string)$r['UID'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= (int)$r['WID'] ?></td>
-                            <td><?= (int)$r['WWID'] ?></td>
-                            <td><?= htmlspecialchars((string)($r['word_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= (int)$r['attempt'] ?></td>
-                            <td>
-                                <?php if ((int)$r['Understand'] === 2): ?>
-                                    <span class="status-hesitate">迷い有り</span>
-                                <?php else: ?>
-                                    <span class="status-no-hesitate">迷い無し</span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?= is_null($r['predicted_probability']) ? '-' : number_format((float)$r['predicted_probability'], 4) ?></td>
-                            <td><?= htmlspecialchars((string)($r['feedback_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string)$r['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-                </tbody>
-            </table>
+            <h2>推定結果一覧 (全件)</h2>
+            <div class="table-scroll-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>UID</th><th>WID</th><th>WWID</th><th>word_text</th><th>attempt</th><th>Understand</th><th>推定確率</th><th>説明文</th><th>更新日時</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($latestResults)): ?>
+                        <tr><td colspan="9">データがありません。</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($latestResults as $r): ?>
+                            <tr>
+                                <td><?= htmlspecialchars((string)$r['UID'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= (int)$r['WID'] ?></td>
+                                <td><?= (int)$r['WWID'] ?></td>
+                                <td><?= htmlspecialchars((string)($r['word_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= (int)$r['attempt'] ?></td>
+                                <td>
+                                    <?php if ((int)$r['Understand'] === 2): ?>
+                                        <span class="status-hesitate">迷い有り</span>
+                                    <?php else: ?>
+                                        <span class="status-no-hesitate">迷い無し</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= is_null($r['predicted_probability']) ? '-' : number_format((float)$r['predicted_probability'], 4) ?></td>
+                                <td><?= htmlspecialchars((string)($r['feedback_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars((string)$r['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
 </div>
