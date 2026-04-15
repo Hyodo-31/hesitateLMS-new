@@ -13,38 +13,28 @@ $errors = [];
 
 function runPythonCommand(string $scriptPath, array $args = []): array
 {
-    $pythonBin = trim((string)shell_exec('command -v python3 2>/dev/null'));
-    if ($pythonBin === '') {
+    $pythonBin = null;
+    foreach (['python', 'python3'] as $candidate) {
+        $checkOutput = [];
+        $checkStatus = 0;
+        exec($candidate . ' --version 2>&1', $checkOutput, $checkStatus);
+        if ($checkStatus === 0) {
+            $pythonBin = $candidate;
+            break;
+        }
+    }
+
+    if ($pythonBin === null) {
         return [
             'status' => 127,
             'output' => [
-                'python3 コマンドが見つかりません。',
-                'サーバーに Python 3 をインストールし、PATH に追加してください。',
+                'python / python3 コマンドが見つかりません。',
+                'サーバーに Python をインストールし、PATH に追加してください。',
             ],
         ];
     }
 
-    $preflight = [];
-    $preflightStatus = 0;
-    exec(
-        escapeshellarg($pythonBin) . " -c \"import mysql.connector, pandas, sklearn\" 2>&1",
-        $preflight,
-        $preflightStatus
-    );
-    if ($preflightStatus !== 0) {
-        return [
-            'status' => $preflightStatus,
-            'output' => array_merge(
-                [
-                    'Python 依存パッケージの読み込みに失敗しました。',
-                    '必要パッケージ: mysql-connector-python, pandas, scikit-learn',
-                ],
-                $preflight
-            ),
-        ];
-    }
-
-    $cmdParts = [escapeshellarg($pythonBin), escapeshellarg($scriptPath)];
+    $cmdParts = [$pythonBin, escapeshellarg($scriptPath)];
     foreach ($args as $arg) {
         $cmdParts[] = escapeshellarg((string)$arg);
     }
