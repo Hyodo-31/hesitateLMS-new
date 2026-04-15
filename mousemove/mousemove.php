@@ -794,7 +794,7 @@ require "../lang.php";
             </span>
         </div>
 
-        <div id="slider-container" style="position: relative; padding: 5px 0; margin-bottom: 70px;">
+        <div id="slider-container" style="position: relative; padding: 5px 0; margin-bottom: 40px;">
             <div id="jquery-ui-slider"></div>
             <div id="slider-ticks"></div>
         </div>
