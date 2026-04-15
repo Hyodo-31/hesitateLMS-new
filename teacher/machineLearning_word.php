@@ -87,7 +87,7 @@ if ($stmt = $conn->prepare('SELECT COUNT(*) AS cnt FROM temporary_results_word W
     $resultCount = (int)($res['cnt'] ?? 0);
     $stmt->close();
 }
-if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Understand, tr.predicted_probability, tr.feedback_text, tr.created_at, tfw.word_text FROM temporary_results_word tr LEFT JOIN test_featurevalue_word tfw ON tfw.UID = tr.UID AND tfw.WID = tr.WID AND tfw.WWID = tr.WWID AND tfw.attempt = tr.attempt WHERE tr.teacher_id = ? ORDER BY tr.created_at DESC')) {
+if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Understand, tfw.word_text FROM temporary_results_word tr LEFT JOIN test_featurevalue_word tfw ON tfw.UID = tr.UID AND tfw.WID = tr.WID AND tfw.WWID = tr.WWID AND tfw.attempt = tr.attempt WHERE tr.teacher_id = ? ORDER BY tr.created_at DESC')) {
     $stmt->bind_param('s', $teacherId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -156,12 +156,12 @@ if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Under
                 <table>
                     <thead>
                     <tr>
-                        <th>UID</th><th>WID</th><th>WWID</th><th>word_text</th><th>attempt</th><th>Understand</th><th>推定確率</th><th>説明文</th><th>更新日時</th>
+                        <th>UID</th><th>WID</th><th>WWID</th><th>単語</th><th>attempt</th><th>迷い推定結果</th>
                     </tr>
                     </thead>
                     <tbody>
                     <?php if (empty($latestResults)): ?>
-                        <tr><td colspan="9">データがありません。</td></tr>
+                        <tr><td colspan="6">データがありません。</td></tr>
                     <?php else: ?>
                         <?php foreach ($latestResults as $r): ?>
                             <tr>
@@ -177,9 +177,6 @@ if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Under
                                         <span class="status-no-hesitate">迷い無し</span>
                                     <?php endif; ?>
                                 </td>
-                                <td><?= is_null($r['predicted_probability']) ? '-' : number_format((float)$r['predicted_probability'], 4) ?></td>
-                                <td><?= htmlspecialchars((string)($r['feedback_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars((string)$r['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
