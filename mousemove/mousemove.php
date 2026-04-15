@@ -183,11 +183,11 @@ require "../lang.php";
         }
 
         #slider-container .ui-slider-range {
-            background: #ef2929;
+            background: #f5a3a3;
         }
 
         #slider-container .ui-slider-handle {
-            border-color: #ef2929;
+            border-color: #f5a3a3;
         }
 
         #slider-ticks {
