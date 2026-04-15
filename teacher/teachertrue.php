@@ -461,7 +461,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             <li class="sidebar-item has-submenu">
                 <a href="#" class="submenu-toggle">迷い推定・機械学習関連</a>
                 <ul class="submenu">
-                    <li><a href="machineLearning_sample.php">迷い推定・機械学習</a></li>
+                    <li><a href="machineLearning_sample.php">迷い推定・機械学習（問題単位）</a></li>
+                    <li><a href="machineLearning_word.php">迷い推定・機械学習（単語単位）</a></li>
                     <li><a href="#">特徴量検索機能</a></li>
                 </ul>
             </li>
