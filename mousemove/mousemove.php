@@ -2294,8 +2294,8 @@ require "../lang.php";
                             textColor = '#ff8c00'; // やや長い: オレンジ
                             barColor = 'rgba(255, 140, 0, 0.6)';
                         } else if (longTimeIndexes075.includes(index)) {
-                            textColor = '#e6c200'; // 少し長い: 黄色
-                            barColor = 'rgba(230, 194, 0, 0.6)';
+                            textColor = '#ff8c00'; // 少し長い: オレンジ
+                            barColor = 'rgba(255, 140, 0, 0.6)';
                         }
                         var zIndexValue = 1;
 
