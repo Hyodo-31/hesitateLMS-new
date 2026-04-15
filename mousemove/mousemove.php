@@ -1114,6 +1114,44 @@ require "../lang.php";
                             arsort($DC_array1);
                             arsort($DC_array075);
 
+                            // カテゴリごとの単語を抽出（スライダー/一覧の色分けに利用）
+                            $extract_words_from_label = function ($label_text) {
+                                $words = [];
+                                if (!is_string($label_text) || trim($label_text) === '') {
+                                    return $words;
+                                }
+                                $parts = explode(',', str_replace('#', ',', $label_text));
+                                foreach ($parts as $part) {
+                                    $w = trim($part, " \t\n\r\0\x0B,");
+                                    if ($w !== '') {
+                                        $words[] = $w;
+                                    }
+                                }
+                                return $words;
+                            };
+
+                            $long_time_words_2 = [];
+                            foreach (array_keys($DC_array2) as $idx) {
+                                if (isset($Label_array[$idx])) {
+                                    $long_time_words_2 = array_merge($long_time_words_2, $extract_words_from_label($Label_array[$idx]));
+                                }
+                            }
+                            $long_time_words_1 = [];
+                            foreach (array_keys($DC_array1) as $idx) {
+                                if (isset($Label_array[$idx])) {
+                                    $long_time_words_1 = array_merge($long_time_words_1, $extract_words_from_label($Label_array[$idx]));
+                                }
+                            }
+                            $long_time_words_075 = [];
+                            foreach (array_keys($DC_array075) as $idx) {
+                                if (isset($Label_array[$idx])) {
+                                    $long_time_words_075 = array_merge($long_time_words_075, $extract_words_from_label($Label_array[$idx]));
+                                }
+                            }
+                            $long_time_words_2 = array_values(array_unique($long_time_words_2));
+                            $long_time_words_1 = array_values(array_unique($long_time_words_1));
+                            $long_time_words_075 = array_values(array_unique($long_time_words_075));
+
                             // ▼▼▼▼▼ 「迷い候補リスト」の生成ロジックを修正 ▼▼▼▼▼
                             $raw_hesitation_words = [];
                             foreach ($word_count as $key => $value) {
@@ -1173,6 +1211,8 @@ require "../lang.php";
                             </span>
                             <br>
                             <?php
+                            $multiple_hit_words = [];
+                            $single_hit_words = [];
                             if (empty($word_count)) {
                                 echo "該当なし<br>";
                             } else {
@@ -1186,8 +1226,26 @@ require "../lang.php";
                                     }
                                 }
 
+                                $multiple_hit_words = [];
+                                foreach ($multiple_hits as $key => $value) {
+                                    $word_id = (int) $key;
+                                    if (isset($diarray[$word_id]) && trim($diarray[$word_id]) !== '') {
+                                        $multiple_hit_words[] = $diarray[$word_id];
+                                    }
+                                }
+                                $multiple_hit_words = array_values(array_unique($multiple_hit_words));
+
+                                $single_hit_words = [];
+                                foreach ($single_hits as $key => $value) {
+                                    $word_id = (int) $key;
+                                    if (isset($diarray[$word_id]) && trim($diarray[$word_id]) !== '') {
+                                        $single_hit_words[] = $diarray[$word_id];
+                                    }
+                                }
+                                $single_hit_words = array_values(array_unique($single_hit_words));
+
                                 if (!empty($multiple_hits)) {
-                                    echo "<u>" . translate('複数回検出') . "</u><br>";
+                                    echo "<u><span style='color:#ef2929; font-weight:bold;'>" . translate('複数回検出') . "</span></u><br>";
                                     foreach ($multiple_hits as $key => $value) {
                                         // ▼▼▼▼▼ ここを修正 ▼▼▼▼▼
                                         $word_id = (int) $key; // キーを整数に変換
@@ -1195,14 +1253,14 @@ require "../lang.php";
                                             ? htmlspecialchars($diarray[$word_id], ENT_QUOTES, 'UTF-8')
                                             : "ID:" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); // 念のためフォールバック
                                         // ▲▲▲▲▲ 修正はここまで ▲▲▲▲▲
-                                        echo "検出単語: " . $word_name
+                                        echo "<span style='color:#ef2929;'>検出単語: " . $word_name
                                             . " (" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8')
-                                            . translate('mousemove.php_1117行目_回') . ")<br>";
+                                            . translate('mousemove.php_1117行目_回') . ")</span><br>";
                                     }
                                 }
 
                                 if (!empty($single_hits)) {
-                                    echo "<u>" . translate('1回検出') . "</u><br>";
+                                    echo "<u><span style='color:#ff8c00; font-weight:bold;'>" . translate('1回検出') . "</span></u><br>";
                                     foreach ($single_hits as $key => $value) {
                                         // ▼▼▼▼▼ ここを修正 ▼▼▼▼▼
                                         $word_id = (int) $key; // キーを整数に変換
@@ -1210,11 +1268,18 @@ require "../lang.php";
                                             ? htmlspecialchars($diarray[$word_id], ENT_QUOTES, 'UTF-8')
                                             : "ID:" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); // 念のためフォールバック
                                         // ▲▲▲▲▲ 修正はここまで ▲▲▲▲▲
-                                        echo "検出単語: " . $word_name . "<br>";
+                                        echo "<span style='color:#ff8c00;'>検出単語: " . $word_name . "</span><br>";
                                     }
                                 }
                             }
                             ?>
+                            <script type="text/javascript">
+                                window.long_time_words_2 = <?php echo json_encode($long_time_words_2); ?>;
+                                window.long_time_words_1 = <?php echo json_encode($long_time_words_1); ?>;
+                                window.long_time_words_075 = <?php echo json_encode($long_time_words_075); ?>;
+                                window.extra_dd_words_multiple = <?php echo json_encode($multiple_hit_words); ?>;
+                                window.extra_dd_words_single = <?php echo json_encode($single_hit_words); ?>;
+                            </script>
                             <br>
                             <b><u><?= translate('mousemove.php_1128行目_入れ替え間時間') ?></u></b>
                             <span class="info-icon">ⓘ
@@ -1224,28 +1289,28 @@ require "../lang.php";
                                 </span>
                             </span>
                             <br>
-                            <u>特に長い時間の単語 (平均 + 標準偏差×2以上に該当)</u><br>
+                            <u><span style="color:#ef2929; font-weight:bold;">特に長い時間の単語 (平均 + 標準偏差×2以上に該当)</span></u><br>
                             <?php
                             foreach ($DC_array2 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
                                 $time_s = number_format($value / 1000, 2);
-                                echo " → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒<br>";
+                                echo "<span style='color:#ef2929;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
                             }
                             ?>
-                            <u>やや長い時間の単語 (平均 + 標準偏差×1以上に該当)</u><br>
+                            <u><span style="color:#ff8c00; font-weight:bold;">やや長い時間の単語 (平均 + 標準偏差×1以上に該当)</span></u><br>
                             <?php
                             foreach ($DC_array1 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
                                 $time_s = number_format($value / 1000, 2);
-                                echo " → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒<br>";
+                                echo "<span style='color:#ff8c00;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
                             }
                             ?>
-                            <u>少し長い時間の単語 (平均 + 標準偏差×0.75以上に該当)</u><br>
+                            <u><span style="color:#ff8c00; font-weight:bold;">少し長い時間の単語 (平均 + 標準偏差×0.75以上に該当)</span></u><br>
                             <?php
                             foreach ($DC_array075 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
                                 $time_s = number_format($value / 1000, 2);
-                                echo " → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒<br>";
+                                echo "<span style='color:#ff8c00;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
                             }
                             ?>
                         </td>
@@ -2253,10 +2318,15 @@ require "../lang.php";
                 // スライダーの幅が0、または最大時間が未定義の場合は処理を中断
                 if (sliderWidth === 0 || !maxTime) return;
 
-                // 長時間カテゴリ（入れ替え間時間）に該当するインデックスを取得
-                var longTimeIndexes2 = window.long_time_word_indexes_2 || [];
-                var longTimeIndexes1 = window.long_time_word_indexes_1 || [];
-                var longTimeIndexes075 = window.long_time_word_indexes_075 || [];
+                // カテゴリ別の単語セット（入れ替え間時間 + 余分なD&D動作）
+                var longTimeWords2 = window.long_time_words_2 || [];
+                var longTimeWords1 = window.long_time_words_1 || [];
+                var longTimeWords075 = window.long_time_words_075 || [];
+                var extraDdWordsMultiple = window.extra_dd_words_multiple || [];
+                var extraDdWordsSingle = window.extra_dd_words_single || [];
+
+                var redWordSet = new Set([].concat(longTimeWords2, extraDdWordsMultiple));
+                var orangeWordSet = new Set([].concat(longTimeWords1, longTimeWords075, extraDdWordsSingle));
 
                 dd_intervals.forEach(function (interval, index) {
                     var startPercent = (interval.startTime / maxTime) * 100;
@@ -2269,32 +2339,32 @@ require "../lang.php";
                         $('<div>', { class: 'tick' }).css('left', endPercent + '%').appendTo($ticksContainer);
 
                         // 対象単語のテキスト生成
-                        var wordText = "";
-
+                        var intervalWords = [];
                         if (interval.labelGroup && interval.labelGroup.includes('#')) {
-                            // グループ化されている場合
                             var groupLabels = interval.labelGroup.split('#').filter(Boolean);
-                            var wordNames = groupLabels.map(function(labelId) {
+                            intervalWords = groupLabels.map(function (labelId) {
                                 var id = parseInt(labelId, 10);
                                 return (start_point[id] !== undefined) ? start_point[id] : '';
                             }).filter(Boolean);
-                            wordText = wordNames.join(', ');
                         } else {
-                            // 単一の単語の場合
-                            wordText = start_point[parseInt(interval.hLabel, 10)];
+                            var singleWord = start_point[parseInt(interval.hLabel, 10)];
+                            if (singleWord) {
+                                intervalWords = [singleWord];
+                            }
                         }
+                        var wordText = intervalWords.join(', ');
 
-                        // スライダー上の単語と対応する着色区間を、長時間カテゴリに応じて色分けする
+                        // スライダー上の単語と対応する着色区間を、単語カテゴリに応じて色分けする
                         var textColor = '#333';
                         var barColor = 'rgba(74, 144, 226, 0.5)';
-                        if (longTimeIndexes2.includes(index)) {
-                            textColor = '#ef2929'; // 特に長い: 赤
+                        var hasRedWord = intervalWords.some(function (w) { return redWordSet.has(w); });
+                        var hasOrangeWord = intervalWords.some(function (w) { return orangeWordSet.has(w); });
+
+                        if (hasRedWord) {
+                            textColor = '#ef2929'; // 赤: 「特に長い」または「複数回検出」
                             barColor = 'rgba(239, 41, 41, 0.6)';
-                        } else if (longTimeIndexes1.includes(index)) {
-                            textColor = '#ff8c00'; // やや長い: オレンジ
-                            barColor = 'rgba(255, 140, 0, 0.6)';
-                        } else if (longTimeIndexes075.includes(index)) {
-                            textColor = '#ff8c00'; // 少し長い: オレンジ
+                        } else if (hasOrangeWord) {
+                            textColor = '#ff8c00'; // オレンジ: 「やや/少し長い」または「1回検出」
                             barColor = 'rgba(255, 140, 0, 0.6)';
                         }
                         var zIndexValue = 1;
