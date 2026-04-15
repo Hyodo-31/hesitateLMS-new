@@ -1204,12 +1204,69 @@ require "../lang.php";
                                 }
                             }
 
+                            $hesitation_words_ml = [];
+                            $ml_hesitation_word_ids = [];
+                            $ml_interval_targets = [];
+                            $sql_word_est = "SELECT WWID, Understand, attempt FROM temporary_results_word "
+                                . "WHERE UID = " . $uid . " AND WID = " . $wid . " AND attempt = " . $attempt_num . " "
+                                . "AND Understand = 2 ORDER BY WWID ASC";
+                            $res_word_est = mysqli_query($conn, $sql_word_est);
+                            if ($res_word_est !== false) {
+                                while ($row_word_est = mysqli_fetch_array($res_word_est)) {
+                                    $word_id = (int) $row_word_est["WWID"];
+                                    $word_name = isset($diarray[$word_id]) && trim((string) $diarray[$word_id]) !== ''
+                                        ? $diarray[$word_id]
+                                        : ("ID:" . $word_id);
+                                    $hesitation_words_ml[] = array(
+                                        "word_id" => $word_id,
+                                        "word_name" => $word_name,
+                                        "understand_text" => "迷い有り",
+                                        "attempt" => isset($row_word_est["attempt"]) ? (int) $row_word_est["attempt"] : (int) $attempt_num,
+                                    );
+                                    $ml_hesitation_word_ids[(string) $word_id] = true;
+                                }
+                            }
+
+                            // 単語単位機械学習結果に表示される単語を、スライダー上でも赤色表示するための対象を計算
+                            if (!empty($ml_hesitation_word_ids)) {
+                                $sql_DD_ml_occ = "select DD, Label from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num . " order by Time;";
+                                $res_DD_ml_occ = mysqli_query($conn, $sql_DD_ml_occ) or die("接続エラー");
+                                $ml_drag_label_parts = array();
+                                $ml_word_occurrences = [];
+                                while ($row_DD_ml_occ = mysqli_fetch_array($res_DD_ml_occ)) {
+                                    if ($row_DD_ml_occ["DD"] == 2) {
+                                        $ml_drag_label_parts = explode("#", (string) $row_DD_ml_occ["Label"]);
+                                    } else if ($row_DD_ml_occ["DD"] == 1) {
+                                        if (count($ml_drag_label_parts) === 1) {
+                                            $single_label_id = trim((string) $ml_drag_label_parts[0]);
+                                            if ($single_label_id !== '') {
+                                                if (!isset($ml_word_occurrences[$single_label_id])) {
+                                                    $ml_word_occurrences[$single_label_id] = 0;
+                                                }
+                                                $ml_word_occurrences[$single_label_id]++;
+                                                if (isset($ml_hesitation_word_ids[(string) ((int) $single_label_id)])) {
+                                                    $ml_interval_targets[] = array(
+                                                        'key' => (string) ((int) $single_label_id),
+                                                        'occurrence' => (int) $ml_word_occurrences[$single_label_id],
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             // ▼▼▼▼▼ 「迷い候補リスト」の生成ロジックを修正 ▼▼▼▼▼
                             $raw_hesitation_words = [];
                             foreach ($word_count as $key => $value) {
                                 $word_id = (int) $key;
                                 if ($value >= 1 && isset($diarray[$word_id])) {
                                     $raw_hesitation_words[] = $diarray[$word_id];
+                                }
+                            }
+                            foreach ($hesitation_words_ml as $ml_word) {
+                                if (isset($ml_word["word_name"])) {
+                                    $raw_hesitation_words[] = $ml_word["word_name"];
                                 }
                             }
                             $all_dc_arrays = $DC_array2 + $DC_array1 + $DC_array075;
@@ -1407,6 +1464,7 @@ require "../lang.php";
                                 window.slider_target_red = <?php echo json_encode(array_values($slider_target_red)); ?>;
                                 window.slider_target_orange = <?php echo json_encode(array_values($slider_target_orange)); ?>;
                                 window.extra_dd_interval_targets = <?php echo json_encode(array_values($extra_dd_interval_targets)); ?>;
+                                window.ml_interval_targets = <?php echo json_encode(array_values($ml_interval_targets)); ?>;
                             </script>
                             <br>
                             <b><u><?= translate('mousemove.php_1128行目_入れ替え間時間') ?></u></b>
@@ -1447,33 +1505,14 @@ require "../lang.php";
                             <br>
                             <b><u>単語単位機械学習結果</u></b><br>
                             <?php
-                            $hesitation_words_ml = [];
-                            $sql_word_est = "SELECT WWID, Understand, attempt FROM temporary_results_word "
-                                . "WHERE UID = " . $uid . " AND WID = " . $wid . " AND attempt = " . $attempt_num . " "
-                                . "AND Understand = 2 ORDER BY WWID ASC";
-                            $res_word_est = mysqli_query($conn, $sql_word_est);
-                            if ($res_word_est !== false) {
-                                while ($row_word_est = mysqli_fetch_array($res_word_est)) {
-                                    $word_id = (int) $row_word_est["WWID"];
-                                    $word_name = isset($diarray[$word_id]) && trim((string) $diarray[$word_id]) !== ''
-                                        ? $diarray[$word_id]
-                                        : ("ID:" . $word_id);
-                                    $hesitation_words_ml[] = array(
-                                        "word_name" => $word_name,
-                                        "understand_text" => "迷い有り",
-                                        "attempt" => isset($row_word_est["attempt"]) ? (int) $row_word_est["attempt"] : (int) $attempt_num,
-                                    );
-                                }
-                            }
-
                             if (empty($hesitation_words_ml)) {
                                 echo "該当なし<br>";
                             } else {
                                 foreach ($hesitation_words_ml as $hesitation_word_ml) {
-                                    echo "単語名: " . htmlspecialchars($hesitation_word_ml["word_name"], ENT_QUOTES, 'UTF-8')
+                                    echo "<span style='color:#ef2929;'>単語名: " . htmlspecialchars($hesitation_word_ml["word_name"], ENT_QUOTES, 'UTF-8')
                                         . " / 判定: " . htmlspecialchars($hesitation_word_ml["understand_text"], ENT_QUOTES, 'UTF-8')
                                         . " / attempt: " . htmlspecialchars((string) $hesitation_word_ml["attempt"], ENT_QUOTES, 'UTF-8')
-                                        . "<br>";
+                                        . "</span><br>";
                                 }
                             }
                             ?>
@@ -2486,6 +2525,7 @@ require "../lang.php";
                 var sliderTargetRed = window.slider_target_red || [];
                 var sliderTargetOrange = window.slider_target_orange || [];
                 var extraDdIntervalTargets = window.extra_dd_interval_targets || [];
+                var mlIntervalTargets = window.ml_interval_targets || [];
                 var redTargetSet = new Set();
                 var orangeTargetSet = new Set();
 
@@ -2508,6 +2548,11 @@ require "../lang.php";
                         redTargetSet.add(targetId);
                     } else if (item.level === 'orange') {
                         orangeTargetSet.add(targetId);
+                    }
+                });
+                mlIntervalTargets.forEach(function (item) {
+                    if (item && item.key !== undefined && item.occurrence !== undefined) {
+                        redTargetSet.add(String(item.key) + '|' + String(item.occurrence));
                     }
                 });
 
