@@ -114,6 +114,8 @@ if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Under
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background: #f5f5f5; }
+        .status-hesitate { color: #c62828; font-weight: 700; }
+        .status-no-hesitate { color: #2e7d32; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -164,7 +166,13 @@ if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Under
                             <td><?= (int)$r['WWID'] ?></td>
                             <td><?= htmlspecialchars((string)($r['word_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                             <td><?= (int)$r['attempt'] ?></td>
-                            <td><?= (int)$r['Understand'] === 2 ? '迷い有り' : '迷い無し' ?></td>
+                            <td>
+                                <?php if ((int)$r['Understand'] === 2): ?>
+                                    <span class="status-hesitate">迷い有り</span>
+                                <?php else: ?>
+                                    <span class="status-no-hesitate">迷い無し</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?= is_null($r['predicted_probability']) ? '-' : number_format((float)$r['predicted_probability'], 4) ?></td>
                             <td><?= htmlspecialchars((string)($r['feedback_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                             <td><?= htmlspecialchars((string)$r['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
