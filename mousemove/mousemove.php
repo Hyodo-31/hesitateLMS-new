@@ -1444,6 +1444,39 @@ require "../lang.php";
                                 echo "<span style='color:#ff8c00;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . $occurrence_text . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
                             }
                             ?>
+                            <br>
+                            <b><u>temporary_results_word(単語単位機械学習結果)</u></b><br>
+                            <?php
+                            $hesitation_words_ml = [];
+                            $sql_word_est = "SELECT WWID, Understand, attempt FROM temporary_results_word "
+                                . "WHERE UID = " . $uid . " AND WID = " . $wid . " AND attempt = " . $attempt_num . " "
+                                . "AND Understand = 2 ORDER BY WWID ASC";
+                            $res_word_est = mysqli_query($conn, $sql_word_est);
+                            if ($res_word_est !== false) {
+                                while ($row_word_est = mysqli_fetch_array($res_word_est)) {
+                                    $word_id = (int) $row_word_est["WWID"];
+                                    $word_name = isset($diarray[$word_id]) && trim((string) $diarray[$word_id]) !== ''
+                                        ? $diarray[$word_id]
+                                        : ("ID:" . $word_id);
+                                    $hesitation_words_ml[] = array(
+                                        "word_name" => $word_name,
+                                        "understand_text" => "迷い有り",
+                                        "attempt" => isset($row_word_est["attempt"]) ? (int) $row_word_est["attempt"] : (int) $attempt_num,
+                                    );
+                                }
+                            }
+
+                            if (empty($hesitation_words_ml)) {
+                                echo "該当なし<br>";
+                            } else {
+                                foreach ($hesitation_words_ml as $hesitation_word_ml) {
+                                    echo "単語名: " . htmlspecialchars($hesitation_word_ml["word_name"], ENT_QUOTES, 'UTF-8')
+                                        . " / 判定: " . htmlspecialchars($hesitation_word_ml["understand_text"], ENT_QUOTES, 'UTF-8')
+                                        . " / attempt: " . htmlspecialchars((string) $hesitation_word_ml["attempt"], ENT_QUOTES, 'UTF-8')
+                                        . "<br>";
+                                }
+                            }
+                            ?>
                         </td>
                     </tr>
                 </table>
