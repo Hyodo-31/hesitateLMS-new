@@ -135,7 +135,7 @@ if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Under
 
         <div class="card">
             <p>test_featurevalue_word 保存件数: <strong><?= $featureCount ?></strong></p>
-            <p>temporary_results_word 保存件数(あなた): <strong><?= $resultCount ?></strong></p>
+            <p>temporary_results_word 保存件数: <strong><?= $resultCount ?></strong></p>
             <form method="post">
                 <button class="btn" type="submit" name="generate_word_features" value="1">単語単位の特徴量を生成</button>
                 <button class="btn" type="submit" name="run_word_estimation" value="1">機械学習で迷い度を推定</button>
