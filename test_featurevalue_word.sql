@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS test_featurevalue_word (
+    UID VARCHAR(64) NOT NULL,
+    WID INT NOT NULL,
+    WWID INT NOT NULL,
+    attempt INT NOT NULL,
+    word_text VARCHAR(255) NOT NULL,
+    word_length INT NOT NULL,
+    position_ratio DOUBLE NOT NULL,
+    label_hit_count INT NOT NULL,
+    hlabel_hit_count INT NOT NULL,
+    drag_count INT NOT NULL,
+    drop_count INT NOT NULL,
+    dwell_time DOUBLE NOT NULL,
+    total_time DOUBLE NOT NULL,
+    is_hesitate_label TINYINT(1) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (UID, WID, WWID, attempt),
+    KEY idx_wid_attempt (WID, attempt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

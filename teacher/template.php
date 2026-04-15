@@ -22,7 +22,8 @@
             <ul>
                 <li><a href="teachertrue.php"><?= translate('template.php_21行目_ホーム') ?></a></li>
                 <li><a href="#"><?= translate('template.php_22行目_コース管理') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('template.php_23行目_迷い推定・機械学習') ?></a></li>
+                <li><a href="machineLearning_sample.php"><?= translate('template.php_23行目_迷い推定・機械学習') ?> (問題単位)</a></li>
+                <li><a href="machineLearning_word.php">迷い推定・機械学習 (単語単位)</a></li>
                 <li><a href="Analytics/studentAnalytics.php"><?= translate('template.php_24行目_学生分析') ?></a></li>
                 <li><a href="Analytics/questionAnalytics.php"><?= translate('template.php_25行目_問題分析') ?></a></li>
                 <li><a href="register-student.php"><?= translate('template.php_26行目_新規学生登録') ?></a></li>
@@ -34,7 +35,8 @@
             <ul>
                 <li><a href="teachertrue.php"><?= translate('template.php_32行目_ホーム') ?></a></li>
                 <li><a href="#"><?= translate('template.php_33行目_コース管理') ?></a></li>
-                <li><a href="machineLearning_sample.php"><?= translate('template.php_34行目_迷い推定・機械学習') ?></a></li>
+                <li><a href="machineLearning_sample.php"><?= translate('template.php_34行目_迷い推定・機械学習') ?> (問題単位)</a></li>
+                <li><a href="machineLearning_word.php">迷い推定・機械学習 (単語単位)</a></li>
                 <li><a href="Analytics/studentAnalytics.php"><?= translate('template.php_35行目_学生分析') ?></a></li>
                 <li><a href="Analytics/questionAnalytics.php"><?= translate('template.php_36行目_問題分析') ?></a></li>
             </ul>
