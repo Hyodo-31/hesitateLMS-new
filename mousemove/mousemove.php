@@ -1445,7 +1445,7 @@ require "../lang.php";
                             }
                             ?>
                             <br>
-                            <b><u>temporary_results_word(単語単位機械学習結果)</u></b><br>
+                            <b><u>単語単位機械学習結果</u></b><br>
                             <?php
                             $hesitation_words_ml = [];
                             $sql_word_est = "SELECT WWID, Understand, attempt FROM temporary_results_word "
