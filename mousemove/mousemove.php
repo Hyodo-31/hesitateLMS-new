@@ -1033,17 +1033,27 @@ require "../lang.php";
                             $Time_array = array();
                             $WID_array = array();
                             $Label_array = array();
+                            $Raw_Label_array = array();
                             $Before_Label_array = array(); // 直前の単語を保存
+                            $Drag_Occurrence_array = array(); // 同一ラベルの何回目のDragか
+                            $label_drag_counts = array();
                             $before_Label = "";
                             $j = 0;
                             while ($row_DD2 = mysqli_fetch_array($res_DD2)) {
                                 if ($row_DD2["DD"] == 2) { // Drag時
+                                    $current_raw_label = (string) $row_DD2["Label"];
+                                    if (!isset($label_drag_counts[$current_raw_label])) {
+                                        $label_drag_counts[$current_raw_label] = 0;
+                                    }
+                                    $label_drag_counts[$current_raw_label]++;
                                     if ($DC_Flag == 1) {
                                         $Time_array[$j] = $row_DD2["Time"];
                                         $DC_array[$j] = $row_DD2["Time"] - $before_Time;
                                         $WID_array[$j] = $row_DD2["WID"];
                                         $Label_array[$j] = $row_DD2["Label"];
+                                        $Raw_Label_array[$j] = $row_DD2["Label"];
                                         $Before_Label_array[$j] = $before_Label; // Drop時の単語を保存
+                                        $Drag_Occurrence_array[$j] = $label_drag_counts[$current_raw_label];
                                         $j++;
                                     }
                                 } else if ($row_DD2["DD"] == 1) { // Drop時
@@ -1152,6 +1162,48 @@ require "../lang.php";
                             $long_time_words_1 = array_values(array_unique($long_time_words_1));
                             $long_time_words_075 = array_values(array_unique($long_time_words_075));
 
+                            // スライダー着色用: 単語単位ではなく「ラベル + 何回目」で管理
+                            $build_interval_target = function ($raw_label, $occurrence) {
+                                $normalized_raw_label = trim((string) $raw_label);
+                                if ($normalized_raw_label === '') {
+                                    return null;
+                                }
+                                $is_group = strpos($normalized_raw_label, '#') !== false;
+                                $key = $is_group ? $normalized_raw_label : (string) ((int) $normalized_raw_label);
+                                return array(
+                                    'key' => $key,
+                                    'occurrence' => (int) $occurrence,
+                                );
+                            };
+
+                            $slider_target_red = [];
+                            $slider_target_orange = [];
+
+                            foreach (array_keys($DC_array2) as $idx) {
+                                if (isset($Raw_Label_array[$idx], $Drag_Occurrence_array[$idx])) {
+                                    $target = $build_interval_target($Raw_Label_array[$idx], $Drag_Occurrence_array[$idx]);
+                                    if ($target !== null) {
+                                        $slider_target_red[] = $target;
+                                    }
+                                }
+                            }
+                            foreach (array_keys($DC_array1) as $idx) {
+                                if (isset($Raw_Label_array[$idx], $Drag_Occurrence_array[$idx])) {
+                                    $target = $build_interval_target($Raw_Label_array[$idx], $Drag_Occurrence_array[$idx]);
+                                    if ($target !== null) {
+                                        $slider_target_orange[] = $target;
+                                    }
+                                }
+                            }
+                            foreach (array_keys($DC_array075) as $idx) {
+                                if (isset($Raw_Label_array[$idx], $Drag_Occurrence_array[$idx])) {
+                                    $target = $build_interval_target($Raw_Label_array[$idx], $Drag_Occurrence_array[$idx]);
+                                    if ($target !== null) {
+                                        $slider_target_orange[] = $target;
+                                    }
+                                }
+                            }
+
                             // ▼▼▼▼▼ 「迷い候補リスト」の生成ロジックを修正 ▼▼▼▼▼
                             $raw_hesitation_words = [];
                             foreach ($word_count as $key => $value) {
@@ -1213,6 +1265,8 @@ require "../lang.php";
                             <?php
                             $multiple_hit_words = [];
                             $single_hit_words = [];
+                            $word_occurrences = [];
+                            $extra_dd_interval_targets = [];
                             if (empty($word_count)) {
                                 echo "該当なし<br>";
                             } else {
@@ -1244,31 +1298,102 @@ require "../lang.php";
                                 }
                                 $single_hit_words = array_values(array_unique($single_hit_words));
 
+                                // 余分なDD動作の「何回目」情報を計算（単語ごと）
+                                $sql_DD_occ = "select DD, Label, Y from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num . " order by Time;";
+                                $res_DD_occ = mysqli_query($conn, $sql_DD_occ) or die("接続エラー");
+                                $drag_start_area = 0;
+                                $drag_label_parts = array();
+                                while ($row_DD_occ = mysqli_fetch_array($res_DD_occ)) {
+                                    if ($row_DD_occ["DD"] == 2) {
+                                        $label_raw_occ = (string) $row_DD_occ["Label"];
+                                        $drag_label_parts = explode("#", $label_raw_occ);
+
+                                        if ($row_DD_occ["Y"] > 130 && $row_DD_occ["Y"] <= 215)
+                                            $drag_start_area = 4;
+                                        else if ($row_DD_occ["Y"] > 215 && $row_DD_occ["Y"] <= 295)
+                                            $drag_start_area = 1;
+                                        else if ($row_DD_occ["Y"] > 295 && $row_DD_occ["Y"] <= 375)
+                                            $drag_start_area = 2;
+                                        else if ($row_DD_occ["Y"] > 375)
+                                            $drag_start_area = 3;
+                                        else
+                                            $drag_start_area = 0;
+                                    } else if ($row_DD_occ["DD"] == 1) {
+                                        $drop_Y_occ = $row_DD_occ["Y"];
+                                        $is_extra_dd = false;
+                                        if ($drop_Y_occ <= 130 && $drag_start_area != 0) {
+                                            $is_extra_dd = true;
+                                        } else if (($drop_Y_occ > 130 && $drop_Y_occ <= 215) && $drag_start_area == 4) {
+                                            $is_extra_dd = true;
+                                        } else if (($drop_Y_occ > 215 && $drop_Y_occ <= 295) && $drag_start_area == 1) {
+                                            $is_extra_dd = true;
+                                        } else if (($drop_Y_occ > 295 && $drop_Y_occ <= 375) && $drag_start_area == 2) {
+                                            $is_extra_dd = true;
+                                        } else if ($drop_Y_occ > 375 && $drag_start_area == 3) {
+                                            $is_extra_dd = true;
+                                        }
+
+                                        if ($is_extra_dd) {
+                                            foreach ($drag_label_parts as $part_word_id) {
+                                                $normalized_id = trim($part_word_id);
+                                                if ($normalized_id === '') {
+                                                    continue;
+                                                }
+                                                if (!isset($word_occurrences[$normalized_id])) {
+                                                    $word_occurrences[$normalized_id] = 0;
+                                                }
+                                                $word_occurrences[$normalized_id]++;
+                                            }
+
+                                            // グループ化された単語の内包一致では着色しないため、単語単体イベントのみ対象
+                                            if (count($drag_label_parts) === 1) {
+                                                $single_label_id = trim((string) $drag_label_parts[0]);
+                                                if ($single_label_id !== '' && isset($word_count[$single_label_id])) {
+                                                    $occ = isset($word_occurrences[$single_label_id]) ? (int) $word_occurrences[$single_label_id] : 0;
+                                                    $extra_dd_interval_targets[] = array(
+                                                        'key' => (string) ((int) $single_label_id),
+                                                        'occurrence' => $occ,
+                                                        'level' => ((int) $word_count[$single_label_id] >= 2) ? 'red' : 'orange',
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
                                 if (!empty($multiple_hits)) {
                                     echo "<u><span style='color:#ef2929; font-weight:bold;'>" . translate('複数回検出') . "</span></u><br>";
                                     foreach ($multiple_hits as $key => $value) {
-                                        // ▼▼▼▼▼ ここを修正 ▼▼▼▼▼
-                                        $word_id = (int) $key; // キーを整数に変換
+                                        $word_id = (int) $key;
                                         $word_name = isset($diarray[$word_id]) && trim($diarray[$word_id]) !== ''
                                             ? htmlspecialchars($diarray[$word_id], ENT_QUOTES, 'UTF-8')
-                                            : "ID:" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); // 念のためフォールバック
-                                        // ▲▲▲▲▲ 修正はここまで ▲▲▲▲▲
+                                            : "ID:" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8');
+                                        $occ_text_parts = [];
+                                        $hit_count_for_word = isset($word_occurrences[(string) $word_id]) ? (int) $word_occurrences[(string) $word_id] : 0;
+                                        for ($occ_i = 1; $occ_i <= $hit_count_for_word; $occ_i++) {
+                                            $occ_text_parts[] = $occ_i . "回目";
+                                        }
+                                        $occ_text = !empty($occ_text_parts) ? " / 該当操作: " . implode(", ", $occ_text_parts) : "";
                                         echo "<span style='color:#ef2929;'>検出単語: " . $word_name
                                             . " (" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8')
-                                            . translate('mousemove.php_1117行目_回') . ")</span><br>";
+                                            . translate('mousemove.php_1117行目_回') . ")" . $occ_text . "</span><br>";
                                     }
                                 }
 
                                 if (!empty($single_hits)) {
                                     echo "<u><span style='color:#ff8c00; font-weight:bold;'>" . translate('1回検出') . "</span></u><br>";
                                     foreach ($single_hits as $key => $value) {
-                                        // ▼▼▼▼▼ ここを修正 ▼▼▼▼▼
-                                        $word_id = (int) $key; // キーを整数に変換
+                                        $word_id = (int) $key;
                                         $word_name = isset($diarray[$word_id]) && trim($diarray[$word_id]) !== ''
                                             ? htmlspecialchars($diarray[$word_id], ENT_QUOTES, 'UTF-8')
-                                            : "ID:" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); // 念のためフォールバック
-                                        // ▲▲▲▲▲ 修正はここまで ▲▲▲▲▲
-                                        echo "<span style='color:#ff8c00;'>検出単語: " . $word_name . "</span><br>";
+                                            : "ID:" . htmlspecialchars($key, ENT_QUOTES, 'UTF-8');
+                                        $occ_text_parts = [];
+                                        $hit_count_for_word = isset($word_occurrences[(string) $word_id]) ? (int) $word_occurrences[(string) $word_id] : 0;
+                                        for ($occ_i = 1; $occ_i <= $hit_count_for_word; $occ_i++) {
+                                            $occ_text_parts[] = $occ_i . "回目";
+                                        }
+                                        $occ_text = !empty($occ_text_parts) ? " / 該当操作: " . implode(", ", $occ_text_parts) : "";
+                                        echo "<span style='color:#ff8c00;'>検出単語: " . $word_name . $occ_text . "</span><br>";
                                     }
                                 }
                             }
@@ -1279,6 +1404,9 @@ require "../lang.php";
                                 window.long_time_words_075 = <?php echo json_encode($long_time_words_075); ?>;
                                 window.extra_dd_words_multiple = <?php echo json_encode($multiple_hit_words); ?>;
                                 window.extra_dd_words_single = <?php echo json_encode($single_hit_words); ?>;
+                                window.slider_target_red = <?php echo json_encode(array_values($slider_target_red)); ?>;
+                                window.slider_target_orange = <?php echo json_encode(array_values($slider_target_orange)); ?>;
+                                window.extra_dd_interval_targets = <?php echo json_encode(array_values($extra_dd_interval_targets)); ?>;
                             </script>
                             <br>
                             <b><u><?= translate('mousemove.php_1128行目_入れ替え間時間') ?></u></b>
@@ -1294,7 +1422,8 @@ require "../lang.php";
                             foreach ($DC_array2 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
                                 $time_s = number_format($value / 1000, 2);
-                                echo "<span style='color:#ef2929;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
+                                $occurrence_text = isset($Drag_Occurrence_array[$current_index]) ? "（" . ((int) $Drag_Occurrence_array[$current_index]) . "回目）" : "";
+                                echo "<span style='color:#ef2929;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . $occurrence_text . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
                             }
                             ?>
                             <u><span style="color:#ff8c00; font-weight:bold;">やや長い時間の単語 (平均 + 標準偏差×1以上に該当)</span></u><br>
@@ -1302,7 +1431,8 @@ require "../lang.php";
                             foreach ($DC_array1 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
                                 $time_s = number_format($value / 1000, 2);
-                                echo "<span style='color:#ff8c00;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
+                                $occurrence_text = isset($Drag_Occurrence_array[$current_index]) ? "（" . ((int) $Drag_Occurrence_array[$current_index]) . "回目）" : "";
+                                echo "<span style='color:#ff8c00;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . $occurrence_text . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
                             }
                             ?>
                             <u><span style="color:#ff8c00; font-weight:bold;">少し長い時間の単語 (平均 + 標準偏差×0.75以上に該当)</span></u><br>
@@ -1310,7 +1440,8 @@ require "../lang.php";
                             foreach ($DC_array075 as $current_index => $value) {
                                 $curr_label_text = isset($Label_array[$current_index]) ? str_replace('#', ', ', $Label_array[$current_index]) : 'N/A';
                                 $time_s = number_format($value / 1000, 2);
-                                echo "<span style='color:#ff8c00;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
+                                $occurrence_text = isset($Drag_Occurrence_array[$current_index]) ? "（" . ((int) $Drag_Occurrence_array[$current_index]) . "回目）" : "";
+                                echo "<span style='color:#ff8c00;'> → " . htmlspecialchars($curr_label_text, ENT_QUOTES, 'UTF-8') . $occurrence_text . "： " . htmlspecialchars($time_s, ENT_QUOTES, 'UTF-8') . "秒</span><br>";
                             }
                             ?>
                         </td>
@@ -2318,20 +2449,50 @@ require "../lang.php";
                 // スライダーの幅が0、または最大時間が未定義の場合は処理を中断
                 if (sliderWidth === 0 || !maxTime) return;
 
-                // カテゴリ別の単語セット（入れ替え間時間 + 余分なD&D動作）
-                var longTimeWords2 = window.long_time_words_2 || [];
-                var longTimeWords1 = window.long_time_words_1 || [];
-                var longTimeWords075 = window.long_time_words_075 || [];
-                var extraDdWordsMultiple = window.extra_dd_words_multiple || [];
-                var extraDdWordsSingle = window.extra_dd_words_single || [];
+                // カテゴリ別の対象セット（単語単位ではなく「ラベル + 何回目」）
+                var sliderTargetRed = window.slider_target_red || [];
+                var sliderTargetOrange = window.slider_target_orange || [];
+                var extraDdIntervalTargets = window.extra_dd_interval_targets || [];
+                var redTargetSet = new Set();
+                var orangeTargetSet = new Set();
 
-                var redWordSet = new Set([].concat(longTimeWords2, extraDdWordsMultiple));
-                var orangeWordSet = new Set([].concat(longTimeWords1, longTimeWords075, extraDdWordsSingle));
+                sliderTargetRed.forEach(function (item) {
+                    if (item && item.key !== undefined && item.occurrence !== undefined) {
+                        redTargetSet.add(String(item.key) + '|' + String(item.occurrence));
+                    }
+                });
+                sliderTargetOrange.forEach(function (item) {
+                    if (item && item.key !== undefined && item.occurrence !== undefined) {
+                        orangeTargetSet.add(String(item.key) + '|' + String(item.occurrence));
+                    }
+                });
+                extraDdIntervalTargets.forEach(function (item) {
+                    if (!(item && item.key !== undefined && item.occurrence !== undefined)) {
+                        return;
+                    }
+                    var targetId = String(item.key) + '|' + String(item.occurrence);
+                    if (item.level === 'red') {
+                        redTargetSet.add(targetId);
+                    } else if (item.level === 'orange') {
+                        orangeTargetSet.add(targetId);
+                    }
+                });
+
+                var intervalOccurrenceCounts = {};
 
                 dd_intervals.forEach(function (interval, index) {
                     var startPercent = (interval.startTime / maxTime) * 100;
                     var endPercent = (interval.endTime / maxTime) * 100;
                     var widthPercent = endPercent - startPercent;
+                    var intervalKey = (interval.labelGroup && interval.labelGroup.includes('#'))
+                        ? String(interval.labelGroup)
+                        : String(parseInt(interval.hLabel, 10));
+                    if (!intervalOccurrenceCounts[intervalKey]) {
+                        intervalOccurrenceCounts[intervalKey] = 0;
+                    }
+                    intervalOccurrenceCounts[intervalKey]++;
+                    var intervalOccurrence = intervalOccurrenceCounts[intervalKey];
+                    var intervalTargetId = intervalKey + '|' + String(intervalOccurrence);
 
                     if (startPercent >= 0 && endPercent <= 100) {
                         // ドラッグ開始位置とドロップ位置の黒線
@@ -2354,16 +2515,16 @@ require "../lang.php";
                         }
                         var wordText = intervalWords.join(', ');
 
-                        // スライダー上の単語と対応する着色区間を、単語カテゴリに応じて色分けする
+                        // スライダー上の単語と対応する着色区間を、「ラベル+何回目」に応じて色分けする
                         var textColor = '#333';
                         var barColor = 'rgba(74, 144, 226, 0.5)';
-                        var hasRedWord = intervalWords.some(function (w) { return redWordSet.has(w); });
-                        var hasOrangeWord = intervalWords.some(function (w) { return orangeWordSet.has(w); });
+                        var isRedTarget = redTargetSet.has(intervalTargetId);
+                        var isOrangeTarget = orangeTargetSet.has(intervalTargetId);
 
-                        if (hasRedWord) {
+                        if (isRedTarget) {
                             textColor = '#ef2929'; // 赤: 「特に長い」または「複数回検出」
                             barColor = 'rgba(239, 41, 41, 0.6)';
-                        } else if (hasOrangeWord) {
+                        } else if (isOrangeTarget) {
                             textColor = '#ff8c00'; // オレンジ: 「やや/少し長い」または「1回検出」
                             barColor = 'rgba(255, 140, 0, 0.6)';
                         }
