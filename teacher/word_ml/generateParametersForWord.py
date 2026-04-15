@@ -21,6 +21,24 @@ def normalize_tokens(raw: str):
     return [t.strip().lower() for t in TOKEN_SPLIT_PATTERN.split(raw) if t.strip()]
 
 
+def parse_hash_index_set(raw: str):
+    """Parse '#'-separated zero-based indices (e.g. '0#2') into a set of ints."""
+    if raw is None:
+        return set()
+    text = str(raw).strip()
+    if not text:
+        return set()
+
+    indexes = set()
+    for token in text.split("#"):
+        t = token.strip()
+        if not t:
+            continue
+        if t.lstrip("-").isdigit():
+            indexes.add(int(t))
+    return indexes
+
+
 def ensure_table(conn):
     sql = """
     CREATE TABLE IF NOT EXISTS test_featurevalue_word (
@@ -38,6 +56,7 @@ def ensure_table(conn):
         dwell_time DOUBLE NOT NULL,
         total_time DOUBLE NOT NULL,
         is_hesitate_label TINYINT(1) NOT NULL,
+        hesitate_level TINYINT NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (UID, WID, WWID, attempt),
@@ -46,13 +65,21 @@ def ensure_table(conn):
     """
     cur = conn.cursor()
     cur.execute(sql)
+    cur.execute("SHOW COLUMNS FROM test_featurevalue_word LIKE 'hesitate_level'")
+    if cur.fetchone() is None:
+        cur.execute(
+            "ALTER TABLE test_featurevalue_word "
+            "ADD COLUMN hesitate_level TINYINT NOT NULL DEFAULT 0 "
+            "AFTER is_hesitate_label"
+        )
     conn.commit()
     cur.close()
 
 
 def fetch_attempt_rows(conn):
     query = """
-    SELECT l.UID, l.WID, l.attempt, l.Time, l.DD, l.Label, l.hLabel, l.hesitate,
+    SELECT l.UID, l.WID, l.attempt, l.Time, l.DD, l.Label, l.hLabel,
+           l.hesitate, l.hesitate1, l.hesitate2,
            qi.Sentence
     FROM linedata l
     LEFT JOIN question_info qi ON qi.WID = l.WID
@@ -82,7 +109,12 @@ def build_records(rows):
         last_time = float(events[-1]["Time"] or first_time)
         total_time = max(0.0, last_time - first_time)
 
-        hesitate_tokens = set(normalize_tokens(events[0].get("hesitate") or ""))
+        # student/ques.php sends:
+        #   param7=hesitate, param8=hesitate1, param9=hesitate2
+        # each value is a '#' separated zero-based word-index list.
+        hesitate_indexes = parse_hash_index_set(events[0].get("hesitate"))
+        hesitate1_indexes = parse_hash_index_set(events[0].get("hesitate1"))
+        hesitate2_indexes = parse_hash_index_set(events[0].get("hesitate2"))
 
         prepared_events = []
         for idx, event in enumerate(events):
@@ -103,6 +135,8 @@ def build_records(rows):
 
         word_count = len(words)
         for wwid, word in enumerate(words, start=1):
+            # WWID is 1-based in this table; hesitate indices are 0-based.
+            word_index_zero_based = wwid - 1
             key = word.lower()
             label_hit = 0
             hlabel_hit = 0
@@ -123,6 +157,19 @@ def build_records(rows):
                 if in_hlabel:
                     hlabel_hit += 1
 
+            in_hesitate = word_index_zero_based in hesitate_indexes
+            in_hesitate1 = word_index_zero_based in hesitate1_indexes
+            in_hesitate2 = word_index_zero_based in hesitate2_indexes
+
+            # Binary label:
+            #   is_hesitate_label = 1 if index is included in hesitate/hesitate1/hesitate2.
+            is_hesitate_label = 1 if (in_hesitate or in_hesitate1 or in_hesitate2) else 0
+            # 3-level label (0/1/2):
+            #   2: hesitate2
+            #   1: hesitate or hesitate1
+            #   0: none
+            hesitate_level = 2 if in_hesitate2 else (1 if (in_hesitate or in_hesitate1) else 0)
+
             records.append(
                 (
                     uid,
@@ -138,7 +185,8 @@ def build_records(rows):
                     drop,
                     dwell,
                     total_time,
-                    1 if key in hesitate_tokens else 0,
+                    is_hesitate_label,
+                    hesitate_level,
                 )
             )
 
@@ -152,9 +200,9 @@ def upsert_records(conn, records):
     INSERT INTO test_featurevalue_word (
       UID, WID, WWID, attempt, word_text, word_length, position_ratio,
       label_hit_count, hlabel_hit_count, drag_count, drop_count, dwell_time,
-      total_time, is_hesitate_label
+      total_time, is_hesitate_label, hesitate_level
     ) VALUES (
-      %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+      %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
     ) ON DUPLICATE KEY UPDATE
       word_text=VALUES(word_text),
       word_length=VALUES(word_length),
@@ -165,7 +213,8 @@ def upsert_records(conn, records):
       drop_count=VALUES(drop_count),
       dwell_time=VALUES(dwell_time),
       total_time=VALUES(total_time),
-      is_hesitate_label=VALUES(is_hesitate_label)
+      is_hesitate_label=VALUES(is_hesitate_label),
+      hesitate_level=VALUES(hesitate_level)
     """
     cur = conn.cursor()
     cur.executemany(sql, records)
