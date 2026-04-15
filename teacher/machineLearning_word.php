@@ -13,7 +13,7 @@ $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['generate_word_features'])) {
-        $cmd = 'python3 ' . escapeshellarg(__DIR__ . '/word_ml/generateParametersForWord.py') . ' 2>&1';
+        $cmd = 'python3 ' . escapeshellarg(__DIR__ . '/word_ml/word_feature_calculator.py') . ' 2>&1';
         exec($cmd, $output, $status);
         if ($status === 0) {
             $messages[] = implode("\n", $output);
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (isset($_POST['run_word_estimation'])) {
-        $cmd = 'python3 ' . escapeshellarg(__DIR__ . '/word_ml/classify_crossval_fromCSV_Word.py') . ' ' . escapeshellarg($teacherId) . ' 2>&1';
+        $cmd = 'python3 ' . escapeshellarg(__DIR__ . '/word_ml/word_machine_learning.py') . ' ' . escapeshellarg($teacherId) . ' 2>&1';
         exec($cmd, $output, $status);
         if ($status === 0) {
             $messages[] = implode("\n", $output);
@@ -50,7 +50,7 @@ if ($stmt = $conn->prepare('SELECT COUNT(*) AS cnt FROM temporary_results_word W
     $resultCount = (int)($res['cnt'] ?? 0);
     $stmt->close();
 }
-if ($stmt = $conn->prepare('SELECT UID, WID, WWID, attempt, Understand, predicted_probability, created_at FROM temporary_results_word WHERE teacher_id = ? ORDER BY created_at DESC LIMIT 50')) {
+if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Understand, tr.predicted_probability, tr.feedback_text, tr.created_at, tfw.word_text FROM temporary_results_word tr LEFT JOIN test_featurevalue_word tfw ON tfw.UID = tr.UID AND tfw.WID = tr.WID AND tfw.WWID = tr.WWID AND tfw.attempt = tr.attempt WHERE tr.teacher_id = ? ORDER BY tr.created_at DESC LIMIT 50')) {
     $stmt->bind_param('s', $teacherId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -113,21 +113,23 @@ if ($stmt = $conn->prepare('SELECT UID, WID, WWID, attempt, Understand, predicte
             <table>
                 <thead>
                 <tr>
-                    <th>UID</th><th>WID</th><th>WWID</th><th>attempt</th><th>Understand</th><th>推定確率</th><th>更新日時</th>
+                    <th>UID</th><th>WID</th><th>WWID</th><th>word_text</th><th>attempt</th><th>Understand</th><th>推定確率</th><th>説明文</th><th>更新日時</th>
                 </tr>
                 </thead>
                 <tbody>
                 <?php if (empty($latestResults)): ?>
-                    <tr><td colspan="7">データがありません。</td></tr>
+                    <tr><td colspan="9">データがありません。</td></tr>
                 <?php else: ?>
                     <?php foreach ($latestResults as $r): ?>
                         <tr>
                             <td><?= htmlspecialchars((string)$r['UID'], ENT_QUOTES, 'UTF-8') ?></td>
                             <td><?= (int)$r['WID'] ?></td>
                             <td><?= (int)$r['WWID'] ?></td>
+                            <td><?= htmlspecialchars((string)($r['word_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                             <td><?= (int)$r['attempt'] ?></td>
                             <td><?= (int)$r['Understand'] === 2 ? '迷い有り' : '迷い無し' ?></td>
                             <td><?= is_null($r['predicted_probability']) ? '-' : number_format((float)$r['predicted_probability'], 4) ?></td>
+                            <td><?= htmlspecialchars((string)($r['feedback_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                             <td><?= htmlspecialchars((string)$r['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
                         </tr>
                     <?php endforeach; ?>
