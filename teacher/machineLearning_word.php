@@ -11,10 +11,46 @@ $teacherId = (string)$_SESSION['MemberID'];
 $messages = [];
 $errors = [];
 
+function runPythonCommand(string $scriptPath, array $args = []): array
+{
+    $pythonBin = null;
+    foreach (['python', 'python3'] as $candidate) {
+        $checkOutput = [];
+        $checkStatus = 0;
+        exec($candidate . ' --version 2>&1', $checkOutput, $checkStatus);
+        if ($checkStatus === 0) {
+            $pythonBin = $candidate;
+            break;
+        }
+    }
+
+    if ($pythonBin === null) {
+        return [
+            'status' => 127,
+            'output' => [
+                'python / python3 コマンドが見つかりません。',
+                'サーバーに Python をインストールし、PATH に追加してください。',
+            ],
+        ];
+    }
+
+    $cmdParts = [$pythonBin, escapeshellarg($scriptPath)];
+    foreach ($args as $arg) {
+        $cmdParts[] = escapeshellarg((string)$arg);
+    }
+    $output = [];
+    $status = 0;
+    $cmd = implode(' ', $cmdParts) . ' 2>&1';
+    exec($cmd, $output, $status);
+
+    return ['status' => $status, 'output' => $output];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['generate_word_features'])) {
-        $cmd = 'python3 ' . escapeshellarg(__DIR__ . '/word_ml/word_feature_calculator.py') . ' 2>&1';
-        exec($cmd, $output, $status);
+        $result = runPythonCommand(__DIR__ . '/word_ml/word_feature_calculator.py');
+        $output = $result['output'];
+        $status = $result['status'];
         if ($status === 0) {
             $messages[] = implode("\n", $output);
         } else {
@@ -23,8 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (isset($_POST['run_word_estimation'])) {
-        $cmd = 'python3 ' . escapeshellarg(__DIR__ . '/word_ml/word_machine_learning.py') . ' ' . escapeshellarg($teacherId) . ' 2>&1';
-        exec($cmd, $output, $status);
+        $result = runPythonCommand(__DIR__ . '/word_ml/word_machine_learning.py', [$teacherId]);
+        $output = $result['output'];
+        $status = $result['status'];
         if ($status === 0) {
             $messages[] = implode("\n", $output);
         } else {
