@@ -2284,16 +2284,19 @@ require "../lang.php";
                             wordText = start_point[parseInt(interval.hLabel, 10)];
                         }
 
-                        // スライダー上の単語のみ、長時間カテゴリに応じて色分けする
+                        // スライダー上の単語と対応する着色区間を、長時間カテゴリに応じて色分けする
                         var textColor = '#333';
+                        var barColor = 'rgba(74, 144, 226, 0.5)';
                         if (longTimeIndexes2.includes(index)) {
                             textColor = '#ef2929'; // 特に長い: 赤
+                            barColor = 'rgba(239, 41, 41, 0.6)';
                         } else if (longTimeIndexes1.includes(index)) {
                             textColor = '#ff8c00'; // やや長い: オレンジ
+                            barColor = 'rgba(255, 140, 0, 0.6)';
                         } else if (longTimeIndexes075.includes(index)) {
                             textColor = '#e6c200'; // 少し長い: 黄色
+                            barColor = 'rgba(230, 194, 0, 0.6)';
                         }
-                        var barColor = 'rgba(74, 144, 226, 0.5)';
                         var zIndexValue = 1;
 
                         // 区間の色付け
