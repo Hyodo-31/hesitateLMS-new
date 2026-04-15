@@ -794,7 +794,7 @@ require "../lang.php";
             </span>
         </div>
 
-        <div id="slider-container" style="position: relative; padding: 5px 0; margin-bottom: 40px;">
+        <div id="slider-container" style="position: relative; padding: 5px 0; margin-bottom: 70px;">
             <div id="jquery-ui-slider"></div>
             <div id="slider-ticks"></div>
         </div>
@@ -2479,8 +2479,11 @@ require "../lang.php";
                 });
 
                 var intervalOccurrenceCounts = {};
+                var textRowTopPositions = ['15px', '28px', '41px', '54px'];
+                var textRowLastRightPercents = new Array(textRowTopPositions.length).fill(-Infinity);
+                var textRowGapPercent = 0.6;
 
-                dd_intervals.forEach(function (interval, index) {
+                dd_intervals.forEach(function (interval) {
                     var startPercent = (interval.startTime / maxTime) * 100;
                     var endPercent = (interval.endTime / maxTime) * 100;
                     var widthPercent = endPercent - startPercent;
@@ -2542,9 +2545,31 @@ require "../lang.php";
                             pointerEvents: 'none'
                         }).appendTo($ticksContainer);
 
-                        // 単語の表示 (操作が密集した際の重なりを軽減するため、高さを2段のジグザグに分ける)
-                        var topPosition = (index % 2 === 0) ? '15px' : '28px';
+                        // 単語の表示 (操作が密集した際の重なりを軽減するため、高さを最大4段まで使って配置)
                         var centerPercent = startPercent + (widthPercent / 2);
+                        var estimatedTextWidthPx = Math.max(wordText.length, 1) * 7 + 12;
+                        var estimatedTextWidthPercent = (estimatedTextWidthPx / sliderWidth) * 100;
+                        var textLeftPercent = centerPercent - (estimatedTextWidthPercent / 2);
+                        var textRightPercent = centerPercent + (estimatedTextWidthPercent / 2);
+                        var selectedRow = -1;
+
+                        for (var rowIdx = 0; rowIdx < textRowTopPositions.length; rowIdx++) {
+                            if (textLeftPercent >= textRowLastRightPercents[rowIdx] + textRowGapPercent) {
+                                selectedRow = rowIdx;
+                                break;
+                            }
+                        }
+                        if (selectedRow === -1) {
+                            selectedRow = 0;
+                            for (var fallbackRowIdx = 1; fallbackRowIdx < textRowLastRightPercents.length; fallbackRowIdx++) {
+                                if (textRowLastRightPercents[fallbackRowIdx] < textRowLastRightPercents[selectedRow]) {
+                                    selectedRow = fallbackRowIdx;
+                                }
+                            }
+                        }
+
+                        textRowLastRightPercents[selectedRow] = Math.max(textRowLastRightPercents[selectedRow], textRightPercent);
+                        var topPosition = textRowTopPositions[selectedRow];
 
                         $('<div>').text(wordText).css({
                             position: 'absolute',
