@@ -76,17 +76,57 @@ def ensure_table(conn):
     cur.close()
 
 
-def fetch_attempt_rows(conn):
+def _expand_in_clause(column, values):
+    placeholders = ", ".join(["%s"] * len(values))
+    return f"{column} IN ({placeholders})"
+
+
+def fetch_attempt_rows(conn, uid_values=None, wid_values=None):
+    uid_values = [str(v) for v in (uid_values or []) if str(v).strip()]
+    wid_values = [int(v) for v in (wid_values or [])]
+
     query = """
-    SELECT l.UID, l.WID, l.attempt, l.Time, l.DD, l.Label, l.hLabel,
-           l.hesitate, l.hesitate1, l.hesitate2,
-           qi.Sentence
-    FROM linedata l
-    LEFT JOIN question_info qi ON qi.WID = l.WID
-    ORDER BY l.UID, l.WID, l.attempt, l.Time
+    SELECT
+        lm.UID,
+        lm.WID,
+        lm.Time,
+        lm.X,
+        lm.Y,
+        lm.DD,
+        lm.DPos,
+        lm.hLabel,
+        lm.Label,
+        lm.attempt,
+        l.attempt AS linedata_attempt,
+        l.hesitate,
+        l.hesitate1,
+        l.hesitate2,
+        l.Understand,
+        qi.Sentence
+    FROM linedatamouse lm
+    INNER JOIN linedata l
+      ON lm.UID = l.UID
+     AND lm.WID = l.WID
+     AND lm.attempt = l.attempt
+    LEFT JOIN question_info qi ON qi.WID = lm.WID
     """
+    where_clauses = []
+    params = []
+
+    if uid_values:
+        where_clauses.append(_expand_in_clause("lm.UID", uid_values))
+        params.extend(uid_values)
+    if wid_values:
+        where_clauses.append(_expand_in_clause("lm.WID", wid_values))
+        params.extend(wid_values)
+
+    if where_clauses:
+        query += "\nWHERE " + " AND ".join(where_clauses)
+
+    query += "\nORDER BY lm.UID, lm.WID, lm.attempt, lm.Time"
+
     cur = conn.cursor(dictionary=True)
-    cur.execute(query)
+    cur.execute(query, tuple(params))
     rows = cur.fetchall()
     cur.close()
     return rows
@@ -223,11 +263,9 @@ def main():
     conn = mysql.connector.connect(**DB_CONFIG)
     try:
         ensure_table(conn)
-        rows = fetch_attempt_rows(conn)
-        if args.uid:
-            rows = [r for r in rows if str(r["UID"]) == str(args.uid)]
-        if args.wid is not None:
-            rows = [r for r in rows if int(r["WID"]) == int(args.wid)]
+        uid_values = [args.uid] if args.uid else []
+        wid_values = [args.wid] if args.wid is not None else []
+        rows = fetch_attempt_rows(conn, uid_values=uid_values, wid_values=wid_values)
 
         records = build_records(rows)
         updated = upsert_records(conn, records)
