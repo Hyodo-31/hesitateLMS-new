@@ -463,7 +463,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 <ul class="submenu">
                     <li><a href="machineLearning_sample.php">迷い推定・機械学習（問題単位）</a></li>
                     <li><a href="machineLearning_word.php">迷い推定・機械学習（単語単位）</a></li>
-                    <li><a href="/teacher/feature_correlation.php">特徴量検索機能</a></li>
+                    <li><a href="feature_correlation.php">特徴量検索機能</a></li>
                 </ul>
             </li>
             <li class="sidebar-item has-submenu">
