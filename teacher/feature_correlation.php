@@ -40,12 +40,19 @@ function getFeatureColumns(mysqli $conn, array $fallbackFeatureColumns): array
     $result = $conn->query('SHOW COLUMNS FROM test_featurevalue');
 
     if ($result) {
+        $collectFromTime = false;
         while ($row = $result->fetch_assoc()) {
             $field = $row['Field'] ?? '';
             $type = strtolower($row['Type'] ?? '');
-            if ($field === '' || isset($excludedColumns[$field])) {
+
+            if ($field === 'Time') {
+                $collectFromTime = true;
+            }
+
+            if (!$collectFromTime || $field === '' || isset($excludedColumns[$field])) {
                 continue;
             }
+
             if (preg_match('/\b(int|float|double|decimal|real)\b/', $type)) {
                 $featureColumns[] = $field;
             }
@@ -740,11 +747,46 @@ function renderStats(data) {
     chartSubtitle.textContent = `r = ${formatCorrelation(data.correlation)}`;
 }
 
+function calculateAxisOptions(points, key) {
+    if (!Array.isArray(points) || points.length === 0) {
+        return {};
+    }
+
+    const values = points
+        .map((point) => Number(point[key]))
+        .filter((value) => Number.isFinite(value));
+
+    if (values.length === 0) {
+        return {};
+    }
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    if (min === max) {
+        const padding = Math.max(Math.abs(min) * 0.1, 1);
+        return {
+            min: min - padding,
+            max: max + padding,
+        };
+    }
+
+    const range = max - min;
+    const padding = range * 0.05;
+    return {
+        min: min - padding,
+        max: max + padding,
+    };
+}
+
 function renderChart(points, xLabel, yLabel, mode) {
     const ctx = document.getElementById('scatterChart').getContext('2d');
     if (scatterChart) {
         scatterChart.destroy();
     }
+
+    const xAxis = calculateAxisOptions(points, 'x');
+    const yAxis = calculateAxisOptions(points, 'y');
 
     scatterChart = new Chart(ctx, {
         type: 'scatter',
@@ -789,11 +831,13 @@ function renderChart(points, xLabel, yLabel, mode) {
                     title: { display: true, text: xLabel, color: '#334155', font: { weight: 'bold' } },
                     grid: { color: '#d8dee4' },
                     ticks: { color: '#334155' },
+                    ...xAxis,
                 },
                 y: {
                     title: { display: true, text: yLabel, color: '#334155', font: { weight: 'bold' } },
                     grid: { color: '#d8dee4' },
                     ticks: { color: '#334155' },
+                    ...yAxis,
                 }
             }
         }
