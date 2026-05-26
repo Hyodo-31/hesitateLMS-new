@@ -112,6 +112,53 @@ function jsonResponse(array $payload): void
 }
 
 $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
+$teacherId = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
+$teacherClasses = [];
+$studentsByClass = [];
+$allowedStudentIds = [];
+
+if ($teacherId) {
+    $stmtClasses = $conn->prepare(
+        "SELECT c.ClassID, c.ClassName
+         FROM classteacher ct
+         JOIN classes c ON ct.ClassID = c.ClassID
+         WHERE ct.TID = ?
+         ORDER BY c.ClassName"
+    );
+    if ($stmtClasses) {
+        $stmtClasses->bind_param('s', $teacherId);
+        $stmtClasses->execute();
+        $resultClasses = $stmtClasses->get_result();
+        while ($row = $resultClasses->fetch_assoc()) {
+            $teacherClasses[] = $row;
+        }
+        $stmtClasses->close();
+    }
+
+    if (!empty($teacherClasses)) {
+        $classIds = array_column($teacherClasses, 'ClassID');
+        $placeholders = implode(',', array_fill(0, count($classIds), '?'));
+        $types = str_repeat('i', count($classIds));
+        $stmtStudents = $conn->prepare(
+            "SELECT s.uid, s.Name, s.ClassID, c.ClassName
+             FROM students s
+             JOIN classes c ON s.ClassID = c.ClassID
+             WHERE s.ClassID IN ({$placeholders})
+             ORDER BY c.ClassName, s.uid"
+        );
+        if ($stmtStudents) {
+            $stmtStudents->bind_param($types, ...$classIds);
+            $stmtStudents->execute();
+            $resultStudents = $stmtStudents->get_result();
+            while ($row = $resultStudents->fetch_assoc()) {
+                $studentsByClass[$row['ClassName']][] = $row;
+                $allowedStudentIds[] = (string)$row['uid'];
+            }
+            $stmtStudents->close();
+        }
+    }
+}
+$allowedStudentIds = array_values(array_unique($allowedStudentIds));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
@@ -128,6 +175,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['error' => '無効な特徴量です。']);
         }
 
+        $selectedStudents = json_decode($_POST['student_ids'] ?? '[]', true);
+        if (!is_array($selectedStudents)) {
+            $selectedStudents = [];
+        }
+        $selectedStudents = array_values(array_filter(array_map('strval', $selectedStudents), function ($uid) use ($allowedStudentIds) {
+            return in_array($uid, $allowedStudentIds, true);
+        }));
+
+        if (empty($selectedStudents)) {
+            jsonResponse([
+                'mode' => $mode,
+                'feature_x' => $xFeature,
+                'feature_y' => $mode === 'feature_pair' ? $yFeature : null,
+                'x_label' => $xFeature,
+                'y_label' => $mode === 'feature_pair' ? $yFeature : 'Understand(迷い度)',
+                'count' => 0,
+                'correlation' => null,
+                'points' => [],
+            ]);
+        }
+
+        $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
+        $studentType = str_repeat('s', count($selectedStudents));
+
         if ($mode === 'feature_pair') {
             if (!isset($featureMap[$yFeature])) {
                 jsonResponse(['error' => '比較する特徴量を選択してください。']);
@@ -137,23 +208,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ySql = quoteIdentifier($yFeature);
             $sql = "SELECT UID, WID, attempt, Understand, {$xSql} AS x_value, {$ySql} AS y_value
                     FROM test_featurevalue
-                    WHERE {$xSql} IS NOT NULL AND {$ySql} IS NOT NULL";
+                    WHERE {$xSql} IS NOT NULL AND {$ySql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
             $xLabel = $xFeature;
             $yLabel = $yFeature;
         } else {
             $xSql = quoteIdentifier($xFeature);
             $sql = "SELECT UID, WID, attempt, Understand, {$xSql} AS x_value, Understand AS y_value
                     FROM test_featurevalue
-                    WHERE Understand IS NOT NULL AND {$xSql} IS NOT NULL";
+                    WHERE Understand IS NOT NULL AND {$xSql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
             $xLabel = $xFeature;
             $yLabel = 'Understand(迷い度)';
             $mode = 'understand';
         }
 
-        $result = $conn->query($sql);
-        if (!$result) {
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
             jsonResponse(['error' => 'データ取得に失敗しました。']);
         }
+        $stmt->bind_param($studentType, ...$selectedStudents);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
         $points = [];
         $xValues = [];
@@ -178,6 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         }
         $result->close();
+        $stmt->close();
 
         jsonResponse([
             'mode' => $mode,
@@ -197,6 +272,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['error' => '無効な特徴量です。']);
         }
 
+        $selectedStudents = json_decode($_POST['student_ids'] ?? '[]', true);
+        if (!is_array($selectedStudents)) {
+            $selectedStudents = [];
+        }
+        $selectedStudents = array_values(array_filter(array_map('strval', $selectedStudents), function ($uid) use ($allowedStudentIds) {
+            return in_array($uid, $allowedStudentIds, true);
+        }));
+        if (empty($selectedStudents)) {
+            jsonResponse(['feature_x' => $xFeature, 'items' => []]);
+        }
+
         $comparisonFeatures = array_values(array_filter($featureColumns, function ($feature) use ($xFeature) {
             return $feature !== $xFeature;
         }));
@@ -211,11 +297,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $baseSql = quoteIdentifier($xFeature);
-        $sql = 'SELECT ' . implode(', ', $selectParts) . " FROM test_featurevalue WHERE {$baseSql} IS NOT NULL";
-        $result = $conn->query($sql);
-        if (!$result) {
+        $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
+        $studentType = str_repeat('s', count($selectedStudents));
+        $sql = 'SELECT ' . implode(', ', $selectParts) . " FROM test_featurevalue WHERE {$baseSql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
             jsonResponse(['error' => '相関一覧の取得に失敗しました。']);
         }
+        $stmt->bind_param($studentType, ...$selectedStudents);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
         $stats = [];
         foreach ($comparisonFeatures as $feature) {
@@ -250,6 +341,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         $result->close();
+        $stmt->close();
 
         $items = [];
         foreach ($stats as $feature => $values) {
@@ -536,6 +628,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .hidden {
             display: none;
         }
+        .filter-section { margin-top:16px; padding:14px; background:#fff; border:1px solid #d8dee4; border-radius:8px; }
+        .checkbox-list { max-height:280px; overflow:auto; padding:10px; background:#f3f4f6; border-radius:6px; }
+        .class-group-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; margin-top:8px; background:#e5e7eb; border-radius:6px; }
+        .class-group-header h5 { margin:0; font-size:1rem; }
+        .checkbox-item { display:inline-block; width:24%; min-width:220px; padding:6px 4px; }
 
         @media (max-width: 900px) {
             .feature-correlation-page {
@@ -664,6 +761,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </section>
         </section>
+        <section class="filter-section">
+            <div class="controls">
+                <label for="class-filter-select">クラスで絞り込み:</label>
+                <select id="class-filter-select">
+                    <option value="">全てのクラス</option>
+                    <?php foreach ($teacherClasses as $class): ?>
+                        <option value="<?= htmlspecialchars($class['ClassID'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($class['ClassName'], ENT_QUOTES, 'UTF-8') ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="checkbox-controls" style="margin:10px 0;">
+                <label><input type="checkbox" id="select-all-visible" checked> 全ての表示中学習者を 選択 / 解除</label>
+            </div>
+            <div class="checkbox-list" id="student-checkbox-list">
+                <?php foreach ($studentsByClass as $className => $students): ?>
+                    <?php $classId = $students[0]['ClassID']; ?>
+                    <div class="class-group-header" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>">
+                        <h5><?= htmlspecialchars($className, ENT_QUOTES, 'UTF-8') ?></h5>
+                        <label><input type="checkbox" class="select-all-class" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>" checked> このクラスを全て選択 / 解除</label>
+                    </div>
+                    <?php foreach ($students as $student): ?>
+                        <label class="checkbox-item" data-class-id="<?= htmlspecialchars($student['ClassID'], ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="checkbox" value="<?= htmlspecialchars($student['uid'], ENT_QUOTES, 'UTF-8') ?>" checked>
+                            <?= htmlspecialchars($student['Name'], ENT_QUOTES, 'UTF-8') ?>
+                        </label>
+                    <?php endforeach; ?>
+                <?php endforeach; ?>
+            </div>
+        </section>
     </main>
 </div>
 
@@ -686,6 +812,23 @@ const rankingPanel = document.getElementById('correlation-list-panel');
 const rankingBaseLabel = document.getElementById('ranking-base-label');
 const rankingBody = document.getElementById('correlation-table-body');
 const emptyList = document.getElementById('empty-list');
+const classFilterSelect = document.getElementById('class-filter-select');
+const studentCheckboxList = document.getElementById('student-checkbox-list');
+const selectAllVisible = document.getElementById('select-all-visible');
+
+function getSelectedStudentIds() {
+    return Array.from(studentCheckboxList.querySelectorAll('.checkbox-item input:checked')).map((input) => input.value);
+}
+
+function updateVisibleStudents() {
+    const classId = classFilterSelect.value;
+    studentCheckboxList.querySelectorAll('.checkbox-item').forEach((item) => {
+        item.style.display = (!classId || item.dataset.classId === classId) ? 'inline-block' : 'none';
+    });
+    studentCheckboxList.querySelectorAll('.class-group-header').forEach((header) => {
+        header.style.display = (!classId || header.dataset.classId === classId) ? 'flex' : 'none';
+    });
+}
 
 function getMode() {
     const checked = document.querySelector('input[name="correlation-mode"]:checked');
@@ -886,6 +1029,7 @@ async function loadRanking() {
     const body = new URLSearchParams({
         action: 'get_feature_correlation_list',
         feature_x: featureXSelect.value,
+        student_ids: JSON.stringify(getSelectedStudentIds()),
     });
 
     const response = await fetch('feature_correlation.php', {
@@ -915,6 +1059,7 @@ async function loadData(refreshRanking = true) {
             feature: featureXSelect.value,
             feature_x: featureXSelect.value,
             feature_y: featureYSelect.value,
+            student_ids: JSON.stringify(getSelectedStudentIds()),
         });
 
         const response = await fetch('feature_correlation.php', {
@@ -951,8 +1096,24 @@ modeInputs.forEach((input) => {
 featureXSelect.addEventListener('change', () => loadData(true));
 featureYSelect.addEventListener('change', () => loadData(false));
 loadButton.addEventListener('click', () => loadData(true));
+classFilterSelect.addEventListener('change', updateVisibleStudents);
+selectAllVisible.addEventListener('change', (event) => {
+    Array.from(studentCheckboxList.querySelectorAll('.checkbox-item'))
+        .filter((item) => item.style.display !== 'none')
+        .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
+});
+studentCheckboxList.addEventListener('change', (event) => {
+    if (!event.target.classList.contains('select-all-class')) {
+        return;
+    }
+    const classId = event.target.dataset.classId;
+    Array.from(studentCheckboxList.querySelectorAll(`.checkbox-item[data-class-id="${classId}"]`))
+        .filter((item) => item.style.display !== 'none')
+        .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
+});
 
 syncControls();
+updateVisibleStudents();
 loadData(true);
 </script>
 </body>
