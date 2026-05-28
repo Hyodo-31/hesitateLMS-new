@@ -266,6 +266,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
     }
 
+
+    if ($action === 'get_understand_correlation_list') {
+        $selectedStudents = json_decode($_POST['student_ids'] ?? '[]', true);
+        if (!is_array($selectedStudents)) {
+            $selectedStudents = [];
+        }
+        $selectedStudents = array_values(array_filter(array_map('strval', $selectedStudents), function ($uid) use ($allowedStudentIds) {
+            return in_array($uid, $allowedStudentIds, true);
+        }));
+        if (empty($selectedStudents)) {
+            jsonResponse(['items' => []]);
+        }
+
+        $selectParts = ['Understand AS understand_value'];
+        foreach ($featureColumns as $feature) {
+            $selectParts[] = quoteIdentifier($feature);
+        }
+
+        $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
+        $studentType = str_repeat('s', count($selectedStudents));
+        $sql = 'SELECT ' . implode(', ', $selectParts) . " FROM test_featurevalue WHERE Understand IS NOT NULL AND UID IN ({$studentPlaceholders})";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            jsonResponse(['error' => '迷い度との相関一覧の取得に失敗しました。']);
+        }
+        $stmt->bind_param($studentType, ...$selectedStudents);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $stats = [];
+        foreach ($featureColumns as $feature) {
+            $stats[$feature] = [
+                'n' => 0,
+                'sumX' => 0.0,
+                'sumY' => 0.0,
+                'sumXY' => 0.0,
+                'sumX2' => 0.0,
+                'sumY2' => 0.0,
+            ];
+        }
+
+        while ($row = $result->fetch_assoc()) {
+            if (!is_numeric($row['understand_value'])) {
+                continue;
+            }
+
+            $x = (float)$row['understand_value'];
+            foreach ($featureColumns as $feature) {
+                if (!isset($row[$feature]) || !is_numeric($row[$feature])) {
+                    continue;
+                }
+
+                $y = (float)$row[$feature];
+                $stats[$feature]['n']++;
+                $stats[$feature]['sumX'] += $x;
+                $stats[$feature]['sumY'] += $y;
+                $stats[$feature]['sumXY'] += $x * $y;
+                $stats[$feature]['sumX2'] += $x * $x;
+                $stats[$feature]['sumY2'] += $y * $y;
+            }
+        }
+        $result->close();
+        $stmt->close();
+
+        $items = [];
+        foreach ($stats as $feature => $values) {
+            $correlation = pearsonCorrelationFromSums(
+                $values['n'],
+                $values['sumX'],
+                $values['sumY'],
+                $values['sumXY'],
+                $values['sumX2'],
+                $values['sumY2']
+            );
+            $items[] = [
+                'feature' => $feature,
+                'correlation' => $correlation,
+                'count' => $values['n'],
+            ];
+        }
+
+        usort($items, function ($a, $b) {
+            $aValue = $a['correlation'] === null ? -1 : abs($a['correlation']);
+            $bValue = $b['correlation'] === null ? -1 : abs($b['correlation']);
+            return $bValue <=> $aValue;
+        });
+
+        jsonResponse(['items' => $items]);
+    }
+
     if ($action === 'get_feature_correlation_list') {
         $xFeature = $_POST['feature_x'] ?? '';
         if (!isset($featureMap[$xFeature])) {
@@ -733,7 +823,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <section class="analysis-layout">
             <aside class="correlation-list-panel hidden" id="correlation-list-panel">
                 <div class="panel-heading">
-                    <h2>相関ランキング</h2>
+                    <h2 id="ranking-title">相関ランキング</h2>
                     <span class="panel-subtle" id="ranking-base-label"></span>
                 </div>
                 <div class="correlation-table-wrap">
@@ -809,6 +899,7 @@ const pairValue = document.getElementById('pair-value');
 const chartTitle = document.getElementById('chart-title');
 const chartSubtitle = document.getElementById('chart-subtitle');
 const rankingPanel = document.getElementById('correlation-list-panel');
+const rankingTitle = document.getElementById('ranking-title');
 const rankingBaseLabel = document.getElementById('ranking-base-label');
 const rankingBody = document.getElementById('correlation-table-body');
 const emptyList = document.getElementById('empty-list');
@@ -869,9 +960,11 @@ function ensureDifferentFeaturePair() {
 }
 
 function syncControls() {
-    const isFeaturePair = getMode() === 'feature_pair';
+    const mode = getMode();
+    const isFeaturePair = mode === 'feature_pair';
     featureYControl.classList.toggle('hidden', !isFeaturePair);
-    rankingPanel.classList.toggle('hidden', !isFeaturePair);
+    rankingPanel.classList.toggle('hidden', !(mode === 'understand' || isFeaturePair));
+    rankingTitle.textContent = mode === 'understand' ? '迷い度との相関ランキング' : '相関ランキング';
     if (isFeaturePair) {
         ensureDifferentFeaturePair();
     }
@@ -988,19 +1081,22 @@ function renderChart(points, xLabel, yLabel, mode) {
 }
 
 function renderRanking(items) {
+    const mode = getMode();
+    const isUnderstandMode = mode === 'understand';
     rankingBody.innerHTML = '';
     emptyList.classList.toggle('hidden', items.length > 0);
-    rankingBaseLabel.textContent = featureXSelect.value;
+    rankingBaseLabel.textContent = isUnderstandMode ? 'Understand(迷い度)' : featureXSelect.value;
 
-    const selectedY = featureYSelect.value;
+    const selectedFeature = isUnderstandMode ? featureXSelect.value : featureYSelect.value;
     items.forEach((item) => {
+        const feature = isUnderstandMode ? item.feature : item.feature_y;
         const row = document.createElement('tr');
-        row.dataset.featureY = item.feature_y;
-        row.classList.toggle('is-selected', item.feature_y === selectedY);
+        row.dataset.feature = feature;
+        row.classList.toggle('is-selected', feature === selectedFeature);
 
         const featureCell = document.createElement('td');
-        featureCell.textContent = item.feature_y;
-        featureCell.title = item.feature_y;
+        featureCell.textContent = feature;
+        featureCell.title = feature;
 
         const correlationCell = document.createElement('td');
         correlationCell.className = 'numeric';
@@ -1012,7 +1108,11 @@ function renderRanking(items) {
 
         row.append(featureCell, correlationCell, countCell);
         row.addEventListener('click', () => {
-            featureYSelect.value = item.feature_y;
+            if (isUnderstandMode) {
+                featureXSelect.value = feature;
+            } else {
+                featureYSelect.value = feature;
+            }
             loadData(false);
         });
         rankingBody.appendChild(row);
@@ -1020,8 +1120,10 @@ function renderRanking(items) {
 }
 
 function updateRankingSelection() {
+    const mode = getMode();
+    const selectedFeature = mode === 'understand' ? featureXSelect.value : featureYSelect.value;
     rankingBody.querySelectorAll('tr').forEach((row) => {
-        row.classList.toggle('is-selected', row.dataset.featureY === featureYSelect.value);
+        row.classList.toggle('is-selected', row.dataset.feature === selectedFeature);
     });
 }
 
@@ -1029,6 +1131,27 @@ async function loadRanking() {
     const body = new URLSearchParams({
         action: 'get_feature_correlation_list',
         feature_x: featureXSelect.value,
+        student_ids: JSON.stringify(getSelectedStudentIds()),
+    });
+
+    const response = await fetch('feature_correlation.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+    });
+    const data = await response.json();
+
+    if (data.error) {
+        throw new Error(data.error);
+    }
+
+    currentRanking = data.items || [];
+    renderRanking(currentRanking);
+}
+
+async function loadUnderstandRanking() {
+    const body = new URLSearchParams({
+        action: 'get_understand_correlation_list',
         student_ids: JSON.stringify(getSelectedStudentIds()),
     });
 
@@ -1076,7 +1199,13 @@ async function loadData(refreshRanking = true) {
         renderStats(data);
         renderChart(data.points || [], data.x_label, data.y_label, data.mode);
 
-        if (mode === 'feature_pair') {
+        if (mode === 'understand') {
+            if (refreshRanking) {
+                await loadUnderstandRanking();
+            } else {
+                updateRankingSelection();
+            }
+        } else if (mode === 'feature_pair') {
             if (refreshRanking) {
                 await loadRanking();
             } else {
@@ -1101,15 +1230,16 @@ selectAllVisible.addEventListener('change', (event) => {
     Array.from(studentCheckboxList.querySelectorAll('.checkbox-item'))
         .filter((item) => item.style.display !== 'none')
         .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
+    loadData(true);
 });
 studentCheckboxList.addEventListener('change', (event) => {
-    if (!event.target.classList.contains('select-all-class')) {
-        return;
+    if (event.target.classList.contains('select-all-class')) {
+        const classId = event.target.dataset.classId;
+        Array.from(studentCheckboxList.querySelectorAll(`.checkbox-item[data-class-id="${classId}"]`))
+            .filter((item) => item.style.display !== 'none')
+            .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
     }
-    const classId = event.target.dataset.classId;
-    Array.from(studentCheckboxList.querySelectorAll(`.checkbox-item[data-class-id="${classId}"]`))
-        .filter((item) => item.style.display !== 'none')
-        .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
+    loadData(true);
 });
 
 syncControls();
