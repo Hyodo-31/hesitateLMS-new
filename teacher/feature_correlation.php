@@ -154,7 +154,10 @@ $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
 $teacherId = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
 $teacherClasses = [];
 $studentsByClass = [];
+$teacherGroups = [];
+$studentsByGroup = [];
 $allowedStudentIds = [];
+$studentIndex = [];
 
 if ($teacherId) {
     $stmtClasses = $conn->prepare(
@@ -190,10 +193,70 @@ if ($teacherId) {
             $stmtStudents->execute();
             $resultStudents = $stmtStudents->get_result();
             while ($row = $resultStudents->fetch_assoc()) {
-                $studentsByClass[$row['ClassName']][] = $row;
-                $allowedStudentIds[] = (string)$row['uid'];
+                $uid = (string)$row['uid'];
+                if (!isset($studentIndex[$uid])) {
+                    $studentsByClass[$row['ClassName']][] = $row;
+                    $studentIndex[$uid] = true;
+                }
+                $allowedStudentIds[] = $uid;
             }
             $stmtStudents->close();
+        }
+    }
+
+    $stmtGroups = $conn->prepare(
+        "SELECT group_id, group_name
+         FROM `groups`
+         WHERE TID = ?
+         ORDER BY created_at DESC, group_id DESC"
+    );
+    if ($stmtGroups) {
+        $stmtGroups->bind_param('s', $teacherId);
+        $stmtGroups->execute();
+        $resultGroups = $stmtGroups->get_result();
+        while ($row = $resultGroups->fetch_assoc()) {
+            $teacherGroups[] = $row;
+            $studentsByGroup[(string)$row['group_id']] = [];
+        }
+        $stmtGroups->close();
+    }
+
+    if (!empty($teacherGroups)) {
+        $groupIds = array_map('intval', array_column($teacherGroups, 'group_id'));
+        $groupPlaceholders = implode(',', array_fill(0, count($groupIds), '?'));
+        $groupTypes = str_repeat('i', count($groupIds));
+        $stmtGroupStudents = $conn->prepare(
+            "SELECT gm.group_id, gm.uid, COALESCE(s.Name, '') AS Name, s.ClassID, COALESCE(c.ClassName, 'クラス未設定') AS ClassName
+             FROM group_members gm
+             LEFT JOIN students s ON gm.uid = s.uid
+             LEFT JOIN classes c ON s.ClassID = c.ClassID
+             WHERE gm.group_id IN ({$groupPlaceholders})
+             ORDER BY gm.group_id, c.ClassName, gm.uid"
+        );
+        if ($stmtGroupStudents) {
+            $stmtGroupStudents->bind_param($groupTypes, ...$groupIds);
+            $stmtGroupStudents->execute();
+            $resultGroupStudents = $stmtGroupStudents->get_result();
+            while ($row = $resultGroupStudents->fetch_assoc()) {
+                $groupId = (string)$row['group_id'];
+                $uid = (string)$row['uid'];
+                if (!in_array($uid, $studentsByGroup[$groupId], true)) {
+                    $studentsByGroup[$groupId][] = $uid;
+                }
+                if (!isset($studentIndex[$uid])) {
+                    $studentName = $row['Name'] !== '' ? $row['Name'] : $uid;
+                    $className = $row['ClassName'] !== '' ? $row['ClassName'] : 'クラス未設定';
+                    $studentsByClass[$className][] = [
+                        'uid' => $uid,
+                        'Name' => $studentName,
+                        'ClassID' => $row['ClassID'] ?? '',
+                        'ClassName' => $className,
+                    ];
+                    $studentIndex[$uid] = true;
+                }
+                $allowedStudentIds[] = $uid;
+            }
+            $stmtGroupStudents->close();
         }
     }
 }
@@ -784,6 +847,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .filter-section { margin:0 0 18px; padding:14px; background:#fff; border:1px solid #d8dee4; border-radius:8px; }
         .filter-section-title { margin:0 0 12px; color:#243447; font-size:1rem; }
         .filter-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:12px; }
+        .filter-field { display:flex; align-items:center; gap:10px; }
+        .filter-field select { min-width:160px; }
         .collapsible-filter { margin-top:12px; border:1px solid #d8dee4; border-radius:8px; overflow:hidden; }
         .collapsible-header { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:10px 12px; border:0; background:#f8fafc; color:#243447; font-weight:800; text-align:left; cursor:pointer; }
         .collapsible-header:hover { background:#eef6ff; }
@@ -831,6 +896,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flex: 1;
                 justify-content: center;
                 padding: 0 8px;
+            }
+
+            .filter-field {
+                width: 100%;
+            }
+
+            .filter-field select {
+                flex: 1;
+                min-width: 0;
             }
         }
     </style>
@@ -882,13 +956,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <section class="filter-section" aria-label="絞り込み条件">
             <h2 class="filter-section-title">絞り込み条件</h2>
             <div class="filter-controls">
-                <label for="class-filter-select">クラスで絞り込み:</label>
-                <select id="class-filter-select">
-                    <option value="">全てのクラス</option>
-                    <?php foreach ($teacherClasses as $class): ?>
-                        <option value="<?= htmlspecialchars($class['ClassID'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($class['ClassName'], ENT_QUOTES, 'UTF-8') ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <div class="filter-field">
+                    <label for="class-filter-select">クラスで絞り込み:</label>
+                    <select id="class-filter-select">
+                        <option value="">全てのクラス</option>
+                        <?php foreach ($teacherClasses as $class): ?>
+                            <option value="<?= htmlspecialchars($class['ClassID'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($class['ClassName'], ENT_QUOTES, 'UTF-8') ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="group-filter-select">グループで絞り込み:</label>
+                    <select id="group-filter-select">
+                        <option value="">全てのグループ</option>
+                        <?php foreach ($teacherGroups as $group): ?>
+                            <option value="<?= htmlspecialchars($group['group_id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars($group['group_name'], ENT_QUOTES, 'UTF-8') ?> (ID: <?= htmlspecialchars($group['group_id'], ENT_QUOTES, 'UTF-8') ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
             <div class="collapsible-filter" id="student-filter-panel">
@@ -985,6 +1072,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 const featureColumns = <?= json_encode($featureColumns, JSON_UNESCAPED_UNICODE) ?>;
+const groupStudentIdsByGroup = <?= json_encode((object)$studentsByGroup, JSON_UNESCAPED_UNICODE) ?>;
 let scatterChart;
 let currentRanking = [];
 
@@ -1004,10 +1092,15 @@ const rankingBaseLabel = document.getElementById('ranking-base-label');
 const rankingBody = document.getElementById('correlation-table-body');
 const emptyList = document.getElementById('empty-list');
 const classFilterSelect = document.getElementById('class-filter-select');
+const groupFilterSelect = document.getElementById('group-filter-select');
 const studentCheckboxList = document.getElementById('student-checkbox-list');
 const selectAllVisible = document.getElementById('select-all-visible');
 const questionCheckboxList = document.getElementById('question-checkbox-list');
 const selectAllQuestions = document.getElementById('select-all-questions');
+
+function getStudentCheckboxItems() {
+    return Array.from(studentCheckboxList.querySelectorAll('.checkbox-item'));
+}
 
 function getSelectedStudentIds() {
     return Array.from(studentCheckboxList.querySelectorAll('.checkbox-item input:checked')).map((input) => input.value);
@@ -1039,14 +1132,42 @@ function setupCollapsibleFilters() {
     });
 }
 
+function syncStudentControlStates() {
+    const studentItems = getStudentCheckboxItems();
+    const visibleItems = studentItems.filter((item) => item.style.display !== 'none');
+
+    selectAllVisible.checked = visibleItems.length > 0
+        && visibleItems.every((item) => item.querySelector('input').checked);
+
+    studentCheckboxList.querySelectorAll('.select-all-class').forEach((input) => {
+        const classId = input.dataset.classId;
+        const classItems = studentItems.filter((item) => item.dataset.classId === classId);
+        input.checked = classItems.length > 0
+            && classItems.every((item) => item.querySelector('input').checked);
+    });
+}
+
 function updateVisibleStudents() {
     const classId = classFilterSelect.value;
-    studentCheckboxList.querySelectorAll('.checkbox-item').forEach((item) => {
+    getStudentCheckboxItems().forEach((item) => {
         item.style.display = (!classId || item.dataset.classId === classId) ? 'inline-block' : 'none';
     });
     studentCheckboxList.querySelectorAll('.class-group-header').forEach((header) => {
         header.style.display = (!classId || header.dataset.classId === classId) ? 'flex' : 'none';
     });
+    syncStudentControlStates();
+}
+
+function applyGroupFilter() {
+    const groupId = groupFilterSelect.value;
+    const groupStudentIds = new Set((groupStudentIdsByGroup[groupId] || []).map(String));
+    const shouldSelectAll = !groupId;
+
+    getStudentCheckboxItems().forEach((item) => {
+        const input = item.querySelector('input');
+        input.checked = shouldSelectAll || groupStudentIds.has(input.value);
+    });
+    syncStudentControlStates();
 }
 
 function renderQuestionCheckboxes(questions) {
@@ -1400,20 +1521,28 @@ featureXSelect.addEventListener('change', () => loadData(true));
 featureYSelect.addEventListener('change', () => loadData(false));
 loadButton.addEventListener('click', () => loadData(true));
 classFilterSelect.addEventListener('change', updateVisibleStudents);
+groupFilterSelect.addEventListener('change', async () => {
+    applyGroupFilter();
+    await refreshQuestionFilters();
+    loadData(true);
+});
 selectAllVisible.addEventListener('change', async (event) => {
-    Array.from(studentCheckboxList.querySelectorAll('.checkbox-item'))
+    getStudentCheckboxItems()
         .filter((item) => item.style.display !== 'none')
         .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
+    syncStudentControlStates();
     await refreshQuestionFilters();
     loadData(true);
 });
 studentCheckboxList.addEventListener('change', async (event) => {
     if (event.target.classList.contains('select-all-class')) {
         const classId = event.target.dataset.classId;
-        Array.from(studentCheckboxList.querySelectorAll(`.checkbox-item[data-class-id="${classId}"]`))
+        getStudentCheckboxItems()
+            .filter((item) => item.dataset.classId === classId)
             .filter((item) => item.style.display !== 'none')
             .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
     }
+    syncStudentControlStates();
     await refreshQuestionFilters();
     loadData(true);
 });
@@ -1431,6 +1560,7 @@ questionCheckboxList.addEventListener('change', (event) => {
 setupCollapsibleFilters();
 syncControls();
 updateVisibleStudents();
+syncStudentControlStates();
 refreshQuestionFilters()
     .then(() => loadData(true))
     .catch((error) => alert(error.message || '問題リストの読み込みに失敗しました。'));
