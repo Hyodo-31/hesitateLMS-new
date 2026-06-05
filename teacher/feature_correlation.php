@@ -111,6 +111,45 @@ function jsonResponse(array $payload): void
     exit;
 }
 
+function getSelectedStudentIdsFromPost(array $allowedStudentIds): array
+{
+    $selectedStudents = json_decode($_POST['student_ids'] ?? '[]', true);
+    if (!is_array($selectedStudents)) {
+        return [];
+    }
+
+    return array_values(array_filter(array_map('strval', $selectedStudents), function ($uid) use ($allowedStudentIds) {
+        return in_array($uid, $allowedStudentIds, true);
+    }));
+}
+
+function getSelectedWidsFromPost(): array
+{
+    $selectedWids = json_decode($_POST['wids'] ?? '[]', true);
+    if (!is_array($selectedWids)) {
+        return [];
+    }
+
+    $selectedWids = array_filter($selectedWids, function ($wid) {
+        return is_numeric($wid);
+    });
+
+    return array_values(array_unique(array_map('intval', $selectedWids)));
+}
+
+function appendWidFilter(string $sql, array $selectedWids, string &$types, array &$params): string
+{
+    if (empty($selectedWids)) {
+        return $sql;
+    }
+
+    $widPlaceholders = implode(',', array_fill(0, count($selectedWids), '?'));
+    $types .= str_repeat('i', count($selectedWids));
+    $params = array_merge($params, $selectedWids);
+
+    return $sql . " AND WID IN ({$widPlaceholders})";
+}
+
 $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
 $teacherId = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
 $teacherClasses = [];
@@ -166,6 +205,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $featureMap = array_fill_keys($featureColumns, true);
 
+    if ($action === 'get_wids_for_students') {
+        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
+        if (empty($selectedStudents)) {
+            jsonResponse(['items' => []]);
+        }
+
+        $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
+        $studentType = str_repeat('s', count($selectedStudents));
+        $stmt = $conn->prepare(
+            "SELECT DISTINCT tf.WID, qi.Sentence
+             FROM test_featurevalue tf
+             LEFT JOIN question_info qi ON tf.WID = qi.WID
+             WHERE tf.UID IN ({$studentPlaceholders})
+             ORDER BY tf.WID"
+        );
+        if (!$stmt) {
+            jsonResponse(['error' => '問題リストの取得に失敗しました。']);
+        }
+        $stmt->bind_param($studentType, ...$selectedStudents);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $items = [];
+        while ($row = $result->fetch_assoc()) {
+            $items[] = $row;
+        }
+        $result->close();
+        $stmt->close();
+        jsonResponse(['items' => $items]);
+    }
+
     if ($action === 'get_correlation_data') {
         $mode = $_POST['mode'] ?? 'understand';
         $xFeature = $_POST['feature_x'] ?? ($_POST['feature'] ?? '');
@@ -175,15 +244,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['error' => '無効な特徴量です。']);
         }
 
-        $selectedStudents = json_decode($_POST['student_ids'] ?? '[]', true);
-        if (!is_array($selectedStudents)) {
-            $selectedStudents = [];
-        }
-        $selectedStudents = array_values(array_filter(array_map('strval', $selectedStudents), function ($uid) use ($allowedStudentIds) {
-            return in_array($uid, $allowedStudentIds, true);
-        }));
+        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
+        $selectedWids = getSelectedWidsFromPost();
 
-        if (empty($selectedStudents)) {
+        if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             jsonResponse([
                 'mode' => $mode,
                 'feature_x' => $xFeature,
@@ -198,6 +262,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
         $studentType = str_repeat('s', count($selectedStudents));
+        $queryTypes = $studentType;
+        $queryParams = $selectedStudents;
 
         if ($mode === 'feature_pair') {
             if (!isset($featureMap[$yFeature])) {
@@ -221,11 +287,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mode = 'understand';
         }
 
+        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams);
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             jsonResponse(['error' => 'データ取得に失敗しました。']);
         }
-        $stmt->bind_param($studentType, ...$selectedStudents);
+        $stmt->bind_param($queryTypes, ...$queryParams);
         $stmt->execute();
         $result = $stmt->get_result();
 
@@ -268,14 +335,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
     if ($action === 'get_understand_correlation_list') {
-        $selectedStudents = json_decode($_POST['student_ids'] ?? '[]', true);
-        if (!is_array($selectedStudents)) {
-            $selectedStudents = [];
-        }
-        $selectedStudents = array_values(array_filter(array_map('strval', $selectedStudents), function ($uid) use ($allowedStudentIds) {
-            return in_array($uid, $allowedStudentIds, true);
-        }));
-        if (empty($selectedStudents)) {
+        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
+        $selectedWids = getSelectedWidsFromPost();
+        if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             jsonResponse(['items' => []]);
         }
 
@@ -286,12 +348,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
         $studentType = str_repeat('s', count($selectedStudents));
+        $queryTypes = $studentType;
+        $queryParams = $selectedStudents;
         $sql = 'SELECT ' . implode(', ', $selectParts) . " FROM test_featurevalue WHERE Understand IS NOT NULL AND UID IN ({$studentPlaceholders})";
+        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams);
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             jsonResponse(['error' => '迷い度との相関一覧の取得に失敗しました。']);
         }
-        $stmt->bind_param($studentType, ...$selectedStudents);
+        $stmt->bind_param($queryTypes, ...$queryParams);
         $stmt->execute();
         $result = $stmt->get_result();
 
@@ -362,14 +427,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['error' => '無効な特徴量です。']);
         }
 
-        $selectedStudents = json_decode($_POST['student_ids'] ?? '[]', true);
-        if (!is_array($selectedStudents)) {
-            $selectedStudents = [];
-        }
-        $selectedStudents = array_values(array_filter(array_map('strval', $selectedStudents), function ($uid) use ($allowedStudentIds) {
-            return in_array($uid, $allowedStudentIds, true);
-        }));
-        if (empty($selectedStudents)) {
+        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
+        $selectedWids = getSelectedWidsFromPost();
+        if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             jsonResponse(['feature_x' => $xFeature, 'items' => []]);
         }
 
@@ -389,12 +449,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $baseSql = quoteIdentifier($xFeature);
         $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
         $studentType = str_repeat('s', count($selectedStudents));
+        $queryTypes = $studentType;
+        $queryParams = $selectedStudents;
         $sql = 'SELECT ' . implode(', ', $selectParts) . " FROM test_featurevalue WHERE {$baseSql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
+        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams);
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             jsonResponse(['error' => '相関一覧の取得に失敗しました。']);
         }
-        $stmt->bind_param($studentType, ...$selectedStudents);
+        $stmt->bind_param($queryTypes, ...$queryParams);
         $stmt->execute();
         $result = $stmt->get_result();
 
@@ -718,11 +781,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .hidden {
             display: none;
         }
-        .filter-section { margin-top:16px; padding:14px; background:#fff; border:1px solid #d8dee4; border-radius:8px; }
+        .filter-section { margin:0 0 18px; padding:14px; background:#fff; border:1px solid #d8dee4; border-radius:8px; }
+        .filter-section-title { margin:0 0 12px; color:#243447; font-size:1rem; }
+        .filter-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:12px; }
+        .collapsible-filter { margin-top:12px; border:1px solid #d8dee4; border-radius:8px; overflow:hidden; }
+        .collapsible-header { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:10px 12px; border:0; background:#f8fafc; color:#243447; font-weight:800; text-align:left; cursor:pointer; }
+        .collapsible-header:hover { background:#eef6ff; }
+        .toggle-mark { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#2563eb; color:#fff; font-size:1.2rem; line-height:1; }
+        .collapsible-filter.is-collapsed .collapsible-body { display:none; }
+        .collapsible-body { padding:12px; border-top:1px solid #d8dee4; }
+        .checkbox-controls { margin-bottom:10px; }
         .checkbox-list { max-height:280px; overflow:auto; padding:10px; background:#f3f4f6; border-radius:6px; }
-        .class-group-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; margin-top:8px; background:#e5e7eb; border-radius:6px; }
+        .class-group-header { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:8px 10px; margin-top:8px; background:#e5e7eb; border-radius:6px; }
         .class-group-header h5 { margin:0; font-size:1rem; }
-        .checkbox-item { display:inline-block; width:24%; min-width:220px; padding:6px 4px; }
+        .checkbox-item { display:inline-block; width:24%; min-width:220px; padding:6px 4px; vertical-align:top; }
+        .question-checkbox-list .checkbox-item { width:48%; }
+        .loading-text, .empty-filter-message { margin:0; color:#64748b; font-weight:700; }
 
         @media (max-width: 900px) {
             .feature-correlation-page {
@@ -805,6 +879,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button id="load-btn" type="button">相関を表示</button>
         </section>
 
+        <section class="filter-section" aria-label="絞り込み条件">
+            <h2 class="filter-section-title">絞り込み条件</h2>
+            <div class="filter-controls">
+                <label for="class-filter-select">クラスで絞り込み:</label>
+                <select id="class-filter-select">
+                    <option value="">全てのクラス</option>
+                    <?php foreach ($teacherClasses as $class): ?>
+                        <option value="<?= htmlspecialchars($class['ClassID'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($class['ClassName'], ENT_QUOTES, 'UTF-8') ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="collapsible-filter" id="student-filter-panel">
+                <button class="collapsible-header" type="button" aria-expanded="true" aria-controls="student-filter-body">
+                    <span>学習者(UID)で絞り込み</span>
+                    <span class="toggle-mark" aria-hidden="true">−</span>
+                </button>
+                <div class="collapsible-body" id="student-filter-body">
+                    <div class="checkbox-controls">
+                        <label><input type="checkbox" id="select-all-visible" checked> 全ての表示中学習者を 選択 / 解除</label>
+                    </div>
+                    <div class="checkbox-list" id="student-checkbox-list">
+                        <?php foreach ($studentsByClass as $className => $students): ?>
+                            <?php $classId = $students[0]['ClassID']; ?>
+                            <div class="class-group-header" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>">
+                                <h5><?= htmlspecialchars($className, ENT_QUOTES, 'UTF-8') ?></h5>
+                                <label><input type="checkbox" class="select-all-class" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>" checked> このクラスを全て選択 / 解除</label>
+                            </div>
+                            <?php foreach ($students as $student): ?>
+                                <label class="checkbox-item" data-class-id="<?= htmlspecialchars($student['ClassID'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="checkbox" value="<?= htmlspecialchars($student['uid'], ENT_QUOTES, 'UTF-8') ?>" checked>
+                                    <?= htmlspecialchars($student['Name'], ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($student['uid'], ENT_QUOTES, 'UTF-8') ?>)
+                                </label>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapsible-filter" id="question-filter-panel">
+                <button class="collapsible-header" type="button" aria-expanded="true" aria-controls="question-filter-body">
+                    <span>問題(WID)で絞り込み</span>
+                    <span class="toggle-mark" aria-hidden="true">−</span>
+                </button>
+                <div class="collapsible-body" id="question-filter-body">
+                    <div class="checkbox-controls">
+                        <label><input type="checkbox" id="select-all-questions" checked> 全ての問題を 選択 / 解除</label>
+                    </div>
+                    <div class="checkbox-list question-checkbox-list" id="question-checkbox-list">
+                        <p class="loading-text">問題リストを読み込んでいます...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <section class="stats-grid" aria-live="polite">
             <div class="stat-box">
                 <div class="stat-label">相関係数 (Pearson r)</div>
@@ -851,35 +980,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </section>
         </section>
-        <section class="filter-section">
-            <div class="controls">
-                <label for="class-filter-select">クラスで絞り込み:</label>
-                <select id="class-filter-select">
-                    <option value="">全てのクラス</option>
-                    <?php foreach ($teacherClasses as $class): ?>
-                        <option value="<?= htmlspecialchars($class['ClassID'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($class['ClassName'], ENT_QUOTES, 'UTF-8') ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="checkbox-controls" style="margin:10px 0;">
-                <label><input type="checkbox" id="select-all-visible" checked> 全ての表示中学習者を 選択 / 解除</label>
-            </div>
-            <div class="checkbox-list" id="student-checkbox-list">
-                <?php foreach ($studentsByClass as $className => $students): ?>
-                    <?php $classId = $students[0]['ClassID']; ?>
-                    <div class="class-group-header" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>">
-                        <h5><?= htmlspecialchars($className, ENT_QUOTES, 'UTF-8') ?></h5>
-                        <label><input type="checkbox" class="select-all-class" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>" checked> このクラスを全て選択 / 解除</label>
-                    </div>
-                    <?php foreach ($students as $student): ?>
-                        <label class="checkbox-item" data-class-id="<?= htmlspecialchars($student['ClassID'], ENT_QUOTES, 'UTF-8') ?>">
-                            <input type="checkbox" value="<?= htmlspecialchars($student['uid'], ENT_QUOTES, 'UTF-8') ?>" checked>
-                            <?= htmlspecialchars($student['Name'], ENT_QUOTES, 'UTF-8') ?>
-                        </label>
-                    <?php endforeach; ?>
-                <?php endforeach; ?>
-            </div>
-        </section>
     </main>
 </div>
 
@@ -906,9 +1006,37 @@ const emptyList = document.getElementById('empty-list');
 const classFilterSelect = document.getElementById('class-filter-select');
 const studentCheckboxList = document.getElementById('student-checkbox-list');
 const selectAllVisible = document.getElementById('select-all-visible');
+const questionCheckboxList = document.getElementById('question-checkbox-list');
+const selectAllQuestions = document.getElementById('select-all-questions');
 
 function getSelectedStudentIds() {
     return Array.from(studentCheckboxList.querySelectorAll('.checkbox-item input:checked')).map((input) => input.value);
+}
+
+function getSelectedWids() {
+    return Array.from(questionCheckboxList.querySelectorAll('.question-checkbox-item input:checked')).map((input) => input.value);
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;',
+    }[char]));
+}
+
+function setupCollapsibleFilters() {
+    document.querySelectorAll('.collapsible-filter').forEach((panel) => {
+        const button = panel.querySelector('.collapsible-header');
+        const mark = panel.querySelector('.toggle-mark');
+        button.addEventListener('click', () => {
+            const collapsed = panel.classList.toggle('is-collapsed');
+            button.setAttribute('aria-expanded', String(!collapsed));
+            mark.textContent = collapsed ? '+' : '−';
+        });
+    });
 }
 
 function updateVisibleStudents() {
@@ -919,6 +1047,46 @@ function updateVisibleStudents() {
     studentCheckboxList.querySelectorAll('.class-group-header').forEach((header) => {
         header.style.display = (!classId || header.dataset.classId === classId) ? 'flex' : 'none';
     });
+}
+
+function renderQuestionCheckboxes(questions) {
+    if (!Array.isArray(questions) || questions.length === 0) {
+        questionCheckboxList.innerHTML = '<p class="empty-filter-message">選択中の学習者に紐づく問題はありません。</p>';
+        selectAllQuestions.checked = false;
+        return;
+    }
+
+    questionCheckboxList.innerHTML = questions.map((question) => {
+        const wid = escapeHtml(question.WID);
+        const sentence = question.Sentence ? ` : ${escapeHtml(question.Sentence)}` : '';
+        return `<label class="checkbox-item question-checkbox-item"><input type="checkbox" value="${wid}" checked> WID:${wid}${sentence}</label>`;
+    }).join('');
+    selectAllQuestions.checked = true;
+}
+
+async function refreshQuestionFilters() {
+    const selectedStudents = getSelectedStudentIds();
+    if (selectedStudents.length === 0) {
+        renderQuestionCheckboxes([]);
+        return;
+    }
+
+    questionCheckboxList.innerHTML = '<p class="loading-text">問題リストを読み込んでいます...</p>';
+    const body = new URLSearchParams({
+        action: 'get_wids_for_students',
+        student_ids: JSON.stringify(selectedStudents),
+    });
+
+    const response = await fetch('feature_correlation.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+    });
+    const data = await response.json();
+    if (data.error) {
+        throw new Error(data.error);
+    }
+    renderQuestionCheckboxes(data.items || []);
 }
 
 function getMode() {
@@ -1132,6 +1300,8 @@ async function loadRanking() {
         action: 'get_feature_correlation_list',
         feature_x: featureXSelect.value,
         student_ids: JSON.stringify(getSelectedStudentIds()),
+        wids: JSON.stringify(getSelectedWids()),
+        wid_filter_enabled: '1',
     });
 
     const response = await fetch('feature_correlation.php', {
@@ -1153,6 +1323,8 @@ async function loadUnderstandRanking() {
     const body = new URLSearchParams({
         action: 'get_understand_correlation_list',
         student_ids: JSON.stringify(getSelectedStudentIds()),
+        wids: JSON.stringify(getSelectedWids()),
+        wid_filter_enabled: '1',
     });
 
     const response = await fetch('feature_correlation.php', {
@@ -1183,6 +1355,8 @@ async function loadData(refreshRanking = true) {
             feature_x: featureXSelect.value,
             feature_y: featureYSelect.value,
             student_ids: JSON.stringify(getSelectedStudentIds()),
+            wids: JSON.stringify(getSelectedWids()),
+            wid_filter_enabled: '1',
         });
 
         const response = await fetch('feature_correlation.php', {
@@ -1226,25 +1400,40 @@ featureXSelect.addEventListener('change', () => loadData(true));
 featureYSelect.addEventListener('change', () => loadData(false));
 loadButton.addEventListener('click', () => loadData(true));
 classFilterSelect.addEventListener('change', updateVisibleStudents);
-selectAllVisible.addEventListener('change', (event) => {
+selectAllVisible.addEventListener('change', async (event) => {
     Array.from(studentCheckboxList.querySelectorAll('.checkbox-item'))
         .filter((item) => item.style.display !== 'none')
         .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
+    await refreshQuestionFilters();
     loadData(true);
 });
-studentCheckboxList.addEventListener('change', (event) => {
+studentCheckboxList.addEventListener('change', async (event) => {
     if (event.target.classList.contains('select-all-class')) {
         const classId = event.target.dataset.classId;
         Array.from(studentCheckboxList.querySelectorAll(`.checkbox-item[data-class-id="${classId}"]`))
             .filter((item) => item.style.display !== 'none')
             .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
     }
+    await refreshQuestionFilters();
     loadData(true);
 });
+selectAllQuestions.addEventListener('change', (event) => {
+    questionCheckboxList.querySelectorAll('.question-checkbox-item input')
+        .forEach((input) => { input.checked = event.target.checked; });
+    loadData(true);
+});
+questionCheckboxList.addEventListener('change', (event) => {
+    if (event.target.matches('.question-checkbox-item input')) {
+        loadData(true);
+    }
+});
 
+setupCollapsibleFilters();
 syncControls();
 updateVisibleStudents();
-loadData(true);
+refreshQuestionFilters()
+    .then(() => loadData(true))
+    .catch((error) => alert(error.message || '問題リストの読み込みに失敗しました。'));
 </script>
 </body>
 </html>
