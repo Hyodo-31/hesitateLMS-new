@@ -83,6 +83,12 @@ body.sidebar-open .sidebar {
     color: #ffffff;
 }
 
+.sidebar ul li a.is-active {
+    background-color: #1f6fb2;
+    color: #ffffff;
+    font-weight: bold;
+}
+
 /* Sidebar Backdrop */
 .sidebar-backdrop {
     display: none;
@@ -699,6 +705,12 @@ tbody tr:hover {
     background-color: #46627f;
     border-left: 3px solid var(--primary-color);
     /* ホバー時にテーマカラーの線を表示 */
+}
+
+.sidebar .submenu li a.is-active {
+    background-color: #1f6fb2;
+    border-left: 3px solid #93c5fd;
+    color: #ffffff;
 }
 
 /* ======== ▲▲▲ ここまで追加 ▲▲▲ ======== */

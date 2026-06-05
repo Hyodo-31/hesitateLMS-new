@@ -5,20 +5,6 @@ require "../dbc.php";
 
 // ログイン中の教師IDを取得します
 $teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
-$teacher_name = "先生"; // デフォルト名
-
-if ($teacher_id) {
-    $stmt_teacher = $conn->prepare("SELECT TName FROM teachers WHERE TID = ?");
-    if ($stmt_teacher) {
-        $stmt_teacher->bind_param("s", $teacher_id);
-        $stmt_teacher->execute();
-        $result_teacher = $stmt_teacher->get_result();
-        if ($row_teacher = $result_teacher->fetch_assoc()) {
-            $teacher_name = htmlspecialchars($row_teacher['TName']);
-        }
-        $stmt_teacher->close();
-    }
-}
 
 //不正侵入対策
 if (empty($_SESSION['MemberID'])) {
@@ -452,65 +438,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 </head>
 
 <body>
-    <div id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <h3>メニュー</h3>
-            <button id="sidebar-close" class="sidebar-close-button">&times;</button>
-        </div>
-        <ul>
-            <li class="sidebar-item has-submenu">
-                <a href="#" class="submenu-toggle">迷い推定・機械学習関連</a>
-                <ul class="submenu">
-                    <li><a href="machineLearning_sample.php">迷い推定・機械学習（問題単位）</a></li>
-                    <li><a href="machineLearning_word.php">迷い推定・機械学習（単語単位）</a></li>
-                    <li><a href="feature_correlation.php">特徴量検索機能</a></li>
-                </ul>
-            </li>
-            <li class="sidebar-item has-submenu">
-                <a href="#" class="submenu-toggle">新規登録</a>
-                <ul class="submenu">
-                    <li><a href='create-notification.php'>お知らせ作成</a></li>
-                    <li><a href="register-student.php">新規学習者登録</a></li>
-                    <li><a href="register-classteacher.php">クラス登録</a></li>
-                </ul>
-            </li>
-            <li class="sidebar-item has-submenu">
-                <a href="#" class="submenu-toggle">新規問題作成</a>
-                <ul class="submenu">
-                    <li><a href="./create/new.php?mode=0">新規英語問題作成</a></li>
-                    <li><a href="./create_ja/new.php?mode=0">新規日本語問題作成</a></li>
-                </ul>
-            </li>
-            <li class="sidebar-item has-submenu">
-                <a href="#" class="submenu-toggle">新規テスト作成</a>
-                <ul class="submenu">
-                    <li><a href="create-test.php">新規英語テスト作成</a></li>
-                    <li><a href="create-test-ja.php">新規日本語テスト作成</a></li>
-                </ul>
-            </li>
-            <li class="sidebar-item has-submenu">
-                <a href="#" class="submenu-toggle">学習者関連</a>
-                <ul class="submenu">
-                    <li><a href="#">学習者グラフ表示</a></li>
-                    <li><a href='create-student-group.php'>学習者グルーピング作成</a></li>
-                </ul>
-            </li>
-        </ul>
-    </div>
-    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+    <?php
+    $teacher_page_title = 'LMS 先生用ホーム画面';
+    include __DIR__ . '/teacher-menu.php';
+    ?>
 
     <div class="main-content">
-        <header class="fixed-header">
-            <div class="header-left">
-                <button id="menu-toggle" class="menu-button">☰</button>
-                <h1>LMS 先生用ホーム画面</h1>
-            </div>
-            <div class="header-right">
-                <span class="user-name"><?= $teacher_name ?> がログイン中</span>
-                <a href="../logout.php" class="logout-link">ログアウト</a>
-            </div>
-        </header>
-
         <main class="page-content">
             <section class="card">
                 <h2>お知らせ一覧</h2>
@@ -776,11 +709,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // 要素の取得
-            const menuToggle = document.getElementById('menu-toggle');
-            const sidebarClose = document.getElementById('sidebar-close');
-            const backdrop = document.getElementById('sidebar-backdrop');
-            const body = document.body;
-
             // 「担当クラス」の要素
             const classStudentCheckboxContainer = document.getElementById('class-student-checkbox-container');
             const classQuestionCheckboxContainer = document.getElementById('class-question-checkbox-container');
@@ -821,26 +749,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             let currentStudentDetailsData = [];
             let currentStudentDetailsSort = { column: null, direction: 'asc' };
             let classWIDFetchDebounceTimer;
-
-            // --- 1. サイドバーの開閉処理 ---
-            function openSidebar() { body.classList.add('sidebar-open'); }
-            function closeSidebar() {
-                body.classList.remove('sidebar-open');
-                const openSubmenus = document.querySelectorAll('#sidebar .has-submenu.open');
-                openSubmenus.forEach(submenu => { submenu.classList.remove('open'); });
-            }
-            menuToggle.addEventListener('click', openSidebar);
-            sidebarClose.addEventListener('click', closeSidebar);
-            backdrop.addEventListener('click', closeSidebar);
-
-            const sidebar = document.getElementById('sidebar');
-            sidebar.addEventListener('click', function (e) {
-                const toggle = e.target.closest('.submenu-toggle');
-                if (!toggle) return;
-                e.preventDefault();
-                const parentLi = toggle.parentElement;
-                parentLi.classList.toggle('open');
-            });
 
             // --- 2. 担当クラスの結果表示 ---
             if (classStudentCheckboxContainer) {

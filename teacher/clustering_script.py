@@ -1,14 +1,12 @@
 
 import sys
+import os
+os.environ.setdefault('LOKY_MAX_CPU_COUNT', '1')
+
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-
-# pyclustering 用
-from pyclustering.cluster.xmeans import xmeans, splitting_type
-from pyclustering.cluster.gmeans import gmeans
-from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 
 import json
 
@@ -20,13 +18,16 @@ cluster_count = int(sys.argv[3])
 method = sys.argv[4]  # 'kmeans' or 'xmeans' or 'gmeans'
 
 # データ読み込み
-data = pd.read_csv(input_file)
+data = pd.read_csv(input_file, dtype={'uid': str, 'name': str, 'wid': str})
 
 # uid, name, wid を除く特徴量のみ取得
 feature_columns = data.columns.difference(['uid', 'name', 'wid'])
+data[feature_columns] = data[feature_columns].apply(pd.to_numeric, errors='coerce')
+data[feature_columns] = data[feature_columns].fillna(data[feature_columns].mean()).fillna(0)
 
 # 学生単位で平均をとる
 aggregated_data = data.groupby('uid')[feature_columns].mean().reset_index()
+cluster_count = max(1, min(cluster_count, len(aggregated_data)))
 
 # 名前情報のマージ
 aggregated_data = pd.merge(
@@ -39,9 +40,7 @@ aggregated_data = pd.merge(
 scaler = MinMaxScaler()
 scaled_features = scaler.fit_transform(aggregated_data[feature_columns])
 
-print(scaled_features)
-
-# PCA (2次元) 
+# PCA (2次元)
 if scaled_features.shape[1] > 2:
     pca = PCA(n_components=2)
     reduced_features = pca.fit_transform(scaled_features)
@@ -61,6 +60,9 @@ if method == 'kmeans':
     aggregated_data['cluster'] = model.fit_predict(scaled_features)
 
 elif method == 'xmeans':
+    from pyclustering.cluster.xmeans import xmeans, splitting_type
+    from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
+
     # --- X-Means ---
     # 初期クラスタ中心を kmeans++ で抽出
     initial_centers = kmeans_plusplus_initializer(scaled_features, cluster_count,random_state=42).initialize()
@@ -80,6 +82,9 @@ elif method == 'xmeans':
     aggregated_data['cluster'] = labels
 
 elif method == 'gmeans':
+    from pyclustering.cluster.gmeans import gmeans
+    from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
+
     # --- G-Means ---
     # 初期クラスタ中心を kmeans++ で抽出
     initial_centers = kmeans_plusplus_initializer(scaled_features, 1).initialize()
@@ -105,10 +110,10 @@ for cluster_id in sorted(aggregated_data['cluster'].unique()):
     cluster_points = aggregated_data[aggregated_data['cluster'] == cluster_id]
     clusters[cluster_id] = [
         {
-            'id': row['uid'],
-            'name': row['name'],
-            'pca1': row['pca1'],
-            'pca2': row['pca2']
+            'id': str(row['uid']),
+            'name': str(row['name']),
+            'pca1': float(row['pca1']),
+            'pca2': float(row['pca2'])
         }
         for _, row in cluster_points.iterrows()
     ]

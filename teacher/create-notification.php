@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= translate('create-notification.php_5行目_教師用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teacher_form_styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
@@ -15,24 +16,12 @@
         require "../dbc.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
+        $teacher_page_title = translate('create-notification.php_38行目_お知らせ登録フォーム');
+        include __DIR__ . '/teacher-menu.php';
     ?>
-    <header>
-        <div class="logo"><?= translate('create-notification.php_19行目_英単語並べ替え問題LMS') ?></div>
-        <nav>
-            <ul>
-                <!-- <li><a href="teachertrue.php"><?= translate('create-notification.php_22行目_ホーム') ?></a></li> -->
-                <!-- <li><a href="machineLearning_sample.php"><?= translate('create-notification.php_23行目_迷い推定・機械学習') ?></a></li> -->
-            </ul>
-        </nav>
-    </header>
-    <div class="container">
-        <aside>
-            <ul>
-                <li><a href="teachertrue.php"><?= translate('create-notification.php_30行目_ホーム') ?></a></li>
-                <!-- <li><a href="machineLearning_sample.php"><?= translate('create-notification.php_31行目_迷い推定・機械学習') ?></a></li> -->
-            </ul>
-        </aside>
-        <main>
+    <div class="main-content">
+        <main class="page-content teacher-form-page">
+            <section class="card teacher-form-card">
             <div class="notifications">
                 <div  id = "notify-form">
                     <!--ここに件名とお知らせ内容を登録できるフォームを作成-->
@@ -54,8 +43,6 @@
                             <label><?= translate('create-notification.php_53行目_対象を選択:') ?></label><br>
                             <div id = "student-list"></div>
                         </div>
-
-                        <div>
 
                         <div>
                             <label for="subject"><?= translate('create-notification.php_60行目_件名:') ?></label>
@@ -100,6 +87,7 @@
                 }
             </script>
 
+            </section>
         </main>
     </div>
 </body>

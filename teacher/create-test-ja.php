@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= translate('create-test.php_6行目_教師用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teacher_form_styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
@@ -15,7 +16,10 @@
         require "../dbc.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
+        $teacher_page_title = translate('create-test.php_240行目_テストに追加する問題を選択してください');
+        include __DIR__ . '/teacher-menu.php';
     ?>
+    <div class="main-content">
     <script>
         function openFilterModal(){
             document.getElementById("filter-modal").style.display = "block";
@@ -25,20 +29,6 @@
             document.getElementById("filter-modal").style.display = "none";
         }
     </script>
-    <header>
-        <div class="logo"><?= translate('create-test.php_29行目_英単語並べ替え問題LMS') ?></div>
-        <nav>
-            <ul>
-                <!-- <li><a href="teachertrue.php"><?= translate('create-test.php_32行目_ホーム') ?></a></li> -->
-                <!-- <li><a href="#"><?= translate('create-test.php_33行目_コース管理') ?></a></li> -->
-                <!-- <li><a href="machineLearning_sample.php"><?= translate('create-test.php_34行目_迷い推定・機械学習') ?></a></li> -->
-
-                <!-- この下二つの参照先が無い！ -->
-                <!-- <li><a href="Analytics/studentAnalytics.php"><?= translate('create-test.php_35行目_学生分析') ?></a></li>  -->
-                <!-- <li><a href="Analytics/questionAnalytics.php"><?= translate('create-test.php_36行目_問題分析') ?></a></li> -->
-            </ul>
-        </nav>
-    </header>
     <?php
         // grammar対応表を配列にする
         $grammar_map = [
@@ -230,18 +220,8 @@
             </form>
         </div>
     </div>
-    <div class="container">
-        <aside>
-            <ul>
-                <li><a href="teachertrue.php"><?= translate('create-test.php_230行目_ホーム') ?></a></li>
-                <li><a href="./create_ja/new.php?mode=0"><?= translate('teachertrue.php_1078行目_新規日本語問題作成') ?></a></li>
-
-                <!-- 参照先が無い二つ！ -->
-                <!-- <li><a href="Analytics/studentAnalytics.php"><?= translate('create-test.php_232行目_学生分析') ?></a></li> -->
-                <!-- <li><a href="Analytics/questionAnalytics.php"><?= translate('create-test.php_233行目_問題分析') ?></a></li> -->
-            </ul>
-        </aside>
-        <main>
+        <main class="page-content teacher-form-page">
+            <section class="card teacher-form-card teacher-wide-card">
             <div class = "search" align = "center">
                 <h2 onclick="openFilterModal()"><?= translate('create-test.php_237行目_検索フィルタ') ?></h2>
             </div>
@@ -398,6 +378,7 @@
                 </form>
 
              </div>
+            </section>
         </main>
     </div>
 </body>

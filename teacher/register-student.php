@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= translate('register-student.php_5行目_教師用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teacher_form_styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
@@ -15,26 +16,12 @@
         require "../dbc.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
+        $teacher_page_title = translate('teachertrue.php_45行目_新規学生登録');
+        include __DIR__ . '/teacher-menu.php';
     ?>
-    <header>
-        <div class="logo"><?= translate('register-student.php_18行目_英単語並べ替え問題LMS') ?></div>
-        <nav>
-            <ul>
-                <!-- <li><a href="teachertrue.php"><?= translate('register-student.php_21行目_ホーム') ?></a></li> -->
-                <!-- <li><a href="machineLearning_sample.php"><?= translate('register-student.php_22行目_迷い推定・機械学習') ?></a></li> -->
-                <!-- <li><a href="register-student.php"><?= translate('register-student.php_23行目_新規学生登録') ?></a></li> -->
-            </ul>
-        </nav>
-    </header>
-    <div class="container">
-        <aside>
-            <ul>
-                <li><a href="teachertrue.php"><?= translate('register-student.php_29行目_ホーム') ?></a></li>
-                <li><a href="register-classteacher.php"><?= translate('register-student.php_30行目_教師-クラス登録') ?></a></li>
-                <!-- <li><a href="register-student.php"><?= translate('register-student.php_31行目_新規学生登録') ?></a></li> -->
-            </ul>
-        </aside>
-        <main>
+    <div class="main-content">
+        <main class="page-content teacher-form-page">
+            <section class="card teacher-form-card">
             <div class = "content-class">
                 <form action="submit-register-student.php" method="post">
                     <!-- ID（8桁の一意の番号） -->
@@ -109,6 +96,7 @@
                     <input type="submit" value="<?= translate('register-student.php_89行目_登録') ?>">
                 </form>
             </div>
+            </section>
         </main>
     </div>
 </body>

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= translate('create-student-group.php_6行目_教師用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teacher_form_styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
@@ -15,24 +16,12 @@
         require "../dbc.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
+        $teacher_page_title = translate('create-student-group.php_37行目_学生グループ作成');
+        include __DIR__ . '/teacher-menu.php';
     ?>
-    <header>
-        <div class="logo"><?= translate('create-student-group.php_19行目_英単語並べ替え問題LMS') ?></div>
-        <nav>
-            <ul>
-                <!-- <li><a href="teachertrue.php"><?= translate('create-student-group.php_22行目_ホーム') ?></a></li> -->
-                <!-- <li><a href="machineLearning_sample.php"><?= translate('create-student-group.php_23行目_迷い推定・機械学習') ?></a></li> -->
-            </ul>
-        </nav>
-    </header>
-    <div class="container">
-        <aside>
-            <ul>
-                <li><a href="teachertrue.php"><?= translate('create-student-group.php_30行目_ホーム') ?></a></li>
-                <!-- <li><a href="machineLearning_sample.php"><?= translate('create-student-group.php_31行目_迷い推定・機械学習') ?></a></li> -->
-            </ul>
-        </aside>
-        <main>
+    <div class="main-content">
+        <main class="page-content teacher-form-page">
+            <section class="card teacher-form-card teacher-wide-card">
             
 
             <div class="content-class">
@@ -159,6 +148,8 @@
                     <button type="submit"><?= translate('create-student-group.php_141行目_グループを作成') ?></button>
                 </form>
             </div>
+            </section>
+            <section class="card teacher-form-card teacher-wide-card">
             <div class = "content-class">
             <h2><?= translate('create-student-group.php_144行目_現在のグループ') ?></h2>
             <ul class="group-list">
@@ -190,6 +181,7 @@
                 ?>
             </ul>
             </div>
+            </section>
         </main>
     </div>
     <script src = "search_studentlist.js"></script>

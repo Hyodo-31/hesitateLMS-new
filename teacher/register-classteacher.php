@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= translate('register-classteacher.php_5行目_クラス管理') ?></title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teacher_form_styles.css">
 </head>
 <body>
     <?php
@@ -19,26 +20,12 @@
             exit();
         }
         $teacher_id = $_SESSION['MemberID'];
+        $teacher_page_title = translate('register-classteacher.php_5行目_クラス管理');
+        include __DIR__ . '/teacher-menu.php';
     ?>
-    <header>
-        <div class="logo"><?= translate('register-classteacher.php_21行目_英単語並べ替え問題LMS') ?></div>
-        <nav>
-            <ul>
-                <!-- <li><a href="teachertrue.php"><?= translate('register-classteacher.php_24行目_ホーム') ?></a></li> -->
-                <!-- <li><a href="register-student.php"><?= translate('register-classteacher.php_25行目_新規学生登録') ?></a></li> -->
-                <!-- <li><a href="register-classteacher.php"><?= translate('register-classteacher.php_26行目_クラス管理') ?></a></li> -->
-            </ul>
-        </nav>
-    </header>
-    <div class="container">
-        <aside>
-            <ul>
-                <li><a href="teachertrue.php"><?= translate('register-classteacher.php_32行目_ホーム') ?></a></li>
-                <li><a href="register-student.php"><?= translate('teachertrue.php_45行目_新規学生登録') ?></a></li>
-                <!-- <li><a href="register-classteacher.php"><?= translate('register-classteacher.php_34行目_クラス管理') ?></a></li> -->
-            </ul>
-        </aside>
-        <main>
+    <div class="main-content">
+        <main class="page-content teacher-form-page">
+            <section class="card teacher-form-card">
             <div class = "content-class">
                 <h2><?= translate('register-classteacher.php_38行目_クラス管理') ?></h2>
                 <p><?= translate('register-classteacher.php_39行目_ログイン中の教師ID') ?>: <?= htmlspecialchars($teacher_id, ENT_QUOTES, 'UTF-8') ?></p>
@@ -90,6 +77,7 @@
                     <input type="submit" value="<?= translate('register-classteacher.php_85行目_更新') ?>">
                 </form>
             </div>
+            </section>
         </main>
     </div>
 </body>

@@ -4,7 +4,13 @@ require "../dbc.php";
 // session_start(); // lang.phpでセッションは開始済み
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $teacher_id = $_SESSION["MemberID"];
+    $teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
+    if (!$teacher_id) {
+        http_response_code(401);
+        echo 'ログイン情報が見つかりません。';
+        exit();
+    }
+
     $clustersData = json_decode(file_get_contents('php://input'), true);
 
     if (empty($clustersData)) {
