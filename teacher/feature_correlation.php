@@ -156,6 +156,7 @@ $teacherClasses = [];
 $studentsByClass = [];
 $teacherGroups = [];
 $studentsByGroup = [];
+$studentsByClassId = [];
 $allowedStudentIds = [];
 $studentIndex = [];
 
@@ -197,6 +198,13 @@ if ($teacherId) {
                 if (!isset($studentIndex[$uid])) {
                     $studentsByClass[$row['ClassName']][] = $row;
                     $studentIndex[$uid] = true;
+                }
+                $classKey = (string)$row['ClassID'];
+                if (!isset($studentsByClassId[$classKey])) {
+                    $studentsByClassId[$classKey] = [];
+                }
+                if (!in_array($uid, $studentsByClassId[$classKey], true)) {
+                    $studentsByClassId[$classKey][] = $uid;
                 }
                 $allowedStudentIds[] = $uid;
             }
@@ -601,7 +609,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .feature-correlation-page {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 30px 24px 48px;
+            padding: calc(var(--header-height) + 24px) 24px 48px;
         }
 
         .page-heading {
@@ -844,9 +852,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .hidden {
             display: none;
         }
-        .filter-section { margin:0 0 18px; padding:14px; background:#fff; border:1px solid #d8dee4; border-radius:8px; }
-        .filter-section-title { margin:0 0 12px; color:#243447; font-size:1rem; }
-        .filter-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:12px; }
+        .filter-section { margin:0 0 18px; background:#fff; border:1px solid #d8dee4; border-radius:8px; overflow:hidden; }
+        .filter-section-header { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:12px 14px; border:0; background:#f8fafc; color:#243447; cursor:pointer; text-align:left; }
+        .filter-section-header:hover { background:#eef6ff; }
+        .filter-section-title { margin:0; color:#243447; font-size:1rem; }
+        .filter-section-body { padding:14px; border-top:1px solid #d8dee4; }
+        .filter-section.is-collapsed .filter-section-body { display:none; }
+        .filter-builder { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+        .filter-condition-row { display:grid; grid-template-columns:92px minmax(120px, 180px) minmax(180px, 1fr) 38px; gap:10px; align-items:center; padding:10px; background:#f8fafc; border:1px solid #d8dee4; border-radius:8px; }
+        .filter-condition-row:first-child .filter-operator { visibility:hidden; }
+        .filter-operator,
+        .filter-type,
+        .filter-value { width:100%; min-height:36px; }
+        .filter-row-remove { width:36px; height:36px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:1.2rem; font-weight:800; cursor:pointer; }
+        .filter-row-remove:hover { background:#fee2e2; border-color:#fca5a5; color:#991b1b; }
+        .filter-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px; }
+        .filter-actions button { min-height:36px; padding:0 14px; border:1px solid #b7c3d0; border-radius:6px; background:#fff; color:#243447; font-weight:700; cursor:pointer; }
+        .filter-actions button:hover { background:#eef6ff; }
+        .filter-summary { margin:0; color:#475569; font-size:0.9rem; font-weight:700; }
         .filter-field { display:flex; align-items:center; gap:10px; }
         .filter-field select { min-width:160px; }
         .collapsible-filter { margin-top:12px; border:1px solid #d8dee4; border-radius:8px; overflow:hidden; }
@@ -865,7 +888,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         @media (max-width: 900px) {
             .feature-correlation-page {
-                padding: 22px 14px 36px;
+                padding: calc(var(--header-height) + 18px) 14px 36px;
             }
 
             .page-heading {
@@ -906,17 +929,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flex: 1;
                 min-width: 0;
             }
+
+            .filter-condition-row {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-condition-row:first-child .filter-operator {
+                display: none;
+            }
+
+            .filter-row-remove {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
+<?php
+    $teacher_page_title = '特徴量相関分析';
+    include __DIR__ . '/teacher-menu.php';
+?>
 <div class="main-content">
     <main class="feature-correlation-page">
-        <div class="page-heading">
-            <h1>特徴量相関分析</h1>
-            <a class="home-link" href="teachertrue.php">← ホームへ戻る</a>
-        </div>
-
         <section class="analysis-controls" aria-label="相関分析条件">
             <div class="control-group">
                 <span class="mode-label">表示対象</span>
@@ -953,30 +987,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button id="load-btn" type="button">相関を表示</button>
         </section>
 
-        <section class="filter-section" aria-label="絞り込み条件">
-            <h2 class="filter-section-title">絞り込み条件</h2>
-            <div class="filter-controls">
-                <div class="filter-field">
-                    <label for="class-filter-select">クラスで絞り込み:</label>
-                    <select id="class-filter-select">
-                        <option value="">全てのクラス</option>
-                        <?php foreach ($teacherClasses as $class): ?>
-                            <option value="<?= htmlspecialchars($class['ClassID'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($class['ClassName'], ENT_QUOTES, 'UTF-8') ?></option>
-                        <?php endforeach; ?>
-                    </select>
+        <section class="filter-section" id="filter-section" aria-label="絞り込み条件">
+            <button class="filter-section-header" id="filter-section-toggle" type="button" aria-expanded="true" aria-controls="filter-section-body">
+                <h2 class="filter-section-title">絞り込み条件</h2>
+                <span class="toggle-mark" id="filter-section-mark" aria-hidden="true">-</span>
+            </button>
+            <div class="filter-section-body" id="filter-section-body">
+                <div class="filter-builder" id="filter-builder"></div>
+                <div class="filter-actions">
+                    <button type="button" id="add-filter-condition">条件を追加</button>
+                    <button type="button" id="apply-filter-conditions">絞り込みを適用</button>
+                    <button type="button" id="reset-filter-conditions">条件をリセット</button>
+                    <p class="filter-summary" id="filter-summary">すべての学習者を表示しています。</p>
                 </div>
-                <div class="filter-field">
-                    <label for="group-filter-select">グループで絞り込み:</label>
-                    <select id="group-filter-select">
-                        <option value="">全てのグループ</option>
-                        <?php foreach ($teacherGroups as $group): ?>
-                            <option value="<?= htmlspecialchars($group['group_id'], ENT_QUOTES, 'UTF-8') ?>">
-                                <?= htmlspecialchars($group['group_name'], ENT_QUOTES, 'UTF-8') ?> (ID: <?= htmlspecialchars($group['group_id'], ENT_QUOTES, 'UTF-8') ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
 
             <div class="collapsible-filter" id="student-filter-panel">
                 <button class="collapsible-header" type="button" aria-expanded="true" aria-controls="student-filter-body">
@@ -1018,6 +1041,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p class="loading-text">問題リストを読み込んでいます...</p>
                     </div>
                 </div>
+            </div>
             </div>
         </section>
 
@@ -1072,7 +1096,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 const featureColumns = <?= json_encode($featureColumns, JSON_UNESCAPED_UNICODE) ?>;
+const classStudentIdsByClass = <?= json_encode((object)$studentsByClassId, JSON_UNESCAPED_UNICODE) ?>;
 const groupStudentIdsByGroup = <?= json_encode((object)$studentsByGroup, JSON_UNESCAPED_UNICODE) ?>;
+const classFilterOptions = <?= json_encode($teacherClasses, JSON_UNESCAPED_UNICODE) ?>;
+const groupFilterOptions = <?= json_encode($teacherGroups, JSON_UNESCAPED_UNICODE) ?>;
 let scatterChart;
 let currentRanking = [];
 
@@ -1091,8 +1118,14 @@ const rankingTitle = document.getElementById('ranking-title');
 const rankingBaseLabel = document.getElementById('ranking-base-label');
 const rankingBody = document.getElementById('correlation-table-body');
 const emptyList = document.getElementById('empty-list');
-const classFilterSelect = document.getElementById('class-filter-select');
-const groupFilterSelect = document.getElementById('group-filter-select');
+const filterSection = document.getElementById('filter-section');
+const filterSectionToggle = document.getElementById('filter-section-toggle');
+const filterSectionMark = document.getElementById('filter-section-mark');
+const filterBuilder = document.getElementById('filter-builder');
+const filterSummary = document.getElementById('filter-summary');
+const addFilterConditionButton = document.getElementById('add-filter-condition');
+const applyFilterConditionsButton = document.getElementById('apply-filter-conditions');
+const resetFilterConditionsButton = document.getElementById('reset-filter-conditions');
 const studentCheckboxList = document.getElementById('student-checkbox-list');
 const selectAllVisible = document.getElementById('select-all-visible');
 const questionCheckboxList = document.getElementById('question-checkbox-list');
@@ -1121,6 +1154,12 @@ function escapeHtml(value) {
 }
 
 function setupCollapsibleFilters() {
+    filterSectionToggle.addEventListener('click', () => {
+        const collapsed = filterSection.classList.toggle('is-collapsed');
+        filterSectionToggle.setAttribute('aria-expanded', String(!collapsed));
+        filterSectionMark.textContent = collapsed ? '+' : '-';
+    });
+
     document.querySelectorAll('.collapsible-filter').forEach((panel) => {
         const button = panel.querySelector('.collapsible-header');
         const mark = panel.querySelector('.toggle-mark');
@@ -1130,6 +1169,123 @@ function setupCollapsibleFilters() {
             mark.textContent = collapsed ? '+' : '−';
         });
     });
+}
+
+function getAllStudentIds() {
+    return getStudentCheckboxItems().map((item) => item.querySelector('input').value);
+}
+
+function createOptionHtml(options, valueKey, labelKey, selectedValue = '') {
+    return options.map((option) => {
+        const value = String(option[valueKey]);
+        const selected = value === String(selectedValue) ? ' selected' : '';
+        return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(option[labelKey])}</option>`;
+    }).join('');
+}
+
+function createFilterConditionRow(operator = 'AND', type = 'class', value = '') {
+    const row = document.createElement('div');
+    row.className = 'filter-condition-row';
+    row.innerHTML = `
+        <select class="filter-operator" aria-label="条件のつなぎ方">
+            <option value="AND"${operator === 'AND' ? ' selected' : ''}>AND</option>
+            <option value="OR"${operator === 'OR' ? ' selected' : ''}>OR</option>
+        </select>
+        <select class="filter-type" aria-label="条件の種類">
+            <option value="class"${type === 'class' ? ' selected' : ''}>クラス</option>
+            <option value="group"${type === 'group' ? ' selected' : ''}>グループ</option>
+        </select>
+        <select class="filter-value" aria-label="条件の値"></select>
+        <button type="button" class="filter-row-remove" aria-label="条件を削除">×</button>
+    `;
+    filterBuilder.appendChild(row);
+    updateFilterValueOptions(row, value);
+    syncFilterRowControls();
+    return row;
+}
+
+function updateFilterValueOptions(row, selectedValue = '') {
+    const type = row.querySelector('.filter-type').value;
+    const valueSelect = row.querySelector('.filter-value');
+    const options = type === 'group'
+        ? createOptionHtml(groupFilterOptions, 'group_id', 'group_name', selectedValue)
+        : createOptionHtml(classFilterOptions, 'ClassID', 'ClassName', selectedValue);
+
+    valueSelect.innerHTML = options || '<option value="">選択肢がありません</option>';
+}
+
+function syncFilterRowControls() {
+    const rows = Array.from(filterBuilder.querySelectorAll('.filter-condition-row'));
+    rows.forEach((row, index) => {
+        row.querySelector('.filter-operator').disabled = index === 0;
+        row.querySelector('.filter-row-remove').disabled = rows.length === 1;
+    });
+}
+
+function getConditionStudentSet(type, value) {
+    const source = type === 'group' ? groupStudentIdsByGroup : classStudentIdsByClass;
+    return new Set((source[String(value)] || []).map(String));
+}
+
+function evaluateFilterConditions() {
+    const rows = Array.from(filterBuilder.querySelectorAll('.filter-condition-row'));
+    if (rows.length === 0) {
+        return new Set(getAllStudentIds());
+    }
+
+    let selectedSet = null;
+    rows.forEach((row, index) => {
+        const operator = row.querySelector('.filter-operator').value;
+        const type = row.querySelector('.filter-type').value;
+        const value = row.querySelector('.filter-value').value;
+        const conditionSet = getConditionStudentSet(type, value);
+
+        if (index === 0 || selectedSet === null) {
+            selectedSet = conditionSet;
+            return;
+        }
+
+        if (operator === 'OR') {
+            conditionSet.forEach((uid) => selectedSet.add(uid));
+            return;
+        }
+
+        selectedSet = new Set(Array.from(selectedSet).filter((uid) => conditionSet.has(uid)));
+    });
+
+    return selectedSet || new Set();
+}
+
+function updateVisibleStudents() {
+    getStudentCheckboxItems().forEach((item) => {
+        item.style.display = 'inline-block';
+    });
+    studentCheckboxList.querySelectorAll('.class-group-header').forEach((header) => {
+        header.style.display = 'flex';
+    });
+    syncStudentControlStates();
+}
+
+async function applyFilterConditions() {
+    const selectedSet = evaluateFilterConditions();
+    getStudentCheckboxItems().forEach((item) => {
+        const input = item.querySelector('input');
+        input.checked = selectedSet.has(input.value);
+    });
+    syncStudentControlStates();
+    filterSummary.textContent = `${selectedSet.size}名の学習者を選択しています。`;
+    await refreshQuestionFilters();
+    loadData(true);
+}
+
+function resetFilterConditions() {
+    filterBuilder.innerHTML = '';
+    createFilterConditionRow();
+    getStudentCheckboxItems().forEach((item) => {
+        item.querySelector('input').checked = true;
+    });
+    updateVisibleStudents();
+    filterSummary.textContent = 'すべての学習者を表示しています。';
 }
 
 function syncStudentControlStates() {
@@ -1145,29 +1301,6 @@ function syncStudentControlStates() {
         input.checked = classItems.length > 0
             && classItems.every((item) => item.querySelector('input').checked);
     });
-}
-
-function updateVisibleStudents() {
-    const classId = classFilterSelect.value;
-    getStudentCheckboxItems().forEach((item) => {
-        item.style.display = (!classId || item.dataset.classId === classId) ? 'inline-block' : 'none';
-    });
-    studentCheckboxList.querySelectorAll('.class-group-header').forEach((header) => {
-        header.style.display = (!classId || header.dataset.classId === classId) ? 'flex' : 'none';
-    });
-    syncStudentControlStates();
-}
-
-function applyGroupFilter() {
-    const groupId = groupFilterSelect.value;
-    const groupStudentIds = new Set((groupStudentIdsByGroup[groupId] || []).map(String));
-    const shouldSelectAll = !groupId;
-
-    getStudentCheckboxItems().forEach((item) => {
-        const input = item.querySelector('input');
-        input.checked = shouldSelectAll || groupStudentIds.has(input.value);
-    });
-    syncStudentControlStates();
 }
 
 function renderQuestionCheckboxes(questions) {
@@ -1520,11 +1653,30 @@ modeInputs.forEach((input) => {
 featureXSelect.addEventListener('change', () => loadData(true));
 featureYSelect.addEventListener('change', () => loadData(false));
 loadButton.addEventListener('click', () => loadData(true));
-classFilterSelect.addEventListener('change', updateVisibleStudents);
-groupFilterSelect.addEventListener('change', async () => {
-    applyGroupFilter();
+addFilterConditionButton.addEventListener('click', () => {
+    createFilterConditionRow('AND', 'class');
+});
+applyFilterConditionsButton.addEventListener('click', applyFilterConditions);
+resetFilterConditionsButton.addEventListener('click', async () => {
+    resetFilterConditions();
     await refreshQuestionFilters();
     loadData(true);
+});
+filterBuilder.addEventListener('change', (event) => {
+    const row = event.target.closest('.filter-condition-row');
+    if (!row) {
+        return;
+    }
+    if (event.target.classList.contains('filter-type')) {
+        updateFilterValueOptions(row);
+    }
+});
+filterBuilder.addEventListener('click', (event) => {
+    if (!event.target.classList.contains('filter-row-remove')) {
+        return;
+    }
+    event.target.closest('.filter-condition-row').remove();
+    syncFilterRowControls();
 });
 selectAllVisible.addEventListener('change', async (event) => {
     getStudentCheckboxItems()
@@ -1558,6 +1710,7 @@ questionCheckboxList.addEventListener('change', (event) => {
 });
 
 setupCollapsibleFilters();
+resetFilterConditions();
 syncControls();
 updateVisibleStudents();
 syncStudentControlStates();
