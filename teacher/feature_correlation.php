@@ -860,15 +860,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .filter-section.is-collapsed .filter-section-body { display:none; }
         .filter-title-wrap { display:flex; align-items:center; gap:8px; }
         .filter-help { position:relative; display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border:1px solid #94a3b8; border-radius:50%; background:#fff; color:#2563eb; font-weight:800; font-size:0.9rem; cursor:help; }
-        .filter-help-popup { position:absolute; left:50%; top:calc(100% + 10px); z-index:10; display:none; width:min(360px, 82vw); transform:translateX(-50%); padding:12px 14px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#243447; box-shadow:0 12px 24px rgba(15, 23, 42, 0.18); font-size:0.88rem; line-height:1.6; text-align:left; font-weight:500; }
+        .filter-help-popup { position:absolute; left:50%; top:calc(100% + 10px); z-index:10; display:none; width:min(380px, 82vw); transform:translateX(-50%); padding:12px 14px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#243447; box-shadow:0 12px 24px rgba(15, 23, 42, 0.18); font-size:0.88rem; line-height:1.6; text-align:left; font-weight:500; }
         .filter-help:hover .filter-help-popup { display:block; }
         .filter-parts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px; }
         .filter-parts button { min-height:34px; padding:0 12px; border:1px solid #b7c3d0; border-radius:6px; background:#fff; color:#243447; font-weight:700; cursor:pointer; }
         .filter-parts button:hover { background:#eef6ff; }
+        .filter-insert-control { display:flex; align-items:center; gap:6px; color:#475569; font-size:0.9rem; font-weight:700; }
+        .filter-insert-control select { min-height:34px; border:1px solid #b7c3d0; border-radius:6px; background:#fff; color:#243447; }
         .filter-builder { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-height:52px; margin-bottom:12px; padding:10px; background:#f8fafc; border:1px solid #d8dee4; border-radius:8px; }
         .filter-token { display:inline-flex; align-items:center; gap:8px; min-height:36px; padding:4px 6px 4px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#243447; font-weight:800; }
-        .filter-token select { min-width:220px; min-height:30px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; }
+        .filter-token select { min-height:30px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; }
+        .filter-token-kind { min-width:86px; }
+        .filter-target { min-width:220px; }
         .filter-token-operator { background:#ecfeff; border-color:#99f6e4; color:#0f766e; }
+        .filter-token-not { background:#fff7ed; border-color:#fed7aa; color:#c2410c; }
         .filter-token-paren { background:#f1f5f9; font-size:1rem; }
         .filter-token-remove { width:26px; height:26px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:1rem; font-weight:800; cursor:pointer; line-height:1; }
         .filter-token-remove:hover { background:#fee2e2; border-color:#fca5a5; color:#991b1b; }
@@ -993,7 +998,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <h2 class="filter-section-title">絞り込み条件</h2>
                     <span class="filter-help" aria-label="論理式の説明">ⓘ
                         <span class="filter-help-popup">
-                            論理式は、条件を AND・OR・括弧で組み合わせて対象を絞り込む書き方です。AND は両方に含まれる学習者、OR はどちらかに含まれる学習者を選びます。括弧を使うと先に計算する範囲を指定できます。例: (クラスA OR クラスB) AND グループ1
+                            論理式は、条件を AND・OR・NOT・括弧で組み合わせて対象を絞り込む書き方です。AND は両方、OR はどちらか、NOT はその条件に含まれない学習者を選びます。括弧を使うと先に計算する範囲を指定できます。例: (クラスA OR クラスB) AND NOT グループ1
                         </span>
                     </span>
                 </span>
@@ -1004,13 +1009,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="button" id="add-filter-condition">対象を追加</button>
                     <button type="button" id="add-filter-and">AND</button>
                     <button type="button" id="add-filter-or">OR</button>
+                    <button type="button" id="add-filter-not">NOT</button>
                     <button type="button" id="add-filter-open">(</button>
                     <button type="button" id="add-filter-close">)</button>
+                    <span class="filter-insert-control">
+                        <label for="filter-insert-position">追加位置</label>
+                        <select id="filter-insert-position"></select>
+                    </span>
                 </div>
                 <div class="filter-builder" id="filter-builder"></div>
                 <div class="filter-actions">
                     <button type="button" id="apply-filter-conditions">絞り込みを適用</button>
                     <button type="button" id="reset-filter-conditions">条件をリセット</button>
+                    <button type="button" id="trim-filter-expression">追加位置から後ろを削除</button>
+                    <button type="button" id="clear-filter-expression">式を空にする</button>
                     <p class="filter-summary" id="filter-summary">すべての学習者を表示しています。</p>
                 </div>
 
@@ -1139,10 +1151,14 @@ const filterSummary = document.getElementById('filter-summary');
 const addFilterConditionButton = document.getElementById('add-filter-condition');
 const addFilterAndButton = document.getElementById('add-filter-and');
 const addFilterOrButton = document.getElementById('add-filter-or');
+const addFilterNotButton = document.getElementById('add-filter-not');
 const addFilterOpenButton = document.getElementById('add-filter-open');
 const addFilterCloseButton = document.getElementById('add-filter-close');
+const filterInsertPosition = document.getElementById('filter-insert-position');
 const applyFilterConditionsButton = document.getElementById('apply-filter-conditions');
 const resetFilterConditionsButton = document.getElementById('reset-filter-conditions');
+const trimFilterExpressionButton = document.getElementById('trim-filter-expression');
+const clearFilterExpressionButton = document.getElementById('clear-filter-expression');
 const studentCheckboxList = document.getElementById('student-checkbox-list');
 const selectAllVisible = document.getElementById('select-all-visible');
 const questionCheckboxList = document.getElementById('question-checkbox-list');
@@ -1218,14 +1234,59 @@ function createFilterTargetOptionsHtml(selectedValue = '') {
     }).join('');
 }
 
+function createFilterKindSelectHtml(selectedType) {
+    const options = [
+        { value: 'condition', label: '対象' },
+        { value: 'and', label: 'AND' },
+        { value: 'or', label: 'OR' },
+        { value: 'not', label: 'NOT' },
+        { value: 'open', label: '(' },
+        { value: 'close', label: ')' },
+    ];
+
+    return options.map((option) => {
+        const selected = option.value === selectedType ? ' selected' : '';
+        return `<option value="${option.value}"${selected}>${option.label}</option>`;
+    }).join('');
+}
+
+function getKindFromToken(type, value = '') {
+    if (type === 'condition') {
+        return 'condition';
+    }
+    if (type === 'operator') {
+        return String(value).toLowerCase();
+    }
+    return value === '(' ? 'open' : 'close';
+}
+
+function getTokenSpecFromKind(kind) {
+    if (kind === 'condition') {
+        return { type: 'condition', value: '' };
+    }
+    if (kind === 'and') {
+        return { type: 'operator', value: 'AND' };
+    }
+    if (kind === 'or') {
+        return { type: 'operator', value: 'OR' };
+    }
+    if (kind === 'not') {
+        return { type: 'operator', value: 'NOT' };
+    }
+    return { type: 'paren', value: kind === 'open' ? '(' : ')' };
+}
+
 function createFilterToken(type, value = '') {
     const token = document.createElement('div');
     token.className = 'filter-token';
     token.dataset.tokenType = type;
+    const kind = getKindFromToken(type, value);
+    const kindSelect = `<select class="filter-token-kind" aria-label="部品の種類">${createFilterKindSelectHtml(kind)}</select>`;
 
     if (type === 'condition') {
         token.classList.add('filter-token-condition');
         token.innerHTML = `
+            ${kindSelect}
             <select class="filter-target" aria-label="絞り込み対象">
                 ${createFilterTargetOptionsHtml(value)}
             </select>
@@ -1233,22 +1294,99 @@ function createFilterToken(type, value = '') {
         `;
     } else if (type === 'operator') {
         token.classList.add('filter-token-operator');
+        token.classList.toggle('filter-token-not', value === 'NOT');
         token.dataset.operator = value;
         token.innerHTML = `
-            <span>${escapeHtml(value)}</span>
+            ${kindSelect}
             <button type="button" class="filter-token-remove" aria-label="部品を削除">×</button>
         `;
     } else {
         token.classList.add('filter-token-paren');
         token.dataset.paren = value;
         token.innerHTML = `
-            <span>${escapeHtml(value)}</span>
+            ${kindSelect}
             <button type="button" class="filter-token-remove" aria-label="部品を削除">×</button>
         `;
     }
 
-    filterBuilder.appendChild(token);
+    const insertedIndex = insertFilterToken(token);
+    updateFilterInsertOptions();
+    if (insertedIndex !== null) {
+        filterInsertPosition.value = String(insertedIndex + 1);
+    }
     return token;
+}
+
+function insertFilterToken(token) {
+    const tokens = Array.from(filterBuilder.querySelectorAll('.filter-token'));
+    const position = filterInsertPosition.value === '' ? tokens.length : Number(filterInsertPosition.value);
+    if (!Number.isInteger(position) || position >= tokens.length) {
+        filterBuilder.appendChild(token);
+        return null;
+    }
+    const safePosition = Math.max(position, 0);
+    filterBuilder.insertBefore(token, tokens[safePosition]);
+    return safePosition;
+}
+
+function updateFilterInsertOptions() {
+    const tokens = Array.from(filterBuilder.querySelectorAll('.filter-token'));
+    const current = filterInsertPosition.value;
+    const options = ['<option value="">末尾に追加</option>'];
+    tokens.forEach((token, index) => {
+        const label = getTokenDisplayLabel(token);
+        options.push(`<option value="${index}">${index + 1}個目の前 (${escapeHtml(label)})</option>`);
+    });
+    filterInsertPosition.innerHTML = options.join('');
+    if (current !== '' && Number(current) < tokens.length) {
+        filterInsertPosition.value = current;
+    }
+}
+
+function getTokenDisplayLabel(token) {
+    const type = token.dataset.tokenType;
+    if (type === 'condition') {
+        const select = token.querySelector('.filter-target');
+        return select.options[select.selectedIndex]?.textContent || '対象';
+    }
+    if (type === 'operator') {
+        return token.dataset.operator || '演算子';
+    }
+    return token.dataset.paren || '括弧';
+}
+
+function replaceFilterToken(token, nextKind) {
+    const { type, value } = getTokenSpecFromKind(nextKind);
+    token.className = 'filter-token';
+    token.dataset.tokenType = type;
+    delete token.dataset.operator;
+    delete token.dataset.paren;
+
+    const kindSelect = `<select class="filter-token-kind" aria-label="部品の種類">${createFilterKindSelectHtml(nextKind)}</select>`;
+    if (type === 'condition') {
+        token.classList.add('filter-token-condition');
+        token.innerHTML = `
+            ${kindSelect}
+            <select class="filter-target" aria-label="絞り込み対象">
+                ${createFilterTargetOptionsHtml()}
+            </select>
+            <button type="button" class="filter-token-remove" aria-label="部品を削除">×</button>
+        `;
+        return;
+    }
+
+    if (type === 'operator') {
+        token.classList.add('filter-token-operator');
+        token.classList.toggle('filter-token-not', value === 'NOT');
+        token.dataset.operator = value;
+    } else {
+        token.classList.add('filter-token-paren');
+        token.dataset.paren = value;
+    }
+    token.innerHTML = `
+        ${kindSelect}
+        <button type="button" class="filter-token-remove" aria-label="部品を削除">×</button>
+    `;
 }
 
 function getFilterExpressionTokens() {
@@ -1276,6 +1414,11 @@ function intersectSets(left, right) {
     return new Set(Array.from(left).filter((uid) => right.has(uid)));
 }
 
+function complementSet(source) {
+    const selected = new Set(source);
+    return new Set(getAllStudentIds().filter((uid) => !selected.has(uid)));
+}
+
 function getConditionStudentSet(type, value) {
     const source = type === 'group' ? groupStudentIdsByGroup : classStudentIdsByClass;
     return new Set((source[String(value)] || []).map(String));
@@ -1301,6 +1444,12 @@ function validateFilterExpression(tokens) {
         }
 
         if (token.type === 'operator') {
+            if (token.operator === 'NOT') {
+                if (!expectsOperand) {
+                    throw new Error('NOT の前には AND または OR を入れてください。');
+                }
+                return;
+            }
             if (expectsOperand) {
                 throw new Error('AND または OR の前に条件を置いてください。');
             }
@@ -1347,6 +1496,11 @@ function evaluateFilterConditions() {
         const token = tokens[index];
         if (!token) {
             throw new Error('式が途中で終わっています。');
+        }
+
+        if (token.type === 'operator' && token.operator === 'NOT') {
+            index++;
+            return complementSet(parsePrimary());
         }
 
         if (token.type === 'condition') {
@@ -1425,12 +1579,45 @@ async function applyFilterConditions() {
 
 function resetFilterConditions() {
     filterBuilder.innerHTML = '';
+    updateFilterInsertOptions();
     createFilterToken('condition');
     getStudentCheckboxItems().forEach((item) => {
         item.querySelector('input').checked = true;
     });
     updateVisibleStudents();
     filterSummary.textContent = 'すべての学習者を表示しています。';
+    filterSummary.classList.remove('is-error');
+}
+
+function clearFilterExpression() {
+    filterBuilder.innerHTML = '';
+    updateFilterInsertOptions();
+    filterSummary.textContent = '論理式を空にしました。空のまま適用すると、すべての学習者が対象になります。';
+    filterSummary.classList.remove('is-error');
+}
+
+function trimFilterExpressionFromPosition() {
+    const tokens = Array.from(filterBuilder.querySelectorAll('.filter-token'));
+    if (tokens.length === 0) {
+        filterSummary.textContent = '削除する部品がありません。';
+        filterSummary.classList.remove('is-error');
+        return;
+    }
+
+    if (filterInsertPosition.value === '') {
+        filterSummary.textContent = '削除を開始する位置を「追加位置」から選んでください。';
+        filterSummary.classList.add('is-error');
+        return;
+    }
+
+    const startIndex = Number(filterInsertPosition.value);
+    tokens.forEach((token, index) => {
+        if (index >= startIndex) {
+            token.remove();
+        }
+    });
+    updateFilterInsertOptions();
+    filterSummary.textContent = `${startIndex + 1}個目以降の部品を削除しました。`;
     filterSummary.classList.remove('is-error');
 }
 
@@ -1804,6 +1991,7 @@ addFilterConditionButton.addEventListener('click', () => {
 });
 addFilterAndButton.addEventListener('click', () => createFilterToken('operator', 'AND'));
 addFilterOrButton.addEventListener('click', () => createFilterToken('operator', 'OR'));
+addFilterNotButton.addEventListener('click', () => createFilterToken('operator', 'NOT'));
 addFilterOpenButton.addEventListener('click', () => createFilterToken('paren', '('));
 addFilterCloseButton.addEventListener('click', () => createFilterToken('paren', ')'));
 applyFilterConditionsButton.addEventListener('click', applyFilterConditions);
@@ -1812,11 +2000,24 @@ resetFilterConditionsButton.addEventListener('click', async () => {
     await refreshQuestionFilters();
     loadData(true);
 });
+trimFilterExpressionButton.addEventListener('click', trimFilterExpressionFromPosition);
+clearFilterExpressionButton.addEventListener('click', clearFilterExpression);
+filterBuilder.addEventListener('change', (event) => {
+    const token = event.target.closest('.filter-token');
+    if (!token) {
+        return;
+    }
+    if (event.target.classList.contains('filter-token-kind')) {
+        replaceFilterToken(token, event.target.value);
+    }
+    updateFilterInsertOptions();
+});
 filterBuilder.addEventListener('click', (event) => {
     if (!event.target.classList.contains('filter-token-remove')) {
         return;
     }
     event.target.closest('.filter-token').remove();
+    updateFilterInsertOptions();
 });
 selectAllVisible.addEventListener('change', async (event) => {
     getStudentCheckboxItems()
