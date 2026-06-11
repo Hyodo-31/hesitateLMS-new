@@ -852,24 +852,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .hidden {
             display: none;
         }
-        .filter-section { margin:0 0 18px; background:#fff; border:1px solid #d8dee4; border-radius:8px; overflow:hidden; }
+        .filter-section { margin:0 0 18px; background:#fff; border:1px solid #d8dee4; border-radius:8px; overflow:visible; }
         .filter-section-header { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:12px 14px; border:0; background:#f8fafc; color:#243447; cursor:pointer; text-align:left; }
         .filter-section-header:hover { background:#eef6ff; }
         .filter-section-title { margin:0; color:#243447; font-size:1rem; }
         .filter-section-body { padding:14px; border-top:1px solid #d8dee4; }
         .filter-section.is-collapsed .filter-section-body { display:none; }
-        .filter-builder { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
-        .filter-condition-row { display:grid; grid-template-columns:92px minmax(120px, 180px) minmax(180px, 1fr) 38px; gap:10px; align-items:center; padding:10px; background:#f8fafc; border:1px solid #d8dee4; border-radius:8px; }
-        .filter-condition-row:first-child .filter-operator { visibility:hidden; }
-        .filter-operator,
-        .filter-type,
-        .filter-value { width:100%; min-height:36px; }
-        .filter-row-remove { width:36px; height:36px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:1.2rem; font-weight:800; cursor:pointer; }
-        .filter-row-remove:hover { background:#fee2e2; border-color:#fca5a5; color:#991b1b; }
+        .filter-title-wrap { display:flex; align-items:center; gap:8px; }
+        .filter-help { position:relative; display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border:1px solid #94a3b8; border-radius:50%; background:#fff; color:#2563eb; font-weight:800; font-size:0.9rem; cursor:help; }
+        .filter-help-popup { position:absolute; left:50%; top:calc(100% + 10px); z-index:10; display:none; width:min(360px, 82vw); transform:translateX(-50%); padding:12px 14px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#243447; box-shadow:0 12px 24px rgba(15, 23, 42, 0.18); font-size:0.88rem; line-height:1.6; text-align:left; font-weight:500; }
+        .filter-help:hover .filter-help-popup { display:block; }
+        .filter-parts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px; }
+        .filter-parts button { min-height:34px; padding:0 12px; border:1px solid #b7c3d0; border-radius:6px; background:#fff; color:#243447; font-weight:700; cursor:pointer; }
+        .filter-parts button:hover { background:#eef6ff; }
+        .filter-builder { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-height:52px; margin-bottom:12px; padding:10px; background:#f8fafc; border:1px solid #d8dee4; border-radius:8px; }
+        .filter-token { display:inline-flex; align-items:center; gap:8px; min-height:36px; padding:4px 6px 4px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#243447; font-weight:800; }
+        .filter-token select { min-width:220px; min-height:30px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; }
+        .filter-token-operator { background:#ecfeff; border-color:#99f6e4; color:#0f766e; }
+        .filter-token-paren { background:#f1f5f9; font-size:1rem; }
+        .filter-token-remove { width:26px; height:26px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:1rem; font-weight:800; cursor:pointer; line-height:1; }
+        .filter-token-remove:hover { background:#fee2e2; border-color:#fca5a5; color:#991b1b; }
         .filter-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px; }
         .filter-actions button { min-height:36px; padding:0 14px; border:1px solid #b7c3d0; border-radius:6px; background:#fff; color:#243447; font-weight:700; cursor:pointer; }
         .filter-actions button:hover { background:#eef6ff; }
         .filter-summary { margin:0; color:#475569; font-size:0.9rem; font-weight:700; }
+        .filter-summary.is-error { color:#b91c1c; }
         .filter-field { display:flex; align-items:center; gap:10px; }
         .filter-field select { min-width:160px; }
         .collapsible-filter { margin-top:12px; border:1px solid #d8dee4; border-radius:8px; overflow:hidden; }
@@ -930,15 +937,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 min-width: 0;
             }
 
-            .filter-condition-row {
-                grid-template-columns: 1fr;
-            }
-
-            .filter-condition-row:first-child .filter-operator {
-                display: none;
-            }
-
-            .filter-row-remove {
+            .filter-token,
+            .filter-token select {
                 width: 100%;
             }
         }
@@ -989,13 +989,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <section class="filter-section" id="filter-section" aria-label="絞り込み条件">
             <button class="filter-section-header" id="filter-section-toggle" type="button" aria-expanded="true" aria-controls="filter-section-body">
-                <h2 class="filter-section-title">絞り込み条件</h2>
+                <span class="filter-title-wrap">
+                    <h2 class="filter-section-title">絞り込み条件</h2>
+                    <span class="filter-help" aria-label="論理式の説明">ⓘ
+                        <span class="filter-help-popup">
+                            論理式は、条件を AND・OR・括弧で組み合わせて対象を絞り込む書き方です。AND は両方に含まれる学習者、OR はどちらかに含まれる学習者を選びます。括弧を使うと先に計算する範囲を指定できます。例: (クラスA OR クラスB) AND グループ1
+                        </span>
+                    </span>
+                </span>
                 <span class="toggle-mark" id="filter-section-mark" aria-hidden="true">-</span>
             </button>
             <div class="filter-section-body" id="filter-section-body">
+                <div class="filter-parts" aria-label="論理式パーツ">
+                    <button type="button" id="add-filter-condition">対象を追加</button>
+                    <button type="button" id="add-filter-and">AND</button>
+                    <button type="button" id="add-filter-or">OR</button>
+                    <button type="button" id="add-filter-open">(</button>
+                    <button type="button" id="add-filter-close">)</button>
+                </div>
                 <div class="filter-builder" id="filter-builder"></div>
                 <div class="filter-actions">
-                    <button type="button" id="add-filter-condition">条件を追加</button>
                     <button type="button" id="apply-filter-conditions">絞り込みを適用</button>
                     <button type="button" id="reset-filter-conditions">条件をリセット</button>
                     <p class="filter-summary" id="filter-summary">すべての学習者を表示しています。</p>
@@ -1124,6 +1137,10 @@ const filterSectionMark = document.getElementById('filter-section-mark');
 const filterBuilder = document.getElementById('filter-builder');
 const filterSummary = document.getElementById('filter-summary');
 const addFilterConditionButton = document.getElementById('add-filter-condition');
+const addFilterAndButton = document.getElementById('add-filter-and');
+const addFilterOrButton = document.getElementById('add-filter-or');
+const addFilterOpenButton = document.getElementById('add-filter-open');
+const addFilterCloseButton = document.getElementById('add-filter-close');
 const applyFilterConditionsButton = document.getElementById('apply-filter-conditions');
 const resetFilterConditionsButton = document.getElementById('reset-filter-conditions');
 const studentCheckboxList = document.getElementById('student-checkbox-list');
@@ -1175,51 +1192,88 @@ function getAllStudentIds() {
     return getStudentCheckboxItems().map((item) => item.querySelector('input').value);
 }
 
-function createOptionHtml(options, valueKey, labelKey, selectedValue = '') {
+function getFilterTargetOptions() {
+    const classTargets = classFilterOptions.map((option) => ({
+        type: 'class',
+        value: `class:${option.ClassID}`,
+        label: `クラス: ${option.ClassName}`,
+    }));
+    const groupTargets = groupFilterOptions.map((option) => ({
+        type: 'group',
+        value: `group:${option.group_id}`,
+        label: `グループ: ${option.group_name}`,
+    }));
+    return [...classTargets, ...groupTargets];
+}
+
+function createFilterTargetOptionsHtml(selectedValue = '') {
+    const options = getFilterTargetOptions();
+    if (options.length === 0) {
+        return '<option value="">選択肢がありません</option>';
+    }
+
     return options.map((option) => {
-        const value = String(option[valueKey]);
-        const selected = value === String(selectedValue) ? ' selected' : '';
-        return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(option[labelKey])}</option>`;
+        const selected = option.value === String(selectedValue) ? ' selected' : '';
+        return `<option value="${escapeHtml(option.value)}"${selected}>${escapeHtml(option.label)}</option>`;
     }).join('');
 }
 
-function createFilterConditionRow(operator = 'AND', type = 'class', value = '') {
-    const row = document.createElement('div');
-    row.className = 'filter-condition-row';
-    row.innerHTML = `
-        <select class="filter-operator" aria-label="条件のつなぎ方">
-            <option value="AND"${operator === 'AND' ? ' selected' : ''}>AND</option>
-            <option value="OR"${operator === 'OR' ? ' selected' : ''}>OR</option>
-        </select>
-        <select class="filter-type" aria-label="条件の種類">
-            <option value="class"${type === 'class' ? ' selected' : ''}>クラス</option>
-            <option value="group"${type === 'group' ? ' selected' : ''}>グループ</option>
-        </select>
-        <select class="filter-value" aria-label="条件の値"></select>
-        <button type="button" class="filter-row-remove" aria-label="条件を削除">×</button>
-    `;
-    filterBuilder.appendChild(row);
-    updateFilterValueOptions(row, value);
-    syncFilterRowControls();
-    return row;
+function createFilterToken(type, value = '') {
+    const token = document.createElement('div');
+    token.className = 'filter-token';
+    token.dataset.tokenType = type;
+
+    if (type === 'condition') {
+        token.classList.add('filter-token-condition');
+        token.innerHTML = `
+            <select class="filter-target" aria-label="絞り込み対象">
+                ${createFilterTargetOptionsHtml(value)}
+            </select>
+            <button type="button" class="filter-token-remove" aria-label="部品を削除">×</button>
+        `;
+    } else if (type === 'operator') {
+        token.classList.add('filter-token-operator');
+        token.dataset.operator = value;
+        token.innerHTML = `
+            <span>${escapeHtml(value)}</span>
+            <button type="button" class="filter-token-remove" aria-label="部品を削除">×</button>
+        `;
+    } else {
+        token.classList.add('filter-token-paren');
+        token.dataset.paren = value;
+        token.innerHTML = `
+            <span>${escapeHtml(value)}</span>
+            <button type="button" class="filter-token-remove" aria-label="部品を削除">×</button>
+        `;
+    }
+
+    filterBuilder.appendChild(token);
+    return token;
 }
 
-function updateFilterValueOptions(row, selectedValue = '') {
-    const type = row.querySelector('.filter-type').value;
-    const valueSelect = row.querySelector('.filter-value');
-    const options = type === 'group'
-        ? createOptionHtml(groupFilterOptions, 'group_id', 'group_name', selectedValue)
-        : createOptionHtml(classFilterOptions, 'ClassID', 'ClassName', selectedValue);
-
-    valueSelect.innerHTML = options || '<option value="">選択肢がありません</option>';
-}
-
-function syncFilterRowControls() {
-    const rows = Array.from(filterBuilder.querySelectorAll('.filter-condition-row'));
-    rows.forEach((row, index) => {
-        row.querySelector('.filter-operator').disabled = index === 0;
-        row.querySelector('.filter-row-remove').disabled = rows.length === 1;
+function getFilterExpressionTokens() {
+    return Array.from(filterBuilder.querySelectorAll('.filter-token')).map((token) => {
+        const type = token.dataset.tokenType;
+        if (type === 'condition') {
+            const value = token.querySelector('.filter-target').value;
+            const [targetType, targetId] = value.split(':');
+            return { type, targetType, targetId, value };
+        }
+        if (type === 'operator') {
+            return { type, operator: token.dataset.operator };
+        }
+        return { type: 'paren', paren: token.dataset.paren };
     });
+}
+
+function unionSets(left, right) {
+    const result = new Set(left);
+    right.forEach((uid) => result.add(uid));
+    return result;
+}
+
+function intersectSets(left, right) {
+    return new Set(Array.from(left).filter((uid) => right.has(uid)));
 }
 
 function getConditionStudentSet(type, value) {
@@ -1227,33 +1281,115 @@ function getConditionStudentSet(type, value) {
     return new Set((source[String(value)] || []).map(String));
 }
 
+function validateFilterExpression(tokens) {
+    if (tokens.length === 0) {
+        return;
+    }
+
+    let expectsOperand = true;
+    let depth = 0;
+    tokens.forEach((token) => {
+        if (token.type === 'condition') {
+            if (!expectsOperand) {
+                throw new Error('条件の間には AND または OR を入れてください。');
+            }
+            if (!token.value || !token.targetType || !token.targetId) {
+                throw new Error('対象が選択されていない条件があります。');
+            }
+            expectsOperand = false;
+            return;
+        }
+
+        if (token.type === 'operator') {
+            if (expectsOperand) {
+                throw new Error('AND または OR の前に条件を置いてください。');
+            }
+            expectsOperand = true;
+            return;
+        }
+
+        if (token.paren === '(') {
+            if (!expectsOperand) {
+                throw new Error('括弧の前には AND または OR を入れてください。');
+            }
+            depth++;
+            return;
+        }
+
+        if (depth === 0) {
+            throw new Error('閉じ括弧が多すぎます。');
+        }
+        if (expectsOperand) {
+            throw new Error('括弧の中に条件を入れてください。');
+        }
+        depth--;
+        expectsOperand = false;
+    });
+
+    if (depth > 0) {
+        throw new Error('閉じていない括弧があります。');
+    }
+    if (expectsOperand) {
+        throw new Error('式の最後は条件または閉じ括弧にしてください。');
+    }
+}
+
 function evaluateFilterConditions() {
-    const rows = Array.from(filterBuilder.querySelectorAll('.filter-condition-row'));
-    if (rows.length === 0) {
+    const tokens = getFilterExpressionTokens();
+    if (tokens.length === 0) {
         return new Set(getAllStudentIds());
     }
 
-    let selectedSet = null;
-    rows.forEach((row, index) => {
-        const operator = row.querySelector('.filter-operator').value;
-        const type = row.querySelector('.filter-type').value;
-        const value = row.querySelector('.filter-value').value;
-        const conditionSet = getConditionStudentSet(type, value);
+    validateFilterExpression(tokens);
+    let index = 0;
 
-        if (index === 0 || selectedSet === null) {
-            selectedSet = conditionSet;
-            return;
+    function parsePrimary() {
+        const token = tokens[index];
+        if (!token) {
+            throw new Error('式が途中で終わっています。');
         }
 
-        if (operator === 'OR') {
-            conditionSet.forEach((uid) => selectedSet.add(uid));
-            return;
+        if (token.type === 'condition') {
+            index++;
+            return getConditionStudentSet(token.targetType, token.targetId);
         }
 
-        selectedSet = new Set(Array.from(selectedSet).filter((uid) => conditionSet.has(uid)));
-    });
+        if (token.type === 'paren' && token.paren === '(') {
+            index++;
+            const result = parseOr();
+            if (!tokens[index] || tokens[index].type !== 'paren' || tokens[index].paren !== ')') {
+                throw new Error('閉じていない括弧があります。');
+            }
+            index++;
+            return result;
+        }
 
-    return selectedSet || new Set();
+        throw new Error('条件または開き括弧を置いてください。');
+    }
+
+    function parseAnd() {
+        let result = parsePrimary();
+        while (tokens[index] && tokens[index].type === 'operator' && tokens[index].operator === 'AND') {
+            index++;
+            result = intersectSets(result, parsePrimary());
+        }
+        return result;
+    }
+
+    function parseOr() {
+        let result = parseAnd();
+        while (tokens[index] && tokens[index].type === 'operator' && tokens[index].operator === 'OR') {
+            index++;
+            result = unionSets(result, parseAnd());
+        }
+        return result;
+    }
+
+    const result = parseOr();
+    if (index !== tokens.length) {
+        throw new Error('式の並びが正しくありません。');
+    }
+    return result;
 }
 
 function updateVisibleStudents() {
@@ -1267,25 +1403,35 @@ function updateVisibleStudents() {
 }
 
 async function applyFilterConditions() {
-    const selectedSet = evaluateFilterConditions();
+    let selectedSet;
+    try {
+        selectedSet = evaluateFilterConditions();
+    } catch (error) {
+        filterSummary.textContent = error.message || '論理式が正しくありません。';
+        filterSummary.classList.add('is-error');
+        return;
+    }
+
     getStudentCheckboxItems().forEach((item) => {
         const input = item.querySelector('input');
         input.checked = selectedSet.has(input.value);
     });
     syncStudentControlStates();
     filterSummary.textContent = `${selectedSet.size}名の学習者を選択しています。`;
+    filterSummary.classList.remove('is-error');
     await refreshQuestionFilters();
     loadData(true);
 }
 
 function resetFilterConditions() {
     filterBuilder.innerHTML = '';
-    createFilterConditionRow();
+    createFilterToken('condition');
     getStudentCheckboxItems().forEach((item) => {
         item.querySelector('input').checked = true;
     });
     updateVisibleStudents();
     filterSummary.textContent = 'すべての学習者を表示しています。';
+    filterSummary.classList.remove('is-error');
 }
 
 function syncStudentControlStates() {
@@ -1654,29 +1800,23 @@ featureXSelect.addEventListener('change', () => loadData(true));
 featureYSelect.addEventListener('change', () => loadData(false));
 loadButton.addEventListener('click', () => loadData(true));
 addFilterConditionButton.addEventListener('click', () => {
-    createFilterConditionRow('AND', 'class');
+    createFilterToken('condition');
 });
+addFilterAndButton.addEventListener('click', () => createFilterToken('operator', 'AND'));
+addFilterOrButton.addEventListener('click', () => createFilterToken('operator', 'OR'));
+addFilterOpenButton.addEventListener('click', () => createFilterToken('paren', '('));
+addFilterCloseButton.addEventListener('click', () => createFilterToken('paren', ')'));
 applyFilterConditionsButton.addEventListener('click', applyFilterConditions);
 resetFilterConditionsButton.addEventListener('click', async () => {
     resetFilterConditions();
     await refreshQuestionFilters();
     loadData(true);
 });
-filterBuilder.addEventListener('change', (event) => {
-    const row = event.target.closest('.filter-condition-row');
-    if (!row) {
-        return;
-    }
-    if (event.target.classList.contains('filter-type')) {
-        updateFilterValueOptions(row);
-    }
-});
 filterBuilder.addEventListener('click', (event) => {
-    if (!event.target.classList.contains('filter-row-remove')) {
+    if (!event.target.classList.contains('filter-token-remove')) {
         return;
     }
-    event.target.closest('.filter-condition-row').remove();
-    syncFilterRowControls();
+    event.target.closest('.filter-token').remove();
 });
 selectAllVisible.addEventListener('change', async (event) => {
     getStudentCheckboxItems()
