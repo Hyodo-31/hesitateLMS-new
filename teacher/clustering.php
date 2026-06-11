@@ -116,7 +116,10 @@ function getClusteringFeatureColumns(mysqli $conn, array $fallbackFeatureColumns
 
 $featureColumns = getClusteringFeatureColumns($conn, $fallbackFeatureColumns);
 $studentsByClass = [];
+$studentsByClassId = [];
 $teacherClasses = [];
+$teacherGroups = [];
+$studentsByGroup = [];
 
 $stmtClasses = $conn->prepare(
     'SELECT c.ClassID, c.ClassName
@@ -153,8 +156,46 @@ if (!empty($teacherClasses)) {
         $resultStudents = $stmtStudents->get_result();
         while ($row = $resultStudents->fetch_assoc()) {
             $studentsByClass[$row['ClassName']][] = $row;
+            $classKey = (string)$row['ClassID'];
+            if (!isset($studentsByClassId[$classKey])) {
+                $studentsByClassId[$classKey] = [];
+            }
+            $studentsByClassId[$classKey][] = (string)$row['uid'];
         }
         $stmtStudents->close();
+    }
+}
+
+$stmtGroups = $conn->prepare(
+    'SELECT group_id, group_name
+     FROM `groups`
+     WHERE TID = ?
+     ORDER BY created_at DESC, group_id DESC'
+);
+if ($stmtGroups) {
+    $stmtGroups->bind_param('s', $teacherId);
+    $stmtGroups->execute();
+    $resultGroups = $stmtGroups->get_result();
+    while ($row = $resultGroups->fetch_assoc()) {
+        $teacherGroups[] = $row;
+        $studentsByGroup[(string)$row['group_id']] = [];
+    }
+    $stmtGroups->close();
+}
+
+if (!empty($teacherGroups)) {
+    $groupIds = array_map('intval', array_column($teacherGroups, 'group_id'));
+    $groupPlaceholders = implode(',', array_fill(0, count($groupIds), '?'));
+    $groupTypes = str_repeat('i', count($groupIds));
+    $stmtGroupStudents = $conn->prepare("SELECT group_id, uid FROM group_members WHERE group_id IN ({$groupPlaceholders})");
+    if ($stmtGroupStudents) {
+        $stmtGroupStudents->bind_param($groupTypes, ...$groupIds);
+        $stmtGroupStudents->execute();
+        $resultGroupStudents = $stmtGroupStudents->get_result();
+        while ($row = $resultGroupStudents->fetch_assoc()) {
+            $studentsByGroup[(string)$row['group_id']][] = (string)$row['uid'];
+        }
+        $stmtGroupStudents->close();
     }
 }
 
@@ -284,6 +325,86 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             padding: 0;
         }
 
+        .logic-filter-panel {
+            margin: 14px 0;
+            padding: 12px;
+            border: 1px solid #d8dee4;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+        .logic-filter-panel h4 { margin: 0 0 10px; color: #243447; }
+        .logic-filter-parts,
+        .logic-filter-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .logic-filter-parts button,
+        .logic-filter-actions button {
+            min-height: 34px;
+            padding: 0 12px;
+            border: 1px solid #b7c3d0;
+            border-radius: 6px;
+            background: #fff;
+            color: #243447;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .logic-filter-insert-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #475569;
+            font-size: .9rem;
+            font-weight: 700;
+        }
+        .logic-filter-builder {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 48px;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #d8dee4;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .logic-filter-token {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            min-height: 34px;
+            padding: 4px 6px 4px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            font-weight: 700;
+        }
+        .logic-filter-token select {
+            min-height: 28px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+        }
+        .logic-filter-kind { min-width: 76px; }
+        .logic-filter-token.operator { background: #ecfeff; border-color: #99f6e4; color: #0f766e; }
+        .logic-filter-token.not { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+        .logic-filter-token.paren { background: #f1f5f9; }
+        .logic-filter-remove {
+            width: 26px;
+            height: 26px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .logic-filter-summary { margin: 0; color: #475569; font-weight: 700; }
+        .logic-filter-summary.is-error { color: #b91c1c; }
+
         .cluster-chart-wrap {
             min-height: 360px;
             margin-top: 14px;
@@ -353,6 +474,29 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                             <div class="controls">
                                 <button type="button" class="secondary-button" id="select-all-students">全選択</button>
                                 <button type="button" class="secondary-button" id="clear-all-students">全解除</button>
+                            </div>
+                            <div class="logic-filter-panel" id="student-logic-filter-panel">
+                                <h4>論理式で学習者を絞り込み</h4>
+                                <div class="logic-filter-parts">
+                                    <button type="button" data-add-filter="condition">対象を追加</button>
+                                    <button type="button" data-add-filter="and">AND</button>
+                                    <button type="button" data-add-filter="or">OR</button>
+                                    <button type="button" data-add-filter="not">NOT</button>
+                                    <button type="button" data-add-filter="open">(</button>
+                                    <button type="button" data-add-filter="close">)</button>
+                                    <span class="logic-filter-insert-control">
+                                        <label>追加位置</label>
+                                        <select class="logic-filter-insert-position"></select>
+                                    </span>
+                                </div>
+                                <div class="logic-filter-builder" id="student-logic-filter-builder"></div>
+                                <div class="logic-filter-actions">
+                                    <button type="button" id="apply-student-logic-filter">絞り込みを適用</button>
+                                    <button type="button" id="reset-student-logic-filter">リセット</button>
+                                    <button type="button" class="logic-filter-trim">追加位置から後ろを削除</button>
+                                    <button type="button" class="logic-filter-clear">式を空にする</button>
+                                    <p class="logic-filter-summary" id="student-logic-filter-summary">すべての学習者を対象にしています。</p>
+                                </div>
                             </div>
                             <div class="student-selector checkbox-section">
                                 <?php foreach ($studentsByClass as $className => $students): ?>
@@ -439,9 +583,202 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         const runButton = document.getElementById('run-clustering');
         let clusterChart = null;
         let latestClusters = {};
+        const studentIdsByClass = <?= json_encode((object)$studentsByClassId, JSON_UNESCAPED_UNICODE) ?>;
+        const studentIdsByGroup = <?= json_encode((object)$studentsByGroup, JSON_UNESCAPED_UNICODE) ?>;
+        const classFilterOptions = <?= json_encode($teacherClasses, JSON_UNESCAPED_UNICODE) ?>;
+        const groupFilterOptions = <?= json_encode($teacherGroups, JSON_UNESCAPED_UNICODE) ?>;
 
         function selectedValues(selector) {
             return Array.from(document.querySelectorAll(selector + ':checked')).map((input) => input.value);
+        }
+
+        function setupStudentLogicFilter() {
+            const panel = document.getElementById('student-logic-filter-panel');
+            const builder = document.getElementById('student-logic-filter-builder');
+            const summary = document.getElementById('student-logic-filter-summary');
+            if (!panel || !builder || !summary) return;
+            const insertPosition = panel.querySelector('.logic-filter-insert-position');
+            const trimButton = panel.querySelector('.logic-filter-trim');
+            const clearButton = panel.querySelector('.logic-filter-clear');
+            const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+            const allStudentIds = () => Array.from(document.querySelectorAll('.student-checkbox')).map(input => input.value);
+            const targetOptions = () => [
+                ...classFilterOptions.map(item => ({ value: `class:${item.ClassID}`, label: `クラス: ${item.ClassName}` })),
+                ...groupFilterOptions.map(item => ({ value: `group:${item.group_id}`, label: `グループ: ${item.group_name}` }))
+            ];
+            const optionHtml = () => {
+                const options = targetOptions();
+                return options.length === 0 ? '<option value="">対象がありません</option>' : options.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
+            };
+            const kindOptionsHtml = selectedKind => [
+                ['condition', '対象'], ['and', 'AND'], ['or', 'OR'], ['not', 'NOT'], ['open', '('], ['close', ')']
+            ].map(([value, label]) => `<option value="${value}"${value === selectedKind ? ' selected' : ''}>${label}</option>`).join('');
+            const tokenLabel = token => {
+                const kind = token.dataset.kind;
+                if (kind === 'condition') {
+                    const select = token.querySelector('.logic-filter-target');
+                    return select?.options[select.selectedIndex]?.textContent || '対象';
+                }
+                if (kind === 'open') return '(';
+                if (kind === 'close') return ')';
+                return token.dataset.operator || kind.toUpperCase();
+            };
+            const updateInsertOptions = () => {
+                const current = insertPosition.value;
+                const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
+                insertPosition.innerHTML = ['<option value="">末尾に追加</option>']
+                    .concat(tokens.map((token, index) => `<option value="${index}">${index + 1}個目の前 (${escapeHtml(tokenLabel(token))})</option>`))
+                    .join('');
+                if (current !== '' && Number(current) < tokens.length) insertPosition.value = current;
+            };
+            const renderToken = (token, kind) => {
+                token.className = 'logic-filter-token';
+                token.dataset.kind = kind;
+                delete token.dataset.operator;
+                const kindSelect = `<select class="logic-filter-kind">${kindOptionsHtml(kind)}</select>`;
+                if (kind === 'condition') {
+                    token.innerHTML = `${kindSelect}<select class="logic-filter-target">${optionHtml()}</select><button type="button" class="logic-filter-remove">x</button>`;
+                } else if (kind === 'open' || kind === 'close') {
+                    token.classList.add('paren');
+                    token.innerHTML = `${kindSelect}<span>${kind === 'open' ? '(' : ')'}</span><button type="button" class="logic-filter-remove">x</button>`;
+                } else {
+                    token.classList.add('operator');
+                    if (kind === 'not') token.classList.add('not');
+                    token.dataset.operator = kind.toUpperCase();
+                    token.innerHTML = `${kindSelect}<span>${kind.toUpperCase()}</span><button type="button" class="logic-filter-remove">x</button>`;
+                }
+            };
+            const addToken = kind => {
+                const token = document.createElement('span');
+                renderToken(token, kind);
+                const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
+                const position = insertPosition.value !== '' ? Number(insertPosition.value) : tokens.length;
+                if (Number.isInteger(position) && position >= 0 && position < tokens.length) {
+                    builder.insertBefore(token, tokens[position]);
+                    insertPosition.value = String(position + 1);
+                } else {
+                    builder.appendChild(token);
+                }
+                updateInsertOptions();
+            };
+            const getTokens = () => Array.from(builder.querySelectorAll('.logic-filter-token')).map(token => {
+                const kind = token.dataset.kind;
+                if (kind === 'condition') {
+                    const [targetType, targetId] = token.querySelector('.logic-filter-target').value.split(':');
+                    return { type: 'condition', targetType, targetId };
+                }
+                if (kind === 'open' || kind === 'close') return { type: 'paren', paren: kind === 'open' ? '(' : ')' };
+                return { type: 'operator', operator: token.dataset.operator };
+            });
+            const setForCondition = (type, id) => {
+                const available = new Set(allStudentIds());
+                const source = type === 'group' ? studentIdsByGroup : studentIdsByClass;
+                return new Set((source[String(id)] || []).map(String).filter(uid => available.has(uid)));
+            };
+            const complement = source => {
+                const selected = new Set(source);
+                return new Set(allStudentIds().filter(uid => !selected.has(uid)));
+            };
+            const evaluate = () => {
+                const list = getTokens();
+                if (list.length === 0) return new Set(allStudentIds());
+                let index = 0;
+                const primary = () => {
+                    const token = list[index];
+                    if (!token) throw new Error('条件が途中で終わっています。');
+                    if (token.type === 'operator' && token.operator === 'NOT') {
+                        index++;
+                        return complement(primary());
+                    }
+                    if (token.type === 'paren' && token.paren === '(') {
+                        index++;
+                        const result = orExpr();
+                        if (!list[index] || list[index].type !== 'paren' || list[index].paren !== ')') throw new Error('閉じ括弧を置いてください。');
+                        index++;
+                        return result;
+                    }
+                    if (token.type === 'condition') {
+                        index++;
+                        if (!token.targetType || !token.targetId) throw new Error('対象を選択してください。');
+                        return setForCondition(token.targetType, token.targetId);
+                    }
+                    throw new Error('条件または括弧を置いてください。');
+                };
+                const andExpr = () => {
+                    let result = primary();
+                    while (list[index]?.type === 'operator' && list[index].operator === 'AND') {
+                        index++;
+                        const right = primary();
+                        result = new Set([...result].filter(uid => right.has(uid)));
+                    }
+                    return result;
+                };
+                const orExpr = () => {
+                    let result = andExpr();
+                    while (list[index]?.type === 'operator' && list[index].operator === 'OR') {
+                        index++;
+                        result = new Set([...result, ...andExpr()]);
+                    }
+                    return result;
+                };
+                const result = orExpr();
+                if (index !== list.length) throw new Error('式の並びを確認してください。');
+                return result;
+            };
+            panel.querySelectorAll('[data-add-filter]').forEach(button => button.addEventListener('click', () => addToken(button.dataset.addFilter)));
+            builder.addEventListener('click', event => {
+                if (event.target.classList.contains('logic-filter-remove')) {
+                    event.target.closest('.logic-filter-token').remove();
+                    updateInsertOptions();
+                }
+            });
+            builder.addEventListener('change', event => {
+                const token = event.target.closest('.logic-filter-token');
+                if (!token) return;
+                if (event.target.classList.contains('logic-filter-kind')) renderToken(token, event.target.value);
+                updateInsertOptions();
+            });
+            trimButton.addEventListener('click', () => {
+                if (insertPosition.value === '') {
+                    summary.textContent = '削除を始める追加位置を選択してください。';
+                    summary.classList.add('is-error');
+                    return;
+                }
+                const start = Number(insertPosition.value);
+                Array.from(builder.querySelectorAll('.logic-filter-token')).forEach((token, index) => { if (index >= start) token.remove(); });
+                updateInsertOptions();
+                summary.textContent = `${start + 1}個目以降の部品を削除しました。`;
+                summary.classList.remove('is-error');
+            });
+            clearButton.addEventListener('click', () => {
+                builder.innerHTML = '';
+                updateInsertOptions();
+                summary.textContent = '式を空にしました。空のまま適用すると、すべての学習者が対象になります。';
+                summary.classList.remove('is-error');
+            });
+            document.getElementById('apply-student-logic-filter')?.addEventListener('click', () => {
+                try {
+                    const selected = evaluate();
+                    document.querySelectorAll('.student-checkbox').forEach(input => { input.checked = selected.has(input.value); });
+                    document.querySelectorAll('.select-class-students').forEach(input => {
+                        const items = Array.from(document.querySelectorAll(`.student-checkbox[data-class-id="${input.dataset.classId}"]`));
+                        input.checked = items.length > 0 && items.every(item => item.checked);
+                    });
+                    summary.textContent = `${selected.size}名の学習者を選択しています。`;
+                    summary.classList.remove('is-error');
+                } catch (error) {
+                    summary.textContent = error.message || '論理式を確認してください。';
+                    summary.classList.add('is-error');
+                }
+            });
+            document.getElementById('reset-student-logic-filter')?.addEventListener('click', () => {
+                builder.innerHTML = '';
+                setCheckboxes('.student-checkbox, .select-class-students', true);
+                summary.textContent = 'すべての学習者を対象にしています。';
+                summary.classList.remove('is-error');
+                addToken('condition');
+            });
+            addToken('condition');
         }
 
         function setStatus(message, isError = false) {
@@ -495,6 +832,8 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                 }
             });
         });
+
+        setupStudentLogicFilter();
 
         runButton?.addEventListener('click', async () => {
             const studentIDs = selectedValues('.student-checkbox');

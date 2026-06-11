@@ -13,6 +13,38 @@ if (empty($_SESSION['MemberID'])) {
     exit;
 }
 
+$logic_filter_groups = [];
+$logic_filter_students_by_group = [];
+if ($teacher_id) {
+    $stmt_logic_groups = $conn->prepare("SELECT group_id, group_name FROM `groups` WHERE TID = ? ORDER BY created_at DESC, group_id DESC");
+    if ($stmt_logic_groups) {
+        $stmt_logic_groups->bind_param("s", $teacher_id);
+        $stmt_logic_groups->execute();
+        $logic_group_result = $stmt_logic_groups->get_result();
+        while ($group_row = $logic_group_result->fetch_assoc()) {
+            $logic_filter_groups[] = $group_row;
+            $logic_filter_students_by_group[(string)$group_row['group_id']] = [];
+        }
+        $stmt_logic_groups->close();
+    }
+
+    if (!empty($logic_filter_groups)) {
+        $logic_group_ids = array_map('intval', array_column($logic_filter_groups, 'group_id'));
+        $logic_group_placeholders = implode(',', array_fill(0, count($logic_group_ids), '?'));
+        $logic_group_types = str_repeat('i', count($logic_group_ids));
+        $stmt_logic_members = $conn->prepare("SELECT group_id, uid FROM group_members WHERE group_id IN ($logic_group_placeholders)");
+        if ($stmt_logic_members) {
+            $stmt_logic_members->bind_param($logic_group_types, ...$logic_group_ids);
+            $stmt_logic_members->execute();
+            $logic_member_result = $stmt_logic_members->get_result();
+            while ($member_row = $logic_member_result->fetch_assoc()) {
+                $logic_filter_students_by_group[(string)$member_row['group_id']][] = (string)$member_row['uid'];
+            }
+            $stmt_logic_members->close();
+        }
+    }
+}
+
 // --- AJAXリクエストの処理 ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
@@ -434,6 +466,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .filter-group label {
             font-weight: normal;
         }
+
+        .logic-filter-panel {
+            margin: 14px 0;
+            padding: 12px;
+            border: 1px solid #d8dee4;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+        .logic-filter-panel h4 { margin: 0 0 10px; color: #243447; }
+        .logic-filter-parts,
+        .logic-filter-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .logic-filter-parts button,
+        .logic-filter-actions button {
+            min-height: 34px;
+            padding: 0 12px;
+            border: 1px solid #b7c3d0;
+            border-radius: 6px;
+            background: #fff;
+            color: #243447;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .logic-filter-insert-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #475569;
+            font-size: .9rem;
+            font-weight: 700;
+        }
+        .logic-filter-builder {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 48px;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #d8dee4;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .logic-filter-token {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            min-height: 34px;
+            padding: 4px 6px 4px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            font-weight: 700;
+        }
+        .logic-filter-token select {
+            min-height: 28px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+        }
+        .logic-filter-kind { min-width: 76px; }
+        .logic-filter-token.operator { background: #ecfeff; border-color: #99f6e4; color: #0f766e; }
+        .logic-filter-token.not { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+        .logic-filter-token.paren { background: #f1f5f9; }
+        .logic-filter-remove {
+            width: 26px;
+            height: 26px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .logic-filter-summary { margin: 0; color: #475569; font-weight: 700; }
+        .logic-filter-summary.is-error { color: #b91c1c; }
     </style>
 </head>
 
@@ -505,6 +617,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
+                            </div>
+                            <div class="logic-filter-panel" id="class-logic-filter-panel">
+                                <h4>論理式で学習者を絞り込み</h4>
+                                <div class="logic-filter-parts">
+                                    <button type="button" data-add-filter="condition">対象を追加</button>
+                                    <button type="button" data-add-filter="and">AND</button>
+                                    <button type="button" data-add-filter="or">OR</button>
+                                    <button type="button" data-add-filter="not">NOT</button>
+                                    <button type="button" data-add-filter="open">(</button>
+                                    <button type="button" data-add-filter="close">)</button>
+                                    <span class="logic-filter-insert-control">
+                                        <label>追加位置</label>
+                                        <select class="logic-filter-insert-position"></select>
+                                    </span>
+                                </div>
+                                <div class="logic-filter-builder" id="class-logic-filter-builder"></div>
+                                <div class="logic-filter-actions">
+                                    <button type="button" id="apply-class-logic-filter">絞り込みを適用</button>
+                                    <button type="button" id="reset-class-logic-filter">リセット</button>
+                                    <button type="button" class="logic-filter-trim">追加位置から後ろを削除</button>
+                                    <button type="button" class="logic-filter-clear">式を空にする</button>
+                                    <p class="logic-filter-summary" id="class-logic-filter-summary">すべての学習者を対象にしています。</p>
+                                </div>
                             </div>
                             <div id="class-student-checkbox-container" class="checkbox-section">
                                 <div class="checkbox-controls">
@@ -749,6 +884,216 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             let currentStudentDetailsData = [];
             let currentStudentDetailsSort = { column: null, direction: 'asc' };
             let classWIDFetchDebounceTimer;
+            const logicFilterGroups = <?= json_encode($logic_filter_groups, JSON_UNESCAPED_UNICODE) ?>;
+            const logicFilterStudentsByGroup = <?= json_encode((object)$logic_filter_students_by_group, JSON_UNESCAPED_UNICODE) ?>;
+
+            function setupStudentLogicFilter({ panel, builder, summary, studentContainer, onApplied }) {
+                if (!panel || !builder || !summary || !studentContainer) return;
+                const insertPosition = panel.querySelector('.logic-filter-insert-position');
+                const trimButton = panel.querySelector('.logic-filter-trim');
+                const clearButton = panel.querySelector('.logic-filter-clear');
+                const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+                const getStudentItems = () => Array.from(studentContainer.querySelectorAll('.checkbox-item'));
+                const allStudentIds = () => getStudentItems().map(item => item.querySelector('input[type="checkbox"]').value);
+                const classOptions = () => Array.from(studentContainer.querySelectorAll('.select-all-class')).map(input => {
+                    const heading = input.closest('.class-group-header');
+                    return { id: String(input.dataset.classId), label: heading?.querySelector('h5')?.textContent?.trim() || `Class ${input.dataset.classId}` };
+                });
+                const classMap = () => {
+                    const map = {};
+                    getStudentItems().forEach(item => {
+                        const classId = String(item.dataset.classId);
+                        if (!map[classId]) map[classId] = [];
+                        map[classId].push(item.querySelector('input[type="checkbox"]').value);
+                    });
+                    return map;
+                };
+                const targetOptions = () => [
+                    ...classOptions().map(item => ({ value: `class:${item.id}`, label: `クラス: ${item.label}` })),
+                    ...logicFilterGroups.map(item => ({ value: `group:${item.group_id}`, label: `グループ: ${item.group_name}` }))
+                ];
+                const optionHtml = () => {
+                    const options = targetOptions();
+                    return options.length === 0 ? '<option value="">対象がありません</option>' : options.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
+                };
+                const kindOptionsHtml = selectedKind => [
+                    ['condition', '対象'], ['and', 'AND'], ['or', 'OR'], ['not', 'NOT'], ['open', '('], ['close', ')']
+                ].map(([value, label]) => `<option value="${value}"${value === selectedKind ? ' selected' : ''}>${label}</option>`).join('');
+                const tokenLabel = token => {
+                    const kind = token.dataset.kind;
+                    if (kind === 'condition') {
+                        const select = token.querySelector('.logic-filter-target');
+                        return select?.options[select.selectedIndex]?.textContent || '対象';
+                    }
+                    if (kind === 'open') return '(';
+                    if (kind === 'close') return ')';
+                    return token.dataset.operator || kind.toUpperCase();
+                };
+                const updateInsertOptions = () => {
+                    const current = insertPosition.value;
+                    const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
+                    insertPosition.innerHTML = ['<option value="">末尾に追加</option>']
+                        .concat(tokens.map((token, index) => `<option value="${index}">${index + 1}個目の前 (${escapeHtml(tokenLabel(token))})</option>`))
+                        .join('');
+                    if (current !== '' && Number(current) < tokens.length) insertPosition.value = current;
+                };
+                const renderToken = (token, kind) => {
+                    token.className = 'logic-filter-token';
+                    token.dataset.kind = kind;
+                    delete token.dataset.operator;
+                    const kindSelect = `<select class="logic-filter-kind">${kindOptionsHtml(kind)}</select>`;
+                    if (kind === 'condition') {
+                        token.innerHTML = `${kindSelect}<select class="logic-filter-target">${optionHtml()}</select><button type="button" class="logic-filter-remove">x</button>`;
+                    } else if (kind === 'open' || kind === 'close') {
+                        token.classList.add('paren');
+                        token.innerHTML = `${kindSelect}<span>${kind === 'open' ? '(' : ')'}</span><button type="button" class="logic-filter-remove">x</button>`;
+                    } else {
+                        token.classList.add('operator');
+                        if (kind === 'not') token.classList.add('not');
+                        token.dataset.operator = kind.toUpperCase();
+                        token.innerHTML = `${kindSelect}<span>${kind.toUpperCase()}</span><button type="button" class="logic-filter-remove">x</button>`;
+                    }
+                };
+                const addToken = kind => {
+                    const token = document.createElement('span');
+                    renderToken(token, kind);
+                    const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
+                    const position = insertPosition.value !== '' ? Number(insertPosition.value) : tokens.length;
+                    if (Number.isInteger(position) && position >= 0 && position < tokens.length) {
+                        builder.insertBefore(token, tokens[position]);
+                        insertPosition.value = String(position + 1);
+                    } else {
+                        builder.appendChild(token);
+                    }
+                    updateInsertOptions();
+                };
+                const getTokens = () => Array.from(builder.querySelectorAll('.logic-filter-token')).map(token => {
+                    const kind = token.dataset.kind;
+                    if (kind === 'condition') {
+                        const [targetType, targetId] = token.querySelector('.logic-filter-target').value.split(':');
+                        return { type: 'condition', targetType, targetId };
+                    }
+                    if (kind === 'open' || kind === 'close') return { type: 'paren', paren: kind === 'open' ? '(' : ')' };
+                    return { type: 'operator', operator: token.dataset.operator };
+                });
+                const setForCondition = (type, id) => {
+                    const available = new Set(allStudentIds());
+                    const source = type === 'group' ? logicFilterStudentsByGroup : classMap();
+                    return new Set((source[String(id)] || []).map(String).filter(uid => available.has(uid)));
+                };
+                const complement = source => {
+                    const selected = new Set(source);
+                    return new Set(allStudentIds().filter(uid => !selected.has(uid)));
+                };
+                const evaluate = () => {
+                    const list = getTokens();
+                    if (list.length === 0) return new Set(allStudentIds());
+                    let index = 0;
+                    const primary = () => {
+                        const token = list[index];
+                        if (!token) throw new Error('条件が途中で終わっています。');
+                        if (token.type === 'operator' && token.operator === 'NOT') {
+                            index++;
+                            return complement(primary());
+                        }
+                        if (token.type === 'paren' && token.paren === '(') {
+                            index++;
+                            const result = orExpr();
+                            if (!list[index] || list[index].type !== 'paren' || list[index].paren !== ')') throw new Error('閉じ括弧を置いてください。');
+                            index++;
+                            return result;
+                        }
+                        if (token.type === 'condition') {
+                            index++;
+                            if (!token.targetType || !token.targetId) throw new Error('対象を選択してください。');
+                            return setForCondition(token.targetType, token.targetId);
+                        }
+                        throw new Error('条件または括弧を置いてください。');
+                    };
+                    const andExpr = () => {
+                        let result = primary();
+                        while (list[index]?.type === 'operator' && list[index].operator === 'AND') {
+                            index++;
+                            const right = primary();
+                            result = new Set([...result].filter(uid => right.has(uid)));
+                        }
+                        return result;
+                    };
+                    const orExpr = () => {
+                        let result = andExpr();
+                        while (list[index]?.type === 'operator' && list[index].operator === 'OR') {
+                            index++;
+                            result = new Set([...result, ...andExpr()]);
+                        }
+                        return result;
+                    };
+                    const result = orExpr();
+                    if (index !== list.length) throw new Error('式の並びを確認してください。');
+                    return result;
+                };
+                panel.querySelectorAll('[data-add-filter]').forEach(button => button.addEventListener('click', () => addToken(button.dataset.addFilter)));
+                builder.addEventListener('click', event => {
+                    if (event.target.classList.contains('logic-filter-remove')) {
+                        event.target.closest('.logic-filter-token').remove();
+                        updateInsertOptions();
+                    }
+                });
+                builder.addEventListener('change', event => {
+                    const token = event.target.closest('.logic-filter-token');
+                    if (!token) return;
+                    if (event.target.classList.contains('logic-filter-kind')) renderToken(token, event.target.value);
+                    updateInsertOptions();
+                });
+                trimButton.addEventListener('click', () => {
+                    if (insertPosition.value === '') {
+                        summary.textContent = '削除を始める追加位置を選択してください。';
+                        summary.classList.add('is-error');
+                        return;
+                    }
+                    const start = Number(insertPosition.value);
+                    Array.from(builder.querySelectorAll('.logic-filter-token')).forEach((token, index) => { if (index >= start) token.remove(); });
+                    updateInsertOptions();
+                    summary.textContent = `${start + 1}個目以降の部品を削除しました。`;
+                    summary.classList.remove('is-error');
+                });
+                clearButton.addEventListener('click', () => {
+                    builder.innerHTML = '';
+                    updateInsertOptions();
+                    summary.textContent = '式を空にしました。空のまま適用すると、すべての学習者が対象になります。';
+                    summary.classList.remove('is-error');
+                });
+                panel.querySelector('[id^="apply-"]').addEventListener('click', async () => {
+                    try {
+                        const selected = evaluate();
+                        getStudentItems().forEach(item => { item.querySelector('input[type="checkbox"]').checked = selected.has(item.querySelector('input[type="checkbox"]').value); });
+                        studentContainer.querySelectorAll('.select-all-class').forEach(input => {
+                            const items = getStudentItems().filter(item => item.dataset.classId === input.dataset.classId);
+                            input.checked = items.length > 0 && items.every(item => item.querySelector('input[type="checkbox"]').checked);
+                        });
+                        const selectAll = studentContainer.querySelector('.select-all');
+                        if (selectAll) selectAll.checked = getStudentItems().every(item => item.querySelector('input[type="checkbox"]').checked);
+                        summary.textContent = `${selected.size}名の学習者を選択しています。`;
+                        summary.classList.remove('is-error');
+                        if (onApplied) await onApplied();
+                    } catch (error) {
+                        summary.textContent = error.message || '論理式を確認してください。';
+                        summary.classList.add('is-error');
+                    }
+                });
+                panel.querySelector('[id^="reset-"]').addEventListener('click', async () => {
+                    builder.innerHTML = '';
+                    studentContainer.querySelectorAll('.checkbox-item input[type="checkbox"], .select-all-class, .select-all').forEach(input => { input.checked = true; });
+                    studentContainer.querySelectorAll('.checkbox-item').forEach(item => { item.style.display = 'block'; });
+                    studentContainer.querySelectorAll('.class-group-header').forEach(item => { item.style.display = 'flex'; });
+                    const classSelect = document.getElementById('class-filter-select');
+                    if (classSelect) classSelect.value = '';
+                    summary.textContent = 'すべての学習者を対象にしています。';
+                    summary.classList.remove('is-error');
+                    addToken('condition');
+                    if (onApplied) await onApplied();
+                });
+                addToken('condition');
+            }
 
             // --- 2. 担当クラスの結果表示 ---
             if (classStudentCheckboxContainer) {
@@ -771,6 +1116,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         classQuestionCheckboxContainer.innerHTML = '';
                     }
                 }
+
+                setupStudentLogicFilter({
+                    panel: document.getElementById('class-logic-filter-panel'),
+                    builder: document.getElementById('class-logic-filter-builder'),
+                    summary: document.getElementById('class-logic-filter-summary'),
+                    studentContainer: classStudentCheckboxContainer,
+                    onApplied: updateWIDListForClassSection
+                });
 
                 classStudentCheckboxContainer.addEventListener('change', e => {
                     const target = e.target;
