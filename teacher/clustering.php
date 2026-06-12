@@ -469,7 +469,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                     <section class="clustering-panel">
                         <h3>対象学習者</h3>
                         <?php if (empty($studentsByClass)): ?>
-                            <p>担当クラスに学習者が登録されていません。</p>
+                            <p>担当グループ(クラス)に学習者が登録されていません。</p>
                         <?php else: ?>
                             <div class="controls">
                                 <button type="button" class="secondary-button" id="select-all-students">全選択</button>
@@ -505,7 +505,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                                         <h4><?= htmlspecialchars($className, ENT_QUOTES, 'UTF-8') ?></h4>
                                         <label>
                                             <input type="checkbox" class="select-class-students" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>" checked>
-                                            このクラスを選択
+                                            このグループ(クラス)を選択
                                         </label>
                                     </div>
                                     <?php foreach ($students as $student): ?>
@@ -603,7 +603,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
             const allStudentIds = () => Array.from(document.querySelectorAll('.student-checkbox')).map(input => input.value);
             const targetOptions = () => [
-                ...classFilterOptions.map(item => ({ value: `class:${item.ClassID}`, label: `クラス: ${item.ClassName}` })),
+                ...classFilterOptions.map(item => ({ value: `class:${item.ClassID}`, label: `グループ(クラス): ${item.ClassName}` })),
                 ...groupFilterOptions.map(item => ({ value: `group:${item.group_id}`, label: `グループ: ${item.group_name}` }))
             ];
             const optionHtml = () => {

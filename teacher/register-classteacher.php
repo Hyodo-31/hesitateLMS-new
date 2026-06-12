@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= translate('register-classteacher.php_5行目_クラス管理') ?></title>
+    <title>グループ(クラス)管理</title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
     <link rel="stylesheet" href="../style/teacher_form_styles.css">
 </head>
@@ -20,30 +20,33 @@
             exit();
         }
         $teacher_id = $_SESSION['MemberID'];
-        $teacher_page_title = translate('register-classteacher.php_5行目_クラス管理');
+        $teacher_page_title = 'グループ(クラス)管理';
         include __DIR__ . '/teacher-menu.php';
     ?>
     <div class="main-content">
         <main class="page-content teacher-form-page">
             <section class="card teacher-form-card">
             <div class = "content-class">
-                <h2><?= translate('register-classteacher.php_38行目_クラス管理') ?></h2>
+                <h2>グループ(クラス)管理</h2>
+                <?php if (isset($_GET['required'])): ?>
+                    <p style="color: #b45309; font-weight: bold;">最初に担当グループ(クラス)を登録してください。登録が完了するまで、他の機能は利用できません。</p>
+                <?php endif; ?>
                 <p><?= translate('register-classteacher.php_39行目_ログイン中の教師ID') ?>: <?= htmlspecialchars($teacher_id, ENT_QUOTES, 'UTF-8') ?></p>
                 
                 <form action="submit-register-classteacher.php" method="post">
-                    <!-- 新しいクラスを作成 -->
+                    <!-- 新しいグループ(クラス)を作成 -->
                     <div id="create_class">
-                        <h3><?= translate('register-classteacher.php_44行目_新しいクラスを作成') ?></h3>
-                        <label for="new_class_name"><?= translate('register-classteacher.php_45行目_クラス名') ?></label>
-                        <input type="text" id="new_class_name" name="new_class_name" placeholder="<?= translate('register-classteacher.php_46行目_クラス名を入力してください') ?>">
+                        <h3>新しいグループ(クラス)を作成</h3>
+                        <label for="new_class_name">グループ(クラス)名</label>
+                        <input type="text" id="new_class_name" name="new_class_name" placeholder="グループ(クラス)名を入力してください">
                     </div>
 
                     <hr style="margin: 20px 0;">
 
-                    <!-- 担当クラスの選択 -->
+                    <!-- 担当グループ(クラス)の選択 -->
                     <div id="class_selection">
-                        <h3><?= translate('register-classteacher.php_52行目_担当クラスの選択') ?></h3>
-                        <p><?= translate('register-classteacher.php_53行目_担当する全てのクラスにチェックを入れてください。') ?></p>
+                        <h3>担当グループ(クラス)の選択</h3>
+                        <p>担当する全てのグループ(クラス)にチェックを入れてください。</p>
                         <div class="checkbox-group">
                             <?php
                                 // この教師に既に割り当てられているクラスIDを取得
@@ -68,7 +71,7 @@
                                         echo "<label for='class_{$row['ClassID']}'>{$row['ClassName']} (ID: {$row['ClassID']})</label></div>";
                                     }
                                 } else {
-                                    echo "<p>" . translate('register-classteacher.php_80行目_登録されているクラスがありません。') . "</p>";
+                                    echo "<p>登録されているグループ(クラス)がありません。</p>";
                                 }
                             ?>
                         </div>

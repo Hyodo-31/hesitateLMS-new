@@ -16,6 +16,25 @@
         require "../dbc.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
+        $teacher_id = $_SESSION['MemberID'] ?? null;
+        $teacher_classes = [];
+        if ($teacher_id) {
+            $sql = "SELECT ct.ClassID, c.ClassName
+                    FROM ClassTeacher ct
+                    JOIN classes c ON ct.ClassID = c.ClassID
+                    WHERE ct.TID = ?
+                    ORDER BY c.ClassName";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("s", $teacher_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                while ($row = $result->fetch_assoc()) {
+                    $teacher_classes[] = $row;
+                }
+                $stmt->close();
+            }
+        }
         $teacher_page_title = translate('teachertrue.php_45行目_新規学生登録');
         include __DIR__ . '/teacher-menu.php';
     ?>
@@ -23,6 +42,11 @@
         <main class="page-content teacher-form-page">
             <section class="card teacher-form-card">
             <div class = "content-class">
+                <?php if (empty($teacher_classes)): ?>
+                    <h2>担当グループ(クラス)登録が必要です</h2>
+                    <p>最初に担当グループ(クラス)を登録してください。登録が完了するまで、学習者登録はできません。</p>
+                    <p><a href="register-classteacher.php">担当グループ(クラス)登録へ</a></p>
+                <?php else: ?>
                 <form action="submit-register-student.php" method="post">
                     <!-- ID（8桁の一意の番号） -->
                     <div id = "studentID">
@@ -42,29 +66,19 @@
                         <input type="text" id="username" name="username" required>
                     </div>
                     
-                    <!-- 授業クラス（教師のデータベースと連動した授業ID） -->
+                    <!-- 授業グループ(クラス)（教師のデータベースと連動した授業ID） -->
                     <div id = "class">
-                        <label for="class_id"><?= translate('register-student.php_52行目_授業クラス') ?></label>
+                        <label for="class_id">授業グループ(クラス)</label>
                         <select id="class_id" name="class_id" required>
                             <!-- ここに教師のデータベースから取得した授業IDを表示する -->
-                            <?php 
-                                $teacher_id = $_SESSION['MemberID'];
-                                $sql = "SELECT ct.ClassID,c.ClassName
-                                        FROM ClassTeacher ct
-                                        JOIN classes c ON ct.ClassID = c.ClassID
-                                        WHERE ct.TID = ?";
-                                $stmt = $conn->prepare($sql);
-                                $stmt->bind_param("s", $teacher_id);
-                                $stmt->execute();
-                                $result = $stmt->get_result();
-                                while ($row = $result->fetch_assoc()) {
+                            <?php
+                                foreach ($teacher_classes as $row) {
                                     $class_id = $row['ClassID'];
                                     $class_name = $row['ClassName'];
                                     echo "<option value='{$class_id}'>" . translate('register-student.php_57行目_授業ID') . ": {$class_id} - {$class_name}</option>";
                                 }
-                                $stmt->close();
                             ?>
-                            <!-- 他のクラスも追加 -->
+                            <!-- 他のグループ(クラス)も追加 -->
                             </select>
                     </div>
                     
@@ -95,6 +109,7 @@
                     
                     <input type="submit" value="<?= translate('register-student.php_89行目_登録') ?>">
                 </form>
+                <?php endif; ?>
             </div>
             </section>
         </main>

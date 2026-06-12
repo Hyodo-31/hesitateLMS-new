@@ -580,7 +580,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             </section>
 
             <section class="card">
-                <h2>成績情報 (担当クラスのみ)
+                <h2>成績情報 (担当グループ(クラス)のみ)
                     <span class="info-icon">i
                         <div class="info-popup">
                             学習者の解答時の下記のような詳細な情報は、学習者の結果表示後に出現する"表示"リンクから飛べるマウス軌跡再現ページにて表示しております。<br>
@@ -590,7 +590,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 </h2>
 
                 <div class="grades-section">
-                    <h3>担当クラス学習者の結果表示</h3>
+                    <h3>担当グループ(クラス)学習者の結果表示</h3>
                     <?php
                     if ($teacher_id) {
                         $teacher_classes = [];
@@ -608,9 +608,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         if (!empty($teacher_classes)) {
                             ?>
                             <div class="controls">
-                                <label for="class-filter-select">クラスで絞り込み:</label>
+                                <label for="class-filter-select">グループ(クラス)で絞り込み:</label>
                                 <select id="class-filter-select">
-                                    <option value="">全てのクラス</option>
+                                    <option value="">全てのグループ(クラス)</option>
                                     <?php foreach ($teacher_classes as $class): ?>
                                         <option value="<?= htmlspecialchars($class['ClassID']) ?>">
                                             <?= htmlspecialchars($class['ClassName']) ?>
@@ -667,7 +667,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                                             echo '<div class="class-group-header">';
                                             echo '<h5>' . htmlspecialchars($class_name) . '</h5>';
-                                            echo '<label><input type="checkbox" class="select-all-class" data-class-id="' . $class_id . '" checked> このクラスを全て選択 / 解除</label>';
+                                            echo '<label><input type="checkbox" class="select-all-class" data-class-id="' . $class_id . '" checked> このグループ(クラス)を全て選択 / 解除</label>';
                                             echo '</div>';
 
                                             foreach ($students as $student) {
@@ -701,8 +701,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             </div>
                             <?php
                         } else {
-                            echo '<p>担当しているクラスに学習者がいません。もしくは担当しているクラスがありません。</p>';
-                            echo '<p><a href="register-classteacher.php">クラス登録</a>からクラスの作成や登録、<a href="register-student.php">新規学習者登録</a>からクラスに学習者の登録を行ってください。</p>';
+                            echo '<p>担当しているグループ(クラス)に学習者がいません。もしくは担当しているグループ(クラス)がありません。</p>';
+                            echo '<p><a href="register-classteacher.php">グループ(クラス)登録</a>からグループ(クラス)の作成や登録、<a href="register-student.php">新規学習者登録</a>からグループ(クラス)に学習者の登録を行ってください。</p>';
                         }
                     }
                     ?>
@@ -909,7 +909,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     return map;
                 };
                 const targetOptions = () => [
-                    ...classOptions().map(item => ({ value: `class:${item.id}`, label: `クラス: ${item.label}` })),
+                    ...classOptions().map(item => ({ value: `class:${item.id}`, label: `グループ(クラス): ${item.label}` })),
                     ...logicFilterGroups.map(item => ({ value: `group:${item.group_id}`, label: `グループ: ${item.group_name}` }))
                 ];
                 const optionHtml = () => {
@@ -1419,7 +1419,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 let tableHtml = `<table><thead><tr>
-                <th data-sort="ClassName">クラス名</th>
+                <th data-sort="ClassName">グループ(クラス)名</th>
                 <th data-sort="student_name">学習者名 (ID)</th>
                 <th data-sort="test_name">テスト名</th>
                 <th data-sort="WID">問題ID (回数)</th>

@@ -44,6 +44,7 @@
             <?php
                 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     //フォームから要素を取得
+                    $teacher_id = $_SESSION['MemberID'] ?? '';
                     $student_id = $_POST['student_id'];
                     $password = $_POST['password'];
                     $username = $_POST['username'];
@@ -51,7 +52,18 @@
                     $toeic_level = $_POST['toeic_level'];
                     $eiken_level = $_POST['eiken_level'];
 
-                    //SQL文を作成   
+                    $stmt_allowed_class = $conn->prepare("SELECT ClassID FROM classteacher WHERE TID = ? AND ClassID = ?");
+                    $stmt_allowed_class->bind_param("si", $teacher_id, $class_id);
+                    $stmt_allowed_class->execute();
+                    $result_allowed_class = $stmt_allowed_class->get_result();
+                    if ($result_allowed_class->num_rows === 0) {
+                        echo "担当グループ(クラス)を先に登録してください。登録済みの担当グループ(クラス)にのみ学習者を登録できます。";
+                        $stmt_allowed_class->close();
+                        exit();
+                    }
+                    $stmt_allowed_class->close();
+
+                    //SQL文を作成
                     $stmt = $conn->prepare("INSERT INTO students (uid, Pass, Name, ClassID, toeic_level, eiken_level) VALUES (?, ?, ?, ?, ?, ?)");
                     $stmt->bind_param("ssssss", $student_id, $password, $username, $class_id, $toeic_level, $eiken_level);
                     // クエリ実行と結果表示

@@ -234,7 +234,7 @@ if ($teacherId) {
         $groupPlaceholders = implode(',', array_fill(0, count($groupIds), '?'));
         $groupTypes = str_repeat('i', count($groupIds));
         $stmtGroupStudents = $conn->prepare(
-            "SELECT gm.group_id, gm.uid, COALESCE(s.Name, '') AS Name, s.ClassID, COALESCE(c.ClassName, 'クラス未設定') AS ClassName
+            "SELECT gm.group_id, gm.uid, COALESCE(s.Name, '') AS Name, s.ClassID, COALESCE(c.ClassName, 'グループ(クラス)未設定') AS ClassName
              FROM group_members gm
              LEFT JOIN students s ON gm.uid = s.uid
              LEFT JOIN classes c ON s.ClassID = c.ClassID
@@ -253,7 +253,7 @@ if ($teacherId) {
                 }
                 if (!isset($studentIndex[$uid])) {
                     $studentName = $row['Name'] !== '' ? $row['Name'] : $uid;
-                    $className = $row['ClassName'] !== '' ? $row['ClassName'] : 'クラス未設定';
+                    $className = $row['ClassName'] !== '' ? $row['ClassName'] : 'グループ(クラス)未設定';
                     $studentsByClass[$className][] = [
                         'uid' => $uid,
                         'Name' => $studentName,
@@ -998,7 +998,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <h2 class="filter-section-title">絞り込み条件</h2>
                     <span class="filter-help" aria-label="論理式の説明">ⓘ
                         <span class="filter-help-popup">
-                            論理式は、条件を AND・OR・NOT・括弧で組み合わせて対象を絞り込む書き方です。AND は両方、OR はどちらか、NOT はその条件に含まれない学習者を選びます。括弧を使うと先に計算する範囲を指定できます。例: (クラスA OR クラスB) AND NOT グループ1
+                            論理式は、条件を AND・OR・NOT・括弧で組み合わせて対象を絞り込む書き方です。AND は両方、OR はどちらか、NOT はその条件に含まれない学習者を選びます。括弧を使うと先に計算する範囲を指定できます。例: (グループ(クラス)A OR グループ(クラス)B) AND NOT グループ1
                         </span>
                     </span>
                 </span>
@@ -1040,7 +1040,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <?php $classId = $students[0]['ClassID']; ?>
                             <div class="class-group-header" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>">
                                 <h5><?= htmlspecialchars($className, ENT_QUOTES, 'UTF-8') ?></h5>
-                                <label><input type="checkbox" class="select-all-class" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>" checked> このクラスを全て選択 / 解除</label>
+                                <label><input type="checkbox" class="select-all-class" data-class-id="<?= htmlspecialchars($classId, ENT_QUOTES, 'UTF-8') ?>" checked> このグループ(クラス)を全て選択 / 解除</label>
                             </div>
                             <?php foreach ($students as $student): ?>
                                 <label class="checkbox-item" data-class-id="<?= htmlspecialchars($student['ClassID'], ENT_QUOTES, 'UTF-8') ?>">
@@ -1212,7 +1212,7 @@ function getFilterTargetOptions() {
     const classTargets = classFilterOptions.map((option) => ({
         type: 'class',
         value: `class:${option.ClassID}`,
-        label: `クラス: ${option.ClassName}`,
+        label: `グループ(クラス): ${option.ClassName}`,
     }));
     const groupTargets = groupFilterOptions.map((option) => ({
         type: 'group',

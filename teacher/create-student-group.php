@@ -16,6 +16,7 @@
         require "../dbc.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
+        $teacher_id = $_SESSION['MemberID'] ?? '';
         $teacher_page_title = translate('create-student-group.php_37行目_学生グループ作成');
         include __DIR__ . '/teacher-menu.php';
     ?>
@@ -147,6 +148,79 @@
                         </ul>
                     <button type="submit"><?= translate('create-student-group.php_141行目_グループを作成') ?></button>
                 </form>
+            </div>
+            </section>
+            <section class="card teacher-form-card teacher-wide-card">
+            <div class="content-class">
+            <h2>学習者の所属グループ(クラス)変更</h2>
+                <p>学習者グループ作成とは別の処理として、学習者が所属するグループ(クラス)を変更します。</p>
+                <?php
+                    $assigned_classes_for_move = [];
+                    $stmt_classes_for_move = $conn->prepare(
+                        "SELECT c.ClassID, c.ClassName
+                         FROM classteacher ct
+                         JOIN classes c ON ct.ClassID = c.ClassID
+                         WHERE ct.TID = ?
+                         ORDER BY c.ClassName"
+                    );
+                    if ($stmt_classes_for_move) {
+                        $stmt_classes_for_move->bind_param("s", $teacher_id);
+                        $stmt_classes_for_move->execute();
+                        $result_classes_for_move = $stmt_classes_for_move->get_result();
+                        while ($class_for_move = $result_classes_for_move->fetch_assoc()) {
+                            $assigned_classes_for_move[] = $class_for_move;
+                        }
+                        $stmt_classes_for_move->close();
+                    }
+
+                    $assigned_students_for_move = [];
+                    $stmt_students_for_move = $conn->prepare(
+                        "SELECT s.uid, s.Name, s.ClassID, c.ClassName
+                         FROM students s
+                         JOIN classes c ON s.ClassID = c.ClassID
+                         JOIN classteacher ct ON s.ClassID = ct.ClassID
+                         WHERE ct.TID = ?
+                         ORDER BY c.ClassName, s.uid"
+                    );
+                    if ($stmt_students_for_move) {
+                        $stmt_students_for_move->bind_param("s", $teacher_id);
+                        $stmt_students_for_move->execute();
+                        $result_students_for_move = $stmt_students_for_move->get_result();
+                        while ($student_for_move = $result_students_for_move->fetch_assoc()) {
+                            $assigned_students_for_move[] = $student_for_move;
+                        }
+                        $stmt_students_for_move->close();
+                    }
+                ?>
+                <?php if (empty($assigned_classes_for_move)): ?>
+                    <p>担当グループ(クラス)が登録されていません。先に<a href="register-classteacher.php">担当グループ(クラス)登録</a>を行ってください。</p>
+                <?php elseif (empty($assigned_students_for_move)): ?>
+                    <p>担当グループ(クラス)内に変更対象の学習者がいません。</p>
+                <?php else: ?>
+                    <form action="submit-update-student-class.php" method="post">
+                        <label for="move_student_uid">変更する学習者</label>
+                        <select id="move_student_uid" name="student_uid" required>
+                            <?php foreach ($assigned_students_for_move as $student_for_move): ?>
+                                <option value="<?= htmlspecialchars($student_for_move['uid'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <?= htmlspecialchars($student_for_move['Name'], ENT_QUOTES, 'UTF-8') ?>
+                                    (UID: <?= htmlspecialchars($student_for_move['uid'], ENT_QUOTES, 'UTF-8') ?> / 現在: <?= htmlspecialchars($student_for_move['ClassName'], ENT_QUOTES, 'UTF-8') ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <br><br>
+                        <label for="move_class_id">変更先グループ(クラス)</label>
+                        <select id="move_class_id" name="class_id" required>
+                            <?php foreach ($assigned_classes_for_move as $class_for_move): ?>
+                                <option value="<?= htmlspecialchars($class_for_move['ClassID'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <?= htmlspecialchars($class_for_move['ClassName'], ENT_QUOTES, 'UTF-8') ?>
+                                    (ID: <?= htmlspecialchars($class_for_move['ClassID'], ENT_QUOTES, 'UTF-8') ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <br><br>
+                        <button type="submit">所属グループ(クラス)を変更</button>
+                    </form>
+                <?php endif; ?>
             </div>
             </section>
             <section class="card teacher-form-card teacher-wide-card">

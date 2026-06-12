@@ -4,6 +4,7 @@ $teacher_menu_base_path = $teacher_menu_base_path ?? '';
 $teacher_menu_logout_path = $teacher_menu_logout_path ?? '../logout.php';
 $teacher_menu_teacher_name = '先生';
 $teacher_menu_teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
+$teacher_menu_has_assigned_class = false;
 
 if ($teacher_menu_teacher_id && isset($conn) && $conn instanceof mysqli) {
     $stmt_teacher_menu = $conn->prepare("SELECT TName FROM teachers WHERE TID = ?");
@@ -16,6 +17,15 @@ if ($teacher_menu_teacher_id && isset($conn) && $conn instanceof mysqli) {
         }
         $stmt_teacher_menu->close();
     }
+
+    $stmt_teacher_menu_classes = $conn->prepare("SELECT 1 FROM classteacher WHERE TID = ? LIMIT 1");
+    if ($stmt_teacher_menu_classes) {
+        $stmt_teacher_menu_classes->bind_param("s", $teacher_menu_teacher_id);
+        $stmt_teacher_menu_classes->execute();
+        $stmt_teacher_menu_classes->store_result();
+        $teacher_menu_has_assigned_class = $stmt_teacher_menu_classes->num_rows > 0;
+        $stmt_teacher_menu_classes->close();
+    }
 }
 
 if (!function_exists('teacher_menu_path')) {
@@ -26,6 +36,15 @@ if (!function_exists('teacher_menu_path')) {
         }
 
         $base_path = $GLOBALS['teacher_menu_base_path'] ?? '';
+        $has_assigned_class = $GLOBALS['teacher_menu_has_assigned_class'] ?? true;
+        $allowed_before_class_registration = [
+            'register-classteacher.php' => true,
+        ];
+        $path_page = basename(parse_url($path, PHP_URL_PATH) ?: $path);
+        if (!$has_assigned_class && !isset($allowed_before_class_registration[$path_page])) {
+            return htmlspecialchars($base_path . 'register-classteacher.php?required=1', ENT_QUOTES, 'UTF-8');
+        }
+
         return htmlspecialchars($base_path . $path, ENT_QUOTES, 'UTF-8');
     }
 }
@@ -68,7 +87,7 @@ if (!function_exists('teacher_menu_group_class')) {
             <ul class="submenu">
                 <li><a href="<?= teacher_menu_path('machineLearning_sample.php') ?>"<?= teacher_menu_link_attrs(['machineLearning_sample.php']) ?>>迷い推定・機械学習（問題単位）</a></li>
                 <li><a href="<?= teacher_menu_path('machineLearning_word.php') ?>"<?= teacher_menu_link_attrs(['machineLearning_word.php']) ?>>迷い推定・機械学習（単語単位）</a></li>
-                <li><a href="<?= teacher_menu_path('feature_correlation.php') ?>"<?= teacher_menu_link_attrs(['feature_correlation.php']) ?>>特徴量検索機能</a></li>
+                <li><a href="<?= teacher_menu_path('feature_correlation.php') ?>"<?= teacher_menu_link_attrs(['feature_correlation.php']) ?>>特徴量相関表示</a></li>
                 <li><a href="<?= teacher_menu_path('clustering.php') ?>"<?= teacher_menu_link_attrs(['clustering.php']) ?>>クラスタリング</a></li>
             </ul>
         </li>
@@ -77,7 +96,7 @@ if (!function_exists('teacher_menu_group_class')) {
             <ul class="submenu">
                 <li><a href="<?= teacher_menu_path('create-notification.php') ?>"<?= teacher_menu_link_attrs(['create-notification.php']) ?>>お知らせ作成</a></li>
                 <li><a href="<?= teacher_menu_path('register-student.php') ?>"<?= teacher_menu_link_attrs(['register-student.php']) ?>>新規学習者登録</a></li>
-                <li><a href="<?= teacher_menu_path('register-classteacher.php') ?>"<?= teacher_menu_link_attrs(['register-classteacher.php']) ?>>クラス登録</a></li>
+                <li><a href="<?= teacher_menu_path('register-classteacher.php') ?>"<?= teacher_menu_link_attrs(['register-classteacher.php']) ?>>グループ(クラス)登録</a></li>
             </ul>
         </li>
         <li class="<?= teacher_menu_group_class([]) ?>">
