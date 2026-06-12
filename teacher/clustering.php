@@ -543,7 +543,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                 <section class="clustering-panel" style="margin-top: 20px;">
                     <h3>条件</h3>
                     <div class="clustering-controls">
-                        <label class="control-field">
+                        <label class="control-field" id="cluster-count-field">
                             <span>クラスタ数</span>
                             <input type="number" id="cluster-count" min="2" max="10" value="2">
                         </label>
@@ -555,6 +555,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                                 <option value="gmeans">G-Means</option>
                             </select>
                         </label>
+                        <p class="clustering-status" id="cluster-method-note" style="margin: 0;"></p>
                         <button type="button" class="action-button" id="run-clustering">クラスタリング実行</button>
                     </div>
                     <div class="clustering-status" id="clustering-status"></div>
@@ -581,6 +582,10 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         const clusterListNode = document.getElementById('cluster-list');
         const saveClustersButton = document.getElementById('save-clusters');
         const runButton = document.getElementById('run-clustering');
+        const clusterCountField = document.getElementById('cluster-count-field');
+        const clusterCountInput = document.getElementById('cluster-count');
+        const clusterMethodSelect = document.getElementById('cluster-method');
+        const clusterMethodNote = document.getElementById('cluster-method-note');
         let clusterChart = null;
         let latestClusters = {};
         const studentIdsByClass = <?= json_encode((object)$studentsByClassId, JSON_UNESCAPED_UNICODE) ?>;
@@ -792,6 +797,20 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             });
         }
 
+        function updateClusterCountControl() {
+            const method = clusterMethodSelect?.value || 'kmeans';
+            const usesFixedClusterCount = method === 'kmeans';
+            clusterCountField?.classList.toggle('hidden', !usesFixedClusterCount);
+            if (clusterCountInput) {
+                clusterCountInput.disabled = !usesFixedClusterCount;
+            }
+            if (clusterMethodNote) {
+                clusterMethodNote.textContent = usesFixedClusterCount
+                    ? ''
+                    : 'X-Means / G-Means はデータに応じてクラスタ数を自動決定します。';
+            }
+        }
+
         document.getElementById('select-all-students')?.addEventListener('click', () => {
             setCheckboxes('.student-checkbox, .select-class-students', true);
         });
@@ -834,12 +853,14 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         });
 
         setupStudentLogicFilter();
+        clusterMethodSelect?.addEventListener('change', updateClusterCountControl);
+        updateClusterCountControl();
 
         runButton?.addEventListener('click', async () => {
             const studentIDs = selectedValues('.student-checkbox');
             const features = selectedValues('.feature-checkbox');
-            const clusterCount = document.getElementById('cluster-count').value;
-            const method = document.getElementById('cluster-method').value;
+            const method = clusterMethodSelect?.value || 'kmeans';
+            const clusterCount = method === 'kmeans' ? (clusterCountInput?.value || '2') : '';
 
             if (studentIDs.length < 2) {
                 setStatus('学習者を2名以上選択してください。', true);

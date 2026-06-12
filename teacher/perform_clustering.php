@@ -105,9 +105,9 @@ if (empty($_SESSION['MemberID']) && empty($_SESSION['TID'])) {
 $teacherId = (string)($_SESSION['TID'] ?? $_SESSION['MemberID']);
 $features = array_values(array_filter(array_map('trim', explode(',', $_POST['features'] ?? ''))));
 $studentIds = array_values(array_unique(array_filter(array_map('trim', explode(',', $_POST['studentIDs'] ?? '')))));
-$clusterCount = max(2, min(10, (int)($_POST['clusterCount'] ?? 2)));
 $method = $_POST['method'] ?? 'kmeans';
 $allowedMethods = ['kmeans' => true, 'xmeans' => true, 'gmeans' => true];
+$clusterCount = $method === 'kmeans' ? max(2, min(10, (int)($_POST['clusterCount'] ?? 2))) : 1;
 
 if (empty($features) || empty($studentIds)) {
     clusteringJsonResponse(['error' => '特徴量または学習者IDが不足しています。'], 400);

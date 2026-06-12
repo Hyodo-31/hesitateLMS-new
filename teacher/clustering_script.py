@@ -64,8 +64,8 @@ elif method == 'xmeans':
     from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 
     # --- X-Means ---
-    # 初期クラスタ中心を kmeans++ で抽出
-    initial_centers = kmeans_plusplus_initializer(scaled_features, cluster_count,random_state=42).initialize()
+    # 初期1クラスタから開始し、BIC に基づいてクラスタ数を自動決定する
+    initial_centers = kmeans_plusplus_initializer(scaled_features, 1, random_state=42).initialize()
     # X-means インスタンスを作成 (BIC を利用)
     xmeans_instance = xmeans(scaled_features, initial_centers, 
                              tolerance=0.0001, criterion=splitting_type.BAYESIAN_INFORMATION_CRITERION, ccore=True)
@@ -83,13 +83,10 @@ elif method == 'xmeans':
 
 elif method == 'gmeans':
     from pyclustering.cluster.gmeans import gmeans
-    from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 
     # --- G-Means ---
-    # 初期クラスタ中心を kmeans++ で抽出
-    initial_centers = kmeans_plusplus_initializer(scaled_features, 1).initialize()
-    # G-Means インスタンス (初期1クラスタから開始)
-    gmeans_instance = gmeans(scaled_features, 2, ccore=True)
+    # 正規性検定に基づいてクラスタ数を自動決定する
+    gmeans_instance = gmeans(scaled_features, 1, ccore=True)
     gmeans_instance.process()
     g_clusters = gmeans_instance.get_clusters()
     
