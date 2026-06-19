@@ -437,6 +437,32 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             color: #2c3e50;
         }
 
+        .cluster-name-field {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 10px;
+            color: #475569;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .cluster-name-input {
+            width: 100%;
+            min-height: 38px;
+            box-sizing: border-box;
+            padding: 7px 9px;
+            border: 1px solid #b7c3d0;
+            border-radius: 6px;
+            background: #fff;
+            color: #243447;
+            font: inherit;
+        }
+
+        .cluster-name-input:focus {
+            border-color: #2563eb;
+            outline: 2px solid rgba(37, 99, 235, 0.18);
+        }
+
         .cluster-group ul {
             margin: 0;
             padding-left: 18px;
@@ -911,16 +937,27 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         });
 
         saveClustersButton?.addEventListener('click', async () => {
-            const selectedClusters = Array.from(document.querySelectorAll('.cluster-checkbox:checked')).map((input) => input.value);
-            if (selectedClusters.length === 0) {
+            const selectedCheckboxes = Array.from(document.querySelectorAll('.cluster-checkbox:checked'));
+            if (selectedCheckboxes.length === 0) {
                 setStatus('グループ化するクラスタを選択してください。', true);
                 return;
             }
 
-            const payload = selectedClusters.map((clusterKey) => ({
-                group_name: `クラスタ ${clusterKey}`,
-                students: (latestClusters[clusterKey] || []).map((student) => student.id)
-            }));
+            const payload = [];
+            for (const checkbox of selectedCheckboxes) {
+                const clusterKey = checkbox.value;
+                const nameInput = checkbox.closest('.cluster-group')?.querySelector('.cluster-name-input');
+                const groupName = nameInput?.value.trim() || '';
+                if (groupName === '') {
+                    setStatus(`クラスタ ${clusterKey}のクラスタ名を入力してください。`, true);
+                    nameInput?.focus();
+                    return;
+                }
+                payload.push({
+                    group_name: groupName,
+                    students: (latestClusters[clusterKey] || []).map((student) => student.id)
+                });
+            }
 
             setStatus('グループを作成しています...');
             saveClustersButton.disabled = true;
@@ -964,6 +1001,19 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                 heading.appendChild(checkbox);
                 heading.appendChild(document.createTextNode(`クラスタ ${clusterKey} (${clusters[clusterKey].length}名)`));
                 group.appendChild(heading);
+
+                const nameLabel = document.createElement('label');
+                nameLabel.className = 'cluster-name-field';
+                nameLabel.appendChild(document.createTextNode('クラスタ名'));
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.className = 'cluster-name-input';
+                nameInput.value = `クラスタ ${clusterKey}`;
+                nameInput.placeholder = 'クラスタ名を入力';
+                nameInput.required = true;
+                nameInput.dataset.clusterKey = clusterKey;
+                nameLabel.appendChild(nameInput);
+                group.appendChild(nameLabel);
 
                 const list = document.createElement('ul');
                 clusters[clusterKey].forEach((student) => {

@@ -13,15 +13,43 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $clustersData = json_decode(file_get_contents('php://input'), true);
 
-    if (empty($clustersData)) {
+    if (!is_array($clustersData) || empty($clustersData)) {
+        http_response_code(400);
         echo translate('group_students.php_11行目_グループ化するデータがありません');
         exit();
+    }
+
+    $validatedClusters = [];
+    foreach ($clustersData as $cluster) {
+        if (!is_array($cluster)) {
+            http_response_code(400);
+            echo 'クラスタのデータ形式が正しくありません。';
+            exit();
+        }
+
+        $group_name = trim((string)($cluster['group_name'] ?? ''));
+        $students = $cluster['students'] ?? [];
+        if ($group_name === '') {
+            http_response_code(400);
+            echo 'クラスタ名を入力してください。';
+            exit();
+        }
+        if (!is_array($students) || empty($students)) {
+            http_response_code(400);
+            echo 'クラスタに学習者が登録されていません。';
+            exit();
+        }
+
+        $validatedClusters[] = [
+            'group_name' => $group_name,
+            'students' => array_values(array_unique($students)),
+        ];
     }
 
     $stmt_group = $conn->prepare("INSERT INTO `groups` (group_name, TID) VALUES (?, ?)");
     $stmt_member = $conn->prepare("INSERT INTO group_members (group_id, uid) VALUES (?, ?)");
 
-    foreach ($clustersData as $cluster) {
+    foreach ($validatedClusters as $cluster) {
         $group_name = $cluster['group_name'];
         $students = $cluster['students'];
 
