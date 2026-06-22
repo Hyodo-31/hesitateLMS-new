@@ -151,6 +151,52 @@ function appendWidFilter(string $sql, array $selectedWids, string &$types, array
 }
 
 $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
+$featureDescriptions = [
+    'Time' => '問題の解答開始から終了までにかかった時間です。',
+    'distance' => '解答中にマウスカーソルが移動した距離の合計です。',
+    'averageSpeed' => '解答中のマウスカーソルの平均移動速度です。',
+    'maxSpeed' => '解答中のマウスカーソルの最大移動速度です。',
+    'thinkingTime' => '解答開始から最初のドラッグまでの時間です。',
+    'answeringTime' => '最初のドラッグから解答終了までの時間です。',
+    'totalStopTime' => 'マウスカーソルが静止していた時間の合計です。',
+    'maxStopTime' => '1回のマウスカーソル静止のうち、最も長かった時間です。',
+    'stopcount' => '解答中にマウスカーソルが停止した回数です。',
+    'totalDDIntervalTime' => 'ドラッグ＆ドロップから次のドラッグ開始までの間隔時間の合計です。',
+    'maxDDIntervalTime' => 'ドラッグ＆ドロップ間の間隔時間の最大値です。',
+    'maxDDTime' => '1回のドラッグ＆ドロップにかかった時間の最大値です。',
+    'minDDTime' => '1回のドラッグ＆ドロップにかかった時間の最小値です。',
+    'DDCount' => 'ドラッグ＆ドロップを行った回数です。',
+    'groupingDDCount' => 'グルーピングされた単語をドラッグ＆ドロップした回数です。',
+    'groupingCountbool' => 'グルーピング機能を使用したかどうかを0または1で表します。',
+    'xUTurnCount' => 'マウスが横方向に折り返した回数です。',
+    'yUTurnCount' => 'マウスが縦方向に折り返した回数です。',
+    'xUTurnCountDD' => 'ドラッグ中にマウスが横方向へ折り返した回数です。',
+    'yUTurnCountDD' => 'ドラッグ中にマウスが縦方向へ折り返した回数です。',
+    'register_move_count1' => '単語をレジスタから別のレジスタへ移動した回数です。',
+    'register_move_count2' => '単語をレジスタからレジスタ外へ移動した回数です。',
+    'register_move_count3' => '単語をレジスタ外からレジスタへ移動した回数です。',
+    'register_move_count4' => '単語をレジスタ外の領域間で移動した回数です。',
+    'register01count1' => 'レジスタ間の移動があったかを0または1で表します。',
+    'register01count2' => 'レジスタからレジスタ外への移動があったかを0または1で表します。',
+    'register01count3' => 'レジスタ外からレジスタへの移動があったかを0または1で表します。',
+    'register01count4' => 'レジスタ外の領域間で移動があったかを0または1で表します。',
+    'registerDDCount' => 'レジスタの内外をまたぐ、またはレジスタ間のドラッグ＆ドロップ回数の合計です。',
+    'register_notDDCount' => 'レジスタに関する操作のうち、ドラッグ＆ドロップ以外の操作回数です。',
+    'FromlastdropToanswerTime' => '最後のドロップから解答終了までの時間です。',
+];
+
+foreach (range(1, 4) as $registerNumber) {
+    $featureDescriptions["register_fix_count{$registerNumber}"] = "レジスタ{$registerNumber}で単語の配置を修正した回数です。";
+    $featureDescriptions["register_delete_count{$registerNumber}"] = "レジスタ{$registerNumber}から単語を削除した回数です。";
+    $featureDescriptions["register_allDelete_count{$registerNumber}"] = "レジスタ{$registerNumber}の単語をすべて削除した回数です。";
+    $featureDescriptions["register_notallDelete_count{$registerNumber}"] = "レジスタ{$registerNumber}の単語を一部だけ削除した回数です。";
+}
+
+foreach ($featureColumns as $featureColumn) {
+    if (!isset($featureDescriptions[$featureColumn])) {
+        $featureDescriptions[$featureColumn] = "{$featureColumn} の計測値です。";
+    }
+}
 $teacherId = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
 $teacherClasses = [];
 $studentsByClass = [];
@@ -666,6 +712,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             min-width: 220px;
         }
 
+        .feature-label-wrap { display:flex; align-items:center; gap:6px; }
+        .feature-tooltip { position:relative; display:inline-flex; align-items:center; min-width:0; }
+        .feature-tooltip-icon { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border:1px solid #94a3b8; border-radius:50%; color:#2563eb; background:#fff; font-size:0.75rem; font-weight:800; line-height:1; cursor:help; }
+        .feature-tooltip-popup { position:absolute; left:0; top:calc(100% + 8px); z-index:20; display:none; width:min(340px, 76vw); padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; color:#243447; background:#fff; box-shadow:0 12px 24px rgba(15, 23, 42, 0.18); font-size:0.85rem; font-weight:500; line-height:1.55; text-align:left; white-space:normal; }
+        .feature-tooltip:hover .feature-tooltip-popup,
+        .feature-tooltip:focus-within .feature-tooltip-popup { display:block; }
+        .feature-select-tooltip > select { cursor:help; }
+
         .mode-toggle {
             display: inline-flex;
             overflow: hidden;
@@ -818,10 +872,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .correlation-table td:first-child {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow: visible;
         }
+
+        .ranking-feature-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:help; }
+        .ranking-feature-popup { position:fixed; z-index:10000; display:none; width:min(380px, calc(100vw - 24px)); max-height:calc(100vh - 24px); overflow-y:auto; box-sizing:border-box; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; color:#243447; background:#fff; box-shadow:0 12px 28px rgba(15, 23, 42, 0.24); font-size:0.85rem; font-weight:500; line-height:1.55; text-align:left; white-space:normal; pointer-events:none; }
+        .ranking-feature-popup.is-visible { display:block; }
 
         .correlation-table tbody tr {
             cursor: pointer;
@@ -972,21 +1028,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="control-group">
-                <label for="feature-x-select">特徴量X</label>
-                <select id="feature-x-select">
-                    <?php foreach ($featureColumns as $col): ?>
-                        <option value="<?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <span class="feature-label-wrap">
+                    <label for="feature-x-select">特徴量X</label>
+                    <span class="feature-tooltip">
+                        <span class="feature-tooltip-icon" tabindex="0" aria-label="選択中の特徴量Xの説明">ⓘ</span>
+                        <span class="feature-tooltip-popup" id="feature-x-description" role="tooltip"></span>
+                    </span>
+                </span>
+                <span class="feature-tooltip feature-select-tooltip">
+                    <select id="feature-x-select">
+                        <?php foreach ($featureColumns as $col): ?>
+                            <option value="<?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <span class="feature-tooltip-popup" id="feature-x-select-description" role="tooltip"></span>
+                </span>
             </div>
 
             <div class="control-group hidden" id="feature-y-control">
-                <label for="feature-y-select">特徴量Y</label>
-                <select id="feature-y-select">
-                    <?php foreach ($featureColumns as $col): ?>
-                        <option value="<?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <span class="feature-label-wrap">
+                    <label for="feature-y-select">特徴量Y</label>
+                    <span class="feature-tooltip">
+                        <span class="feature-tooltip-icon" tabindex="0" aria-label="選択中の特徴量Yの説明">ⓘ</span>
+                        <span class="feature-tooltip-popup" id="feature-y-description" role="tooltip"></span>
+                    </span>
+                </span>
+                <span class="feature-tooltip feature-select-tooltip">
+                    <select id="feature-y-select">
+                        <?php foreach ($featureColumns as $col): ?>
+                            <option value="<?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <span class="feature-tooltip-popup" id="feature-y-select-description" role="tooltip"></span>
+                </span>
             </div>
 
             <button id="load-btn" type="button">相関を表示</button>
@@ -1119,8 +1193,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 </div>
 
+<div class="ranking-feature-popup" id="ranking-feature-popup" role="tooltip"></div>
+
 <script>
 const featureColumns = <?= json_encode($featureColumns, JSON_UNESCAPED_UNICODE) ?>;
+const featureDescriptions = <?= json_encode($featureDescriptions, JSON_UNESCAPED_UNICODE) ?>;
 const classStudentIdsByClass = <?= json_encode((object)$studentsByClassId, JSON_UNESCAPED_UNICODE) ?>;
 const groupStudentIdsByGroup = <?= json_encode((object)$studentsByGroup, JSON_UNESCAPED_UNICODE) ?>;
 const classFilterOptions = <?= json_encode($teacherClasses, JSON_UNESCAPED_UNICODE) ?>;
@@ -1132,6 +1209,10 @@ const modeInputs = document.querySelectorAll('input[name="correlation-mode"]');
 const featureXSelect = document.getElementById('feature-x-select');
 const featureYSelect = document.getElementById('feature-y-select');
 const featureYControl = document.getElementById('feature-y-control');
+const featureXDescription = document.getElementById('feature-x-description');
+const featureXSelectDescription = document.getElementById('feature-x-select-description');
+const featureYDescription = document.getElementById('feature-y-description');
+const featureYSelectDescription = document.getElementById('feature-y-select-description');
 const loadButton = document.getElementById('load-btn');
 const correlationValue = document.getElementById('correlation-value');
 const countValue = document.getElementById('count-value');
@@ -1142,6 +1223,7 @@ const rankingPanel = document.getElementById('correlation-list-panel');
 const rankingTitle = document.getElementById('ranking-title');
 const rankingBaseLabel = document.getElementById('ranking-base-label');
 const rankingBody = document.getElementById('correlation-table-body');
+const rankingFeaturePopup = document.getElementById('ranking-feature-popup');
 const emptyList = document.getElementById('empty-list');
 const filterSection = document.getElementById('filter-section');
 const filterSectionToggle = document.getElementById('filter-section-toggle');
@@ -1699,6 +1781,48 @@ function formatCorrelation(value) {
     return number.toFixed(4);
 }
 
+function getFeatureDescription(feature) {
+    return featureDescriptions[feature] || `${feature} の計測値です。`;
+}
+
+function showRankingFeaturePopup(anchor, feature) {
+    const viewportMargin = 12;
+    const anchorGap = 8;
+    rankingFeaturePopup.textContent = getFeatureDescription(feature);
+    rankingFeaturePopup.classList.add('is-visible');
+    rankingFeaturePopup.style.left = `${viewportMargin}px`;
+    rankingFeaturePopup.style.top = `${viewportMargin}px`;
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const popupRect = rankingFeaturePopup.getBoundingClientRect();
+    const maxLeft = Math.max(viewportMargin, window.innerWidth - popupRect.width - viewportMargin);
+    const left = Math.min(Math.max(anchorRect.left, viewportMargin), maxLeft);
+    let top = anchorRect.bottom + anchorGap;
+
+    if (top + popupRect.height > window.innerHeight - viewportMargin) {
+        top = anchorRect.top - popupRect.height - anchorGap;
+    }
+    top = Math.max(viewportMargin, Math.min(top, window.innerHeight - popupRect.height - viewportMargin));
+
+    rankingFeaturePopup.style.left = `${left}px`;
+    rankingFeaturePopup.style.top = `${top}px`;
+}
+
+function hideRankingFeaturePopup() {
+    rankingFeaturePopup.classList.remove('is-visible');
+}
+
+function updateFeatureSelectDescriptions() {
+    const xDescription = getFeatureDescription(featureXSelect.value);
+    const yDescription = getFeatureDescription(featureYSelect.value);
+    featureXDescription.textContent = xDescription;
+    featureXSelectDescription.textContent = xDescription;
+    featureYDescription.textContent = yDescription;
+    featureYSelectDescription.textContent = yDescription;
+    featureXSelect.setAttribute('aria-description', xDescription);
+    featureYSelect.setAttribute('aria-description', yDescription);
+}
+
 function ensureDifferentFeaturePair() {
     if (featureColumns.length < 2) {
         return;
@@ -1723,6 +1847,7 @@ function syncControls() {
     if (isFeaturePair) {
         ensureDifferentFeaturePair();
     }
+    updateFeatureSelectDescriptions();
 }
 
 function setLoading(isLoading) {
@@ -1838,6 +1963,7 @@ function renderChart(points, xLabel, yLabel, mode) {
 function renderRanking(items) {
     const mode = getMode();
     const isUnderstandMode = mode === 'understand';
+    hideRankingFeaturePopup();
     rankingBody.innerHTML = '';
     emptyList.classList.toggle('hidden', items.length > 0);
     rankingBaseLabel.textContent = isUnderstandMode ? 'Understand(迷い度)' : featureXSelect.value;
@@ -1850,8 +1976,21 @@ function renderRanking(items) {
         row.classList.toggle('is-selected', feature === selectedFeature);
 
         const featureCell = document.createElement('td');
-        featureCell.textContent = feature;
-        featureCell.title = feature;
+        const featureTooltip = document.createElement('span');
+        featureTooltip.className = 'feature-tooltip';
+
+        const featureName = document.createElement('span');
+        featureName.className = 'ranking-feature-name';
+        featureName.textContent = feature;
+        featureName.tabIndex = 0;
+        featureName.setAttribute('aria-describedby', 'ranking-feature-popup');
+        featureName.addEventListener('mouseenter', () => showRankingFeaturePopup(featureName, feature));
+        featureName.addEventListener('mouseleave', hideRankingFeaturePopup);
+        featureName.addEventListener('focus', () => showRankingFeaturePopup(featureName, feature));
+        featureName.addEventListener('blur', hideRankingFeaturePopup);
+
+        featureTooltip.appendChild(featureName);
+        featureCell.appendChild(featureTooltip);
 
         const correlationCell = document.createElement('td');
         correlationCell.className = 'numeric';
@@ -1983,8 +2122,16 @@ async function loadData(refreshRanking = true) {
 modeInputs.forEach((input) => {
     input.addEventListener('change', () => loadData(true));
 });
-featureXSelect.addEventListener('change', () => loadData(true));
-featureYSelect.addEventListener('change', () => loadData(false));
+featureXSelect.addEventListener('change', () => {
+    updateFeatureSelectDescriptions();
+    loadData(true);
+});
+featureYSelect.addEventListener('change', () => {
+    updateFeatureSelectDescriptions();
+    loadData(false);
+});
+window.addEventListener('resize', hideRankingFeaturePopup);
+window.addEventListener('scroll', hideRankingFeaturePopup, { capture: true, passive: true });
 loadButton.addEventListener('click', () => loadData(true));
 addFilterConditionButton.addEventListener('click', () => {
     createFilterToken('condition');
