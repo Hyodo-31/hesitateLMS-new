@@ -14,6 +14,7 @@
     <?php
         //session_start(); 
         require "../dbc.php";
+        require_once __DIR__ . "/student-feature-tooltip.php";
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
         $teacher_id = $_SESSION['MemberID'] ?? '';
@@ -41,19 +42,52 @@
                     </div>
                     <div id="uid-checkbox-list" class="list-container">
                         <?php
-                        $sql_getuid = "SELECT s.uid, s.Name 
+                        $feature_select_sql = student_feature_average_select_sql($conn);
+                        $feature_join_sql = student_feature_average_join_sql($conn);
+                        $sql_getuid = "SELECT 
+                                        s.uid,
+                                        s.Name,
+                                        COALESCE(acc.accuracy, 0) AS accuracy,
+                                        COALESCE(acc.total_answers, 0) AS total_answers,
+                                        COALESCE(hes.hesitation_rate, 0) AS hesitation_rate,
+                                        {$feature_select_sql}
                                     FROM students s
                                     LEFT JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+                                    LEFT JOIN (
+                                        SELECT 
+                                            uid, 
+                                            (SUM(CASE WHEN TF = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS accuracy,
+                                            COUNT(*) AS total_answers
+                                        FROM linedata
+                                        GROUP BY uid
+                                    ) acc ON s.uid = acc.uid
+                                    LEFT JOIN (
+                                        SELECT 
+                                            uid,
+                                            (SUM(CASE WHEN Understand = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS hesitation_rate
+                                        FROM temporary_results
+                                        GROUP BY uid
+                                    ) hes ON s.uid = hes.uid
+                                    {$feature_join_sql}
                                     WHERE ct.TID = ?";
                         $stmt = $conn->prepare($sql_getuid);
                         $stmt->bind_param("i", $_SESSION['MemberID']);
                         $stmt->execute();
                         $result = $stmt->get_result();
                         while ($row = $result->fetch_assoc()) {
+                            $uid = htmlspecialchars($row['uid'], ENT_QUOTES, 'UTF-8');
+                            $name = htmlspecialchars($row['Name'], ENT_QUOTES, 'UTF-8');
+                            $student_tooltip = render_student_tooltip(
+                                $row,
+                                translate('create-student-group.php_134行目_正解率:'),
+                                translate('create-student-group.php_135行目_迷い率:'),
+                                translate('create-student-group.php_136行目_解答数:')
+                            );
                             echo "<div class='list-item'>
-                                    <label>
-                                        <input type='checkbox' class='uid-checkbox' name='uid[]' value='{$row['uid']}'> 
-                                        <span class='label-text'>" . translate('create-student-group.php_61行目_名前:') . "</span> {$row['Name']}
+                                    <label class='student-choice'>
+                                        <input type='checkbox' class='uid-checkbox' name='uid[]' value='{$uid}'> 
+                                        <span class='student-name'><span class='label-text'>" . translate('create-student-group.php_61行目_名前:') . "</span> {$name}</span>
+                                        {$student_tooltip}
                                     </label>
                                 </div>";
                         }
@@ -107,7 +141,8 @@
                                             s.Name,
                                             COALESCE(acc.accuracy, 0) AS accuracy,
                                             COALESCE(acc.total_answers, 0) AS total_answers,
-                                            COALESCE(hes.hesitation_rate, 0) AS hesitation_rate
+                                            COALESCE(hes.hesitation_rate, 0) AS hesitation_rate,
+                                            {$feature_select_sql}
                                         FROM students s
                                         LEFT JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
                                         LEFT JOIN (
@@ -125,6 +160,7 @@
                                             FROM temporary_results
                                             GROUP BY uid
                                         ) hes ON s.uid = hes.uid
+                                        {$feature_join_sql}
                                         WHERE ct.TID = ?;
 
                             ";
@@ -133,13 +169,19 @@
                             $stmt->execute();
                             $result = $stmt->get_result();
                             while ($row = $result->fetch_assoc()) {
+                                $uid = htmlspecialchars($row['uid'], ENT_QUOTES, 'UTF-8');
+                                $name = htmlspecialchars($row['Name'], ENT_QUOTES, 'UTF-8');
+                                $student_tooltip = render_student_tooltip(
+                                    $row,
+                                    translate('create-student-group.php_134行目_正解率:'),
+                                    translate('create-student-group.php_135行目_迷い率:'),
+                                    translate('create-student-group.php_136行目_解答数:')
+                                );
                                 echo "<li class='student-item'>
-                                        <label>
-                                            <input type='checkbox' name='students[]' value='{$row['uid']}'>
-                                            <p class='student-detail'><span class='label'>" . translate('create-student-group.php_133行目_名前:') . "</span> {$row['Name']}</p>
-                                            <p class='student-detail'><span class='label'>" . translate('create-student-group.php_134行目_正解率:') . "</span> {$row['accuracy']}%</p>
-                                            <p class='student-detail'><span class='label'>" . translate('create-student-group.php_135行目_迷い率:') . "</span> {$row['hesitation_rate']}%</p>
-                                            <p class='student-detail'><span class='label'>" . translate('create-student-group.php_136行目_解答数:') . "</span> {$row['total_answers']}</p>
+                                        <label class='student-choice'>
+                                            <input type='checkbox' name='students[]' value='{$uid}'>
+                                            <p class='student-detail student-name'><span class='label'>" . translate('create-student-group.php_133行目_名前:') . "</span> {$name}</p>
+                                            {$student_tooltip}
                                         </label>
                                     </li>";
                             }
