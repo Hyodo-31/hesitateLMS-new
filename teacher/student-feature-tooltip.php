@@ -108,7 +108,7 @@ function render_student_tooltip(array $row, string $accuracy_label, string $hesi
     $total_answers = htmlspecialchars($row['total_answers'], ENT_QUOTES, 'UTF-8');
     $feature_record_count = (int)($row['feature_record_count'] ?? 0);
 
-    $html = "<span class='student-tooltip' role='tooltip'>
+    $html = "<span class='student-feature-popup' role='tooltip' hidden>
                 <span>{$accuracy_label} {$accuracy}%</span>
                 <span>{$hesitation_label} {$hesitation_rate}%</span>
                 <span>{$answers_label} {$total_answers}</span>

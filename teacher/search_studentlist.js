@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const tooltip = choice.querySelector('.student-tooltip');
+        const tooltip = choice.querySelector('.student-feature-popup, .student-tooltip');
         if (!tooltip) {
             return;
         }
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const tooltip = choice.querySelector('.student-tooltip');
+        const tooltip = choice.querySelector('.student-feature-popup, .student-tooltip');
         if (!tooltip) {
             return;
         }

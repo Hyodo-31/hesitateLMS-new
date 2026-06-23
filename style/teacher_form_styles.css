@@ -304,29 +304,6 @@
     font-weight: 700;
 }
 
-.student-tooltip {
-    position: absolute;
-    left: 12px;
-    top: calc(100% + 8px);
-    z-index: 20;
-    display: grid;
-    gap: 4px;
-    min-width: 190px;
-    padding: 10px 12px;
-    border: 1px solid #bfdbfe;
-    border-radius: 8px;
-    background-color: #fff;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
-    color: #1f2937;
-    font-size: 0.9rem;
-    font-weight: 600;
-    line-height: 1.45;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-4px);
-    transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
 .student-floating-tooltip {
     position: fixed;
     z-index: 1000;
@@ -345,16 +322,6 @@
     font-weight: 600;
     line-height: 1.45;
     pointer-events: auto;
-}
-
-.student-choice:hover .student-tooltip,
-.student-choice:focus-within .student-tooltip {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.student-choice.tooltip-floating-active .student-tooltip {
-    opacity: 0;
 }
 
 .feature-tooltip-title {

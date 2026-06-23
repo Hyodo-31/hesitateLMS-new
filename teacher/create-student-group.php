@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= translate('create-student-group.php_6行目_教師用ダッシュボード') ?></title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
-    <link rel="stylesheet" href="../style/teacher_form_styles.css">
+    <link rel="stylesheet" href="../style/teacher_form_styles.css?v=<?= filemtime(__DIR__ . '/../style/teacher_form_styles.css') ?>">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
@@ -300,6 +300,6 @@
             </section>
         </main>
     </div>
-    <script src = "search_studentlist.js"></script>
+    <script src="search_studentlist.js?v=<?= filemtime(__DIR__ . '/search_studentlist.js') ?>"></script>
 </body>
 </html>
