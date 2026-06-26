@@ -12,6 +12,32 @@ $total_answers_min = $_POST['total_answers_min'] ?? 0;
 $total_answers_max = $_POST['total_answers_max'] ?? 99999999;
 $feature_select_sql = student_feature_average_select_sql($conn);
 $feature_join_sql = student_feature_average_join_sql($conn);
+$available_feature_columns = student_feature_columns();
+$feature_filter_logic = strtoupper($_POST['feature_filter_logic'] ?? 'AND');
+if (!in_array($feature_filter_logic, ['AND', 'OR'], true)) {
+    $feature_filter_logic = 'AND';
+}
+$feature_filters = [];
+$feature_table_exists = student_feature_table_exists($conn);
+foreach (($_POST['feature_filters'] ?? []) as $column => $condition) {
+    if (!$feature_table_exists || !isset($available_feature_columns[$column]) || empty($condition['enabled'])) {
+        continue;
+    }
+
+    $min = trim((string)($condition['min'] ?? ''));
+    $max = trim((string)($condition['max'] ?? ''));
+    $min_value = $min !== '' && is_numeric($min) ? (float)$min : null;
+    $max_value = $max !== '' && is_numeric($max) ? (float)$max : null;
+    if ($min_value === null && $max_value === null) {
+        continue;
+    }
+
+    $feature_filters[] = [
+        'column' => $column,
+        'min' => $min_value,
+        'max' => $max_value,
+    ];
+}
 
 $sql = "SELECT
             s.uid,
@@ -64,6 +90,32 @@ $sql .= " AND COALESCE(acc.total_answers, 0) BETWEEN ? AND ?";
 $params[] = $total_answers_min;
 $params[] = $total_answers_max;
 $types .= 'ii';
+
+if (!empty($feature_filters)) {
+    $feature_conditions = [];
+    foreach ($feature_filters as $feature_filter) {
+        $column_sql = "feat.avg_" . $feature_filter['column'];
+        $single_conditions = ["{$column_sql} IS NOT NULL"];
+
+        if ($feature_filter['min'] !== null) {
+            $single_conditions[] = "{$column_sql} >= ?";
+            $params[] = $feature_filter['min'];
+            $types .= 'd';
+        }
+
+        if ($feature_filter['max'] !== null) {
+            $single_conditions[] = "{$column_sql} <= ?";
+            $params[] = $feature_filter['max'];
+            $types .= 'd';
+        }
+
+        $feature_conditions[] = '(' . implode(' AND ', $single_conditions) . ')';
+    }
+
+    if (!empty($feature_conditions)) {
+        $sql .= ' AND (' . implode(" {$feature_filter_logic} ", $feature_conditions) . ')';
+    }
+}
 
 $stmt = $conn->prepare($sql);
 if ($stmt === false) {

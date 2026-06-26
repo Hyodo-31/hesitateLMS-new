@@ -12,7 +12,7 @@
 </head>
 <body>
     <?php
-        //session_start(); 
+        //session_start();
         require "../dbc.php";
         require_once __DIR__ . "/student-feature-tooltip.php";
         // セッション変数をクリアする（必要に応じて）
@@ -24,7 +24,7 @@
     <div class="main-content">
         <main class="page-content teacher-form-page">
             <section class="card teacher-form-card teacher-wide-card">
-            
+
 
             <div class="content-class">
             <h2><?= translate('create-student-group.php_37行目_学生グループ作成') ?></h2>
@@ -44,7 +44,7 @@
                         <?php
                         $feature_select_sql = student_feature_average_select_sql($conn);
                         $feature_join_sql = student_feature_average_join_sql($conn);
-                        $sql_getuid = "SELECT 
+                        $sql_getuid = "SELECT
                                         s.uid,
                                         s.Name,
                                         COALESCE(acc.accuracy, 0) AS accuracy,
@@ -54,15 +54,15 @@
                                     FROM students s
                                     LEFT JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
                                     LEFT JOIN (
-                                        SELECT 
-                                            uid, 
+                                        SELECT
+                                            uid,
                                             (SUM(CASE WHEN TF = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS accuracy,
                                             COUNT(*) AS total_answers
                                         FROM linedata
                                         GROUP BY uid
                                     ) acc ON s.uid = acc.uid
                                     LEFT JOIN (
-                                        SELECT 
+                                        SELECT
                                             uid,
                                             (SUM(CASE WHEN Understand = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS hesitation_rate
                                         FROM temporary_results
@@ -85,7 +85,7 @@
                             );
                             echo "<div class='list-item'>
                                     <label class='student-choice'>
-                                        <input type='checkbox' class='uid-checkbox' name='uid[]' value='{$uid}'> 
+                                        <input type='checkbox' class='uid-checkbox' name='uid[]' value='{$uid}'>
                                         <span class='student-name'><span class='label-text'>" . translate('create-student-group.php_61行目_名前:') . "</span> {$name}</span>
                                         {$student_tooltip}
                                     </label>
@@ -126,6 +126,33 @@
                     <input type="number" id="total_answers" name="total_answers_max" placeholder="<?= translate('create-student-group.php_96行目_最大値') ?>">
                     <br>
 
+                    <fieldset class="feature-filter-fieldset">
+                        <legend>特徴量による絞り込み</legend>
+                        <p class="feature-filter-help">絞り込みに使用する特徴量を選択し、各学習者の特徴量平均値の範囲を入力してください。</p>
+                        <div class="feature-filter-logic">
+                            <span>複数特徴量の条件:</span>
+                            <label><input type="radio" name="feature_filter_logic" value="AND" checked> AND</label>
+                            <label><input type="radio" name="feature_filter_logic" value="OR"> OR</label>
+                        </div>
+                        <div class="feature-filter-list">
+                            <?php foreach (student_feature_columns() as $feature_column => $feature_label): ?>
+                                <?php
+                                    $safe_feature_column = htmlspecialchars($feature_column, ENT_QUOTES, 'UTF-8');
+                                    $safe_feature_label = htmlspecialchars($feature_label, ENT_QUOTES, 'UTF-8');
+                                    $feature_input_id = 'feature_filter_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $feature_column);
+                                ?>
+                                <div class="feature-filter-row">
+                                    <label class="feature-filter-name" for="<?= $feature_input_id ?>_enabled">
+                                        <input type="checkbox" id="<?= $feature_input_id ?>_enabled" name="feature_filters[<?= $safe_feature_column ?>][enabled]" value="1">
+                                        <?= $safe_feature_label ?>
+                                    </label>
+                                    <input type="number" step="any" name="feature_filters[<?= $safe_feature_column ?>][min]" placeholder="<?= translate('create-student-group.php_86行目_最小値') ?>">
+                                    <input type="number" step="any" name="feature_filters[<?= $safe_feature_column ?>][max]" placeholder="<?= translate('create-student-group.php_87行目_最大値') ?>">
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </fieldset>
+
                     <button type="button" id="search-button"><?= translate('create-student-group.php_99行目_検索') ?></button>
                 </form>
                 <form action="submit-student-group.php" method="post">
@@ -136,7 +163,7 @@
                         <ul class="student-list" id="student-list">
                             <!-- PHPで全学生を取得して初期表示 -->
                             <?php
-                            $sql_getstudent = "SELECT 
+                            $sql_getstudent = "SELECT
                                             s.uid,
                                             s.Name,
                                             COALESCE(acc.accuracy, 0) AS accuracy,
@@ -146,15 +173,15 @@
                                         FROM students s
                                         LEFT JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
                                         LEFT JOIN (
-                                            SELECT 
-                                                uid, 
+                                            SELECT
+                                                uid,
                                                 (SUM(CASE WHEN TF = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS accuracy,
                                                 COUNT(*) AS total_answers
                                             FROM linedata
                                             GROUP BY uid
                                         ) acc ON s.uid = acc.uid
                                         LEFT JOIN (
-                                            SELECT 
+                                            SELECT
                                                 uid,
                                                 (SUM(CASE WHEN Understand = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS hesitation_rate
                                             FROM temporary_results
@@ -275,7 +302,7 @@
                     while ($group = $group_result->fetch_assoc()) {
                         echo "<li>";
                         echo "<strong>{$group['group_name']}</strong>";
-                        
+
                         // メンバーリストの取得
                         $member_result = $conn->query("SELECT students.Name FROM group_members JOIN students ON group_members.uid = students.uid WHERE group_members.group_id = {$group['group_id']}");
                         echo "<ul>";
