@@ -503,9 +503,8 @@ document.addEventListener('DOMContentLoaded', () => {
         floatingTooltip.style.top = `${margin}px`;
 
         const tooltipRect = floatingTooltip.getBoundingClientRect();
-        const availableRight = window.innerWidth - rect.left - margin;
-        const showRight = availableRight >= tooltipRect.width;
-        let left = showRight ? rect.left : window.innerWidth - tooltipRect.width - margin;
+        const centerOffset = Math.min(80, window.innerWidth * 0.08);
+        let left = ((window.innerWidth - tooltipRect.width) / 2) + centerOffset;
         let top = rect.bottom + 8;
 
         if (top + tooltipRect.height > window.innerHeight - margin) {
