@@ -18,6 +18,7 @@
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
         $teacher_id = $_SESSION['MemberID'] ?? '';
+        $student_feature_columns_for_filter = student_feature_columns();
         $teacher_page_title = translate('create-student-group.php_37行目_学生グループ作成');
         include __DIR__ . '/teacher-menu.php';
     ?>
@@ -112,91 +113,73 @@
                         });
                     </script>
 
-                    <label for="accuracy"><?= translate('create-student-group.php_85行目_正解率 (%):') ?></label>
-                    <input type="number" id="accuracy_min" name="accuracy_min" placeholder="<?= translate('create-student-group.php_86行目_最小値') ?>">
-                    <input type="number" id="accuracy_max" name="accuracy_max" placeholder="<?= translate('create-student-group.php_87行目_最大値') ?>">
-                    <br>
-                    <label for = "hesitation_rate"><?= translate('create-student-group.php_89行目_迷い率:') ?></label>
-                    <input type="number" id="hesitation_rate" name="hesitation_rate_min" placeholder="<?= translate('create-student-group.php_90行目_最小値') ?>">
-                    <input type="number" id="hesitation_rate" name="hesitation_rate_max" placeholder="<?= translate('create-student-group.php_91行目_最大値') ?>">
-                    <br>
+                    <fieldset class="basic-filter-fieldset">
+                        <legend>基本情報での絞り込み</legend>
+                        <div class="basic-filter-grid">
+                            <div class="basic-filter-item">
+                                <label for="accuracy_min"><?= translate('create-student-group.php_85行目_正解率 (%):') ?></label>
+                                <div class="basic-filter-range">
+                                    <input type="number" id="accuracy_min" name="accuracy_min" placeholder="<?= translate('create-student-group.php_86行目_最小値') ?>">
+                                    <input type="number" id="accuracy_max" name="accuracy_max" placeholder="<?= translate('create-student-group.php_87行目_最大値') ?>">
+                                </div>
+                            </div>
 
-                    <label for = "total_answers"><?= translate('create-student-group.php_94行目_問題解答数:') ?></label>
-                    <input type="number" id="total_answers" name="total_answers_min" placeholder="<?= translate('create-student-group.php_95行目_最小値') ?>">
-                    <input type="number" id="total_answers" name="total_answers_max" placeholder="<?= translate('create-student-group.php_96行目_最大値') ?>">
-                    <br>
+                            <div class="basic-filter-item">
+                                <label for="hesitation_rate_min"><?= translate('create-student-group.php_89行目_迷い率:') ?></label>
+                                <div class="basic-filter-range">
+                                    <input type="number" id="hesitation_rate_min" name="hesitation_rate_min" placeholder="<?= translate('create-student-group.php_90行目_最小値') ?>">
+                                    <input type="number" id="hesitation_rate_max" name="hesitation_rate_max" placeholder="<?= translate('create-student-group.php_91行目_最大値') ?>">
+                                </div>
+                            </div>
+
+                            <div class="basic-filter-item">
+                                <label for="total_answers_min"><?= translate('create-student-group.php_94行目_問題解答数:') ?></label>
+                                <div class="basic-filter-range">
+                                    <input type="number" id="total_answers_min" name="total_answers_min" placeholder="<?= translate('create-student-group.php_95行目_最小値') ?>">
+                                    <input type="number" id="total_answers_max" name="total_answers_max" placeholder="<?= translate('create-student-group.php_96行目_最大値') ?>">
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
 
                     <fieldset class="feature-filter-fieldset">
                         <legend>特徴量による絞り込み</legend>
-                        <div id="feature-filter-rows" class="feature-filter-rows">
-                            <div class="feature-filter-row">
-                                <label>
-                                    <span>特徴量</span>
-                                    <select name="feature_filter_rows[0][column]">
-                                        <option value="">特徴量を選択してください</option>
-                                    <?php foreach (student_feature_columns() as $feature_column => $feature_label): ?>
-                                        <option value="<?= htmlspecialchars($feature_column, ENT_QUOTES, 'UTF-8') ?>">
-                                            <?= htmlspecialchars($feature_label, ENT_QUOTES, 'UTF-8') ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                    </select>
-                                </label>
-                                <input type="number" step="any" name="feature_filter_rows[0][min]" placeholder="<?= translate('create-student-group.php_86行目_最小値') ?>">
-                                <input type="number" step="any" name="feature_filter_rows[0][max]" placeholder="<?= translate('create-student-group.php_87行目_最大値') ?>">
-                                <button type="button" class="feature-filter-remove" hidden>削除</button>
+                        <input type="hidden" id="feature-filter-expression" name="feature_filter_expression" value="[]">
+                        <div class="feature-filter-help">
+                            特徴量を AND・OR・NOT・括弧で組み合わせて学習者を絞り込みます。選択した特徴量の最小値・最大値は、下の設定欄で指定できます。
+                        </div>
+                        <div class="feature-filter-parts" aria-label="特徴量論理式パーツ">
+                            <button type="button" id="add-feature-filter-condition" class="teacher-secondary-button">特徴量を追加</button>
+                            <button type="button" id="add-feature-filter-and">AND</button>
+                            <button type="button" id="add-feature-filter-or">OR</button>
+                            <button type="button" id="add-feature-filter-not">NOT</button>
+                            <button type="button" id="add-feature-filter-open">(</button>
+                            <button type="button" id="add-feature-filter-close">)</button>
+                            <span class="feature-filter-insert-control">
+                                <label for="feature-filter-insert-position">追加位置</label>
+                                <select id="feature-filter-insert-position"></select>
+                            </span>
+                        </div>
+                        <div class="feature-filter-builder" id="feature-filter-builder"></div>
+                        <div class="feature-filter-actions">
+                            <button type="button" id="reset-feature-filter-expression">条件をリセット</button>
+                            <button type="button" id="trim-feature-filter-expression">追加位置から後ろを削除</button>
+                            <button type="button" id="clear-feature-filter-expression">式を空にする</button>
+                            <p class="feature-filter-summary" id="feature-filter-summary">特徴量条件は未設定です。</p>
+                        </div>
+                        <div class="feature-filter-settings-wrap">
+                            <h3>選択した特徴量の設定</h3>
+                            <div class="feature-filter-settings" id="feature-filter-settings">
+                                <p class="feature-filter-empty">論理式に特徴量を追加すると、ここに最小値・最大値の設定欄が表示されます。</p>
                             </div>
                         </div>
-                        <button type="button" id="add-feature-filter" class="teacher-secondary-button">特徴量を追加</button>
-                        <template id="feature-filter-template">
-                            <div class="feature-filter-row">
-                                <label>
-                                    <span>特徴量</span>
-                                    <select name="feature_filter_rows[__INDEX__][column]">
-                                        <option value="">特徴量を選択してください</option>
-                                    <?php foreach (student_feature_columns() as $feature_column => $feature_label): ?>
-                                        <option value="<?= htmlspecialchars($feature_column, ENT_QUOTES, 'UTF-8') ?>">
-                                            <?= htmlspecialchars($feature_label, ENT_QUOTES, 'UTF-8') ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                    </select>
-                                </label>
-                                <input type="number" step="any" name="feature_filter_rows[__INDEX__][min]" placeholder="<?= translate('create-student-group.php_86行目_最小値') ?>">
-                                <input type="number" step="any" name="feature_filter_rows[__INDEX__][max]" placeholder="<?= translate('create-student-group.php_87行目_最大値') ?>">
-                                <button type="button" class="feature-filter-remove">削除</button>
-                            </div>
-                        </template>
                     </fieldset>
-                    <script>
-                        document.addEventListener('DOMContentLoaded', () => {
-                            const addFeatureFilterBtn = document.getElementById('add-feature-filter');
-                            const featureFilterRows = document.getElementById('feature-filter-rows');
-                            const featureFilterTemplate = document.getElementById('feature-filter-template');
-                            let featureFilterIndex = 1;
-
-                            addFeatureFilterBtn.addEventListener('click', () => {
-                                const wrapper = document.createElement('div');
-                                wrapper.innerHTML = featureFilterTemplate.innerHTML.replace(/__INDEX__/g, featureFilterIndex);
-                                featureFilterRows.appendChild(wrapper.firstElementChild);
-                                featureFilterIndex += 1;
-                            });
-
-                            featureFilterRows.addEventListener('click', (event) => {
-                                const removeBtn = event.target.closest('.feature-filter-remove');
-                                if (!removeBtn) {
-                                    return;
-                                }
-
-                                removeBtn.closest('.feature-filter-row').remove();
-                            });
-                        });
-                    </script>
 
                     <button type="button" id="search-button"><?= translate('create-student-group.php_99行目_検索') ?></button>
                 </form>
-                <form action="submit-student-group.php" method="post">
+                <form action="submit-student-group.php" method="post" class="student-group-create-form">
                     <label for="group_name"><?= translate('create-student-group.php_102行目_グループ名:') ?></label>
                         <input type="text" id="group_name" name="group_name" required>
-                        <br><br>
                         <label><?= translate('create-student-group.php_105行目_学生リスト:') ?></label>
                         <ul class="student-list" id="student-list">
                             <!-- PHPで全学生を取得して初期表示 -->
@@ -365,6 +348,13 @@
             </section>
         </main>
     </div>
+    <script>
+        window.studentGroupFeatureColumns = <?= json_encode($student_feature_columns_for_filter, JSON_UNESCAPED_UNICODE) ?>;
+        window.studentGroupFeatureFilterPlaceholders = {
+            min: <?= json_encode(translate('create-student-group.php_86行目_最小値'), JSON_UNESCAPED_UNICODE) ?>,
+            max: <?= json_encode(translate('create-student-group.php_87行目_最大値'), JSON_UNESCAPED_UNICODE) ?>
+        };
+    </script>
     <script src="search_studentlist.js?v=<?= filemtime(__DIR__ . '/search_studentlist.js') ?>"></script>
 </body>
 </html>

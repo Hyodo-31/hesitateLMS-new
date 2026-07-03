@@ -257,6 +257,41 @@
     margin-bottom: 8px;
 }
 
+.basic-filter-fieldset {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background-color: #eff6ff;
+}
+
+.basic-filter-fieldset legend {
+    padding: 0 8px;
+    color: #1e3a8a;
+    font-weight: 800;
+}
+
+.basic-filter-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.basic-filter-item {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.basic-filter-range {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+    gap: 10px;
+}
+
 .feature-filter-fieldset {
     display: grid;
     gap: 12px;
@@ -270,6 +305,164 @@
     padding: 0 6px;
     color: #1f2937;
     font-weight: 700;
+}
+
+.feature-filter-help {
+    color: var(--teacher-form-muted);
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+.feature-filter-parts,
+.feature-filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.feature-filter-parts button,
+.feature-filter-actions button {
+    min-height: 36px;
+    padding: 8px 12px;
+}
+
+.feature-filter-insert-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.feature-filter-insert-control select {
+    min-width: 190px;
+    min-height: 36px;
+}
+
+.feature-filter-builder {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    min-height: 54px;
+    padding: 10px;
+    border: 1px solid var(--teacher-form-border);
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.feature-filter-token {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 4px 6px 4px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background-color: #fff;
+    color: #243447;
+    font-weight: 800;
+}
+
+.feature-filter-token select {
+    min-height: 30px;
+    padding: 5px 8px;
+}
+
+.feature-filter-token-kind {
+    min-width: 86px;
+}
+
+.feature-filter-target {
+    min-width: 220px;
+}
+
+.feature-filter-token-operator {
+    background-color: #ecfeff;
+    border-color: #99f6e4;
+    color: #0f766e;
+}
+
+.feature-filter-token-not {
+    background-color: #fff7ed;
+    border-color: #fed7aa;
+    color: #c2410c;
+}
+
+.feature-filter-token-paren {
+    background-color: #f1f5f9;
+}
+
+.feature-filter-token-remove {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+    border: 1px solid #cbd5e1;
+    background-color: #fff;
+    color: #334155;
+    line-height: 1;
+}
+
+.feature-filter-token-remove:hover {
+    background-color: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+.feature-filter-summary {
+    margin: 0;
+    color: #475569;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.feature-filter-summary.is-error {
+    color: #b91c1c;
+}
+
+.feature-filter-settings-wrap {
+    display: grid;
+    gap: 10px;
+}
+
+.feature-filter-settings-wrap h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.feature-filter-settings {
+    display: grid;
+    gap: 10px;
+}
+
+.feature-filter-setting-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.4fr) minmax(150px, 1fr) minmax(150px, 1fr);
+    gap: 10px;
+    align-items: end;
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.feature-filter-setting-name {
+    color: #1f2937;
+    font-weight: 800;
+}
+
+.feature-filter-setting-key,
+.feature-filter-empty {
+    color: var(--teacher-form-muted);
+    font-size: 0.88rem;
+}
+
+.feature-filter-setting-row label {
+    display: grid;
+    gap: 6px;
 }
 
 .feature-filter-rows {
@@ -300,6 +493,16 @@
 
 .feature-filter-row .feature-filter-remove:hover {
     background-color: #92400e;
+}
+
+.student-group-create-form {
+    margin-top: 30px;
+    padding-top: 28px;
+    border-top: 2px solid var(--teacher-form-border);
+}
+
+.student-group-create-form label:first-child {
+    margin-top: 0;
 }
 
 .student-list,
@@ -472,6 +675,21 @@
     }
 
     .feature-filter-row {
+        grid-template-columns: 1fr;
+    }
+
+    .basic-filter-range {
+        grid-template-columns: 1fr;
+    }
+
+    .feature-filter-token,
+    .feature-filter-token select,
+    .feature-filter-insert-control,
+    .feature-filter-insert-control select {
+        width: 100%;
+    }
+
+    .feature-filter-setting-row {
         grid-template-columns: 1fr;
     }
 }
