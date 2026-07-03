@@ -13,12 +13,28 @@ $total_answers_max = $_POST['total_answers_max'] ?? 99999999;
 $feature_select_sql = student_feature_average_select_sql($conn);
 $feature_join_sql = student_feature_average_join_sql($conn);
 $available_feature_columns = student_feature_columns();
-$feature_filter_logic = strtoupper($_POST['feature_filter_logic'] ?? 'AND');
-if (!in_array($feature_filter_logic, ['AND', 'OR'], true)) {
-    $feature_filter_logic = 'AND';
-}
 $feature_filters = [];
 $feature_table_exists = student_feature_table_exists($conn);
+foreach (($_POST['feature_filter_rows'] ?? []) as $condition) {
+    $column = $condition['column'] ?? '';
+    if (!$feature_table_exists || !isset($available_feature_columns[$column])) {
+        continue;
+    }
+
+    $min = trim((string)($condition['min'] ?? ''));
+    $max = trim((string)($condition['max'] ?? ''));
+    $min_value = $min !== '' && is_numeric($min) ? (float)$min : null;
+    $max_value = $max !== '' && is_numeric($max) ? (float)$max : null;
+    if ($min_value === null && $max_value === null) {
+        continue;
+    }
+
+    $feature_filters[] = [
+        'column' => $column,
+        'min' => $min_value,
+        'max' => $max_value,
+    ];
+}
 foreach (($_POST['feature_filters'] ?? []) as $column => $condition) {
     if (!$feature_table_exists || !isset($available_feature_columns[$column]) || empty($condition['enabled'])) {
         continue;
@@ -113,7 +129,7 @@ if (!empty($feature_filters)) {
     }
 
     if (!empty($feature_conditions)) {
-        $sql .= ' AND (' . implode(" {$feature_filter_logic} ", $feature_conditions) . ')';
+        $sql .= ' AND (' . implode(' AND ', $feature_conditions) . ')';
     }
 }
 

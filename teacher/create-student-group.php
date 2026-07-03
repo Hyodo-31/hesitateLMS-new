@@ -128,30 +128,68 @@
 
                     <fieldset class="feature-filter-fieldset">
                         <legend>特徴量による絞り込み</legend>
-                        <p class="feature-filter-help">絞り込みに使用する特徴量を選択し、各学習者の特徴量平均値の範囲を入力してください。</p>
-                        <div class="feature-filter-logic">
-                            <span>複数特徴量の条件:</span>
-                            <label><input type="radio" name="feature_filter_logic" value="AND" checked> AND</label>
-                            <label><input type="radio" name="feature_filter_logic" value="OR"> OR</label>
+                        <div id="feature-filter-rows" class="feature-filter-rows">
+                            <div class="feature-filter-row">
+                                <label>
+                                    <span>特徴量</span>
+                                    <select name="feature_filter_rows[0][column]">
+                                        <option value="">特徴量を選択してください</option>
+                                    <?php foreach (student_feature_columns() as $feature_column => $feature_label): ?>
+                                        <option value="<?= htmlspecialchars($feature_column, ENT_QUOTES, 'UTF-8') ?>">
+                                            <?= htmlspecialchars($feature_label, ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <input type="number" step="any" name="feature_filter_rows[0][min]" placeholder="<?= translate('create-student-group.php_86行目_最小値') ?>">
+                                <input type="number" step="any" name="feature_filter_rows[0][max]" placeholder="<?= translate('create-student-group.php_87行目_最大値') ?>">
+                                <button type="button" class="feature-filter-remove" hidden>削除</button>
+                            </div>
                         </div>
-                        <div class="feature-filter-list">
-                            <?php foreach (student_feature_columns() as $feature_column => $feature_label): ?>
-                                <?php
-                                    $safe_feature_column = htmlspecialchars($feature_column, ENT_QUOTES, 'UTF-8');
-                                    $safe_feature_label = htmlspecialchars($feature_label, ENT_QUOTES, 'UTF-8');
-                                    $feature_input_id = 'feature_filter_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $feature_column);
-                                ?>
-                                <div class="feature-filter-row">
-                                    <label class="feature-filter-name" for="<?= $feature_input_id ?>_enabled">
-                                        <input type="checkbox" id="<?= $feature_input_id ?>_enabled" name="feature_filters[<?= $safe_feature_column ?>][enabled]" value="1">
-                                        <?= $safe_feature_label ?>
-                                    </label>
-                                    <input type="number" step="any" name="feature_filters[<?= $safe_feature_column ?>][min]" placeholder="<?= translate('create-student-group.php_86行目_最小値') ?>">
-                                    <input type="number" step="any" name="feature_filters[<?= $safe_feature_column ?>][max]" placeholder="<?= translate('create-student-group.php_87行目_最大値') ?>">
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
+                        <button type="button" id="add-feature-filter" class="teacher-secondary-button">特徴量を追加</button>
+                        <template id="feature-filter-template">
+                            <div class="feature-filter-row">
+                                <label>
+                                    <span>特徴量</span>
+                                    <select name="feature_filter_rows[__INDEX__][column]">
+                                        <option value="">特徴量を選択してください</option>
+                                    <?php foreach (student_feature_columns() as $feature_column => $feature_label): ?>
+                                        <option value="<?= htmlspecialchars($feature_column, ENT_QUOTES, 'UTF-8') ?>">
+                                            <?= htmlspecialchars($feature_label, ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <input type="number" step="any" name="feature_filter_rows[__INDEX__][min]" placeholder="<?= translate('create-student-group.php_86行目_最小値') ?>">
+                                <input type="number" step="any" name="feature_filter_rows[__INDEX__][max]" placeholder="<?= translate('create-student-group.php_87行目_最大値') ?>">
+                                <button type="button" class="feature-filter-remove">削除</button>
+                            </div>
+                        </template>
                     </fieldset>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', () => {
+                            const addFeatureFilterBtn = document.getElementById('add-feature-filter');
+                            const featureFilterRows = document.getElementById('feature-filter-rows');
+                            const featureFilterTemplate = document.getElementById('feature-filter-template');
+                            let featureFilterIndex = 1;
+
+                            addFeatureFilterBtn.addEventListener('click', () => {
+                                const wrapper = document.createElement('div');
+                                wrapper.innerHTML = featureFilterTemplate.innerHTML.replace(/__INDEX__/g, featureFilterIndex);
+                                featureFilterRows.appendChild(wrapper.firstElementChild);
+                                featureFilterIndex += 1;
+                            });
+
+                            featureFilterRows.addEventListener('click', (event) => {
+                                const removeBtn = event.target.closest('.feature-filter-remove');
+                                if (!removeBtn) {
+                                    return;
+                                }
+
+                                removeBtn.closest('.feature-filter-row').remove();
+                            });
+                        });
+                    </script>
 
                     <button type="button" id="search-button"><?= translate('create-student-group.php_99行目_検索') ?></button>
                 </form>
