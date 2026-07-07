@@ -145,6 +145,111 @@
     background-color: #fff;
 }
 
+#uid-checkbox-list {
+    display: block;
+}
+
+#uid-checkbox-list .checkbox-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px 16px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+#uid-checkbox-list .uid-filter-choice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#uid-checkbox-list .class-group-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background-color: #f8fafc;
+}
+
+#uid-checkbox-list .class-group-header:first-child {
+    margin-top: 0;
+}
+
+#uid-checkbox-list .class-group-header h5 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 0.98rem;
+}
+
+.logic-filter-panel {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--teacher-form-border);
+    border-radius: 8px;
+    background-color: #f8fafc;
+}
+
+.logic-filter-toolbar,
+.logic-filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.logic-filter-toolbar label {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.logic-filter-toolbar select,
+.logic-filter-token select {
+    min-height: 34px;
+}
+
+.logic-filter-builder {
+    display: flex;
+    min-height: 46px;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #dbe4f0;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.logic-filter-token {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.logic-filter-remove {
+    min-height: 28px !important;
+    padding: 4px 9px !important;
+}
+
+.logic-filter-summary {
+    color: #334155;
+    font-weight: 700;
+}
+
+.logic-filter-summary.is-error {
+    color: #b91c1c;
+}
+
 .search {
     margin: 0 auto 18px;
     text-align: center;
@@ -465,6 +570,24 @@
     gap: 6px;
 }
 
+.feature-global-average-box {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--teacher-form-border);
+}
+
+.feature-global-average-box select {
+    width: min(100%, 420px);
+}
+
+.feature-global-average-value {
+    margin: 0;
+    color: #1f2937;
+    font-weight: 700;
+}
+
 .feature-filter-rows {
     display: grid;
     gap: 10px;
@@ -552,6 +675,29 @@
     font-weight: 700;
 }
 
+.teacher-form-card .student-info-button {
+    display: inline-grid;
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    min-height: 24px;
+    place-items: center;
+    justify-self: auto;
+    padding: 0;
+    border: 1px solid #93c5fd;
+    border-radius: 50%;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.teacher-form-card .student-info-button:hover {
+    background-color: #dbeafe;
+}
+
 .student-floating-tooltip {
     position: fixed;
     z-index: 1000;
@@ -570,6 +716,33 @@
     font-weight: 600;
     line-height: 1.45;
     pointer-events: auto;
+}
+
+.student-floating-tooltip-click {
+    padding-top: 36px;
+}
+
+.student-tooltip-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    min-height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background-color: #f3f4f6;
+    color: #374151;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.student-tooltip-close:hover {
+    background-color: #e5e7eb;
 }
 
 .feature-tooltip-title {
@@ -608,6 +781,63 @@
 .student-detail .label {
     color: var(--teacher-form-muted);
     font-weight: 700;
+}
+
+.student-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.student-pair-item .student-choice {
+    align-items: flex-start;
+    flex-direction: column;
+}
+
+.student-trajectory-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    margin-top: 10px;
+    padding: 7px 12px;
+    border-radius: 6px;
+    background-color: #0f766e;
+    color: #fff;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.student-trajectory-link:hover {
+    background-color: #115e59;
+    color: #fff;
+}
+
+#student-feature-average-list.student-feature-average-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+#student-feature-average-list .student-average-item {
+    flex: 0 1 auto;
+}
+
+.student-average-choice {
+    display: inline-flex;
+    min-height: 34px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--teacher-form-border);
+    border-radius: 6px;
+    background-color: #fff;
+    color: #1f2937;
+    font-weight: 800;
+    cursor: default;
 }
 
 .group-list > li {

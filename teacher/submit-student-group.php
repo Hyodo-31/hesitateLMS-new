@@ -44,7 +44,7 @@
                 // フォームデータを取得
                 $group_name = $_POST['group_name'];
                 $teacher_id = $_SESSION["MemberID"];
-                $selected_students = $_POST['students'];
+                $selected_students = array_values(array_unique($_POST['students'] ?? []));
                 echo translate('submit-student-group.php_44行目_グループ名') . ": " . htmlspecialchars($group_name, ENT_QUOTES, 'UTF-8') . "<br>";
                 echo translate('submit-student-group.php_45行目_学生リスト') . ": " . htmlspecialchars(implode(", ", $selected_students), ENT_QUOTES, 'UTF-8') . "<br>";
                 echo translate('submit-student-group.php_46行目_教師ID') . ": " . htmlspecialchars($teacher_id, ENT_QUOTES, 'UTF-8') . "<br>";

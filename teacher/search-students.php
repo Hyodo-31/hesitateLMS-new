@@ -187,6 +187,7 @@ function build_feature_filter_expression_sql(array $tokens, array $posted_featur
 }
 
 $uids = $_POST['uid'] ?? [];
+$wids = $_POST['wid'] ?? [];
 $accuracy_min = $_POST['accuracy_min'] ?? 0;
 $accuracy_max = $_POST['accuracy_max'] ?? 100;
 $hesitation_rate_min = $_POST['hesitation_rate_min'] ?? 0;
@@ -194,7 +195,7 @@ $hesitation_rate_max = $_POST['hesitation_rate_max'] ?? 100;
 $total_answers_min = $_POST['total_answers_min'] ?? 0;
 $total_answers_max = $_POST['total_answers_max'] ?? 99999999;
 $feature_select_sql = student_feature_average_select_sql($conn);
-$feature_join_sql = student_feature_average_join_sql($conn);
+$feature_join_sql = student_feature_pair_average_join_sql($conn);
 $available_feature_columns = student_feature_columns();
 $feature_filters = [];
 $feature_table_exists = student_feature_table_exists($conn);
@@ -265,6 +266,9 @@ if (!empty($feature_expression_tokens)) {
 $sql = "SELECT
             s.uid,
             s.Name,
+            feat.WID,
+            feat.attempt,
+            COALESCE(ld.test_id, feat.test_id) AS test_id,
             COALESCE(acc.accuracy, 0) AS accuracy,
             COALESCE(acc.total_answers, 0) AS total_answers,
             COALESCE(hes.hesitation_rate, 0) AS hesitation_rate,
@@ -287,7 +291,8 @@ $sql = "SELECT
             GROUP BY uid
         ) hes ON s.uid = hes.uid
         {$feature_join_sql}
-        WHERE ct.TID = ?";
+        LEFT JOIN linedata ld ON s.uid = ld.UID AND feat.WID = ld.WID AND feat.attempt = ld.attempt
+        WHERE ct.TID = ? AND feat.WID IS NOT NULL";
 
 $params = [$_SESSION['MemberID']];
 $types = 'i';
@@ -296,7 +301,14 @@ if (!empty($uids)) {
     $placeholders = implode(',', array_fill(0, count($uids), '?'));
     $sql .= " AND s.uid IN ($placeholders)";
     $params = array_merge($params, $uids);
-    $types .= str_repeat('i', count($uids));
+    $types .= str_repeat('s', count($uids));
+}
+
+if (!empty($wids)) {
+    $placeholders = implode(',', array_fill(0, count($wids), '?'));
+    $sql .= " AND feat.WID IN ($placeholders)";
+    $params = array_merge($params, $wids);
+    $types .= str_repeat('i', count($wids));
 }
 
 $sql .= " AND COALESCE(acc.accuracy, 0) BETWEEN ? AND ?";
@@ -344,6 +356,8 @@ if ($feature_expression_sql !== '') {
     }
 }
 
+$sql .= " ORDER BY s.uid, feat.WID, feat.attempt";
+
 $stmt = $conn->prepare($sql);
 if ($stmt === false) {
     die("Prepare failed: (" . $conn->errno . ") " . $conn->error);
@@ -360,15 +374,29 @@ $answers_label = translate('search-students.php_73行目_回答数');
 
 while ($row = $result->fetch_assoc()) {
     $uid = htmlspecialchars($row['uid'], ENT_QUOTES, 'UTF-8');
+    $wid = htmlspecialchars($row['WID'], ENT_QUOTES, 'UTF-8');
+    $attempt = htmlspecialchars($row['attempt'], ENT_QUOTES, 'UTF-8');
+    $test_id = htmlspecialchars($row['test_id'] ?? '', ENT_QUOTES, 'UTF-8');
     $name = htmlspecialchars($row['Name'], ENT_QUOTES, 'UTF-8');
-    $student_tooltip = render_student_tooltip($row, "{$accuracy_label}:", "{$hesitation_label}", "{$answers_label}:");
+    $student_tooltip = render_feature_average_tooltip($row, 'UID/WID/Attemptの特徴量平均');
+    $feature_values = [];
+    foreach ($available_feature_columns as $column => $_label) {
+        $feature_values[$column] = $row["avg_{$column}"] ?? null;
+    }
+    $feature_json = htmlspecialchars(json_encode($feature_values, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
 
-    echo "<li class='student-item'>
-            <label class='student-choice'>
+    $trajectory_url = "../mousemove/mousemove.php?UID={$uid}&WID={$wid}&test_id={$test_id}&LogID={$attempt}";
+
+    echo "<li class='student-item student-pair-item' data-uid='{$uid}' data-wid='{$wid}' data-attempt='{$attempt}' data-features='{$feature_json}'>
+            <label class='student-choice click-tooltip-choice'>
                 <input type='checkbox' name='students[]' value='{$uid}'>
-                <p class='student-detail student-name'><span class='label'>{$name_label}:</span> {$name}</p>
+                <p class='student-detail student-name'><span class='label'>UID:</span> {$uid}</p>
+                <p class='student-detail'><span class='label'>WID:</span> {$wid}</p>
+                <p class='student-detail'><span class='label'>Attempt:</span> {$attempt}</p>
+                <p class='student-detail student-name-row'><span><span class='label'>{$name_label}:</span> {$name}</span><button type='button' class='student-info-button' aria-label='UID/WID/Attemptの特徴量平均を表示'>ⓘ</button></p>
                 {$student_tooltip}
             </label>
+            <a href='{$trajectory_url}' target='_blank' class='student-trajectory-link'>軌跡再現</a>
           </li>";
 }
 

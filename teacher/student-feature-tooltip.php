@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 function student_feature_columns(): array
 {
@@ -7,12 +7,12 @@ function student_feature_columns(): array
         'distance' => '移動距離',
         'averageSpeed' => '平均速度',
         'maxSpeed' => '最大速度',
-        'thinkingTime' => '第一ドラッグ前時間',
-        'answeringTime' => '第一ドラッグ後時間',
+        'thinkingTime' => '第1ドラッグ前時間',
+        'answeringTime' => '第1ドラッグ後時間',
         'totalStopTime' => '合計静止時間',
         'maxStopTime' => '最大静止時間',
-        'totalDDIntervalTime' => '合計D&D間時間',
-        'maxDDIntervalTime' => '最大D&D間時間',
+        'totalDDIntervalTime' => '合計D&D間隔時間',
+        'maxDDIntervalTime' => '最大D&D間隔時間',
         'maxDDTime' => '最大D&D時間',
         'minDDTime' => '最小D&D時間',
         'DDCount' => 'D&D回数',
@@ -91,6 +91,34 @@ function student_feature_average_join_sql(mysqli $conn, string $alias = 'feat'):
         ) {$alias} ON s.uid = {$alias}.UID";
 }
 
+function student_feature_pair_average_join_sql(mysqli $conn, string $alias = 'feat'): string
+{
+    if (!student_feature_table_exists($conn)) {
+        $selects = ['UID', 'WID', 'attempt', 'test_id', '0 AS feature_record_count'];
+        foreach (student_feature_columns() as $column => $_label) {
+            $selects[] = "NULL AS avg_{$column}";
+        }
+
+        return "LEFT JOIN (
+            SELECT DISTINCT
+                " . implode(",\n                ", $selects) . "
+            FROM linedata
+        ) {$alias} ON s.uid = {$alias}.UID";
+    }
+
+    $selects = ['UID', 'WID', 'attempt', 'NULL AS test_id', 'COUNT(*) AS feature_record_count'];
+    foreach (student_feature_columns() as $column => $_label) {
+        $selects[] = "AVG(`{$column}`) AS avg_{$column}";
+    }
+
+    return "LEFT JOIN (
+            SELECT
+                " . implode(",\n                ", $selects) . "
+            FROM test_featurevalue
+            GROUP BY UID, WID, attempt
+        ) {$alias} ON s.uid = {$alias}.UID";
+}
+
 function format_student_feature_value($value): string
 {
     if ($value === null || $value === '') {
@@ -112,7 +140,7 @@ function render_student_tooltip(array $row, string $accuracy_label, string $hesi
                 <span>{$accuracy_label} {$accuracy}%</span>
                 <span>{$hesitation_label} {$hesitation_rate}%</span>
                 <span>{$answers_label} {$total_answers}</span>
-                <span class='feature-tooltip-title'>特徴量平均 ({$feature_record_count}件)</span>";
+                <span class='feature-tooltip-title'>特徴量平均({$feature_record_count}件)</span>";
 
     if ($feature_record_count === 0) {
         $html .= "<span class='feature-tooltip-empty'>特徴量データがありません</span>";
@@ -130,3 +158,29 @@ function render_student_tooltip(array $row, string $accuracy_label, string $hesi
 
     return $html;
 }
+
+function render_feature_average_tooltip(array $row, string $title = '特徴量平均'): string
+{
+    $feature_record_count = (int)($row['feature_record_count'] ?? 0);
+    $safe_title = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+
+    $html = "<span class='student-feature-popup' role='tooltip' hidden>
+                <span class='feature-tooltip-title'>{$safe_title} ({$feature_record_count}件)</span>";
+
+    if ($feature_record_count === 0) {
+        $html .= "<span class='feature-tooltip-empty'>特徴量データがありません</span>";
+    } else {
+        $html .= "<span class='feature-tooltip-grid'>";
+        foreach (student_feature_columns() as $column => $label) {
+            $value = htmlspecialchars(format_student_feature_value($row["avg_{$column}"] ?? null), ENT_QUOTES, 'UTF-8');
+            $safe_label = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
+            $html .= "<span class='feature-tooltip-label'>{$safe_label}</span><span class='feature-tooltip-value'>{$value}</span>";
+        }
+        $html .= "</span>";
+    }
+
+    $html .= "</span>";
+
+    return $html;
+}
+

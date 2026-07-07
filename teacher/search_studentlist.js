@@ -1,6 +1,10 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
     const searchButton = document.getElementById('search-button');
     const studentList = document.getElementById('student-list');
+    const showStudentFeatureAveragesButton = document.getElementById('show-student-feature-averages');
+    const studentFeatureAverageList = document.getElementById('student-feature-average-list');
+    const featureGlobalAverageSelect = document.getElementById('feature-global-average-select');
+    const featureGlobalAverageValue = document.getElementById('feature-global-average-value');
     let floatingTooltip = null;
     let activeChoice = null;
     const featureFilterBuilder = document.getElementById('feature-filter-builder');
@@ -18,6 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const trimFeatureFilterExpressionButton = document.getElementById('trim-feature-filter-expression');
     const clearFeatureFilterExpressionButton = document.getElementById('clear-feature-filter-expression');
     const featureFilterOptions = Object.entries(window.studentGroupFeatureColumns || {}).map(([value, label]) => ({ value, label }));
+    const featureGlobalAverages = window.studentGroupFeatureGlobalAverages || {};
+    const uidLogicFilterGroups = window.studentGroupLogicFilterGroups || [];
+    const uidLogicFilterStudentsByGroup = window.studentGroupLogicFilterStudentsByGroup || {};
     const featureFilterPlaceholders = window.studentGroupFeatureFilterPlaceholders || { min: '最小値', max: '最大値' };
     const featureFilterSettingValues = {};
 
@@ -28,6 +35,27 @@ document.addEventListener('DOMContentLoaded', () => {
         '"': '&quot;',
         "'": '&#039;',
     }[char]));
+
+    const formatFeatureValue = (value) => {
+        if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) {
+            return '-';
+        }
+        return Number(value).toFixed(2);
+    };
+
+    const createFeatureTooltipHtml = (title, values, count) => {
+        const rows = featureFilterOptions.map((option) => `
+            <span class="feature-tooltip-label">${escapeHtml(option.label)}</span>
+            <span class="feature-tooltip-value">${escapeHtml(formatFeatureValue(values[option.value]))}</span>
+        `).join('');
+
+        return `
+            <span class="student-feature-popup" role="tooltip" hidden>
+                <span class="feature-tooltip-title">${escapeHtml(title)} (${count}件)</span>
+                <span class="feature-tooltip-grid">${rows}</span>
+            </span>
+        `;
+    };
 
     const getFeatureFilterTokens = () => {
         if (!featureFilterBuilder) {
@@ -320,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <select class="feature-filter-target" aria-label="絞り込み特徴量">
                     ${createFeatureFilterTargetOptionsHtml(selectedFeature)}
                 </select>
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">×</button>
+                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
             `;
         } else if (type === 'operator') {
             token.classList.add('feature-filter-token-operator');
@@ -328,14 +356,14 @@ document.addEventListener('DOMContentLoaded', () => {
             token.dataset.operator = value;
             token.innerHTML = `
                 ${kindSelect}
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">×</button>
+                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
             `;
         } else {
             token.classList.add('feature-filter-token-paren');
             token.dataset.paren = value;
             token.innerHTML = `
                 ${kindSelect}
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">×</button>
+                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
             `;
         }
 
@@ -348,7 +376,6 @@ document.addEventListener('DOMContentLoaded', () => {
         syncFeatureFilterExpressionInput(false);
         return token;
     };
-
     const replaceFeatureFilterToken = (token, nextKind) => {
         const { type, value } = getFeatureFilterTokenSpecFromKind(nextKind);
         token.className = 'feature-filter-token';
@@ -364,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <select class="feature-filter-target" aria-label="絞り込み特徴量">
                     ${createFeatureFilterTargetOptionsHtml()}
                 </select>
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">×</button>
+                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
             `;
         } else if (type === 'operator') {
             token.classList.add('feature-filter-token-operator');
@@ -372,14 +399,14 @@ document.addEventListener('DOMContentLoaded', () => {
             token.dataset.operator = value;
             token.innerHTML = `
                 ${kindSelect}
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">×</button>
+                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
             `;
         } else {
             token.classList.add('feature-filter-token-paren');
             token.dataset.paren = value;
             token.innerHTML = `
                 ${kindSelect}
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">×</button>
+                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
             `;
         }
 
@@ -387,7 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateFeatureFilterInsertOptions();
         syncFeatureFilterExpressionInput(false);
     };
-
     const clearFeatureFilterExpression = (message = '特徴量条件は未設定です。') => {
         if (!featureFilterBuilder) {
             return;
@@ -436,6 +462,257 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const renderFeatureGlobalAverage = () => {
+        if (!featureGlobalAverageSelect || !featureGlobalAverageValue) {
+            return;
+        }
+
+        const feature = featureGlobalAverageSelect.value;
+        if (!feature) {
+            featureGlobalAverageValue.textContent = '特徴量を選択してください。';
+            return;
+        }
+
+        const option = featureFilterOptions.find((item) => item.value === feature);
+        featureGlobalAverageValue.textContent = `${option?.label || feature}: ${formatFeatureValue(featureGlobalAverages[feature])}`;
+    };
+
+    if (featureGlobalAverageSelect) {
+        featureGlobalAverageSelect.innerHTML = [
+            '<option value="">特徴量を選択</option>',
+            ...featureFilterOptions.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`),
+        ].join('');
+        featureGlobalAverageSelect.addEventListener('change', renderFeatureGlobalAverage);
+        renderFeatureGlobalAverage();
+    }
+
+    const setupUidLogicFilter = () => {
+        const panel = document.getElementById('uid-logic-filter-panel');
+        const builder = document.getElementById('uid-logic-filter-builder');
+        const summary = document.getElementById('uid-logic-filter-summary');
+        const studentContainer = document.getElementById('uid-checkbox-list');
+        const insertPosition = document.getElementById('uid-logic-filter-insert-position');
+        if (!panel || !builder || !summary || !studentContainer || !insertPosition) return;
+
+        const getStudentItems = () => Array.from(studentContainer.querySelectorAll('.checkbox-item'));
+        const getStudentCheckbox = (item) => item.querySelector('input[type="checkbox"]');
+        const allStudentIds = () => getStudentItems().map((item) => getStudentCheckbox(item).value);
+        const classOptions = () => Array.from(studentContainer.querySelectorAll('.select-all-class')).map((input) => {
+            const heading = input.closest('.class-group-header');
+            return { id: String(input.dataset.classId), label: heading?.querySelector('h5')?.textContent?.trim() || `Class ${input.dataset.classId}` };
+        });
+        const classMap = () => {
+            const map = {};
+            getStudentItems().forEach((item) => {
+                const classId = String(item.dataset.classId);
+                if (!map[classId]) map[classId] = [];
+                map[classId].push(getStudentCheckbox(item).value);
+            });
+            return map;
+        };
+        const targetOptions = () => [
+            ...classOptions().map((item) => ({ value: `class:${item.id}`, label: `グループ(クラス): ${item.label}` })),
+            ...uidLogicFilterGroups.map((item) => ({ value: `group:${item.group_id}`, label: `グループ: ${item.group_name}` })),
+        ];
+        const optionHtml = () => {
+            const options = targetOptions();
+            return options.length === 0 ? '<option value="">対象がありません</option>' : options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
+        };
+        const kindOptionsHtml = (selectedKind) => [
+            ['condition', '蟇ｾ雎｡'], ['and', 'AND'], ['or', 'OR'], ['not', 'NOT'], ['open', '('], ['close', ')'],
+        ].map(([value, label]) => `<option value="${value}"${value === selectedKind ? ' selected' : ''}>${label}</option>`).join('');
+        const tokenLabel = (token) => {
+            const kind = token.dataset.kind;
+            if (kind === 'condition') {
+                const select = token.querySelector('.logic-filter-target');
+                return select?.options[select.selectedIndex]?.textContent || '蟇ｾ雎｡';
+            }
+            if (kind === 'open') return '(';
+            if (kind === 'close') return ')';
+            return token.dataset.operator || kind.toUpperCase();
+        };
+        const updateInsertOptions = () => {
+            const current = insertPosition.value;
+            const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
+            insertPosition.innerHTML = ['<option value="">末尾に追加</option>'].concat(tokens.map((token, index) => `<option value="${index}">${index + 1}個目の前 (${escapeHtml(tokenLabel(token))})</option>`)).join('');
+            if (current !== '' && Number(current) < tokens.length) insertPosition.value = current;
+        };
+        const renderToken = (token, kind) => {
+            token.className = 'logic-filter-token';
+            token.dataset.kind = kind;
+            delete token.dataset.operator;
+            const kindSelect = `<select class="logic-filter-kind">${kindOptionsHtml(kind)}</select>`;
+            if (kind === 'condition') {
+                token.innerHTML = `${kindSelect}<select class="logic-filter-target">${optionHtml()}</select><button type="button" class="logic-filter-remove">x</button>`;
+            } else if (kind === 'open' || kind === 'close') {
+                token.classList.add('paren');
+                token.innerHTML = `${kindSelect}<span>${kind === 'open' ? '(' : ')'}</span><button type="button" class="logic-filter-remove">x</button>`;
+            } else {
+                token.classList.add('operator');
+                if (kind === 'not') token.classList.add('not');
+                token.dataset.operator = kind.toUpperCase();
+                token.innerHTML = `${kindSelect}<span>${kind.toUpperCase()}</span><button type="button" class="logic-filter-remove">x</button>`;
+            }
+        };
+        const addToken = (kind) => {
+            const token = document.createElement('span');
+            renderToken(token, kind);
+            const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
+            const position = insertPosition.value !== '' ? Number(insertPosition.value) : tokens.length;
+            if (Number.isInteger(position) && position >= 0 && position < tokens.length) {
+                builder.insertBefore(token, tokens[position]);
+                insertPosition.value = String(position + 1);
+            } else {
+                builder.appendChild(token);
+            }
+            updateInsertOptions();
+        };
+        const getTokens = () => Array.from(builder.querySelectorAll('.logic-filter-token')).map((token) => {
+            const kind = token.dataset.kind;
+            if (kind === 'condition') {
+                const [targetType, targetId] = token.querySelector('.logic-filter-target').value.split(':');
+                return { type: 'condition', targetType, targetId };
+            }
+            if (kind === 'open' || kind === 'close') return { type: 'paren', paren: kind === 'open' ? '(' : ')' };
+            return { type: 'operator', operator: token.dataset.operator };
+        });
+        const setForCondition = (type, id) => {
+            const available = new Set(allStudentIds());
+            const source = type === 'group' ? uidLogicFilterStudentsByGroup : classMap();
+            return new Set((source[String(id)] || []).map(String).filter((uid) => available.has(uid)));
+        };
+        const complement = (source) => {
+            const selected = new Set(source);
+            return new Set(allStudentIds().filter((uid) => !selected.has(uid)));
+        };
+        const evaluate = () => {
+            const list = getTokens();
+            if (list.length === 0) return new Set(allStudentIds());
+            let index = 0;
+            const primary = () => {
+                const token = list[index];
+                if (!token) throw new Error('条件が途中で終わっています。');
+                if (token.type === 'operator' && token.operator === 'NOT') {
+                    index++;
+                    return complement(primary());
+                }
+                if (token.type === 'paren' && token.paren === '(') {
+                    index++;
+                    const result = orExpr();
+                    if (!list[index] || list[index].type !== 'paren' || list[index].paren !== ')') throw new Error('閉じ括弧を置いてください。');
+                    index++;
+                    return result;
+                }
+                if (token.type === 'condition') {
+                    index++;
+                    if (!token.targetType || !token.targetId) throw new Error('対象を選択してください。');
+                    return setForCondition(token.targetType, token.targetId);
+                }
+                throw new Error('条件または括弧を置いてください。');
+            };
+            const andExpr = () => {
+                let result = primary();
+                while (list[index]?.type === 'operator' && list[index].operator === 'AND') {
+                    index++;
+                    const right = primary();
+                    result = new Set([...result].filter((uid) => right.has(uid)));
+                }
+                return result;
+            };
+            const orExpr = () => {
+                let result = andExpr();
+                while (list[index]?.type === 'operator' && list[index].operator === 'OR') {
+                    index++;
+                    result = new Set([...result, ...andExpr()]);
+                }
+                return result;
+            };
+            const result = orExpr();
+            if (index !== list.length) throw new Error('式の並びを確認してください。');
+            return result;
+        };
+        const syncClassChecks = () => {
+            studentContainer.querySelectorAll('.select-all-class').forEach((input) => {
+                const items = getStudentItems().filter((item) => item.dataset.classId === input.dataset.classId);
+                input.checked = items.length > 0 && items.every((item) => getStudentCheckbox(item).checked);
+            });
+            const selectAll = studentContainer.querySelector('.select-all');
+            if (selectAll) {
+                const items = getStudentItems();
+                selectAll.checked = items.length > 0 && items.every((item) => getStudentCheckbox(item).checked);
+            }
+        };
+
+        panel.querySelectorAll('[data-add-uid-filter]').forEach((button) => button.addEventListener('click', () => addToken(button.dataset.addUidFilter)));
+        builder.addEventListener('click', (event) => {
+            if (!event.target.classList.contains('logic-filter-remove')) return;
+            event.target.closest('.logic-filter-token').remove();
+            updateInsertOptions();
+        });
+        builder.addEventListener('change', (event) => {
+            const token = event.target.closest('.logic-filter-token');
+            if (!token) return;
+            if (event.target.classList.contains('logic-filter-kind')) renderToken(token, event.target.value);
+            updateInsertOptions();
+        });
+        document.getElementById('apply-uid-logic-filter')?.addEventListener('click', () => {
+            try {
+                const selected = evaluate();
+                getStudentItems().forEach((item) => { getStudentCheckbox(item).checked = selected.has(getStudentCheckbox(item).value); });
+                syncClassChecks();
+                summary.textContent = `${selected.size}名の学習者を選択しています。`;
+                summary.classList.remove('is-error');
+            } catch (error) {
+                summary.textContent = error.message || '論理式を確認してください。';
+                summary.classList.add('is-error');
+            }
+        });
+        document.getElementById('reset-uid-logic-filter')?.addEventListener('click', () => {
+            builder.innerHTML = '';
+            getStudentItems().forEach((item) => { getStudentCheckbox(item).checked = true; });
+            syncClassChecks();
+            summary.textContent = 'すべての学習者を対象にしています。';
+            summary.classList.remove('is-error');
+            addToken('condition');
+        });
+        document.getElementById('trim-uid-logic-filter')?.addEventListener('click', () => {
+            if (insertPosition.value === '') {
+                summary.textContent = '削除を開始する追加位置を選択してください。';
+                summary.classList.add('is-error');
+                return;
+            }
+            const start = Number(insertPosition.value);
+            Array.from(builder.querySelectorAll('.logic-filter-token')).forEach((token, index) => { if (index >= start) token.remove(); });
+            updateInsertOptions();
+            summary.textContent = `${start + 1}個目以降の部品を削除しました。`;
+            summary.classList.remove('is-error');
+        });
+        document.getElementById('clear-uid-logic-filter')?.addEventListener('click', () => {
+            builder.innerHTML = '';
+            updateInsertOptions();
+            summary.textContent = '式を空にしました。空のまま適用すると、すべての学習者が対象になります。';
+            summary.classList.remove('is-error');
+        });
+        studentContainer.addEventListener('change', (event) => {
+            const target = event.target;
+            if (target.classList.contains('select-all')) {
+                getStudentItems().forEach((item) => { getStudentCheckbox(item).checked = target.checked; });
+                studentContainer.querySelectorAll('.select-all-class').forEach((input) => { input.checked = target.checked; });
+                return;
+            }
+            if (target.classList.contains('select-all-class')) {
+                getStudentItems().filter((item) => item.dataset.classId === target.dataset.classId).forEach((item) => { getStudentCheckbox(item).checked = target.checked; });
+                syncClassChecks();
+                return;
+            }
+            if (target.classList.contains('uid-checkbox')) syncClassChecks();
+        });
+        addToken('condition');
+        syncClassChecks();
+    };
+
+    setupUidLogicFilter();
+
     if (featureFilterBuilder) {
         updateFeatureFilterInsertOptions();
         renderFeatureFilterSettings();
@@ -448,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addFeatureFilterOpenButton?.addEventListener('click', () => createFeatureFilterToken('paren', '('));
         addFeatureFilterCloseButton?.addEventListener('click', () => createFeatureFilterToken('paren', ')'));
         resetFeatureFilterExpressionButton?.addEventListener('click', () => clearFeatureFilterExpression());
-        clearFeatureFilterExpressionButton?.addEventListener('click', () => clearFeatureFilterExpression('論理式を空にしました。検索時は特徴量条件を使用しません。'));
+        clearFeatureFilterExpressionButton?.addEventListener('click', () => clearFeatureFilterExpression('式を空にしました。検索時は特徴量条件を使用しません。'));
         trimFeatureFilterExpressionButton?.addEventListener('click', trimFeatureFilterExpressionFromPosition);
 
         featureFilterBuilder.addEventListener('change', (event) => {
@@ -516,12 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
         floatingTooltip.style.top = `${top}px`;
     };
 
-    document.addEventListener('mouseover', (event) => {
-        const choice = event.target.closest('.student-choice');
-        if (!choice || choice === activeChoice) {
-            return;
-        }
-
+    const openFloatingTooltip = (choice, closeable = false) => {
         const tooltip = choice.querySelector('.student-feature-popup, .student-tooltip');
         if (!tooltip) {
             return;
@@ -531,15 +803,35 @@ document.addEventListener('DOMContentLoaded', () => {
         activeChoice = choice;
         activeChoice.classList.add('tooltip-floating-active');
         floatingTooltip = document.createElement('div');
-        floatingTooltip.className = 'student-floating-tooltip';
-        floatingTooltip.innerHTML = tooltip.innerHTML;
-        floatingTooltip.addEventListener('mouseleave', removeFloatingTooltip);
+        floatingTooltip.className = closeable ? 'student-floating-tooltip student-floating-tooltip-click' : 'student-floating-tooltip';
+        floatingTooltip.innerHTML = closeable
+            ? `<button type="button" class="student-tooltip-close" aria-label="閉じる">×</button>${tooltip.innerHTML}`
+            : tooltip.innerHTML;
+        floatingTooltip.addEventListener('mouseleave', () => {
+            if (!closeable) {
+                removeFloatingTooltip();
+            }
+        });
+        floatingTooltip.querySelector('.student-tooltip-close')?.addEventListener('click', removeFloatingTooltip);
         document.body.appendChild(floatingTooltip);
         positionFloatingTooltip();
+    };
+
+    document.addEventListener('mouseover', (event) => {
+        const choice = event.target.closest('.student-choice');
+        if (!choice || choice === activeChoice || choice.classList.contains('uid-filter-choice') || choice.classList.contains('click-tooltip-choice')) {
+            return;
+        }
+
+        openFloatingTooltip(choice);
     });
 
     document.addEventListener('mouseout', (event) => {
         if (!activeChoice || !event.target.closest('.student-choice')) {
+            return;
+        }
+
+        if (activeChoice.classList.contains('uid-filter-choice') || activeChoice.classList.contains('click-tooltip-choice')) {
             return;
         }
 
@@ -554,43 +846,108 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('focusin', (event) => {
         const choice = event.target.closest('.student-choice');
-        if (!choice) {
+        if (!choice || choice.classList.contains('uid-filter-choice') || choice.classList.contains('click-tooltip-choice')) {
             return;
         }
 
-        const tooltip = choice.querySelector('.student-feature-popup, .student-tooltip');
-        if (!tooltip) {
-            return;
-        }
-
-        removeFloatingTooltip();
-        activeChoice = choice;
-        activeChoice.classList.add('tooltip-floating-active');
-        floatingTooltip = document.createElement('div');
-        floatingTooltip.className = 'student-floating-tooltip';
-        floatingTooltip.innerHTML = tooltip.innerHTML;
-        floatingTooltip.addEventListener('mouseleave', removeFloatingTooltip);
-        document.body.appendChild(floatingTooltip);
-        positionFloatingTooltip();
+        openFloatingTooltip(choice);
     });
 
     document.addEventListener('focusout', (event) => {
+        if (activeChoice?.classList.contains('uid-filter-choice') || activeChoice?.classList.contains('click-tooltip-choice')) {
+            return;
+        }
         if (activeChoice && activeChoice.contains(event.target)) {
             removeFloatingTooltip();
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        const infoButton = event.target.closest('.student-info-button');
+        if (!infoButton) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        const choice = infoButton.closest('.student-choice');
+        if (choice) {
+            openFloatingTooltip(choice, true);
         }
     });
 
     window.addEventListener('scroll', positionFloatingTooltip, true);
     window.addEventListener('resize', positionFloatingTooltip);
 
+    const renderStudentFeatureAverages = () => {
+        if (!studentFeatureAverageList || !studentList) {
+            return;
+        }
+
+        const items = Array.from(studentList.querySelectorAll('.student-pair-item'));
+        if (items.length === 0) {
+            studentFeatureAverageList.innerHTML = '<p class="feature-filter-empty">表示中のUID/WIDペアがありません。</p>';
+            return;
+        }
+
+        const grouped = new Map();
+        items.forEach((item) => {
+            const uid = item.dataset.uid || '';
+            if (!uid) {
+                return;
+            }
+
+            let features = {};
+            try {
+                features = JSON.parse(item.dataset.features || '{}');
+            } catch (error) {
+                features = {};
+            }
+
+            if (!grouped.has(uid)) {
+                grouped.set(uid, { count: 0, sums: {}, counts: {} });
+            }
+
+            const group = grouped.get(uid);
+            group.count += 1;
+            featureFilterOptions.forEach((option) => {
+                const value = features[option.value];
+                if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) {
+                    return;
+                }
+                group.sums[option.value] = (group.sums[option.value] || 0) + Number(value);
+                group.counts[option.value] = (group.counts[option.value] || 0) + 1;
+            });
+        });
+
+        studentFeatureAverageList.innerHTML = Array.from(grouped.entries()).map(([uid, group]) => {
+            const averages = {};
+            featureFilterOptions.forEach((option) => {
+                averages[option.value] = group.counts[option.value] ? group.sums[option.value] / group.counts[option.value] : null;
+            });
+
+            return `
+                <div class="student-average-item">
+                    <span class="student-choice student-average-choice click-tooltip-choice" tabindex="0">
+                        <span class="student-average-label">UID:${escapeHtml(uid)}</span>
+                        <button type="button" class="student-info-button" aria-label="学習者ごとの選択した問題における各特徴量の平均表示">ⓘ</button>
+                        ${createFeatureTooltipHtml('学習者ごとの選択した問題における各特徴量の平均表示', averages, group.count)}
+                    </span>
+                </div>
+            `;
+        }).join('');
+    };
+
+    showStudentFeatureAveragesButton?.addEventListener('click', renderStudentFeatureAverages);
+
     searchButton.addEventListener('click', () => {
         if (!syncFeatureFilterExpressionInput(true)) {
             return;
         }
 
-        // フォームデータを収集
+        // 繝輔か繝ｼ繝繝・・繧ｿ繧貞庶髮・
         const formData = new FormData(document.getElementById('search-form'));
-        // FormDataの内容を確認
+        // FormData縺ｮ蜀・ｮｹ繧堤｢ｺ隱・
         for (const [key, value] of formData.entries()) {
             console.log(`${key}: ${value}`);
         }
@@ -613,22 +970,26 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.set('total_answers_max', 99999999);
             
         }
-        // FormDataの内容を確認
+        // FormData縺ｮ蜀・ｮｹ繧堤｢ｺ隱・
         for (const [key, value] of formData.entries()) {
             console.log(`${key}: ${value}`);
         }
 
-        // サーバーに検索条件を送信
+        // 繧ｵ繝ｼ繝舌・縺ｫ讀懃ｴ｢譚｡莉ｶ繧帝∽ｿ｡
         fetch('search-students.php', {
             method: 'POST',
             body: formData,
         })
         .then(response => response.text())
         .then(data => {
-            // リストを更新
+            // 繝ｪ繧ｹ繝医ｒ譖ｴ譁ｰ
             
             studentList.innerHTML = data;
+            if (studentFeatureAverageList) {
+                studentFeatureAverageList.innerHTML = '';
+            }
         })
         .catch(error => console.error('エラー:', error));
     });
 });
+
