@@ -49,14 +49,13 @@
             }
         }
         $student_feature_global_averages = [];
+        $student_feature_global_distributions = array_fill_keys(array_keys($student_feature_columns_for_filter), []);
         if (student_feature_table_exists($conn)) {
-            $global_average_selects = [];
             $uid_average_selects = ['tf.UID'];
             foreach ($student_feature_columns_for_filter as $column => $_label) {
                 $uid_average_selects[] = "AVG(tf.`{$column}`) AS uid_avg_{$column}";
-                $global_average_selects[] = "AVG(uid_feat.uid_avg_{$column}) AS avg_{$column}";
             }
-            $global_average_sql = "SELECT " . implode(", ", $global_average_selects) . "
+            $uid_feature_distribution_sql = "SELECT uid_feat.*
                 FROM (
                     SELECT " . implode(", ", $uid_average_selects) . "
                     FROM test_featurevalue tf
@@ -64,14 +63,29 @@
                     JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
                     WHERE ct.TID = ?
                     GROUP BY tf.UID
-                ) uid_feat";
-            $global_average_stmt = $conn->prepare($global_average_sql);
-            if ($global_average_stmt) {
-                $global_average_stmt->bind_param("s", $teacher_id);
-                $global_average_stmt->execute();
-                $global_average_result = $global_average_stmt->get_result();
-                $student_feature_global_averages = $global_average_result->fetch_assoc() ?: [];
-                $global_average_stmt->close();
+                ) uid_feat
+                ORDER BY uid_feat.UID";
+            $uid_feature_distribution_stmt = $conn->prepare($uid_feature_distribution_sql);
+            if ($uid_feature_distribution_stmt) {
+                $uid_feature_distribution_stmt->bind_param("s", $teacher_id);
+                $uid_feature_distribution_stmt->execute();
+                $uid_feature_distribution_result = $uid_feature_distribution_stmt->get_result();
+                while ($uid_feature_row = $uid_feature_distribution_result->fetch_assoc()) {
+                    foreach ($student_feature_columns_for_filter as $column => $_label) {
+                        $value = $uid_feature_row["uid_avg_{$column}"] ?? null;
+                        if ($value === null || $value === '') {
+                            continue;
+                        }
+                        $student_feature_global_distributions[$column][] = (float)$value;
+                    }
+                }
+                $uid_feature_distribution_stmt->close();
+                foreach ($student_feature_columns_for_filter as $column => $_label) {
+                    $values = $student_feature_global_distributions[$column];
+                    $student_feature_global_averages["avg_{$column}"] = count($values) > 0
+                        ? array_sum($values) / count($values)
+                        : null;
+                }
             }
         }
         $teacher_page_title = '学生グループ作成';
@@ -302,9 +316,13 @@
                                 <p class="feature-filter-empty">論理式に特徴量を追加すると、ここに最小値・最大値の設定欄が表示されます。</p>
                             </div>
                             <div class="feature-global-average-box">
-                                <label for="feature-global-average-select">各特徴量の全UIDの平均値</label>
+                                <label for="feature-global-average-select">各特徴量の全UIDの平均値・分布</label>
                                 <select id="feature-global-average-select"></select>
                                 <p id="feature-global-average-value" class="feature-global-average-value">特徴量を選択してください。</p>
+                                <div class="feature-global-histogram">
+                                    <canvas id="feature-global-histogram-chart" aria-label="各特徴量の全UID平均値の分布"></canvas>
+                                </div>
+                                <p id="feature-global-histogram-summary" class="feature-global-histogram-summary">特徴量を選択すると分布を表示します。</p>
                             </div>
                         </div>
                     </fieldset>
@@ -505,6 +523,7 @@
             $carry[$column] = $student_feature_global_averages["avg_{$column}"] ?? null;
             return $carry;
         }, []), JSON_UNESCAPED_UNICODE) ?>;
+        window.studentGroupFeatureGlobalDistributions = <?= json_encode($student_feature_global_distributions, JSON_UNESCAPED_UNICODE) ?>;
         window.studentGroupFeatureFilterPlaceholders = {
             min: '最小値',
             max: '最大値'
