@@ -361,7 +361,7 @@
                                 $attempt = htmlspecialchars($row['attempt'], ENT_QUOTES, 'UTF-8');
                                 $test_id = htmlspecialchars($row['test_id'] ?? '', ENT_QUOTES, 'UTF-8');
                                 $name = htmlspecialchars($row['Name'], ENT_QUOTES, 'UTF-8');
-                                $student_tooltip = render_feature_average_tooltip($row, 'UID/WID/Attemptの特徴量平均');
+                                $student_tooltip = render_feature_average_tooltip($row, 'UID/WID/Attemptの特徴量', false);
                                 $feature_values = [];
                                 foreach ($student_feature_columns_for_filter as $column => $_label) {
                                     $feature_values[$column] = $row["avg_{$column}"] ?? null;
@@ -374,7 +374,7 @@
                                             <p class='student-detail student-name'><span class='label'>UID:</span> {$uid}</p>
                                             <p class='student-detail'><span class='label'>WID:</span> {$wid}</p>
                                             <p class='student-detail'><span class='label'>Attempt:</span> {$attempt}</p>
-                                        <button type='button' class='student-info-button' aria-label='学習者ごとの特徴量の平均を表示'>ⓘ</button>
+                                        <button type='button' class='student-info-button' aria-label='UID/WID/Attemptの特徴量を表示'>ⓘ</button>
                                             {$student_tooltip}
                                         </label>
                                         <a href='{$trajectory_url}' target='_blank' class='student-trajectory-link'>軌跡再現</a>

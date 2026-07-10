@@ -519,13 +519,13 @@
             return options.length === 0 ? '<option value="">対象がありません</option>' : options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
         };
         const kindOptionsHtml = (selectedKind) => [
-            ['condition', '蟇ｾ雎｡'], ['and', 'AND'], ['or', 'OR'], ['not', 'NOT'], ['open', '('], ['close', ')'],
+            ['condition', '対象'], ['and', 'AND'], ['or', 'OR'], ['not', 'NOT'], ['open', '('], ['close', ')'],
         ].map(([value, label]) => `<option value="${value}"${value === selectedKind ? ' selected' : ''}>${label}</option>`).join('');
         const tokenLabel = (token) => {
             const kind = token.dataset.kind;
             if (kind === 'condition') {
                 const select = token.querySelector('.logic-filter-target');
-                return select?.options[select.selectedIndex]?.textContent || '蟇ｾ雎｡';
+                return select?.options[select.selectedIndex]?.textContent || '対象';
             }
             if (kind === 'open') return '(';
             if (kind === 'close') return ')';

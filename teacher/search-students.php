@@ -378,7 +378,7 @@ while ($row = $result->fetch_assoc()) {
     $attempt = htmlspecialchars($row['attempt'], ENT_QUOTES, 'UTF-8');
     $test_id = htmlspecialchars($row['test_id'] ?? '', ENT_QUOTES, 'UTF-8');
     $name = htmlspecialchars($row['Name'], ENT_QUOTES, 'UTF-8');
-    $student_tooltip = render_feature_average_tooltip($row, 'UID/WID/Attemptの特徴量平均');
+    $student_tooltip = render_feature_average_tooltip($row, 'UID/WID/Attemptの特徴量', false);
     $feature_values = [];
     foreach ($available_feature_columns as $column => $_label) {
         $feature_values[$column] = $row["avg_{$column}"] ?? null;
@@ -393,7 +393,7 @@ while ($row = $result->fetch_assoc()) {
                 <p class='student-detail student-name'><span class='label'>UID:</span> {$uid}</p>
                 <p class='student-detail'><span class='label'>WID:</span> {$wid}</p>
                 <p class='student-detail'><span class='label'>Attempt:</span> {$attempt}</p>
-                <p class='student-detail student-name-row'><span><span class='label'>{$name_label}:</span> {$name}</span><button type='button' class='student-info-button' aria-label='UID/WID/Attemptの特徴量平均を表示'>ⓘ</button></p>
+                <p class='student-detail student-name-row'><span><span class='label'>{$name_label}:</span> {$name}</span><button type='button' class='student-info-button' aria-label='UID/WID/Attemptの特徴量を表示'>ⓘ</button></p>
                 {$student_tooltip}
             </label>
             <a href='{$trajectory_url}' target='_blank' class='student-trajectory-link'>軌跡再現</a>

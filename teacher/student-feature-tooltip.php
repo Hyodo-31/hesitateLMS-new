@@ -159,13 +159,14 @@ function render_student_tooltip(array $row, string $accuracy_label, string $hesi
     return $html;
 }
 
-function render_feature_average_tooltip(array $row, string $title = '特徴量平均'): string
+function render_feature_average_tooltip(array $row, string $title = '特徴量平均', bool $show_count = true): string
 {
     $feature_record_count = (int)($row['feature_record_count'] ?? 0);
     $safe_title = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+    $title_text = $show_count ? "{$safe_title} ({$feature_record_count}件)" : $safe_title;
 
     $html = "<span class='student-feature-popup' role='tooltip' hidden>
-                <span class='feature-tooltip-title'>{$safe_title} ({$feature_record_count}件)</span>";
+                <span class='feature-tooltip-title'>{$title_text}</span>";
 
     if ($feature_record_count === 0) {
         $html .= "<span class='feature-tooltip-empty'>特徴量データがありません</span>";
