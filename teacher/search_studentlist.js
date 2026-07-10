@@ -25,6 +25,7 @@
     const trimFeatureFilterExpressionButton = document.getElementById('trim-feature-filter-expression');
     const clearFeatureFilterExpressionButton = document.getElementById('clear-feature-filter-expression');
     const featureFilterOptions = Object.entries(window.studentGroupFeatureColumns || {}).map(([value, label]) => ({ value, label }));
+    const featureDisplayMeta = window.studentGroupFeatureDisplayMeta || {};
     const featureGlobalAverages = window.studentGroupFeatureGlobalAverages || {};
     const featureGlobalDistributions = window.studentGroupFeatureGlobalDistributions || {};
     const uidLogicFilterGroups = window.studentGroupLogicFilterGroups || [];
@@ -40,17 +41,34 @@
         "'": '&#039;',
     }[char]));
 
-    const formatFeatureValue = (value) => {
+    const getFeatureDisplayMeta = (feature) => featureDisplayMeta[feature] || { displayScale: 1, unit: '' };
+
+    const toFeatureDisplayValue = (feature, value) => {
         if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) {
+            return null;
+        }
+        return Number(value) * Number(getFeatureDisplayMeta(feature).displayScale || 1);
+    };
+
+    const formatFeatureValue = (feature, value) => {
+        const displayValue = toFeatureDisplayValue(feature, value);
+        if (displayValue === null) {
             return '-';
         }
-        return Number(value).toFixed(2);
+        const unit = getFeatureDisplayMeta(feature).unit || '';
+        return `${Number(displayValue).toFixed(2)}${unit}`;
+    };
+
+    const getFeatureDisplayValues = (feature, values) => {
+        return (values || [])
+            .map((value) => toFeatureDisplayValue(feature, value))
+            .filter((value) => value !== null && Number.isFinite(value));
     };
 
     const createFeatureTooltipHtml = (title, values, count) => {
         const rows = featureFilterOptions.map((option) => `
             <span class="feature-tooltip-label">${escapeHtml(option.label)}</span>
-            <span class="feature-tooltip-value">${escapeHtml(formatFeatureValue(values[option.value]))}</span>
+            <span class="feature-tooltip-value">${escapeHtml(formatFeatureValue(option.value, values[option.value]))}</span>
         `).join('');
 
         return `
@@ -629,7 +647,7 @@
             return;
         }
 
-        const values = (featureGlobalDistributions[feature] || []).map(Number).filter((value) => Number.isFinite(value));
+        const values = getFeatureDisplayValues(feature, featureGlobalDistributions[feature] || []);
         const histogram = buildFeatureHistogram(values);
         if (!histogram) {
             destroyFeatureHistogramChart();
@@ -728,7 +746,7 @@
 
         const option = featureFilterOptions.find((item) => item.value === feature);
         const label = option?.label || feature;
-        featureGlobalAverageValue.textContent = `${label}: ${formatFeatureValue(featureGlobalAverages[feature])}`;
+        featureGlobalAverageValue.textContent = `${label}: ${formatFeatureValue(feature, featureGlobalAverages[feature])}`;
         renderFeatureHistogram(feature, label);
     };
 

@@ -1,6 +1,7 @@
 <?php
 include '../lang.php';
 require '../dbc.php';
+require_once __DIR__ . '/feature_display.php';
 
 if (empty($_SESSION['MemberID'])) {
     http_response_code(401);
@@ -151,6 +152,10 @@ function appendWidFilter(string $sql, array $selectedWids, string &$types, array
 }
 
 $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
+$featureLabels = [];
+foreach ($featureColumns as $featureColumn) {
+    $featureLabels[$featureColumn] = feature_display_label($featureColumn, $featureColumn);
+}
 $featureDescriptions = [
     'Time' => '問題の解答開始から終了までにかかった時間です。',
     'distance' => '解答中にマウスカーソルが移動した距離の合計です。',
@@ -369,8 +374,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'mode' => $mode,
                 'feature_x' => $xFeature,
                 'feature_y' => $mode === 'feature_pair' ? $yFeature : null,
-                'x_label' => $xFeature,
-                'y_label' => $mode === 'feature_pair' ? $yFeature : 'Understand(迷い度)',
+                'x_label' => feature_display_label($xFeature, $xFeature),
+                'y_label' => $mode === 'feature_pair' ? feature_display_label($yFeature, $yFeature) : 'Understand(迷い度)',
                 'count' => 0,
                 'correlation' => null,
                 'points' => [],
@@ -392,14 +397,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = "SELECT UID, WID, attempt, Understand, {$xSql} AS x_value, {$ySql} AS y_value
                     FROM test_featurevalue
                     WHERE {$xSql} IS NOT NULL AND {$ySql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
-            $xLabel = $xFeature;
-            $yLabel = $yFeature;
+            $xLabel = feature_display_label($xFeature, $xFeature);
+            $yLabel = feature_display_label($yFeature, $yFeature);
         } else {
             $xSql = quoteIdentifier($xFeature);
             $sql = "SELECT UID, WID, attempt, Understand, {$xSql} AS x_value, Understand AS y_value
                     FROM test_featurevalue
                     WHERE Understand IS NOT NULL AND {$xSql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
-            $xLabel = $xFeature;
+            $xLabel = feature_display_label($xFeature, $xFeature);
             $yLabel = 'Understand(迷い度)';
             $mode = 'understand';
         }
@@ -422,8 +427,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 continue;
             }
 
-            $x = (float)$row['x_value'];
-            $y = (float)$row['y_value'];
+            $x = feature_display_numeric_value($xFeature, $row['x_value']);
+            $y = $mode === 'feature_pair'
+                ? feature_display_numeric_value($yFeature, $row['y_value'])
+                : (float)$row['y_value'];
+            if ($x === null || $y === null) {
+                continue;
+            }
             $xValues[] = $x;
             $yValues[] = $y;
             $points[] = [
@@ -1038,7 +1048,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <span class="feature-tooltip feature-select-tooltip">
                     <select id="feature-x-select">
                         <?php foreach ($featureColumns as $col): ?>
-                            <option value="<?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?></option>
+                            <option value="<?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($featureLabels[$col] ?? $col, ENT_QUOTES, 'UTF-8') ?></option>
                         <?php endforeach; ?>
                     </select>
                     <span class="feature-tooltip-popup" id="feature-x-select-description" role="tooltip"></span>
@@ -1056,7 +1066,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <span class="feature-tooltip feature-select-tooltip">
                     <select id="feature-y-select">
                         <?php foreach ($featureColumns as $col): ?>
-                            <option value="<?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?></option>
+                            <option value="<?= htmlspecialchars($col, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($featureLabels[$col] ?? $col, ENT_QUOTES, 'UTF-8') ?></option>
                         <?php endforeach; ?>
                     </select>
                     <span class="feature-tooltip-popup" id="feature-y-select-description" role="tooltip"></span>
@@ -1197,6 +1207,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 const featureColumns = <?= json_encode($featureColumns, JSON_UNESCAPED_UNICODE) ?>;
+const featureLabels = <?= json_encode($featureLabels, JSON_UNESCAPED_UNICODE) ?>;
+const featureDisplayMeta = <?= json_encode(feature_display_metadata($featureColumns), JSON_UNESCAPED_UNICODE) ?>;
 const featureDescriptions = <?= json_encode($featureDescriptions, JSON_UNESCAPED_UNICODE) ?>;
 const classStudentIdsByClass = <?= json_encode((object)$studentsByClassId, JSON_UNESCAPED_UNICODE) ?>;
 const groupStudentIdsByGroup = <?= json_encode((object)$studentsByGroup, JSON_UNESCAPED_UNICODE) ?>;
@@ -1781,8 +1793,14 @@ function formatCorrelation(value) {
     return number.toFixed(4);
 }
 
+function getFeatureLabel(feature) {
+    return featureLabels[feature] || feature;
+}
+
 function getFeatureDescription(feature) {
-    return featureDescriptions[feature] || `${feature} の計測値です。`;
+    const description = featureDescriptions[feature] || `${feature} の計測値です。`;
+    const unit = featureDisplayMeta[feature]?.unit || '';
+    return unit ? `${description}\n表示単位: ${unit}` : description;
 }
 
 function showRankingFeaturePopup(anchor, feature) {
@@ -1966,7 +1984,7 @@ function renderRanking(items) {
     hideRankingFeaturePopup();
     rankingBody.innerHTML = '';
     emptyList.classList.toggle('hidden', items.length > 0);
-    rankingBaseLabel.textContent = isUnderstandMode ? 'Understand(迷い度)' : featureXSelect.value;
+    rankingBaseLabel.textContent = isUnderstandMode ? 'Understand(迷い度)' : getFeatureLabel(featureXSelect.value);
 
     const selectedFeature = isUnderstandMode ? featureXSelect.value : featureYSelect.value;
     items.forEach((item) => {
@@ -1981,7 +1999,7 @@ function renderRanking(items) {
 
         const featureName = document.createElement('span');
         featureName.className = 'ranking-feature-name';
-        featureName.textContent = feature;
+        featureName.textContent = getFeatureLabel(feature);
         featureName.tabIndex = 0;
         featureName.setAttribute('aria-describedby', 'ranking-feature-popup');
         featureName.addEventListener('mouseenter', () => showRankingFeaturePopup(featureName, feature));

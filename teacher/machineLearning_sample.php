@@ -1,4 +1,24 @@
-<?php include '../lang.php'; ?>
+<?php
+include '../lang.php';
+require_once __DIR__ . '/feature_display.php';
+
+$featureDisplayFeatureKeys = [
+    'notaccuracy', 'notAccuracy', 'Time', 'time', 'distance', 'averageSpeed', 'maxSpeed',
+    'thinkingTime', 'answeringTime', 'totalStopTime', 'maxStopTime',
+    'totalDDIntervalTime', 'maxDDIntervalTime', 'maxDDTime', 'minDDTime',
+    'DDCount', 'groupingDDCount', 'groupingCountbool', 'stopcount',
+    'xUturnCount', 'yUturnCount', 'xUTurnCount', 'yUTurnCount',
+    'xUturnCountDD', 'yUturnCountDD', 'xUTurnCountDD', 'yUTurnCountDD',
+    'register_move_count1', 'register_move_count2', 'register_move_count3', 'register_move_count4',
+    'register01count1', 'register01count2', 'register01count3', 'register01count4',
+    'registerDDCount', 'register_notDDCount',
+    'register_fix_count1', 'register_fix_count2', 'register_fix_count3', 'register_fix_count4',
+    'register_delete_count1', 'register_delete_count2', 'register_delete_count3', 'register_delete_count4',
+    'register_allDelete_count1', 'register_allDelete_count2', 'register_allDelete_count3', 'register_allDelete_count4',
+    'register_notallDelete_count1', 'register_notallDelete_count2', 'register_notallDelete_count3', 'register_notallDelete_count4',
+    'FromlastdropToanswerTime',
+];
+?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
 
@@ -9,6 +29,9 @@
     <link rel="stylesheet" href="../style/machineLearning_styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script>
+        window.featureDisplayMeta = <?= json_encode(feature_display_metadata($featureDisplayFeatureKeys), JSON_UNESCAPED_UNICODE) ?>;
+    </script>
 </head>
 
 <body>
@@ -594,7 +617,77 @@
                 const groupData = <?php echo json_encode($groups); ?>;
                 console.log(groupData);
 
+                function getFeatureDisplayMeta(feature) {
+                    return window.featureDisplayMeta?.[feature] || { displayScale: 1, unit: '' };
+                }
+
+                function toFeatureDisplayValue(feature, value) {
+                    const number = Number(value);
+                    if (!Number.isFinite(number)) {
+                        return value;
+                    }
+                    const scale = Number(getFeatureDisplayMeta(feature).displayScale || 1);
+                    return number * scale;
+                }
+
+                function featureLabelHasUnit(label, unit) {
+                    if (!unit) {
+                        return true;
+                    }
+                    const lowerLabel = String(label).toLowerCase();
+                    const lowerUnit = String(unit).toLowerCase();
+                    return lowerLabel.includes(`（${lowerUnit}）`) ||
+                        lowerLabel.includes(`(${lowerUnit})`) ||
+                        (lowerUnit.length > 1 && lowerLabel.includes(lowerUnit));
+                }
+
+                function appendFeatureUnit(label, feature) {
+                    const unit = getFeatureDisplayMeta(feature).unit || '';
+                    if (!unit || featureLabelHasUnit(label, unit)) {
+                        return label;
+                    }
+                    return `${label}（${unit}）`;
+                }
+
+                function getFeatureLabelFromInput(feature) {
+                    const input = Array.from(document.querySelectorAll('input[name="feature"], input[name="featureLabel[]"]'))
+                        .find((candidate) => candidate.value === feature || candidate.dataset.featureName === feature);
+                    const label = input?.closest('label');
+                    if (!label) {
+                        return appendFeatureUnit(feature, feature);
+                    }
+
+                    const clone = label.cloneNode(true);
+                    clone.querySelectorAll('input, .info-icon').forEach((node) => node.remove());
+                    const text = clone.textContent.trim();
+                    return appendFeatureUnit(text || feature, feature);
+                }
+
+                function applyFeatureUnitsToLabels() {
+                    document.querySelectorAll('input[name="feature"], input[name="featureLabel[]"]').forEach((input) => {
+                        const label = input.closest('label');
+                        if (!label) {
+                            return;
+                        }
+
+                        const feature = input.dataset.featureName || label.querySelector('.info-icon')?.dataset.featureName || input.value;
+                        const unit = getFeatureDisplayMeta(feature).unit || '';
+                        if (!unit) {
+                            return;
+                        }
+
+                        Array.from(label.childNodes).some((node) => {
+                            if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() === '') {
+                                return false;
+                            }
+                            node.textContent = appendFeatureUnit(node.textContent.trim(), feature);
+                            return true;
+                        });
+                    });
+                }
+
                 document.addEventListener("DOMContentLoaded", function() {
+                    applyFeatureUnitsToLabels();
                     const container = document.getElementById('group-chart-container');
 
                     groupData.forEach((group, index) => {
@@ -785,6 +878,7 @@
                                 }
 
                                 const otherFeatureData = data.map(item => item.featureA_avg);
+                                const otherFeatureLabel = getFeatureLabelFromInput(otherFeature);
 
                                 const canvasId = isOverall ?
                                     `class-dual-axis-chart-${chartIndex}` :
@@ -796,11 +890,11 @@
                                     notaccuracyData,
                                     otherFeatureData,
                                     <?= json_encode(translate('machineLearning_sample.php_734行目_不正解率(%)')) ?>,
-                                    `${otherFeature} ` + <?= json_encode(translate('machineLearning_sample.php_735行目_平均')) ?>,
+                                    `${otherFeatureLabel} ` + <?= json_encode(translate('machineLearning_sample.php_735行目_平均')) ?>,
                                     'rgba(54, 162, 235, 0.6)',
                                     'rgba(255, 99, 132, 0.6)',
                                     <?= json_encode(translate('machineLearning_sample.php_739行目_不正解率(%)')) ?>,
-                                    `${otherFeature} ` + <?= json_encode(translate('machineLearning_sample.php_740行目_平均')) ?>,
+                                    `${otherFeatureLabel} ` + <?= json_encode(translate('machineLearning_sample.php_740行目_平均')) ?>,
                                     chartArray,
                                     chartIndex
                                 );
@@ -846,6 +940,8 @@
                                 const labels = data.map(item => item.name);
                                 const featureAData = data.map(item => item.featureA_avg);
                                 const featureBData = data.map(item => item.featureB_avg);
+                                const featureALabel = getFeatureLabelFromInput(selectedFeatures[0]);
+                                const featureBLabel = getFeatureLabelFromInput(selectedFeatures[1]);
 
                                 const canvasId = isOverall ?
                                     `class-dual-axis-chart-${chartIndex}` :
@@ -856,12 +952,12 @@
                                     labels,
                                     featureAData,
                                     featureBData,
-                                    `${selectedFeatures[0]} ` + <?= json_encode(translate('machineLearning_sample.php_777行目_平均')) ?>,
-                                    `${selectedFeatures[1]} ` + <?= json_encode(translate('machineLearning_sample.php_778行目_平均')) ?>,
+                                    `${featureALabel} ` + <?= json_encode(translate('machineLearning_sample.php_777行目_平均')) ?>,
+                                    `${featureBLabel} ` + <?= json_encode(translate('machineLearning_sample.php_778行目_平均')) ?>,
                                     'rgba(54, 162, 235, 0.6)',
                                     'rgba(255, 99, 132, 0.6)',
-                                    `${selectedFeatures[0]} ` + <?= json_encode(translate('machineLearning_sample.php_782行目_平均')) ?>,
-                                    `${selectedFeatures[1]} ` + <?= json_encode(translate('machineLearning_sample.php_783行目_平均')) ?>,
+                                    `${featureALabel} ` + <?= json_encode(translate('machineLearning_sample.php_782行目_平均')) ?>,
+                                    `${featureBLabel} ` + <?= json_encode(translate('machineLearning_sample.php_783行目_平均')) ?>,
                                     chartArray,
                                     chartIndex
                                 );
@@ -2070,8 +2166,8 @@
                                 };
                             }
                             datasets[cluster].data.push({
-                                x: parseFloat(student[selectedFeatures[0]]),
-                                y: parseFloat(student[selectedFeatures[1]]),
+                                x: toFeatureDisplayValue(selectedFeatures[0], student[selectedFeatures[0]]),
+                                y: toFeatureDisplayValue(selectedFeatures[1], student[selectedFeatures[1]]),
                                 label: `UID: ${student.uid}`
                             });
                         });
@@ -2108,13 +2204,13 @@
                                     x: {
                                         title: {
                                             display: true,
-                                            text: selectedFeatures[0]
+                                            text: getFeatureLabelFromInput(selectedFeatures[0])
                                         }
                                     },
                                     y: {
                                         title: {
                                             display: true,
-                                            text: selectedFeatures[1]
+                                            text: getFeatureLabelFromInput(selectedFeatures[1])
                                         }
                                     }
                                 }

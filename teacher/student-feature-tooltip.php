@@ -1,5 +1,7 @@
 ﻿<?php
 
+require_once __DIR__ . '/feature_display.php';
+
 function student_feature_columns(): array
 {
     return [
@@ -129,6 +131,11 @@ function format_student_feature_value($value): string
     return number_format($number, 2, '.', '');
 }
 
+function format_student_feature_display_value(string $feature, $value): string
+{
+    return feature_display_value($feature, $value);
+}
+
 function render_student_tooltip(array $row, string $accuracy_label, string $hesitation_label, string $answers_label): string
 {
     $accuracy = htmlspecialchars(round((float)$row['accuracy'], 2), ENT_QUOTES, 'UTF-8');
@@ -147,8 +154,8 @@ function render_student_tooltip(array $row, string $accuracy_label, string $hesi
     } else {
         $html .= "<span class='feature-tooltip-grid'>";
         foreach (student_feature_columns() as $column => $label) {
-            $value = htmlspecialchars(format_student_feature_value($row["avg_{$column}"] ?? null), ENT_QUOTES, 'UTF-8');
-            $safe_label = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
+            $value = htmlspecialchars(format_student_feature_display_value($column, $row["avg_{$column}"] ?? null), ENT_QUOTES, 'UTF-8');
+            $safe_label = htmlspecialchars(feature_display_label($column, $label), ENT_QUOTES, 'UTF-8');
             $html .= "<span class='feature-tooltip-label'>{$safe_label}</span><span class='feature-tooltip-value'>{$value}</span>";
         }
         $html .= "</span>";
@@ -173,8 +180,8 @@ function render_feature_average_tooltip(array $row, string $title = '特徴量�
     } else {
         $html .= "<span class='feature-tooltip-grid'>";
         foreach (student_feature_columns() as $column => $label) {
-            $value = htmlspecialchars(format_student_feature_value($row["avg_{$column}"] ?? null), ENT_QUOTES, 'UTF-8');
-            $safe_label = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
+            $value = htmlspecialchars(format_student_feature_display_value($column, $row["avg_{$column}"] ?? null), ENT_QUOTES, 'UTF-8');
+            $safe_label = htmlspecialchars(feature_display_label($column, $label), ENT_QUOTES, 'UTF-8');
             $html .= "<span class='feature-tooltip-label'>{$safe_label}</span><span class='feature-tooltip-value'>{$value}</span>";
         }
         $html .= "</span>";

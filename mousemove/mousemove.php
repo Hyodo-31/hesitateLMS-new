@@ -683,6 +683,19 @@ require "../lang.php";
         var DDdragTime = <?php echo $DDdragTime_json; ?>;
         var all_dd_events = <?php echo $all_dd_events_json; ?>;
         var dd_intervals = <?php echo $dd_intervals_json; ?>;
+        var playbackTimeUnit = <?= json_encode(translate('mousemove.php_578行目_秒')) ?>;
+
+        function formatPlaybackTime(milliseconds) {
+            var number = Number(milliseconds);
+            if (!Number.isFinite(number)) {
+                return '-';
+            }
+
+            var seconds = number / 1000;
+            var formatted = seconds.toFixed(2).replace(/\.?0+$/, '');
+            return formatted + playbackTimeUnit;
+        }
+
         UTurnFlag = 0;
         UTurnCount = 0;
         console.log(DDdragTime);
@@ -768,8 +781,8 @@ require "../lang.php";
         <div style="display: inline-block; vertical-align: middle;">
             <?= translate('mousemove.php_516行目_途中から開始') ?>：<input type="text" id="jquery-ui-slider-value" /> /
             <script type="text/javascript">
-                document.write(t_point[t_point.length - 4]);
-            </script>ms
+                document.write(formatPlaybackTime(t_point[t_point.length - 4]));
+            </script>
 
             <span class="info-icon">ⓘ
                 <span class="info-popup" style="width: 450px; text-align: left; padding: 12px; white-space: normal;">
@@ -933,27 +946,27 @@ require "../lang.php";
                                           if (isset($maxstoptime)) {
                                               echo htmlspecialchars($maxstoptime, ENT_QUOTES, 'UTF-8');
                                           }
-                                          ?>s<br>
+                                          ?><?= translate('mousemove.php_578行目_秒') ?><br>
                                         <?= translate('総合静止時間') ?>：<?php
                                           if (isset($totalStopTime)) {
                                               echo htmlspecialchars($totalStopTime, ENT_QUOTES, 'UTF-8');
                                           }
-                                          ?>s<br>
+                                          ?><?= translate('mousemove.php_578行目_秒') ?><br>
                                         <?= translate('開始から最初の単語を触るまでの時間') ?>：<?php
                                           if (isset($thinkingTime)) {
                                               echo htmlspecialchars($thinkingTime, ENT_QUOTES, 'UTF-8');
                                           }
-                                          ?>s<br>
+                                          ?><?= translate('mousemove.php_578行目_秒') ?><br>
                                         <?= translate('最初の単語を触ってから最後までの時間') ?>：<?php
                                           if (isset($answeringTime)) {
                                               echo htmlspecialchars($answeringTime, ENT_QUOTES, 'UTF-8');
                                           }
-                                          ?>s<br>
+                                          ?><?= translate('mousemove.php_578行目_秒') ?><br>
                                         <?= translate('最大Drag&Drop時間') ?>：<?php
                                           if (isset($maxDDTime)) {
                                               echo htmlspecialchars($maxDDTime, ENT_QUOTES, 'UTF-8');
                                           }
-                                          ?>s<br>
+                                          ?><?= translate('mousemove.php_578行目_秒') ?><br>
                                     </td>
                                 </tr>
                             </table>
@@ -1791,7 +1804,7 @@ require "../lang.php";
                 matchingEvents.forEach(function (event, index) {
                     var option = document.createElement('option');
                     option.value = event.time; // valueにイベント発生時間を設定
-                    option.textContent = (index + 1) + '回目 (' + event.time + 'ms)';
+                    option.textContent = (index + 1) + '回目 (' + formatPlaybackTime(event.time) + ')';
                     instanceSelect.appendChild(option);
                 });
             }
@@ -2503,14 +2516,14 @@ require "../lang.php";
                 max: maxTime,
                 step: 1, // より滑らかに動かすためにstepを1に
                 slide: function (event, ui) {
-                    $('#jquery-ui-slider-value').val(ui.value + 'ms');
+                    $('#jquery-ui-slider-value').val(formatPlaybackTime(ui.value));
                 },
                 stop: function (event, ui) {
-                    $('#jquery-ui-slider-value').val(ui.value + 'ms');
+                    $('#jquery-ui-slider-value').val(formatPlaybackTime(ui.value));
                     renderStateAtTime(ui.value);
                 }
             });
-            $('#jquery-ui-slider-value').val($slider.slider('value') + 'ms');
+            $('#jquery-ui-slider-value').val(formatPlaybackTime($slider.slider('value')));
 
             // 2. D&Dイベントの目盛りをスライダー上に描画する
             function drawTicks() {

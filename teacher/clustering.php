@@ -1,6 +1,7 @@
 <?php
 include '../lang.php';
 require '../dbc.php';
+require_once __DIR__ . '/feature_display.php';
 
 if (empty($_SESSION['MemberID']) && empty($_SESSION['TID'])) {
     http_response_code(401);
@@ -76,6 +77,7 @@ $featureLabels = [
     'register_notallDelete_count4' => 'レジスタ部分削除回数4',
     'FromlastdropToanswerTime' => '最終ドロップ後時間',
 ];
+$featureLabels = feature_display_labels($featureLabels);
 
 function getClusteringFeatureColumns(mysqli $conn, array $fallbackFeatureColumns): array
 {
@@ -115,6 +117,11 @@ function getClusteringFeatureColumns(mysqli $conn, array $fallbackFeatureColumns
 }
 
 $featureColumns = getClusteringFeatureColumns($conn, $fallbackFeatureColumns);
+foreach ($featureColumns as $featureColumn) {
+    if (!isset($featureLabels[$featureColumn])) {
+        $featureLabels[$featureColumn] = feature_display_label($featureColumn, $featureColumn);
+    }
+}
 $studentsByClass = [];
 $studentsByClassId = [];
 $teacherClasses = [];

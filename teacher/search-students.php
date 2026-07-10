@@ -135,8 +135,8 @@ function feature_filter_range_values(array $posted_feature_filters, string $feat
 
     $min = trim((string)($condition['min'] ?? ''));
     $max = trim((string)($condition['max'] ?? ''));
-    $min_value = $min !== '' && is_numeric($min) ? (float)$min : null;
-    $max_value = $max !== '' && is_numeric($max) ? (float)$max : null;
+    $min_value = $min !== '' && is_numeric($min) ? feature_storage_numeric_value($feature, $min) : null;
+    $max_value = $max !== '' && is_numeric($max) ? feature_storage_numeric_value($feature, $max) : null;
 
     return [$min_value, $max_value];
 }
@@ -230,8 +230,8 @@ if (!empty($feature_expression_tokens)) {
 
         $min = trim((string)($condition['min'] ?? ''));
         $max = trim((string)($condition['max'] ?? ''));
-        $min_value = $min !== '' && is_numeric($min) ? (float)$min : null;
-        $max_value = $max !== '' && is_numeric($max) ? (float)$max : null;
+        $min_value = $min !== '' && is_numeric($min) ? feature_storage_numeric_value($column, $min) : null;
+        $max_value = $max !== '' && is_numeric($max) ? feature_storage_numeric_value($column, $max) : null;
         if ($min_value === null && $max_value === null) {
             continue;
         }
@@ -249,8 +249,8 @@ if (!empty($feature_expression_tokens)) {
 
         $min = trim((string)($condition['min'] ?? ''));
         $max = trim((string)($condition['max'] ?? ''));
-        $min_value = $min !== '' && is_numeric($min) ? (float)$min : null;
-        $max_value = $max !== '' && is_numeric($max) ? (float)$max : null;
+        $min_value = $min !== '' && is_numeric($min) ? feature_storage_numeric_value($column, $min) : null;
+        $max_value = $max !== '' && is_numeric($max) ? feature_storage_numeric_value($column, $max) : null;
         if ($min_value === null && $max_value === null) {
             continue;
         }

@@ -516,7 +516,8 @@
         </main>
     </div>
     <script>
-        window.studentGroupFeatureColumns = <?= json_encode($student_feature_columns_for_filter, JSON_UNESCAPED_UNICODE) ?>;
+        window.studentGroupFeatureColumns = <?= json_encode(feature_display_labels($student_feature_columns_for_filter), JSON_UNESCAPED_UNICODE) ?>;
+        window.studentGroupFeatureDisplayMeta = <?= json_encode(feature_display_metadata(array_keys($student_feature_columns_for_filter)), JSON_UNESCAPED_UNICODE) ?>;
         window.studentGroupLogicFilterGroups = <?= json_encode($logic_filter_groups, JSON_UNESCAPED_UNICODE) ?>;
         window.studentGroupLogicFilterStudentsByGroup = <?= json_encode((object)$logic_filter_students_by_group, JSON_UNESCAPED_UNICODE) ?>;
         window.studentGroupFeatureGlobalAverages = <?= json_encode(array_reduce(array_keys($student_feature_columns_for_filter), function ($carry, $column) use ($student_feature_global_averages) {
