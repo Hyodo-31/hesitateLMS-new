@@ -257,6 +257,28 @@
                     </script>
 
                     <fieldset class="basic-filter-fieldset">
+                        <legend>UID/WID選択結果への追加条件</legend>
+                        <div class="basic-filter-grid">
+                            <div class="basic-filter-item">
+                                <label for="hesitation_filter">迷いの有無:</label>
+                                <select id="hesitation_filter" name="hesitation_filter">
+                                    <option value="">すべて</option>
+                                    <option value="not_hesitated">迷い無し</option>
+                                    <option value="hesitated">迷い有り</option>
+                                </select>
+                            </div>
+                            <div class="basic-filter-item">
+                                <label for="correctness_filter">正誤:</label>
+                                <select id="correctness_filter" name="correctness_filter">
+                                    <option value="">すべて</option>
+                                    <option value="correct">正解</option>
+                                    <option value="incorrect">不正解</option>
+                                </select>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="basic-filter-fieldset">
                         <legend>基本情報での絞り込み</legend>
                         <div class="basic-filter-grid">
                             <div class="basic-filter-item">
@@ -342,6 +364,8 @@
                                             feat.WID,
                                             feat.attempt,
                                             COALESCE(ld.test_id, feat.test_id) AS test_id,
+                                            ld.TF AS answer_tf,
+                                            tr.Understand AS hesitation_understand,
                                             COALESCE(acc.accuracy, 0) AS accuracy,
                                             COALESCE(acc.total_answers, 0) AS total_answers,
                                             COALESCE(hes.hesitation_rate, 0) AS hesitation_rate,
@@ -365,6 +389,11 @@
                                         ) hes ON s.uid = hes.uid
                                         {$feature_pair_join_sql}
                                         LEFT JOIN linedata ld ON s.uid = ld.UID AND feat.WID = ld.WID AND feat.attempt = ld.attempt
+                                        LEFT JOIN temporary_results tr
+                                            ON s.uid = tr.UID
+                                            AND feat.WID = tr.WID
+                                            AND feat.attempt = tr.attempt
+                                            AND tr.teacher_id = ct.TID
                                         WHERE ct.TID = ? AND feat.WID IS NOT NULL
                                         ORDER BY s.uid, feat.WID, feat.attempt;
 
@@ -379,6 +408,17 @@
                                 $attempt = htmlspecialchars($row['attempt'], ENT_QUOTES, 'UTF-8');
                                 $test_id = htmlspecialchars($row['test_id'] ?? '', ENT_QUOTES, 'UTF-8');
                                 $name = htmlspecialchars($row['Name'], ENT_QUOTES, 'UTF-8');
+                                $correctness_text = $row['answer_tf'] === null ? '不明' : ((int)$row['answer_tf'] === 1 ? '正解' : '不正解');
+                                $hesitation_text = '未推定';
+                                if ((int)$row['hesitation_understand'] === 2) {
+                                    $hesitation_text = '迷い有り';
+                                } elseif ((int)$row['hesitation_understand'] === 4) {
+                                    $hesitation_text = '迷い無し';
+                                }
+                                $correctness = htmlspecialchars($correctness_text, ENT_QUOTES, 'UTF-8');
+                                $hesitation = htmlspecialchars($hesitation_text, ENT_QUOTES, 'UTF-8');
+                                $answer_tf = htmlspecialchars((string)($row['answer_tf'] ?? ''), ENT_QUOTES, 'UTF-8');
+                                $hesitation_understand = htmlspecialchars((string)($row['hesitation_understand'] ?? ''), ENT_QUOTES, 'UTF-8');
                                 $student_tooltip = render_feature_average_tooltip($row, 'UID/WID/Attemptの特徴量', false);
                                 $feature_values = [];
                                 foreach ($student_feature_columns_for_filter as $column => $_label) {
@@ -386,12 +426,14 @@
                                 }
                                 $feature_json = htmlspecialchars(json_encode($feature_values, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
                                 $trajectory_url = "../mousemove/mousemove.php?UID={$uid}&WID={$wid}&test_id={$test_id}&LogID={$attempt}";
-                                echo "<li class='student-item student-pair-item' data-uid='{$uid}' data-wid='{$wid}' data-attempt='{$attempt}' data-features='{$feature_json}'>
+                                echo "<li class='student-item student-pair-item' data-uid='{$uid}' data-wid='{$wid}' data-attempt='{$attempt}' data-answer-tf='{$answer_tf}' data-hesitation-understand='{$hesitation_understand}' data-features='{$feature_json}'>
                                         <label class='student-choice click-tooltip-choice'>
                                             <input type='checkbox' name='students[]' value='{$uid}'>
                                             <p class='student-detail student-name'><span class='label'>UID:</span> {$uid}</p>
                                             <p class='student-detail'><span class='label'>WID:</span> {$wid}</p>
                                             <p class='student-detail'><span class='label'>Attempt:</span> {$attempt}</p>
+                                            <p class='student-detail'><span class='label'>正誤:</span> {$correctness}</p>
+                                            <p class='student-detail'><span class='label'>迷い:</span> {$hesitation}</p>
                                         <button type='button' class='student-info-button' aria-label='UID/WID/Attemptの特徴量を表示'>ⓘ</button>
                                             {$student_tooltip}
                                         </label>
