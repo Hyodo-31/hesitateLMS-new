@@ -99,7 +99,15 @@
             <div class="content-class">
             <h2>学生グループ作成</h2>
                 <form id="search-form" method="GET">
-                    <div class="filter-form-title">絞り込みフォーム</div>
+                    <section class="filter-conditions-accordion" aria-label="絞り込み条件">
+                        <button type="button" class="filter-conditions-toggle" id="filter-conditions-toggle" aria-expanded="true" aria-controls="filter-conditions-panel">
+                            <span>
+                                <span class="filter-conditions-title">絞り込み条件</span>
+                                <span class="filter-conditions-description">UID・WID・迷いの有無・特徴量などをまとめて設定できます。</span>
+                            </span>
+                            <span class="filter-conditions-icon" aria-hidden="true"></span>
+                        </button>
+                        <div class="filter-conditions-panel" id="filter-conditions-panel">
                     <label class="uid-label">UID:</label>
                     <div id="uid-logic-filter-panel" class="logic-filter-panel">
                         <strong>論理式でUIDを絞り込み</strong>
@@ -350,6 +358,8 @@
                     </fieldset>
 
                     <button type="button" id="search-button">検索</button>
+                        </div>
+                    </section>
                 </form>
                 <form action="submit-student-group.php" method="post" class="student-group-create-form">
                     <label for="group_name">グループ名:</label>

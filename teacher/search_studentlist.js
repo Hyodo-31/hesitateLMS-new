@@ -33,6 +33,16 @@
     const featureFilterPlaceholders = window.studentGroupFeatureFilterPlaceholders || { min: '最小値', max: '最大値' };
     const featureFilterSettingValues = {};
 
+    const filterConditionsToggle = document.getElementById('filter-conditions-toggle');
+    const filterConditionsPanel = document.getElementById('filter-conditions-panel');
+    if (filterConditionsToggle && filterConditionsPanel) {
+        filterConditionsToggle.addEventListener('click', () => {
+            const isExpanded = filterConditionsToggle.getAttribute('aria-expanded') === 'true';
+            filterConditionsToggle.setAttribute('aria-expanded', String(!isExpanded));
+            filterConditionsPanel.hidden = isExpanded;
+        });
+    }
+
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
         '&': '&amp;',
         '<': '&lt;',

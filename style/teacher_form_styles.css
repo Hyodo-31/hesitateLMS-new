@@ -357,6 +357,89 @@
     font-weight: 700;
 }
 
+.filter-conditions-accordion {
+    display: grid;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.filter-conditions-toggle {
+    display: flex;
+    width: 100%;
+    justify-content: space-between !important;
+    align-items: center;
+    gap: 16px;
+    min-height: 56px;
+    padding: 14px 18px !important;
+    border-radius: 0 !important;
+    background-color: #f8fafc !important;
+    color: #1f2937 !important;
+    text-align: left;
+}
+
+.filter-conditions-toggle:hover {
+    background-color: #eef2f7 !important;
+}
+
+.filter-conditions-toggle > span:first-child {
+    display: grid;
+    gap: 4px;
+}
+
+.filter-conditions-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.filter-conditions-description {
+    color: var(--teacher-form-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.filter-conditions-icon {
+    position: relative;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.filter-conditions-icon::before,
+.filter-conditions-icon::after {
+    position: absolute;
+    top: 8px;
+    left: 1px;
+    width: 16px;
+    height: 2px;
+    border-radius: 999px;
+    background-color: #334155;
+    content: "";
+    transition: transform 0.2s ease;
+}
+
+.filter-conditions-icon::after {
+    transform: rotate(90deg);
+}
+
+.filter-conditions-toggle[aria-expanded="true"] .filter-conditions-icon::after {
+    transform: rotate(0deg);
+}
+
+.filter-conditions-panel {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.filter-conditions-panel[hidden] {
+    display: none;
+}
+
 .uid-label {
     display: block;
     margin-bottom: 8px;
