@@ -48,45 +48,80 @@
                 $stmt_logic_members->close();
             }
         }
-        $student_feature_global_averages = [];
-        $student_feature_global_distributions = array_fill_keys(array_keys($student_feature_columns_for_filter), []);
+        $student_histogram_feature_pairs = [];
+        $student_histogram_metric_attempts = [];
         if (student_feature_table_exists($conn)) {
-            $uid_average_selects = ['tf.UID'];
+            $pair_average_selects = ['tf.UID', 'tf.WID'];
             foreach ($student_feature_columns_for_filter as $column => $_label) {
-                $uid_average_selects[] = "AVG(tf.`{$column}`) AS uid_avg_{$column}";
+                $pair_average_selects[] = "AVG(tf.`{$column}`) AS pair_avg_{$column}";
             }
-            $uid_feature_distribution_sql = "SELECT uid_feat.*
-                FROM (
-                    SELECT " . implode(", ", $uid_average_selects) . "
-                    FROM test_featurevalue tf
-                    JOIN students s ON tf.UID = s.uid
-                    JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
-                    WHERE ct.TID = ?
-                    GROUP BY tf.UID
-                ) uid_feat
-                ORDER BY uid_feat.UID";
-            $uid_feature_distribution_stmt = $conn->prepare($uid_feature_distribution_sql);
-            if ($uid_feature_distribution_stmt) {
-                $uid_feature_distribution_stmt->bind_param("s", $teacher_id);
-                $uid_feature_distribution_stmt->execute();
-                $uid_feature_distribution_result = $uid_feature_distribution_stmt->get_result();
-                while ($uid_feature_row = $uid_feature_distribution_result->fetch_assoc()) {
+            $pair_feature_sql = "SELECT " . implode(", ", $pair_average_selects) . "
+                FROM test_featurevalue tf
+                JOIN students s ON tf.UID = s.uid
+                JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+                WHERE ct.TID = ?
+                GROUP BY tf.UID, tf.WID
+                ORDER BY tf.UID, tf.WID";
+            $pair_feature_stmt = $conn->prepare($pair_feature_sql);
+            if ($pair_feature_stmt) {
+                $pair_feature_stmt->bind_param("s", $teacher_id);
+                $pair_feature_stmt->execute();
+                $pair_feature_result = $pair_feature_stmt->get_result();
+                while ($pair_feature_row = $pair_feature_result->fetch_assoc()) {
+                    $feature_values = [];
                     foreach ($student_feature_columns_for_filter as $column => $_label) {
-                        $value = $uid_feature_row["uid_avg_{$column}"] ?? null;
-                        if ($value === null || $value === '') {
-                            continue;
-                        }
-                        $student_feature_global_distributions[$column][] = (float)$value;
+                        $value = $pair_feature_row["pair_avg_{$column}"] ?? null;
+                        $feature_values[$column] = $value === null || $value === '' ? null : (float)$value;
                     }
+                    $student_histogram_feature_pairs[] = [
+                        'uid' => (string)$pair_feature_row['UID'],
+                        'wid' => (string)$pair_feature_row['WID'],
+                        'features' => $feature_values,
+                    ];
                 }
-                $uid_feature_distribution_stmt->close();
-                foreach ($student_feature_columns_for_filter as $column => $_label) {
-                    $values = $student_feature_global_distributions[$column];
-                    $student_feature_global_averages["avg_{$column}"] = count($values) > 0
-                        ? array_sum($values) / count($values)
-                        : null;
-                }
+                $pair_feature_stmt->close();
             }
+        }
+
+        $metric_attempt_sql = "SELECT
+                l.UID,
+                l.WID,
+                l.attempt,
+                l.TF,
+                latest_hesitation.Understand
+            FROM linedata l
+            JOIN students s ON l.UID = s.uid
+            JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+            LEFT JOIN (
+                SELECT tr.UID, tr.WID, tr.attempt, tr.teacher_id, tr.Understand
+                FROM temporary_results tr
+                JOIN (
+                    SELECT UID, WID, attempt, teacher_id, MAX(id) AS latest_id
+                    FROM temporary_results
+                    WHERE teacher_id = ?
+                    GROUP BY UID, WID, attempt, teacher_id
+                ) latest ON tr.id = latest.latest_id
+            ) latest_hesitation
+                ON l.UID = latest_hesitation.UID
+                AND l.WID = latest_hesitation.WID
+                AND l.attempt = latest_hesitation.attempt
+                AND latest_hesitation.teacher_id = ct.TID
+            WHERE ct.TID = ?
+            ORDER BY l.UID, l.WID, l.attempt";
+        $metric_attempt_stmt = $conn->prepare($metric_attempt_sql);
+        if ($metric_attempt_stmt) {
+            $metric_attempt_stmt->bind_param("ss", $teacher_id, $teacher_id);
+            $metric_attempt_stmt->execute();
+            $metric_attempt_result = $metric_attempt_stmt->get_result();
+            while ($metric_attempt_row = $metric_attempt_result->fetch_assoc()) {
+                $student_histogram_metric_attempts[] = [
+                    'uid' => (string)$metric_attempt_row['UID'],
+                    'wid' => (string)$metric_attempt_row['WID'],
+                    'correctness' => $metric_attempt_row['TF'] === null ? null : (int)$metric_attempt_row['TF'],
+                    'hesitation' => $metric_attempt_row['Understand'] === null ? null : (int)$metric_attempt_row['Understand'],
+                ];
+            }
+            $metric_attempt_stmt->close();
         }
         $teacher_page_title = '学生グループ作成';
         include __DIR__ . '/teacher-menu.php';
@@ -345,20 +380,99 @@
                             <div class="feature-filter-settings" id="feature-filter-settings">
                                 <p class="feature-filter-empty">論理式に特徴量を追加すると、ここに最小値・最大値の設定欄が表示されます。</p>
                             </div>
-                            <div class="feature-global-average-box">
-                                <label for="feature-global-average-select">各特徴量の全UIDの平均値・分布</label>
-                                <select id="feature-global-average-select"></select>
-                                <p id="feature-global-average-value" class="feature-global-average-value">特徴量を選択してください。</p>
-                                <div class="feature-global-histogram">
-                                    <canvas id="feature-global-histogram-chart" aria-label="各特徴量の全UID平均値の分布"></canvas>
-                                </div>
-                                <p id="feature-global-histogram-summary" class="feature-global-histogram-summary">特徴量を選択すると分布を表示します。</p>
-                            </div>
                         </div>
                     </fieldset>
 
                     <button type="button" id="search-button">検索</button>
                         </div>
+                    </section>
+
+                    <section class="histogram-dashboard" aria-labelledby="histogram-dashboard-title">
+                        <div class="histogram-dashboard-heading">
+                            <div>
+                                <h3 id="histogram-dashboard-title">分布グラフ</h3>
+                                <p>特徴量・正答率・迷い率の散らばりを、UIDまたはWID単位で確認できます。</p>
+                            </div>
+                            <details class="histogram-axis-details">
+                                <summary>軸の自動調整について</summary>
+                                <p>横軸は表示対象の最小値・最大値、四分位範囲、件数から階級幅を毎回計算します。縦軸は通常すべての度数を表示し、1本だけ極端に高い場合は他の棒に合わせて上限を調整し、突出棒に実際の度数を表示します。</p>
+                            </details>
+                        </div>
+
+                        <article class="histogram-card" aria-labelledby="uid-feature-histogram-title">
+                            <h4 id="uid-feature-histogram-title">UIDごとの特徴量分布</h4>
+                            <p class="histogram-card-description">各UIDについて、対象WIDにおける特徴量平均を比較します。</p>
+                            <div class="histogram-controls">
+                                <label>特徴量
+                                    <select id="uid-feature-histogram-feature"></select>
+                                </label>
+                                <label>対象UID
+                                    <select id="uid-feature-histogram-uid-scope">
+                                        <option value="all">全UID</option>
+                                        <option value="checked">チェックしたUID</option>
+                                    </select>
+                                </label>
+                                <label>対象WID
+                                    <select id="uid-feature-histogram-wid-scope">
+                                        <option value="all">全WID</option>
+                                        <option value="checked">チェックしたWID</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="histogram-chart-wrap">
+                                <canvas id="uid-feature-histogram-chart" aria-label="UIDごとの特徴量分布"></canvas>
+                            </div>
+                            <p id="uid-feature-histogram-summary" class="histogram-summary" aria-live="polite"></p>
+                        </article>
+
+                        <article class="histogram-card" aria-labelledby="wid-feature-histogram-title">
+                            <h4 id="wid-feature-histogram-title">WIDごとの特徴量分布</h4>
+                            <p class="histogram-card-description">各WIDについて、対象UIDにおける特徴量平均を比較します。</p>
+                            <div class="histogram-controls">
+                                <label>特徴量
+                                    <select id="wid-feature-histogram-feature"></select>
+                                </label>
+                                <label>対象UID
+                                    <select id="wid-feature-histogram-uid-scope">
+                                        <option value="all">全UID</option>
+                                        <option value="checked">チェックしたUID</option>
+                                    </select>
+                                </label>
+                                <label>対象WID
+                                    <select id="wid-feature-histogram-wid-scope">
+                                        <option value="all">全WID</option>
+                                        <option value="checked">チェックしたWID</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="histogram-chart-wrap">
+                                <canvas id="wid-feature-histogram-chart" aria-label="WIDごとの特徴量分布"></canvas>
+                            </div>
+                            <p id="wid-feature-histogram-summary" class="histogram-summary" aria-live="polite"></p>
+                        </article>
+
+                        <article class="histogram-card" aria-labelledby="metric-histogram-title">
+                            <h4 id="metric-histogram-title">正答率・迷い率の分布</h4>
+                            <p class="histogram-card-description">チェックしたUIDとWIDの解答を対象に、UIDまたはWIDごとの率を比較します。</p>
+                            <div class="histogram-controls histogram-controls-metric">
+                                <label>指標
+                                    <select id="metric-histogram-metric">
+                                        <option value="hesitation" selected>迷い率</option>
+                                        <option value="accuracy">正答率</option>
+                                    </select>
+                                </label>
+                                <label>表示単位
+                                    <select id="metric-histogram-entity">
+                                        <option value="uid" selected>UID</option>
+                                        <option value="wid">WID</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="histogram-chart-wrap">
+                                <canvas id="metric-histogram-chart" aria-label="正答率または迷い率の分布"></canvas>
+                            </div>
+                            <p id="metric-histogram-summary" class="histogram-summary" aria-live="polite"></p>
+                        </article>
                     </section>
                 </form>
                 <form action="submit-student-group.php" method="post" class="student-group-create-form">
@@ -572,11 +686,10 @@
         window.studentGroupFeatureDisplayMeta = <?= json_encode(feature_display_metadata(array_keys($student_feature_columns_for_filter)), JSON_UNESCAPED_UNICODE) ?>;
         window.studentGroupLogicFilterGroups = <?= json_encode($logic_filter_groups, JSON_UNESCAPED_UNICODE) ?>;
         window.studentGroupLogicFilterStudentsByGroup = <?= json_encode((object)$logic_filter_students_by_group, JSON_UNESCAPED_UNICODE) ?>;
-        window.studentGroupFeatureGlobalAverages = <?= json_encode(array_reduce(array_keys($student_feature_columns_for_filter), function ($carry, $column) use ($student_feature_global_averages) {
-            $carry[$column] = $student_feature_global_averages["avg_{$column}"] ?? null;
-            return $carry;
-        }, []), JSON_UNESCAPED_UNICODE) ?>;
-        window.studentGroupFeatureGlobalDistributions = <?= json_encode($student_feature_global_distributions, JSON_UNESCAPED_UNICODE) ?>;
+        window.studentGroupHistogramData = <?= json_encode([
+            'featurePairs' => $student_histogram_feature_pairs,
+            'metricAttempts' => $student_histogram_metric_attempts,
+        ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         window.studentGroupFeatureFilterPlaceholders = {
             min: '最小値',
             max: '最大値'

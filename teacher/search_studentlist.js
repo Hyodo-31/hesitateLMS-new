@@ -3,13 +3,8 @@
     const studentList = document.getElementById('student-list');
     const showStudentFeatureAveragesButton = document.getElementById('show-student-feature-averages');
     const studentFeatureAverageList = document.getElementById('student-feature-average-list');
-    const featureGlobalAverageSelect = document.getElementById('feature-global-average-select');
-    const featureGlobalAverageValue = document.getElementById('feature-global-average-value');
-    const featureGlobalHistogramCanvas = document.getElementById('feature-global-histogram-chart');
-    const featureGlobalHistogramSummary = document.getElementById('feature-global-histogram-summary');
     let floatingTooltip = null;
     let activeChoice = null;
-    let featureGlobalHistogramChart = null;
     const featureFilterBuilder = document.getElementById('feature-filter-builder');
     const featureFilterExpressionInput = document.getElementById('feature-filter-expression');
     const featureFilterSettings = document.getElementById('feature-filter-settings');
@@ -26,8 +21,14 @@
     const clearFeatureFilterExpressionButton = document.getElementById('clear-feature-filter-expression');
     const featureFilterOptions = Object.entries(window.studentGroupFeatureColumns || {}).map(([value, label]) => ({ value, label }));
     const featureDisplayMeta = window.studentGroupFeatureDisplayMeta || {};
-    const featureGlobalAverages = window.studentGroupFeatureGlobalAverages || {};
-    const featureGlobalDistributions = window.studentGroupFeatureGlobalDistributions || {};
+    const histogramData = window.studentGroupHistogramData || {};
+    const histogramFeaturePairs = Array.isArray(histogramData.featurePairs) ? histogramData.featurePairs : [];
+    const histogramMetricAttempts = Array.isArray(histogramData.metricAttempts) ? histogramData.metricAttempts : [];
+    const histogramCharts = {
+        uidFeature: null,
+        widFeature: null,
+        metric: null,
+    };
     const uidLogicFilterGroups = window.studentGroupLogicFilterGroups || [];
     const uidLogicFilterStudentsByGroup = window.studentGroupLogicFilterStudentsByGroup || {};
     const featureFilterPlaceholders = window.studentGroupFeatureFilterPlaceholders || { min: '最小値', max: '最大値' };
@@ -67,12 +68,6 @@
         }
         const unit = getFeatureDisplayMeta(feature).unit || '';
         return `${Number(displayValue).toFixed(2)}${unit}`;
-    };
-
-    const getFeatureDisplayValues = (feature, values) => {
-        return (values || [])
-            .map((value) => toFeatureDisplayValue(feature, value))
-            .filter((value) => value !== null && Number.isFinite(value));
     };
 
     const createFeatureTooltipHtml = (title, values, count) => {
@@ -572,18 +567,24 @@
         return 10 * magnitude;
     };
 
-    const buildFeatureHistogram = (rawValues) => {
-        const values = rawValues.map(Number).filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
-        if (values.length === 0) {
+    const buildHistogram = (rawPoints, options = {}) => {
+        const points = rawPoints
+            .map((point) => ({ id: String(point.id), value: Number(point.value) }))
+            .filter((point) => Number.isFinite(point.value))
+            .sort((a, b) => a.value - b.value);
+        if (points.length === 0) {
             return null;
         }
 
+        const values = points.map((point) => point.value);
         const min = values[0];
         const max = values[values.length - 1];
+        const formatLabelValue = options.formatLabelValue || formatHistogramValue;
         if (min === max) {
             return {
-                labels: [formatHistogramValue(min)],
-                counts: [values.length],
+                labels: [formatLabelValue(min)],
+                counts: [points.length],
+                bins: [{ start: min, end: max, members: points }],
                 step: 0,
                 min,
                 max,
@@ -604,9 +605,17 @@
         if (min >= 0 && lower < 0) {
             lower = 0;
         }
+        if (Number.isFinite(options.domainMin)) {
+            lower = Math.max(options.domainMin, lower);
+        }
         let upper = Math.ceil(max / step) * step;
+        if (Number.isFinite(options.domainMax)) {
+            upper = Math.min(options.domainMax, upper);
+        }
         if (upper <= lower) {
-            upper = lower + step;
+            upper = Number.isFinite(options.domainMax)
+                ? Math.min(options.domainMax, lower + step)
+                : lower + step;
         }
         let binCount = Math.max(1, Math.ceil((upper - lower) / step));
 
@@ -616,95 +625,252 @@
             if (min >= 0 && lower < 0) {
                 lower = 0;
             }
+            if (Number.isFinite(options.domainMin)) {
+                lower = Math.max(options.domainMin, lower);
+            }
             upper = Math.ceil(max / step) * step;
+            if (Number.isFinite(options.domainMax)) {
+                upper = Math.min(options.domainMax, upper);
+            }
             if (upper <= lower) {
-                upper = lower + step;
+                upper = Number.isFinite(options.domainMax)
+                    ? Math.min(options.domainMax, lower + step)
+                    : lower + step;
             }
             binCount = Math.max(1, Math.ceil((upper - lower) / step));
         }
 
-        const counts = Array.from({ length: binCount }, () => 0);
-        values.forEach((value) => {
-            const rawIndex = value === upper ? binCount - 1 : Math.floor((value - lower) / step);
+        const bins = Array.from({ length: binCount }, (_, index) => ({
+            start: lower + (step * index),
+            end: lower + (step * (index + 1)),
+            members: [],
+        }));
+        points.forEach((point) => {
+            const rawIndex = point.value === upper ? binCount - 1 : Math.floor((point.value - lower) / step);
             const index = Math.max(0, Math.min(binCount - 1, rawIndex));
-            counts[index] += 1;
-        });
-
-        const labels = counts.map((_, index) => {
-            const start = lower + (step * index);
-            const end = start + step;
-            return `${formatHistogramValue(start)}〜${formatHistogramValue(end)}`;
+            bins[index].members.push(point);
         });
 
         return {
-            labels,
-            counts,
+            labels: bins.map((bin) => `${formatLabelValue(bin.start)}〜${formatLabelValue(bin.end)}`),
+            counts: bins.map((bin) => bin.members.length),
+            bins,
             step,
             min,
             max,
         };
     };
 
-    const destroyFeatureHistogramChart = () => {
-        if (featureGlobalHistogramChart) {
-            featureGlobalHistogramChart.destroy();
-            featureGlobalHistogramChart = null;
+    const getHistogramYAxis = (counts) => {
+        const positiveCounts = counts.filter((count) => count > 0).sort((a, b) => a - b);
+        if (positiveCounts.length < 3) {
+            return { max: null, outlierIndexes: [] };
+        }
+
+        const largest = positiveCounts[positiveCounts.length - 1];
+        const secondLargest = positiveCounts[positiveCounts.length - 2];
+        const isOutlier = largest >= secondLargest * 3 && largest - secondLargest >= 5;
+        if (!isOutlier) {
+            return { max: null, outlierIndexes: [] };
+        }
+
+        return {
+            max: Math.max(secondLargest + 1, Math.ceil(secondLargest * 1.2)),
+            outlierIndexes: counts
+                .map((count, index) => count === largest ? index : -1)
+                .filter((index) => index >= 0),
+        };
+    };
+
+    const histogramOverflowMarkerPlugin = {
+        id: 'histogramOverflowMarker',
+        afterDatasetsDraw(chart, _args, options) {
+            const indexes = Array.isArray(options?.indexes) ? options.indexes : [];
+            const counts = Array.isArray(options?.counts) ? options.counts : [];
+            if (indexes.length === 0) {
+                return;
+            }
+
+            const meta = chart.getDatasetMeta(0);
+            const { ctx, chartArea } = chart;
+            ctx.save();
+            ctx.font = '700 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            indexes.forEach((index) => {
+                const bar = meta.data[index];
+                if (!bar) {
+                    return;
+                }
+                const text = `↑ ${counts[index]}`;
+                const width = ctx.measureText(text).width + 8;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+                ctx.fillRect(bar.x - (width / 2), chartArea.top + 2, width, 18);
+                ctx.fillStyle = '#b91c1c';
+                ctx.fillText(text, bar.x, chartArea.top + 4);
+            });
+            ctx.restore();
+        },
+    };
+
+    const getHistogramTooltipElement = (chart) => {
+        const parent = chart.canvas.parentNode;
+        let tooltipElement = parent.querySelector('.histogram-hover-tooltip');
+        if (tooltipElement) {
+            return tooltipElement;
+        }
+
+        tooltipElement = document.createElement('div');
+        tooltipElement.className = 'histogram-hover-tooltip';
+        tooltipElement.setAttribute('role', 'tooltip');
+        tooltipElement.dataset.hovered = 'false';
+        tooltipElement.addEventListener('mouseenter', () => {
+            tooltipElement.dataset.hovered = 'true';
+            window.clearTimeout(tooltipElement.hideTimer);
+        });
+        tooltipElement.addEventListener('mouseleave', () => {
+            tooltipElement.dataset.hovered = 'false';
+            tooltipElement.classList.remove('is-visible');
+        });
+        parent.appendChild(tooltipElement);
+        return tooltipElement;
+    };
+
+    const renderHistogramTooltip = (context) => {
+        const { chart, tooltip } = context;
+        const tooltipElement = getHistogramTooltipElement(chart);
+        if (!tooltip || tooltip.opacity === 0) {
+            window.clearTimeout(tooltipElement.hideTimer);
+            tooltipElement.hideTimer = window.setTimeout(() => {
+                if (tooltipElement.dataset.hovered !== 'true') {
+                    tooltipElement.classList.remove('is-visible');
+                }
+            }, 120);
+            return;
+        }
+
+        const dataIndex = tooltip.dataPoints?.[0]?.dataIndex;
+        const tooltipConfig = chart.$histogramTooltipConfig;
+        const bin = tooltipConfig?.histogram?.bins?.[dataIndex];
+        if (!bin) {
+            tooltipElement.classList.remove('is-visible');
+            return;
+        }
+
+        window.clearTimeout(tooltipElement.hideTimer);
+        const members = [...bin.members].sort((a, b) => String(a.id).localeCompare(String(b.id), 'ja', { numeric: true }));
+        tooltipElement.innerHTML = `
+            <div class="histogram-tooltip-title">${escapeHtml(tooltipConfig.histogram.labels[dataIndex])}</div>
+            <div class="histogram-tooltip-count">${escapeHtml(tooltipConfig.entityLabel)}数: ${members.length}</div>
+            <ul>${members.map((member) => `
+                <li>
+                    <strong>${escapeHtml(tooltipConfig.entityLabel)}:${escapeHtml(member.id)}</strong>
+                    <span>${escapeHtml(tooltipConfig.formatValue(member.value))}</span>
+                </li>
+            `).join('')}</ul>
+        `;
+        tooltipElement.classList.add('is-visible');
+
+        const maxLeft = Math.max(8, chart.canvas.clientWidth - tooltipElement.offsetWidth - 8);
+        const preferredLeft = tooltip.caretX + 12;
+        const left = Math.max(8, Math.min(preferredLeft, maxLeft));
+        const preferredTop = tooltip.caretY + 12;
+        const top = preferredTop + tooltipElement.offsetHeight <= chart.canvas.clientHeight
+            ? preferredTop
+            : Math.max(8, tooltip.caretY - tooltipElement.offsetHeight - 12);
+        tooltipElement.style.left = `${left}px`;
+        tooltipElement.style.top = `${top}px`;
+    };
+
+    const destroyHistogramChart = (key) => {
+        if (histogramCharts[key]) {
+            const tooltipElement = histogramCharts[key].canvas.parentNode.querySelector('.histogram-hover-tooltip');
+            tooltipElement?.remove();
+            histogramCharts[key].destroy();
+            histogramCharts[key] = null;
         }
     };
 
-    const renderFeatureHistogram = (feature, label) => {
-        if (!featureGlobalHistogramCanvas || !featureGlobalHistogramSummary) {
+    const showHistogramEmptyState = (key, summaryElement, message) => {
+        destroyHistogramChart(key);
+        if (summaryElement) {
+            summaryElement.textContent = message;
+            summaryElement.classList.add('is-empty');
+        }
+    };
+
+    const renderHistogramChart = ({
+        key,
+        canvas,
+        summaryElement,
+        points,
+        title,
+        xTitle,
+        entityLabel,
+        backgroundColor,
+        borderColor,
+        formatValue = formatHistogramValue,
+        percentage = false,
+    }) => {
+        if (!canvas || !summaryElement) {
             return;
         }
 
-        const values = getFeatureDisplayValues(feature, featureGlobalDistributions[feature] || []);
-        const histogram = buildFeatureHistogram(values);
+        const histogram = buildHistogram(points, {
+            domainMin: percentage ? 0 : undefined,
+            domainMax: percentage ? 100 : undefined,
+            formatLabelValue: formatHistogramValue,
+        });
         if (!histogram) {
-            destroyFeatureHistogramChart();
-            featureGlobalHistogramSummary.textContent = '分布データがありません。';
+            showHistogramEmptyState(key, summaryElement, '表示できるデータがありません。');
             return;
         }
 
-        featureGlobalHistogramSummary.textContent = histogram.step > 0
-            ? `UID数: ${values.length} / 目盛り幅: ${formatHistogramValue(histogram.step)} / 範囲: ${formatHistogramValue(histogram.min)}〜${formatHistogramValue(histogram.max)}`
-            : `UID数: ${values.length} / すべて同じ値: ${formatHistogramValue(histogram.min)}`;
+        const yAxis = getHistogramYAxis(histogram.counts);
+        const formatSummaryValue = (value) => percentage ? `${formatHistogramValue(value)}%` : formatValue(value);
+        const rangeSummary = histogram.step > 0
+            ? `対象${entityLabel}数: ${points.length} / 実測範囲: ${formatSummaryValue(histogram.min)}〜${formatSummaryValue(histogram.max)} / 階級幅: ${formatSummaryValue(histogram.step)}`
+            : `対象${entityLabel}数: ${points.length} / すべて同じ値: ${formatSummaryValue(histogram.min)}`;
+        const yAxisSummary = yAxis.max === null
+            ? ''
+            : ` / 縦軸上限: ${yAxis.max}（突出棒の実度数: ${Math.max(...histogram.counts)}）`;
+        summaryElement.textContent = `${rangeSummary}${yAxisSummary}`;
+        summaryElement.classList.remove('is-empty');
 
         if (typeof Chart === 'undefined') {
+            summaryElement.textContent += ' / グラフライブラリを読み込めませんでした。';
             return;
         }
 
-        const chartData = {
-            labels: histogram.labels,
-            datasets: [{
-                label: 'UID数',
-                data: histogram.counts,
-                backgroundColor: 'rgba(20, 184, 166, 0.62)',
-                borderColor: 'rgba(15, 118, 110, 1)',
-                borderWidth: 1,
-                borderRadius: 4,
-            }],
-        };
-
-        if (featureGlobalHistogramChart) {
-            featureGlobalHistogramChart.data = chartData;
-            featureGlobalHistogramChart.options.plugins.title.text = `${label}の分布`;
-            featureGlobalHistogramChart.update();
-            return;
-        }
-
-        featureGlobalHistogramChart = new Chart(featureGlobalHistogramCanvas, {
+        destroyHistogramChart(key);
+        const chart = new Chart(canvas, {
             type: 'bar',
-            data: chartData,
+            data: {
+                labels: histogram.labels,
+                datasets: [{
+                    label: `${entityLabel}数`,
+                    data: histogram.counts,
+                    backgroundColor,
+                    borderColor,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }],
+            },
+            plugins: [histogramOverflowMarkerPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: true,
+                },
                 plugins: {
                     legend: {
                         display: false,
                     },
                     title: {
                         display: true,
-                        text: `${label}の分布`,
+                        text: title,
                         color: '#1f2937',
                         font: {
                             size: 14,
@@ -712,16 +878,19 @@
                         },
                     },
                     tooltip: {
-                        callbacks: {
-                            label: (context) => `UID数: ${context.parsed.y}`,
-                        },
+                        enabled: false,
+                        external: renderHistogramTooltip,
+                    },
+                    histogramOverflowMarker: {
+                        indexes: yAxis.outlierIndexes,
+                        counts: histogram.counts,
                     },
                 },
                 scales: {
                     x: {
                         title: {
                             display: true,
-                            text: 'UID平均値',
+                            text: xTitle,
                         },
                         ticks: {
                             maxRotation: 45,
@@ -730,6 +899,12 @@
                     },
                     y: {
                         beginAtZero: true,
+                        max: yAxis.max ?? undefined,
+                        grace: yAxis.max === null ? '8%' : 0,
+                        title: {
+                            display: true,
+                            text: `${entityLabel}数`,
+                        },
                         ticks: {
                             precision: 0,
                         },
@@ -737,37 +912,249 @@
                 },
             },
         });
+        chart.$histogramTooltipConfig = {
+            histogram,
+            entityLabel,
+            formatValue,
+        };
+        histogramCharts[key] = chart;
     };
 
-    const renderFeatureGlobalAverage = () => {
-        if (!featureGlobalAverageSelect || !featureGlobalAverageValue) {
-            return;
+    const getCheckedHistogramIds = (selector) => new Set(
+        Array.from(document.querySelectorAll(selector))
+            .filter((checkbox) => checkbox.checked)
+            .map((checkbox) => String(checkbox.value))
+    );
+
+    const aggregateFeatureHistogramPoints = (entity, feature, uidScope, widScope) => {
+        const checkedUids = uidScope === 'checked' ? getCheckedHistogramIds('.uid-checkbox') : null;
+        const checkedWids = widScope === 'checked' ? getCheckedHistogramIds('.wid-checkbox') : null;
+        if (checkedUids && checkedUids.size === 0) {
+            return { points: [], reason: 'チェックしたUIDがありません。' };
+        }
+        if (checkedWids && checkedWids.size === 0) {
+            return { points: [], reason: 'チェックしたWIDがありません。' };
         }
 
-        const feature = featureGlobalAverageSelect.value;
-        if (!feature) {
-            featureGlobalAverageValue.textContent = '特徴量を選択してください。';
-            destroyFeatureHistogramChart();
-            if (featureGlobalHistogramSummary) {
-                featureGlobalHistogramSummary.textContent = '特徴量を選択すると分布を表示します。';
+        const grouped = new Map();
+        histogramFeaturePairs.forEach((pair) => {
+            const uid = String(pair.uid);
+            const wid = String(pair.wid);
+            if ((checkedUids && !checkedUids.has(uid)) || (checkedWids && !checkedWids.has(wid))) {
+                return;
             }
+
+            const displayValue = toFeatureDisplayValue(feature, pair.features?.[feature]);
+            if (displayValue === null || !Number.isFinite(displayValue)) {
+                return;
+            }
+
+            const id = entity === 'uid' ? uid : wid;
+            if (!grouped.has(id)) {
+                grouped.set(id, { sum: 0, count: 0 });
+            }
+            const group = grouped.get(id);
+            group.sum += displayValue;
+            group.count += 1;
+        });
+
+        return {
+            points: Array.from(grouped.entries())
+                .filter(([, group]) => group.count > 0)
+                .map(([id, group]) => ({ id, value: group.sum / group.count })),
+            reason: '対象範囲に特徴量データがありません。',
+        };
+    };
+
+    const aggregateMetricHistogramPoints = (entity, metric) => {
+        const checkedUids = getCheckedHistogramIds('.uid-checkbox');
+        const checkedWids = getCheckedHistogramIds('.wid-checkbox');
+        if (checkedUids.size === 0) {
+            return { points: [], reason: 'チェックしたUIDがありません。' };
+        }
+        if (checkedWids.size === 0) {
+            return { points: [], reason: 'チェックしたWIDがありません。' };
+        }
+
+        const grouped = new Map();
+        histogramMetricAttempts.forEach((attempt) => {
+            const uid = String(attempt.uid);
+            const wid = String(attempt.wid);
+            if (!checkedUids.has(uid) || !checkedWids.has(wid)) {
+                return;
+            }
+
+            const storedValue = metric === 'accuracy' ? attempt.correctness : attempt.hesitation;
+            if (storedValue === null || storedValue === undefined || storedValue === '') {
+                return;
+            }
+            const rawValue = Number(storedValue);
+            const isValid = metric === 'accuracy'
+                ? rawValue === 0 || rawValue === 1
+                : rawValue === 2 || rawValue === 4;
+            if (!isValid) {
+                return;
+            }
+
+            const id = entity === 'uid' ? uid : wid;
+            if (!grouped.has(id)) {
+                grouped.set(id, { numerator: 0, denominator: 0 });
+            }
+            const group = grouped.get(id);
+            group.denominator += 1;
+            if ((metric === 'accuracy' && rawValue === 1) || (metric === 'hesitation' && rawValue === 2)) {
+                group.numerator += 1;
+            }
+        });
+
+        return {
+            points: Array.from(grouped.entries())
+                .filter(([, group]) => group.denominator > 0)
+                .map(([id, group]) => ({ id, value: (group.numerator * 100) / group.denominator })),
+            reason: metric === 'accuracy'
+                ? '選択範囲に正誤が記録された解答がありません。'
+                : '選択範囲に迷い有り・迷い無しが推定された解答がありません。',
+        };
+    };
+
+    const setupDistributionHistograms = () => {
+        const uidFeatureSelect = document.getElementById('uid-feature-histogram-feature');
+        const uidScopeSelect = document.getElementById('uid-feature-histogram-uid-scope');
+        const uidWidScopeSelect = document.getElementById('uid-feature-histogram-wid-scope');
+        const uidCanvas = document.getElementById('uid-feature-histogram-chart');
+        const uidSummary = document.getElementById('uid-feature-histogram-summary');
+        const widFeatureSelect = document.getElementById('wid-feature-histogram-feature');
+        const widUidScopeSelect = document.getElementById('wid-feature-histogram-uid-scope');
+        const widScopeSelect = document.getElementById('wid-feature-histogram-wid-scope');
+        const widCanvas = document.getElementById('wid-feature-histogram-chart');
+        const widSummary = document.getElementById('wid-feature-histogram-summary');
+        const metricSelect = document.getElementById('metric-histogram-metric');
+        const metricEntitySelect = document.getElementById('metric-histogram-entity');
+        const metricCanvas = document.getElementById('metric-histogram-chart');
+        const metricSummary = document.getElementById('metric-histogram-summary');
+        if (!uidFeatureSelect || !widFeatureSelect || !metricSelect || !metricEntitySelect) {
             return;
         }
 
-        const option = featureFilterOptions.find((item) => item.value === feature);
-        const label = option?.label || feature;
-        featureGlobalAverageValue.textContent = `${label}: ${formatFeatureValue(feature, featureGlobalAverages[feature])}`;
-        renderFeatureHistogram(feature, label);
+        const featureOptionsHtml = featureFilterOptions.map((option) => (
+            `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`
+        )).join('');
+        uidFeatureSelect.innerHTML = featureOptionsHtml;
+        widFeatureSelect.innerHTML = featureOptionsHtml;
+
+        const renderUidFeatureHistogram = () => {
+            const feature = uidFeatureSelect.value;
+            if (!feature) {
+                showHistogramEmptyState('uidFeature', uidSummary, '表示できる特徴量がありません。');
+                return;
+            }
+            const result = aggregateFeatureHistogramPoints('uid', feature, uidScopeSelect.value, uidWidScopeSelect.value);
+            if (result.points.length === 0) {
+                showHistogramEmptyState('uidFeature', uidSummary, result.reason);
+                return;
+            }
+            const featureLabel = featureFilterOptions.find((option) => option.value === feature)?.label || feature;
+            const unit = getFeatureDisplayMeta(feature).unit || '';
+            renderHistogramChart({
+                key: 'uidFeature',
+                canvas: uidCanvas,
+                summaryElement: uidSummary,
+                points: result.points,
+                title: `${featureLabel}のUID分布`,
+                xTitle: `UIDごとの平均値${unit ? ` (${unit})` : ''}`,
+                entityLabel: 'UID',
+                backgroundColor: 'rgba(20, 184, 166, 0.62)',
+                borderColor: 'rgba(15, 118, 110, 1)',
+                formatValue: (value) => `${formatHistogramValue(value)}${unit}`,
+            });
+        };
+
+        const renderWidFeatureHistogram = () => {
+            const feature = widFeatureSelect.value;
+            if (!feature) {
+                showHistogramEmptyState('widFeature', widSummary, '表示できる特徴量がありません。');
+                return;
+            }
+            const result = aggregateFeatureHistogramPoints('wid', feature, widUidScopeSelect.value, widScopeSelect.value);
+            if (result.points.length === 0) {
+                showHistogramEmptyState('widFeature', widSummary, result.reason);
+                return;
+            }
+            const featureLabel = featureFilterOptions.find((option) => option.value === feature)?.label || feature;
+            const unit = getFeatureDisplayMeta(feature).unit || '';
+            renderHistogramChart({
+                key: 'widFeature',
+                canvas: widCanvas,
+                summaryElement: widSummary,
+                points: result.points,
+                title: `${featureLabel}のWID分布`,
+                xTitle: `WIDごとの平均値${unit ? ` (${unit})` : ''}`,
+                entityLabel: 'WID',
+                backgroundColor: 'rgba(59, 130, 246, 0.58)',
+                borderColor: 'rgba(29, 78, 216, 1)',
+                formatValue: (value) => `${formatHistogramValue(value)}${unit}`,
+            });
+        };
+
+        const renderMetricHistogram = () => {
+            const metric = metricSelect.value;
+            const entity = metricEntitySelect.value;
+            const result = aggregateMetricHistogramPoints(entity, metric);
+            if (result.points.length === 0) {
+                showHistogramEmptyState('metric', metricSummary, result.reason);
+                return;
+            }
+            const metricLabel = metric === 'accuracy' ? '正答率' : '迷い率';
+            const entityLabel = entity === 'uid' ? 'UID' : 'WID';
+            renderHistogramChart({
+                key: 'metric',
+                canvas: metricCanvas,
+                summaryElement: metricSummary,
+                points: result.points,
+                title: `${entityLabel}ごとの${metricLabel}分布`,
+                xTitle: `${metricLabel} (%)`,
+                entityLabel,
+                backgroundColor: metric === 'accuracy' ? 'rgba(34, 197, 94, 0.58)' : 'rgba(249, 115, 22, 0.58)',
+                borderColor: metric === 'accuracy' ? 'rgba(21, 128, 61, 1)' : 'rgba(194, 65, 12, 1)',
+                formatValue: (value) => `${formatHistogramValue(value)}%`,
+                percentage: true,
+            });
+        };
+
+        const renderAllHistograms = () => {
+            renderUidFeatureHistogram();
+            renderWidFeatureHistogram();
+            renderMetricHistogram();
+        };
+        let renderFrame = null;
+        const scheduleAllHistogramRendering = () => {
+            if (renderFrame !== null) {
+                window.cancelAnimationFrame(renderFrame);
+            }
+            renderFrame = window.requestAnimationFrame(() => {
+                renderFrame = null;
+                renderAllHistograms();
+            });
+        };
+
+        [uidFeatureSelect, uidScopeSelect, uidWidScopeSelect].forEach((element) => element?.addEventListener('change', renderUidFeatureHistogram));
+        [widFeatureSelect, widUidScopeSelect, widScopeSelect].forEach((element) => element?.addEventListener('change', renderWidFeatureHistogram));
+        [metricSelect, metricEntitySelect].forEach((element) => element?.addEventListener('change', renderMetricHistogram));
+        document.addEventListener('change', (event) => {
+            if (event.target.matches('.uid-checkbox, .wid-checkbox, .select-all, .select-all-class')) {
+                scheduleAllHistogramRendering();
+            }
+        });
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('#select-all-wid-btn, #deselect-all-wid-btn, #apply-uid-logic-filter, #reset-uid-logic-filter')) {
+                scheduleAllHistogramRendering();
+            }
+        });
+
+        renderAllHistograms();
     };
 
-    if (featureGlobalAverageSelect) {
-        featureGlobalAverageSelect.innerHTML = [
-            '<option value="">特徴量を選択</option>',
-            ...featureFilterOptions.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`),
-        ].join('');
-        featureGlobalAverageSelect.addEventListener('change', renderFeatureGlobalAverage);
-        renderFeatureGlobalAverage();
-    }
+    setupDistributionHistograms();
 
     const setupUidLogicFilter = () => {
         const panel = document.getElementById('uid-logic-filter-panel');
