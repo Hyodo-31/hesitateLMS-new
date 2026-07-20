@@ -232,7 +232,7 @@
                                     '迷い率:',
                                     '解答数:'
                             );
-                            echo "<label class='checkbox-item uid-filter-item student-choice uid-filter-choice' data-class-id='{$safe_class_id}'>
+                            echo "<label class='checkbox-item uid-filter-item student-choice uid-filter-choice' data-class-id='{$safe_class_id}' data-student-name='{$name}'>
                                         <input type='checkbox' class='uid-checkbox' name='uid[]' value='{$uid}' checked>
                                         <span class='student-name'><span class='label-text'>名前:</span> {$name}</span>
                                         <button type='button' class='student-info-button' aria-label='学習者ごとの特徴量の平均を表示'>ⓘ</button>
@@ -401,7 +401,7 @@
 
                         <article class="histogram-card" aria-labelledby="uid-feature-histogram-title">
                             <h4 id="uid-feature-histogram-title">UIDごとの特徴量分布</h4>
-                            <p class="histogram-card-description">各UIDについて、対象WIDにおける特徴量平均を比較します。</p>
+                            <p class="histogram-card-description">各UIDについて、対象WIDにおける特徴量平均を比較します。縦棒をクリックすると、その範囲のUIDをグループ候補として選択できます。</p>
                             <div class="histogram-controls">
                                 <label>特徴量
                                     <select id="uid-feature-histogram-feature"></select>
@@ -453,7 +453,7 @@
 
                         <article class="histogram-card" aria-labelledby="metric-histogram-title">
                             <h4 id="metric-histogram-title">正答率・迷い率の分布</h4>
-                            <p class="histogram-card-description">チェックしたUIDとWIDの解答を対象に、UIDまたはWIDごとの率を比較します。</p>
+                            <p class="histogram-card-description">チェックしたUIDとWIDの解答を対象に、UIDまたはWIDごとの率を比較します。表示単位がUIDのときは、縦棒をクリックしてUIDを選択できます。</p>
                             <div class="histogram-controls histogram-controls-metric">
                                 <label>指標
                                     <select id="metric-histogram-metric">
@@ -478,7 +478,17 @@
                 <form action="submit-student-group.php" method="post" class="student-group-create-form">
                     <label for="group_name">グループ名:</label>
                         <input type="text" id="group_name" name="group_name" required>
-                        <label>学習者リスト:</label>
+                        <div class="student-result-toolbar">
+                            <span class="student-result-title">学習者リスト:</span>
+                            <label for="student-list-display-mode" class="student-list-display-mode-label">
+                                表示方式
+                                <select id="student-list-display-mode">
+                                    <option value="filter" selected>絞り込み検索結果</option>
+                                    <option value="histogram">ヒストグラム選択結果</option>
+                                </select>
+                            </label>
+                            <p id="histogram-student-list-summary" class="histogram-student-list-summary" aria-live="polite" hidden>選択中の縦棒: 0本 / 対象UID: 0人</p>
+                        </div>
                         <ul class="student-list" id="student-list">
                             <!-- PHPで全学習者を取得して初期表示 -->
                             <?php
@@ -567,6 +577,9 @@
                             $result->free();
                             ?>
                         </ul>
+                    <ul class="student-list histogram-student-list" id="histogram-student-list" aria-label="ヒストグラムで選択した学習者" hidden>
+                        <li class="histogram-student-list-empty">UIDを含む縦棒をクリックすると、ここにグループ候補が表示されます。</li>
+                    </ul>
                     <button type="button" id="show-student-feature-averages" class="teacher-secondary-button">学習者ごとの選択した問題における各特徴量の平均表示</button>
                     <div id="student-feature-average-list" class="student-feature-average-list"></div>
                     <button type="submit">グループを作成</button>

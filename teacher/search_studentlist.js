@@ -1,6 +1,9 @@
 ﻿document.addEventListener('DOMContentLoaded', () => {
     const searchButton = document.getElementById('search-button');
     const studentList = document.getElementById('student-list');
+    const histogramStudentList = document.getElementById('histogram-student-list');
+    const studentListDisplayMode = document.getElementById('student-list-display-mode');
+    const histogramStudentListSummary = document.getElementById('histogram-student-list-summary');
     const showStudentFeatureAveragesButton = document.getElementById('show-student-feature-averages');
     const studentFeatureAverageList = document.getElementById('student-feature-average-list');
     let floatingTooltip = null;
@@ -29,6 +32,11 @@
         widFeature: null,
         metric: null,
     };
+    const histogramSelectionState = {
+        uidFeature: { selectedIndexes: new Set(), bins: [] },
+        metric: { selectedIndexes: new Set(), bins: [] },
+    };
+    const histogramStudentCheckboxState = new Map();
     const uidLogicFilterGroups = window.studentGroupLogicFilterGroups || [];
     const uidLogicFilterStudentsByGroup = window.studentGroupLogicFilterStudentsByGroup || {};
     const featureFilterPlaceholders = window.studentGroupFeatureFilterPlaceholders || { min: '最小値', max: '最大値' };
@@ -51,6 +59,119 @@
         '"': '&quot;',
         "'": '&#039;',
     }[char]));
+
+    const histogramStudentDirectory = new Map(
+        Array.from(document.querySelectorAll('.uid-filter-item')).map((item) => {
+            const input = item.querySelector('.uid-checkbox');
+            return [String(input?.value ?? ''), item.dataset.studentName || ''];
+        }).filter(([uid]) => uid !== '')
+    );
+
+    const collectSelectedHistogramUids = () => {
+        const selectedUids = new Set();
+        Object.values(histogramSelectionState).forEach((state) => {
+            state.selectedIndexes.forEach((index) => {
+                const bin = state.bins[index];
+                bin?.members?.forEach((member) => selectedUids.add(String(member.id)));
+            });
+        });
+        return Array.from(selectedUids).sort((a, b) => a.localeCompare(b, 'ja', { numeric: true }));
+    };
+
+    const renderHistogramStudentList = () => {
+        if (!histogramStudentList) {
+            return;
+        }
+
+        histogramStudentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
+            histogramStudentCheckboxState.set(String(input.value), input.checked);
+        });
+
+        const selectedUids = collectSelectedHistogramUids();
+        const selectedUidLookup = new Set(selectedUids);
+        Array.from(histogramStudentCheckboxState.keys()).forEach((uid) => {
+            if (!selectedUidLookup.has(uid)) {
+                histogramStudentCheckboxState.delete(uid);
+            }
+        });
+
+        const histogramModeActive = studentListDisplayMode?.value === 'histogram';
+        if (selectedUids.length === 0) {
+            histogramStudentList.innerHTML = '<li class="histogram-student-list-empty">UIDを含む縦棒をクリックすると、ここにグループ候補が表示されます。</li>';
+        } else {
+            histogramStudentList.innerHTML = selectedUids.map((uid) => {
+                const name = histogramStudentDirectory.get(uid) || '名前未登録';
+                const checked = histogramStudentCheckboxState.has(uid)
+                    ? histogramStudentCheckboxState.get(uid)
+                    : true;
+                histogramStudentCheckboxState.set(uid, checked);
+                return `
+                    <li class="student-item histogram-student-item" data-uid="${escapeHtml(uid)}">
+                        <label class="student-choice histogram-student-choice">
+                            <input type="checkbox" name="students[]" value="${escapeHtml(uid)}"${checked ? ' checked' : ''}${histogramModeActive ? '' : ' disabled'}>
+                            <span class="histogram-student-identity">
+                                <strong>UID:${escapeHtml(uid)}</strong>
+                                <span>名前: ${escapeHtml(name)}</span>
+                            </span>
+                        </label>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        if (histogramStudentListSummary) {
+            const selectedBarCount = Object.values(histogramSelectionState)
+                .reduce((count, state) => count + state.selectedIndexes.size, 0);
+            histogramStudentListSummary.textContent = `選択中の縦棒: ${selectedBarCount}本 / 対象UID: ${selectedUids.length}人`;
+        }
+    };
+
+    const syncStudentListDisplayMode = () => {
+        const histogramModeActive = studentListDisplayMode?.value === 'histogram';
+        if (studentList) {
+            studentList.hidden = histogramModeActive;
+            studentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
+                input.disabled = histogramModeActive;
+            });
+        }
+        if (histogramStudentList) {
+            histogramStudentList.hidden = !histogramModeActive;
+            histogramStudentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
+                input.disabled = !histogramModeActive;
+            });
+        }
+        if (histogramStudentListSummary) {
+            histogramStudentListSummary.hidden = !histogramModeActive;
+        }
+        if (showStudentFeatureAveragesButton) {
+            showStudentFeatureAveragesButton.hidden = histogramModeActive;
+        }
+        if (studentFeatureAverageList) {
+            studentFeatureAverageList.hidden = histogramModeActive;
+        }
+    };
+
+    const clearHistogramSelection = (key, syncList = true) => {
+        const state = histogramSelectionState[key];
+        if (!state) {
+            return;
+        }
+        state.selectedIndexes.clear();
+        state.bins = [];
+        if (syncList) {
+            renderHistogramStudentList();
+        }
+    };
+
+    studentListDisplayMode?.addEventListener('change', syncStudentListDisplayMode);
+    histogramStudentList?.addEventListener('change', (event) => {
+        const input = event.target.closest('input[name="students[]"]');
+        if (input) {
+            histogramStudentCheckboxState.set(String(input.value), input.checked);
+        }
+    });
+    renderHistogramStudentList();
+    syncStudentListDisplayMode();
 
     const getFeatureDisplayMeta = (feature) => featureDisplayMeta[feature] || { displayScale: 1, unit: '' };
 
@@ -785,6 +906,7 @@
     const destroyHistogramChart = (key) => {
         if (histogramCharts[key]) {
             const tooltipElement = histogramCharts[key].canvas.parentNode.querySelector('.histogram-hover-tooltip');
+            histogramCharts[key].canvas.classList.remove('is-histogram-selectable');
             tooltipElement?.remove();
             histogramCharts[key].destroy();
             histogramCharts[key] = null;
@@ -793,10 +915,29 @@
 
     const showHistogramEmptyState = (key, summaryElement, message) => {
         destroyHistogramChart(key);
+        clearHistogramSelection(key);
         if (summaryElement) {
             summaryElement.textContent = message;
             summaryElement.classList.add('is-empty');
         }
+    };
+
+    const updateHistogramSelectionAppearance = (chart) => {
+        const config = chart.$histogramSelectionConfig;
+        if (!config) {
+            return;
+        }
+        const dataset = chart.data.datasets[0];
+        dataset.backgroundColor = config.histogram.counts.map((_count, index) => (
+            config.state.selectedIndexes.has(index) ? config.selectedBackgroundColor : config.backgroundColor
+        ));
+        dataset.borderColor = config.histogram.counts.map((_count, index) => (
+            config.state.selectedIndexes.has(index) ? config.selectedBorderColor : config.borderColor
+        ));
+        dataset.borderWidth = config.histogram.counts.map((_count, index) => (
+            config.state.selectedIndexes.has(index) ? 3 : 1
+        ));
+        chart.update('none');
     };
 
     const renderHistogramChart = ({
@@ -809,8 +950,11 @@
         entityLabel,
         backgroundColor,
         borderColor,
+        selectedBackgroundColor = 'rgba(37, 99, 235, 0.88)',
+        selectedBorderColor = 'rgba(30, 64, 175, 1)',
         formatValue = formatHistogramValue,
         percentage = false,
+        selectable = false,
     }) => {
         if (!canvas || !summaryElement) {
             return;
@@ -827,6 +971,19 @@
         }
 
         const yAxis = getHistogramYAxis(histogram.counts);
+        const selectionState = histogramSelectionState[key];
+        if (selectionState) {
+            if (selectable) {
+                selectionState.bins = histogram.bins;
+                selectionState.selectedIndexes = new Set(
+                    Array.from(selectionState.selectedIndexes)
+                        .filter((index) => histogram.bins[index]?.members?.length > 0)
+                );
+            } else {
+                selectionState.selectedIndexes.clear();
+                selectionState.bins = [];
+            }
+        }
         const formatSummaryValue = (value) => percentage ? `${formatHistogramValue(value)}%` : formatValue(value);
         const rangeSummary = histogram.step > 0
             ? `対象${entityLabel}数: ${points.length} / 実測範囲: ${formatSummaryValue(histogram.min)}〜${formatSummaryValue(histogram.max)} / 階級幅: ${formatSummaryValue(histogram.step)}`
@@ -843,6 +1000,16 @@
         }
 
         destroyHistogramChart(key);
+        canvas.classList.toggle('is-histogram-selectable', selectable);
+        const backgroundColors = histogram.counts.map((_count, index) => (
+            selectable && selectionState?.selectedIndexes.has(index) ? selectedBackgroundColor : backgroundColor
+        ));
+        const borderColors = histogram.counts.map((_count, index) => (
+            selectable && selectionState?.selectedIndexes.has(index) ? selectedBorderColor : borderColor
+        ));
+        const borderWidths = histogram.counts.map((_count, index) => (
+            selectable && selectionState?.selectedIndexes.has(index) ? 3 : 1
+        ));
         const chart = new Chart(canvas, {
             type: 'bar',
             data: {
@@ -850,9 +1017,9 @@
                 datasets: [{
                     label: `${entityLabel}数`,
                     data: histogram.counts,
-                    backgroundColor,
-                    borderColor,
-                    borderWidth: 1,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: borderWidths,
                     borderRadius: 4,
                 }],
             },
@@ -863,6 +1030,24 @@
                 interaction: {
                     mode: 'index',
                     intersect: true,
+                },
+                onClick: selectable ? (_event, elements, activeChart) => {
+                    const dataIndex = elements?.[0]?.index;
+                    if (!Number.isInteger(dataIndex) || histogram.bins[dataIndex]?.members?.length === 0 || !selectionState) {
+                        return;
+                    }
+                    if (selectionState.selectedIndexes.has(dataIndex)) {
+                        selectionState.selectedIndexes.delete(dataIndex);
+                    } else {
+                        selectionState.selectedIndexes.add(dataIndex);
+                    }
+                    updateHistogramSelectionAppearance(activeChart);
+                    renderHistogramStudentList();
+                } : undefined,
+                onHover: (event, elements) => {
+                    if (event.native?.target) {
+                        event.native.target.style.cursor = selectable && elements.length > 0 ? 'pointer' : 'default';
+                    }
                 },
                 plugins: {
                     legend: {
@@ -917,7 +1102,18 @@
             entityLabel,
             formatValue,
         };
+        if (selectable && selectionState) {
+            chart.$histogramSelectionConfig = {
+                histogram,
+                state: selectionState,
+                backgroundColor,
+                borderColor,
+                selectedBackgroundColor,
+                selectedBorderColor,
+            };
+        }
         histogramCharts[key] = chart;
+        renderHistogramStudentList();
     };
 
     const getCheckedHistogramIds = (selector) => new Set(
@@ -1065,7 +1261,10 @@
                 entityLabel: 'UID',
                 backgroundColor: 'rgba(20, 184, 166, 0.62)',
                 borderColor: 'rgba(15, 118, 110, 1)',
+                selectedBackgroundColor: 'rgba(13, 148, 136, 0.92)',
+                selectedBorderColor: 'rgba(17, 94, 89, 1)',
                 formatValue: (value) => `${formatHistogramValue(value)}${unit}`,
+                selectable: true,
             });
         };
 
@@ -1116,8 +1315,11 @@
                 entityLabel,
                 backgroundColor: metric === 'accuracy' ? 'rgba(34, 197, 94, 0.58)' : 'rgba(249, 115, 22, 0.58)',
                 borderColor: metric === 'accuracy' ? 'rgba(21, 128, 61, 1)' : 'rgba(194, 65, 12, 1)',
+                selectedBackgroundColor: metric === 'accuracy' ? 'rgba(22, 163, 74, 0.92)' : 'rgba(234, 88, 12, 0.92)',
+                selectedBorderColor: metric === 'accuracy' ? 'rgba(20, 83, 45, 1)' : 'rgba(124, 45, 18, 1)',
                 formatValue: (value) => `${formatHistogramValue(value)}%`,
                 percentage: true,
+                selectable: entity === 'uid',
             });
         };
 
@@ -1137,16 +1339,38 @@
             });
         };
 
-        [uidFeatureSelect, uidScopeSelect, uidWidScopeSelect].forEach((element) => element?.addEventListener('change', renderUidFeatureHistogram));
+        [uidFeatureSelect, uidScopeSelect, uidWidScopeSelect].forEach((element) => element?.addEventListener('change', () => {
+            clearHistogramSelection('uidFeature', false);
+            renderUidFeatureHistogram();
+        }));
         [widFeatureSelect, widUidScopeSelect, widScopeSelect].forEach((element) => element?.addEventListener('change', renderWidFeatureHistogram));
-        [metricSelect, metricEntitySelect].forEach((element) => element?.addEventListener('change', renderMetricHistogram));
+        [metricSelect, metricEntitySelect].forEach((element) => element?.addEventListener('change', () => {
+            clearHistogramSelection('metric', false);
+            renderMetricHistogram();
+        }));
         document.addEventListener('change', (event) => {
             if (event.target.matches('.uid-checkbox, .wid-checkbox, .select-all, .select-all-class')) {
+                const uidSelectionChanged = event.target.matches('.uid-checkbox, .select-all, .select-all-class');
+                const widSelectionChanged = event.target.matches('.wid-checkbox');
+                if ((uidSelectionChanged && uidScopeSelect.value === 'checked')
+                    || (widSelectionChanged && uidWidScopeSelect.value === 'checked')) {
+                    clearHistogramSelection('uidFeature', false);
+                }
+                clearHistogramSelection('metric', false);
+                renderHistogramStudentList();
                 scheduleAllHistogramRendering();
             }
         });
         document.addEventListener('click', (event) => {
             if (event.target.closest('#select-all-wid-btn, #deselect-all-wid-btn, #apply-uid-logic-filter, #reset-uid-logic-filter')) {
+                const widSelectionChanged = event.target.closest('#select-all-wid-btn, #deselect-all-wid-btn');
+                const uidSelectionChanged = event.target.closest('#apply-uid-logic-filter, #reset-uid-logic-filter');
+                if ((uidSelectionChanged && uidScopeSelect.value === 'checked')
+                    || (widSelectionChanged && uidWidScopeSelect.value === 'checked')) {
+                    clearHistogramSelection('uidFeature', false);
+                }
+                clearHistogramSelection('metric', false);
+                renderHistogramStudentList();
                 scheduleAllHistogramRendering();
             }
         });
@@ -1655,6 +1879,7 @@
             // 繝ｪ繧ｹ繝医ｒ譖ｴ譁ｰ
             
             studentList.innerHTML = data;
+            syncStudentListDisplayMode();
             if (studentFeatureAverageList) {
                 studentFeatureAverageList.innerHTML = '';
             }

@@ -764,6 +764,10 @@
     height: 296px;
 }
 
+.histogram-chart-wrap canvas.is-histogram-selectable {
+    cursor: pointer;
+}
+
 .histogram-summary {
     margin: 0;
     color: #475569;
@@ -871,6 +875,47 @@
     margin-top: 0;
 }
 
+.student-result-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    align-items: end;
+    margin-top: 18px;
+}
+
+.student-result-title {
+    align-self: center;
+    color: #1f2937;
+    font-weight: 800;
+}
+
+.student-list-display-mode-label {
+    display: grid;
+    gap: 5px;
+    margin: 0;
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
+.student-list-display-mode-label select {
+    min-width: 220px;
+    min-height: 40px;
+}
+
+.histogram-student-list-summary {
+    margin: 0 0 8px;
+    color: #0f766e;
+    font-weight: 800;
+}
+
+.student-list[hidden],
+.histogram-student-list-summary[hidden],
+#show-student-feature-averages[hidden],
+#student-feature-average-list[hidden] {
+    display: none !important;
+}
+
 .student-list,
 .group-list {
     display: grid;
@@ -885,6 +930,42 @@
     max-height: 520px;
     overflow-y: auto;
     padding-right: 8px;
+}
+
+.histogram-student-list-empty {
+    grid-column: 1 / -1;
+    padding: 18px;
+    border: 1px dashed #94a3b8;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    color: #475569;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.histogram-student-item {
+    border-color: #99f6e4;
+    background-color: #f0fdfa;
+}
+
+.histogram-student-choice {
+    width: 100%;
+}
+
+.histogram-student-identity {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.histogram-student-identity strong {
+    color: #115e59;
+}
+
+.histogram-student-identity span {
+    overflow-wrap: anywhere;
+    color: #475569;
+    font-size: 0.9rem;
 }
 
 .student-item,
@@ -1145,6 +1226,20 @@
 
     .student-list {
         grid-template-columns: 1fr;
+    }
+
+    .student-result-toolbar {
+        display: grid;
+        align-items: stretch;
+    }
+
+    .student-list-display-mode-label select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .histogram-student-list-summary {
+        margin-bottom: 0;
     }
 
     .feature-filter-row {
