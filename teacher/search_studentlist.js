@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
         checkboxSelector: '.histogram-uid-checkbox',
         selectAllSelector: '.histogram-select-all',
         selectAllClassSelector: '.histogram-select-all-class',
-        onSelectionChanged: () => scheduleHistogramRendering(true),
+        onSelectionChanged: () => scheduleHistogramRendering(),
     });
 
     const featureFilterBuilder = document.getElementById('feature-filter-builder');
@@ -733,6 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const barLogicControllers = {};
     let applyingWidBarResult = false;
     let appliedHistogramWids = getCheckedIds('.histogram-wid-checkbox');
+    const savedUidBarsList = document.getElementById('histogram-saved-uid-bars-list');
     const savedWidBarsList = document.getElementById('histogram-saved-wid-bars-list');
     const widFilterApplySummary = document.getElementById('histogram-wid-filter-apply-summary');
 
@@ -740,6 +741,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!widFilterApplySummary) return;
         widFilterApplySummary.textContent = 'WID選択に未反映の変更があります。「検索」を押すとヒストグラムと特徴量平均へ反映されます。';
         widFilterApplySummary.classList.add('is-pending');
+    };
+    const renderSavedUidBars = () => {
+        if (!savedUidBarsList) return;
+        const conditions = [...histogramBarConditions.uid.values()];
+        if (conditions.length === 0) {
+            savedUidBarsList.innerHTML = '<span class="histogram-saved-uid-bars-empty">保存したUID縦棒はありません。</span>';
+            return;
+        }
+        savedUidBarsList.innerHTML = conditions.map((condition) => `
+            <span class="histogram-saved-uid-bar">
+                <span>${escapeHtml(condition.label)}</span>
+                <button type="button" data-saved-uid-bar-id="${escapeHtml(condition.id)}" aria-label="${escapeHtml(condition.label)}を削除">×</button>
+            </span>
+        `).join('');
     };
     const renderSavedWidBars = () => {
         if (!savedWidBarsList) return;
@@ -1015,22 +1030,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (histogramBarConditions[entity].size === 0) return;
         histogramBarConditions[entity].clear();
         barLogicControllers[entity]?.rebuildDefault();
+        if (entity === 'uid') renderSavedUidBars();
         if (entity === 'wid') renderSavedWidBars();
-    };
-    const clearChartBarConditions = (chartKey, entities = ['uid']) => {
-        entities.forEach((entity) => {
-            let changed = false;
-            histogramBarConditions[entity].forEach((condition, id) => {
-                if (condition.chartKey === chartKey) {
-                    histogramBarConditions[entity].delete(id);
-                    changed = true;
-                }
-            });
-            if (changed) {
-                barLogicControllers[entity]?.rebuildDefault();
-                if (entity === 'wid') renderSavedWidBars();
-            }
-        });
     };
 
     document.getElementById('histogram-select-all-wid-btn')?.addEventListener('click', () => {
@@ -1049,6 +1050,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!event.target.matches('.histogram-wid-checkbox') || applyingWidBarResult) return;
         markWidFilterPending();
     });
+    savedUidBarsList?.addEventListener('click', (event) => {
+        const deleteButton = event.target.closest('[data-saved-uid-bar-id]');
+        if (!deleteButton) return;
+        const conditionId = deleteButton.dataset.savedUidBarId;
+        if (!histogramBarConditions.uid.delete(conditionId)) return;
+        barLogicControllers.uid?.selectionRemoved(conditionId);
+        renderSavedUidBars();
+        scheduleHistogramRendering();
+    });
+    document.getElementById('clear-saved-histogram-uid-bars')?.addEventListener('click', () => {
+        clearEntityBarConditions('uid');
+        scheduleHistogramRendering();
+    });
     savedWidBarsList?.addEventListener('click', (event) => {
         const deleteButton = event.target.closest('[data-saved-wid-bar-id]');
         if (!deleteButton) return;
@@ -1056,11 +1070,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!histogramBarConditions.wid.delete(conditionId)) return;
         barLogicControllers.wid?.selectionRemoved(conditionId);
         renderSavedWidBars();
-        scheduleHistogramRendering(false);
+        scheduleHistogramRendering();
     });
     document.getElementById('clear-saved-histogram-wid-bars')?.addEventListener('click', () => {
         clearEntityBarConditions('wid');
-        scheduleHistogramRendering(false);
+        scheduleHistogramRendering();
     });
     document.getElementById('apply-histogram-wid-filter')?.addEventListener('click', () => {
         appliedHistogramWids = getCheckedIds('.histogram-wid-checkbox');
@@ -1068,9 +1082,10 @@ document.addEventListener('DOMContentLoaded', () => {
             widFilterApplySummary.textContent = `${appliedHistogramWids.size}件のWIDをヒストグラムと特徴量平均へ反映しました。`;
             widFilterApplySummary.classList.remove('is-pending');
         }
-        scheduleHistogramRendering(false);
+        scheduleHistogramRendering();
         renderHistogramStudentList(barLogicControllers.uid?.lastResult || new Set());
     });
+    renderSavedUidBars();
     renderSavedWidBars();
 
     const formatHistogramValue = (value) => {
@@ -1289,6 +1304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         selectedMap.set(condition.id, condition);
                         barLogicControllers[entity]?.selectionAdded(condition.id);
                     }
+                    if (entity === 'uid') renderSavedUidBars();
                     if (entity === 'wid') renderSavedWidBars();
                     const dataset = activeChart.data.datasets[0];
                     dataset.backgroundColor = histogram.counts.map((_count, itemIndex) => selectedMap.has(conditions[itemIndex].id) ? 'rgba(37, 99, 235, 0.88)' : color);
@@ -1396,12 +1412,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (metricResult.points.length === 0) document.getElementById('metric-histogram-summary').textContent = metricResult.reason;
         };
-        scheduleHistogramRendering = (clearSelections = false) => {
+        scheduleHistogramRendering = () => {
             if (!histogramsInitialized) return;
-            if (clearSelections) {
-                clearChartBarConditions('uidFeature');
-                clearChartBarConditions('metric');
-            }
             if (histogramFrame !== null) window.cancelAnimationFrame(histogramFrame);
             histogramFrame = window.requestAnimationFrame(() => {
                 histogramFrame = null;
@@ -1420,8 +1432,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 [metricEntitySelect, 'metric'],
                 [metricUidScopeSelect, 'metric'],
                 [metricWidScopeSelect, 'metric'],
-            ].forEach(([element, key]) => element?.addEventListener('change', () => {
-                if (key !== 'widFeature') clearChartBarConditions(key);
+            ].forEach(([element]) => element?.addEventListener('change', () => {
                 renderAll();
             }));
             histogramsInitialized = true;

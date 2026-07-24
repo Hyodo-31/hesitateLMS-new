@@ -511,8 +511,12 @@
                         </div>
 
                         <div id="histogram-uid-bar-logic-panel" class="logic-filter-panel histogram-bar-logic-panel">
-                            <strong>選択したUID縦棒の論理式</strong>
-                            <p class="histogram-logic-help">UID特徴量・正答率・迷い率の縦棒を横断して集合演算します。式が空の場合はORで結合します。</p>
+                            <strong>学習者リスト（ヒストグラム選択結果）のUID論理式</strong>
+                            <p class="histogram-student-result-guidance">
+                                <strong>この論理式の結果が、ページ下部の学習者リストに表示されます。</strong>
+                                <span>学習者リストの表示方式で「ヒストグラム選択結果」を選んだ際の対象UIDを、この式で操作します。縦棒の選択や式の変更は自動で反映されます。</span>
+                            </p>
+                            <p class="histogram-logic-help">UID特徴量・正答率・迷い率で保存した縦棒を横断して集合演算します。別のグラフへ移動しても保存した縦棒は残ります。式が空の場合はORで結合します。</p>
                             <div class="logic-filter-toolbar">
                                 <button type="button" data-add-histogram-bar-logic="uid-condition">縦棒を追加</button>
                                 <button type="button" data-add-histogram-bar-logic="uid-and">AND</button>
@@ -529,6 +533,15 @@
                                 <button type="button" id="reset-histogram-uid-bar-logic">OR式に戻す</button>
                                 <button type="button" id="clear-histogram-uid-bar-logic" class="logic-filter-clear">式を空にする</button>
                                 <span id="histogram-uid-bar-logic-summary" class="logic-filter-summary">UIDの縦棒は選択されていません。</span>
+                            </div>
+                            <div class="histogram-saved-uid-bars">
+                                <div class="histogram-saved-uid-bars-heading">
+                                    <strong>保存したUID縦棒</strong>
+                                    <button type="button" id="clear-saved-histogram-uid-bars" class="logic-filter-clear">保存情報をすべて削除</button>
+                                </div>
+                                <div id="histogram-saved-uid-bars-list" class="histogram-saved-uid-bars-list" aria-live="polite">
+                                    <span class="histogram-saved-uid-bars-empty">保存したUID縦棒はありません。</span>
+                                </div>
                             </div>
                         </div>
 

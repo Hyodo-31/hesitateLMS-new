@@ -833,6 +833,7 @@
     color: #9a3412;
 }
 
+.histogram-saved-uid-bars,
 .histogram-saved-wid-bars {
     display: grid;
     gap: 10px;
@@ -841,6 +842,7 @@
     border-top: 1px solid #cbd5e1;
 }
 
+.histogram-saved-uid-bars-heading,
 .histogram-saved-wid-bars-heading,
 .histogram-wid-apply-actions {
     display: flex;
@@ -850,12 +852,14 @@
     justify-content: space-between;
 }
 
+.histogram-saved-uid-bars-list,
 .histogram-saved-wid-bars-list {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
 
+.histogram-saved-uid-bar,
 .histogram-saved-wid-bar {
     display: inline-flex;
     gap: 8px;
@@ -870,10 +874,12 @@
     font-weight: 700;
 }
 
+.histogram-saved-uid-bar span,
 .histogram-saved-wid-bar span {
     overflow-wrap: anywhere;
 }
 
+.histogram-saved-uid-bar button,
 .histogram-saved-wid-bar button {
     min-width: 28px;
     min-height: 28px;
@@ -882,8 +888,27 @@
     background-color: #b91c1c;
 }
 
+.histogram-saved-uid-bars-empty,
 .histogram-saved-wid-bars-empty {
     color: #64748b;
+    font-size: 0.9rem;
+}
+
+.histogram-student-result-guidance {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 11px 13px;
+    border: 1px solid #5eead4;
+    border-left: 5px solid #0f766e;
+    border-radius: 8px;
+    background-color: #f0fdfa;
+    color: #134e4a;
+    line-height: 1.55;
+}
+
+.histogram-student-result-guidance span {
+    color: #475569;
     font-size: 0.9rem;
 }
 
