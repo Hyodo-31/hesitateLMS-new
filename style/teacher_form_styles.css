@@ -440,6 +440,10 @@
     display: none;
 }
 
+.histogram-filter-accordion {
+    margin-top: 18px;
+}
+
 .uid-label {
     display: block;
     margin-bottom: 8px;
@@ -656,7 +660,7 @@
 .histogram-dashboard {
     display: grid;
     gap: 18px;
-    margin-top: 22px;
+    margin-top: 0;
     padding: 18px;
     border: 1px solid #bfdbfe;
     border-radius: 12px;
@@ -710,6 +714,55 @@
     font-size: 0.9rem;
 }
 
+.histogram-source-selectors {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+}
+
+.histogram-source-panel {
+    display: grid;
+    grid-auto-rows: max-content;
+    gap: 12px;
+    align-content: start;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.histogram-source-panel > h4 {
+    margin: 0;
+    color: #1e3a8a;
+    font-size: 1.05rem;
+}
+
+.histogram-checkbox-section {
+    max-height: 330px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.histogram-wid-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+.histogram-bar-logic-panel {
+    border-color: #a5b4fc;
+    background-color: #eef2ff;
+}
+
+.histogram-logic-help {
+    margin: 0;
+    color: #475569;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
 .histogram-card {
     display: grid;
     gap: 12px;
@@ -733,7 +786,7 @@
 }
 
 .histogram-controls-metric {
-    grid-template-columns: repeat(2, minmax(180px, 280px));
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
 }
 
 .histogram-controls label {
@@ -777,6 +830,79 @@
 }
 
 .histogram-summary.is-empty {
+    color: #9a3412;
+}
+
+.histogram-saved-wid-bars {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #cbd5e1;
+}
+
+.histogram-saved-wid-bars-heading,
+.histogram-wid-apply-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.histogram-saved-wid-bars-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.histogram-saved-wid-bar {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    max-width: 100%;
+    padding: 7px 9px;
+    border: 1px solid #93c5fd;
+    border-radius: 999px;
+    background-color: #eff6ff;
+    color: #1e3a8a;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.histogram-saved-wid-bar span {
+    overflow-wrap: anywhere;
+}
+
+.histogram-saved-wid-bar button {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background-color: #b91c1c;
+}
+
+.histogram-saved-wid-bars-empty {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.histogram-wid-apply-actions {
+    justify-content: flex-start;
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background-color: #eff6ff;
+}
+
+.histogram-wid-filter-apply-summary {
+    color: #1e3a8a;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.histogram-wid-filter-apply-summary.is-pending {
     color: #9a3412;
 }
 
@@ -911,8 +1037,7 @@
 
 .student-list[hidden],
 .histogram-student-list-summary[hidden],
-#show-student-feature-averages[hidden],
-#student-feature-average-list[hidden] {
+.average-scope-control[hidden] {
     display: none !important;
 }
 
@@ -943,6 +1068,23 @@
     text-align: center;
 }
 
+.student-list-status {
+    grid-column: 1 / -1;
+    padding: 18px;
+    border: 1px dashed #94a3b8;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    color: #475569;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.student-list-error {
+    border-color: #fca5a5;
+    background-color: #fef2f2;
+    color: #b91c1c;
+}
+
 .histogram-student-item {
     border-color: #99f6e4;
     background-color: #f0fdfa;
@@ -963,6 +1105,28 @@
 }
 
 .histogram-student-identity span {
+    overflow-wrap: anywhere;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.student-result-choice {
+    width: 100%;
+}
+
+.student-result-identity {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 3px;
+    min-width: 0;
+}
+
+.student-result-identity strong {
+    overflow-wrap: anywhere;
+    color: #1f2937;
+}
+
+.student-result-identity span {
     overflow-wrap: anywhere;
     color: #475569;
     font-size: 0.9rem;
@@ -1266,6 +1430,7 @@
     }
 
     .histogram-dashboard-heading,
+    .histogram-source-selectors,
     .histogram-controls,
     .histogram-controls-metric {
         grid-template-columns: 1fr;

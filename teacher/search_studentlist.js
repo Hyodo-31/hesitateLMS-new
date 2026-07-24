@@ -1,56 +1,20 @@
-﻿document.addEventListener('DOMContentLoaded', () => {
-    const searchButton = document.getElementById('search-button');
+document.addEventListener('DOMContentLoaded', () => {
+    const searchForm = document.getElementById('search-form');
     const studentList = document.getElementById('student-list');
     const histogramStudentList = document.getElementById('histogram-student-list');
     const studentListDisplayMode = document.getElementById('student-list-display-mode');
     const histogramStudentListSummary = document.getElementById('histogram-student-list-summary');
-    const showStudentFeatureAveragesButton = document.getElementById('show-student-feature-averages');
-    const studentFeatureAverageList = document.getElementById('student-feature-average-list');
-    let floatingTooltip = null;
-    let activeChoice = null;
-    const featureFilterBuilder = document.getElementById('feature-filter-builder');
-    const featureFilterExpressionInput = document.getElementById('feature-filter-expression');
-    const featureFilterSettings = document.getElementById('feature-filter-settings');
-    const featureFilterSummary = document.getElementById('feature-filter-summary');
-    const featureFilterInsertPosition = document.getElementById('feature-filter-insert-position');
-    const addFeatureFilterConditionButton = document.getElementById('add-feature-filter-condition');
-    const addFeatureFilterAndButton = document.getElementById('add-feature-filter-and');
-    const addFeatureFilterOrButton = document.getElementById('add-feature-filter-or');
-    const addFeatureFilterNotButton = document.getElementById('add-feature-filter-not');
-    const addFeatureFilterOpenButton = document.getElementById('add-feature-filter-open');
-    const addFeatureFilterCloseButton = document.getElementById('add-feature-filter-close');
-    const resetFeatureFilterExpressionButton = document.getElementById('reset-feature-filter-expression');
-    const trimFeatureFilterExpressionButton = document.getElementById('trim-feature-filter-expression');
-    const clearFeatureFilterExpressionButton = document.getElementById('clear-feature-filter-expression');
-    const featureFilterOptions = Object.entries(window.studentGroupFeatureColumns || {}).map(([value, label]) => ({ value, label }));
+    const filterAverageScope = document.getElementById('filter-feature-average-scope');
+    const histogramAverageScope = document.getElementById('histogram-feature-average-scope');
+    const featureOptions = Object.entries(window.studentGroupFeatureColumns || {})
+        .map(([value, label]) => ({ value, label }));
     const featureDisplayMeta = window.studentGroupFeatureDisplayMeta || {};
     const histogramData = window.studentGroupHistogramData || {};
     const histogramFeaturePairs = Array.isArray(histogramData.featurePairs) ? histogramData.featurePairs : [];
     const histogramMetricAttempts = Array.isArray(histogramData.metricAttempts) ? histogramData.metricAttempts : [];
-    const histogramCharts = {
-        uidFeature: null,
-        widFeature: null,
-        metric: null,
-    };
-    const histogramSelectionState = {
-        uidFeature: { selectedIndexes: new Set(), bins: [] },
-        metric: { selectedIndexes: new Set(), bins: [] },
-    };
-    const histogramStudentCheckboxState = new Map();
     const uidLogicFilterGroups = window.studentGroupLogicFilterGroups || [];
     const uidLogicFilterStudentsByGroup = window.studentGroupLogicFilterStudentsByGroup || {};
     const featureFilterPlaceholders = window.studentGroupFeatureFilterPlaceholders || { min: '最小値', max: '最大値' };
-    const featureFilterSettingValues = {};
-
-    const filterConditionsToggle = document.getElementById('filter-conditions-toggle');
-    const filterConditionsPanel = document.getElementById('filter-conditions-panel');
-    if (filterConditionsToggle && filterConditionsPanel) {
-        filterConditionsToggle.addEventListener('click', () => {
-            const isExpanded = filterConditionsToggle.getAttribute('aria-expanded') === 'true';
-            filterConditionsToggle.setAttribute('aria-expanded', String(!isExpanded));
-            filterConditionsPanel.hidden = isExpanded;
-        });
-    }
 
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
         '&': '&amp;',
@@ -60,143 +24,30 @@
         "'": '&#039;',
     }[char]));
 
-    const histogramStudentDirectory = new Map(
-        Array.from(document.querySelectorAll('.uid-filter-item')).map((item) => {
-            const input = item.querySelector('.uid-checkbox');
-            return [String(input?.value ?? ''), item.dataset.studentName || ''];
-        }).filter(([uid]) => uid !== '')
-    );
+    const compareIds = (a, b) => String(a).localeCompare(String(b), 'ja', { numeric: true });
+    const setUnion = (left, right) => new Set([...left, ...right]);
+    const setIntersection = (left, right) => new Set([...left].filter((value) => right.has(value)));
+    const setComplement = (source, universe) => new Set([...universe].filter((value) => !source.has(value)));
 
-    const collectSelectedHistogramUids = () => {
-        const selectedUids = new Set();
-        Object.values(histogramSelectionState).forEach((state) => {
-            state.selectedIndexes.forEach((index) => {
-                const bin = state.bins[index];
-                bin?.members?.forEach((member) => selectedUids.add(String(member.id)));
-            });
-        });
-        return Array.from(selectedUids).sort((a, b) => a.localeCompare(b, 'ja', { numeric: true }));
-    };
-
-    const renderHistogramStudentList = () => {
-        if (!histogramStudentList) {
-            return;
-        }
-
-        histogramStudentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
-            histogramStudentCheckboxState.set(String(input.value), input.checked);
-        });
-
-        const selectedUids = collectSelectedHistogramUids();
-        const selectedUidLookup = new Set(selectedUids);
-        Array.from(histogramStudentCheckboxState.keys()).forEach((uid) => {
-            if (!selectedUidLookup.has(uid)) {
-                histogramStudentCheckboxState.delete(uid);
-            }
-        });
-
-        const histogramModeActive = studentListDisplayMode?.value === 'histogram';
-        if (selectedUids.length === 0) {
-            histogramStudentList.innerHTML = '<li class="histogram-student-list-empty">UIDを含む縦棒をクリックすると、ここにグループ候補が表示されます。</li>';
-        } else {
-            histogramStudentList.innerHTML = selectedUids.map((uid) => {
-                const name = histogramStudentDirectory.get(uid) || '名前未登録';
-                const checked = histogramStudentCheckboxState.has(uid)
-                    ? histogramStudentCheckboxState.get(uid)
-                    : true;
-                histogramStudentCheckboxState.set(uid, checked);
-                return `
-                    <li class="student-item histogram-student-item" data-uid="${escapeHtml(uid)}">
-                        <label class="student-choice histogram-student-choice">
-                            <input type="checkbox" name="students[]" value="${escapeHtml(uid)}"${checked ? ' checked' : ''}${histogramModeActive ? '' : ' disabled'}>
-                            <span class="histogram-student-identity">
-                                <strong>UID:${escapeHtml(uid)}</strong>
-                                <span>名前: ${escapeHtml(name)}</span>
-                            </span>
-                        </label>
-                    </li>
-                `;
-            }).join('');
-        }
-
-        if (histogramStudentListSummary) {
-            const selectedBarCount = Object.values(histogramSelectionState)
-                .reduce((count, state) => count + state.selectedIndexes.size, 0);
-            histogramStudentListSummary.textContent = `選択中の縦棒: ${selectedBarCount}本 / 対象UID: ${selectedUids.length}人`;
-        }
-    };
-
-    const syncStudentListDisplayMode = () => {
-        const histogramModeActive = studentListDisplayMode?.value === 'histogram';
-        if (studentList) {
-            studentList.hidden = histogramModeActive;
-            studentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
-                input.disabled = histogramModeActive;
-            });
-        }
-        if (histogramStudentList) {
-            histogramStudentList.hidden = !histogramModeActive;
-            histogramStudentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
-                input.disabled = !histogramModeActive;
-            });
-        }
-        if (histogramStudentListSummary) {
-            histogramStudentListSummary.hidden = !histogramModeActive;
-        }
-        if (showStudentFeatureAveragesButton) {
-            showStudentFeatureAveragesButton.hidden = histogramModeActive;
-        }
-        if (studentFeatureAverageList) {
-            studentFeatureAverageList.hidden = histogramModeActive;
-        }
-    };
-
-    const clearHistogramSelection = (key, syncList = true) => {
-        const state = histogramSelectionState[key];
-        if (!state) {
-            return;
-        }
-        state.selectedIndexes.clear();
-        state.bins = [];
-        if (syncList) {
-            renderHistogramStudentList();
-        }
-    };
-
-    studentListDisplayMode?.addEventListener('change', syncStudentListDisplayMode);
-    histogramStudentList?.addEventListener('change', (event) => {
-        const input = event.target.closest('input[name="students[]"]');
-        if (input) {
-            histogramStudentCheckboxState.set(String(input.value), input.checked);
-        }
-    });
-    renderHistogramStudentList();
-    syncStudentListDisplayMode();
-
-    const getFeatureDisplayMeta = (feature) => featureDisplayMeta[feature] || { displayScale: 1, unit: '' };
-
-    const toFeatureDisplayValue = (feature, value) => {
+    const getFeatureMeta = (feature) => featureDisplayMeta[feature] || { displayScale: 1, unit: '' };
+    const toDisplayFeatureValue = (feature, value) => {
         if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) {
             return null;
         }
-        return Number(value) * Number(getFeatureDisplayMeta(feature).displayScale || 1);
+        return Number(value) * Number(getFeatureMeta(feature).displayScale || 1);
     };
-
     const formatFeatureValue = (feature, value) => {
-        const displayValue = toFeatureDisplayValue(feature, value);
+        const displayValue = toDisplayFeatureValue(feature, value);
         if (displayValue === null) {
             return '-';
         }
-        const unit = getFeatureDisplayMeta(feature).unit || '';
-        return `${Number(displayValue).toFixed(2)}${unit}`;
+        return `${displayValue.toFixed(2)}${getFeatureMeta(feature).unit || ''}`;
     };
-
     const createFeatureTooltipHtml = (title, values, count) => {
-        const rows = featureFilterOptions.map((option) => `
+        const rows = featureOptions.map((option) => `
             <span class="feature-tooltip-label">${escapeHtml(option.label)}</span>
             <span class="feature-tooltip-value">${escapeHtml(formatFeatureValue(option.value, values[option.value]))}</span>
         `).join('');
-
         return `
             <span class="student-feature-popup" role="tooltip" hidden>
                 <span class="feature-tooltip-title">${escapeHtml(title)} (${count}件)</span>
@@ -205,562 +56,1091 @@
         `;
     };
 
-    const getFeatureFilterTokens = () => {
-        if (!featureFilterBuilder) {
-            return [];
-        }
-
-        return Array.from(featureFilterBuilder.querySelectorAll('.feature-filter-token'));
-    };
-
-    const readFeatureFilterSettingValues = () => {
-        if (!featureFilterSettings) {
+    const setupAccordion = (toggleId, panelId, onOpen = null) => {
+        const toggle = document.getElementById(toggleId);
+        const panel = document.getElementById(panelId);
+        if (!toggle || !panel) {
             return;
         }
-
-        featureFilterSettings.querySelectorAll('.feature-filter-setting-row').forEach((row) => {
-            const feature = row.dataset.feature;
-            if (!feature) {
-                return;
+        toggle.setAttribute('aria-expanded', 'false');
+        panel.hidden = true;
+        toggle.addEventListener('click', () => {
+            const willExpand = toggle.getAttribute('aria-expanded') !== 'true';
+            toggle.setAttribute('aria-expanded', String(willExpand));
+            panel.hidden = !willExpand;
+            if (willExpand && typeof onOpen === 'function') {
+                onOpen();
             }
-
-            featureFilterSettingValues[feature] = {
-                min: row.querySelector('.feature-filter-min')?.value ?? '',
-                max: row.querySelector('.feature-filter-max')?.value ?? '',
-            };
         });
     };
 
-    const getFeatureFilterKindSelectHtml = (selectedKind) => {
-        const options = [
-            { value: 'condition', label: '特徴量' },
-            { value: 'and', label: 'AND' },
-            { value: 'or', label: 'OR' },
-            { value: 'not', label: 'NOT' },
-            { value: 'open', label: '(' },
-            { value: 'close', label: ')' },
-        ];
+    let initializeHistograms = () => {};
+    setupAccordion('filter-conditions-toggle', 'filter-conditions-panel');
+    setupAccordion('histogram-conditions-toggle', 'histogram-conditions-panel', () => initializeHistograms());
 
-        return options.map((option) => {
-            const selected = option.value === selectedKind ? ' selected' : '';
-            return `<option value="${option.value}"${selected}>${option.label}</option>`;
-        }).join('');
+    const evaluateSetExpression = (tokens, resolveCondition, universe) => {
+        if (tokens.length === 0) {
+            return null;
+        }
+        let index = 0;
+        const primary = () => {
+            const token = tokens[index];
+            if (!token) {
+                throw new Error('条件が途中で終わっています。');
+            }
+            if (token.type === 'operator' && token.operator === 'NOT') {
+                index += 1;
+                return setComplement(primary(), universe);
+            }
+            if (token.type === 'paren' && token.paren === '(') {
+                index += 1;
+                const result = orExpression();
+                if (tokens[index]?.type !== 'paren' || tokens[index]?.paren !== ')') {
+                    throw new Error('閉じ括弧を置いてください。');
+                }
+                index += 1;
+                return result;
+            }
+            if (token.type === 'condition') {
+                index += 1;
+                const result = resolveCondition(token);
+                if (!(result instanceof Set)) {
+                    throw new Error('対象を選択してください。');
+                }
+                return result;
+            }
+            throw new Error('条件または括弧を置いてください。');
+        };
+        const andExpression = () => {
+            let result = primary();
+            while (tokens[index]?.type === 'operator' && tokens[index].operator === 'AND') {
+                index += 1;
+                result = setIntersection(result, primary());
+            }
+            return result;
+        };
+        const orExpression = () => {
+            let result = andExpression();
+            while (tokens[index]?.type === 'operator' && tokens[index].operator === 'OR') {
+                index += 1;
+                result = setUnion(result, andExpression());
+            }
+            return result;
+        };
+        const result = orExpression();
+        if (index !== tokens.length) {
+            throw new Error('式の並びを確認してください。');
+        }
+        return result;
     };
 
-    const getFeatureFilterKindFromToken = (type, value = '') => {
-        if (type === 'condition') {
-            return 'condition';
-        }
-        if (type === 'operator') {
-            return String(value).toLowerCase();
-        }
-        return value === '(' ? 'open' : 'close';
-    };
+    let scheduleFilterSearch = () => {};
+    let scheduleHistogramRendering = () => {};
 
-    const getFeatureFilterTokenSpecFromKind = (kind) => {
-        if (kind === 'condition') {
-            return { type: 'condition', value: '' };
-        }
-        if (kind === 'and') {
-            return { type: 'operator', value: 'AND' };
-        }
-        if (kind === 'or') {
-            return { type: 'operator', value: 'OR' };
-        }
-        if (kind === 'not') {
-            return { type: 'operator', value: 'NOT' };
-        }
-        return { type: 'paren', value: kind === 'open' ? '(' : ')' };
-    };
-
-    const createFeatureFilterTargetOptionsHtml = (selectedValue = '') => {
-        if (featureFilterOptions.length === 0) {
-            return '<option value="">特徴量がありません</option>';
-        }
-
-        return featureFilterOptions.map((option) => {
-            const selected = option.value === String(selectedValue) ? ' selected' : '';
-            return `<option value="${escapeHtml(option.value)}"${selected}>${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`;
-        }).join('');
-    };
-
-    const getFeatureFilterTokenDisplayLabel = (token) => {
-        const type = token.dataset.tokenType;
-        if (type === 'condition') {
-            const select = token.querySelector('.feature-filter-target');
-            return select?.options[select.selectedIndex]?.textContent || '特徴量';
-        }
-        if (type === 'operator') {
-            return token.dataset.operator || '演算子';
-        }
-        return token.dataset.paren || '括弧';
-    };
-
-    const updateFeatureFilterInsertOptions = () => {
-        if (!featureFilterInsertPosition) {
-            return;
-        }
-
-        const tokens = getFeatureFilterTokens();
-        const current = featureFilterInsertPosition.value;
-        const options = ['<option value="">末尾に追加</option>'];
-        tokens.forEach((token, index) => {
-            const label = getFeatureFilterTokenDisplayLabel(token);
-            options.push(`<option value="${index}">${index + 1}個目の前 (${escapeHtml(label)})</option>`);
-        });
-        featureFilterInsertPosition.innerHTML = options.join('');
-        if (current !== '' && Number(current) < tokens.length) {
-            featureFilterInsertPosition.value = current;
-        }
-    };
-
-    const insertFeatureFilterToken = (token) => {
-        const tokens = getFeatureFilterTokens();
-        const position = featureFilterInsertPosition?.value === '' ? tokens.length : Number(featureFilterInsertPosition?.value);
-        if (!Number.isInteger(position) || position >= tokens.length) {
-            featureFilterBuilder.appendChild(token);
+    const setupUidSelectionArea = ({
+        panelId,
+        builderId,
+        summaryId,
+        containerId,
+        insertPositionId,
+        addButtonSelector,
+        resetButtonId,
+        trimButtonId,
+        clearButtonId,
+        itemSelector,
+        checkboxSelector,
+        selectAllSelector,
+        selectAllClassSelector,
+        onSelectionChanged,
+    }) => {
+        const panel = document.getElementById(panelId);
+        const builder = document.getElementById(builderId);
+        const summary = document.getElementById(summaryId);
+        const container = document.getElementById(containerId);
+        const insertPosition = document.getElementById(insertPositionId);
+        if (!panel || !builder || !summary || !container || !insertPosition) {
             return null;
         }
 
-        const safePosition = Math.max(position, 0);
-        featureFilterBuilder.insertBefore(token, tokens[safePosition]);
-        return safePosition;
-    };
-
-    const renderFeatureFilterSettings = () => {
-        if (!featureFilterSettings) {
-            return;
-        }
-
-        readFeatureFilterSettingValues();
-        const selectedFeatures = [];
-        getFeatureFilterTokens().forEach((token) => {
-            if (token.dataset.tokenType !== 'condition') {
-                return;
-            }
-
-            const feature = token.querySelector('.feature-filter-target')?.value;
-            if (feature && !selectedFeatures.includes(feature)) {
-                selectedFeatures.push(feature);
-            }
-        });
-
-        if (selectedFeatures.length === 0) {
-            featureFilterSettings.innerHTML = '<p class="feature-filter-empty">論理式に特徴量を追加すると、ここに最小値・最大値の設定欄が表示されます。</p>';
-            return;
-        }
-
-        featureFilterSettings.innerHTML = selectedFeatures.map((feature) => {
-            const option = featureFilterOptions.find((item) => item.value === feature);
-            const label = option?.label || feature;
-            const values = featureFilterSettingValues[feature] || { min: '', max: '' };
-            return `
-                <div class="feature-filter-setting-row" data-feature="${escapeHtml(feature)}">
-                    <div>
-                        <div class="feature-filter-setting-name">${escapeHtml(label)}</div>
-                        <div class="feature-filter-setting-key">${escapeHtml(feature)}</div>
-                        <input type="hidden" name="feature_filters[${escapeHtml(feature)}][enabled]" value="1">
-                    </div>
-                    <label>
-                        <span>${escapeHtml(featureFilterPlaceholders.min)}</span>
-                        <input class="feature-filter-min" type="number" step="any" name="feature_filters[${escapeHtml(feature)}][min]" value="${escapeHtml(values.min)}" placeholder="${escapeHtml(featureFilterPlaceholders.min)}">
-                    </label>
-                    <label>
-                        <span>${escapeHtml(featureFilterPlaceholders.max)}</span>
-                        <input class="feature-filter-max" type="number" step="any" name="feature_filters[${escapeHtml(feature)}][max]" value="${escapeHtml(values.max)}" placeholder="${escapeHtml(featureFilterPlaceholders.max)}">
-                    </label>
-                </div>
-            `;
-        }).join('');
-    };
-
-    const getFeatureFilterExpressionTokens = () => getFeatureFilterTokens().map((token) => {
-        const type = token.dataset.tokenType;
-        if (type === 'condition') {
-            return {
-                type,
-                feature: token.querySelector('.feature-filter-target')?.value || '',
-            };
-        }
-        if (type === 'operator') {
-            return { type, operator: token.dataset.operator };
-        }
-        return { type: 'paren', paren: token.dataset.paren };
-    });
-
-    const validateFeatureFilterExpression = (tokens) => {
-        if (tokens.length === 0) {
-            return;
-        }
-
-        let expectsOperand = true;
-        let depth = 0;
-        tokens.forEach((token) => {
-            if (token.type === 'condition') {
-                if (!expectsOperand) {
-                    throw new Error('条件の間には AND または OR を入れてください。');
-                }
-                if (!token.feature) {
-                    throw new Error('特徴量が選択されていない条件があります。');
-                }
-                expectsOperand = false;
-                return;
-            }
-
-            if (token.type === 'operator') {
-                if (token.operator === 'NOT') {
-                    if (!expectsOperand) {
-                        throw new Error('NOT の前には AND または OR を入れてください。');
-                    }
+        const getItems = () => Array.from(container.querySelectorAll(itemSelector));
+        const getCheckbox = (item) => item.querySelector(checkboxSelector);
+        const allIds = () => getItems().map((item) => String(getCheckbox(item)?.value ?? '')).filter(Boolean);
+        const classMap = () => {
+            const map = {};
+            getItems().forEach((item) => {
+                const classId = String(item.dataset.classId || '');
+                const checkbox = getCheckbox(item);
+                if (!classId || !checkbox) {
                     return;
                 }
-                if (expectsOperand) {
-                    throw new Error('AND または OR の前に条件を置いてください。');
+                if (!map[classId]) {
+                    map[classId] = [];
                 }
-                expectsOperand = true;
-                return;
+                map[classId].push(String(checkbox.value));
+            });
+            return map;
+        };
+        const targetOptions = () => {
+            const classes = Array.from(container.querySelectorAll(selectAllClassSelector)).map((input) => ({
+                value: `class:${String(input.dataset.classId || '')}`,
+                label: `グループ(クラス): ${input.closest('.class-group-header')?.querySelector('h5')?.textContent?.trim() || input.dataset.classId}`,
+            }));
+            const groups = uidLogicFilterGroups.map((group) => ({
+                value: `group:${String(group.group_id)}`,
+                label: `グループ: ${group.group_name}`,
+            }));
+            return [...classes, ...groups];
+        };
+        const targetOptionsHtml = (selected = '') => {
+            const options = targetOptions();
+            if (options.length === 0) {
+                return '<option value="">対象がありません</option>';
             }
-
-            if (token.paren === '(') {
-                if (!expectsOperand) {
-                    throw new Error('括弧の前には AND または OR を入れてください。');
-                }
-                depth++;
-                return;
+            return options.map((option) => (
+                `<option value="${escapeHtml(option.value)}"${option.value === selected ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
+            )).join('');
+        };
+        const kindOptionsHtml = (selected) => [
+            ['condition', '対象'],
+            ['and', 'AND'],
+            ['or', 'OR'],
+            ['not', 'NOT'],
+            ['open', '('],
+            ['close', ')'],
+        ].map(([value, label]) => `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`).join('');
+        const tokenLabel = (token) => {
+            if (token.dataset.kind === 'condition') {
+                const select = token.querySelector('.logic-filter-target');
+                return select?.options[select.selectedIndex]?.textContent || '対象';
             }
-
-            if (depth === 0) {
-                throw new Error('閉じ括弧が多すぎます。');
+            if (token.dataset.kind === 'open') return '(';
+            if (token.dataset.kind === 'close') return ')';
+            return token.dataset.kind.toUpperCase();
+        };
+        const updateInsertOptions = () => {
+            const current = insertPosition.value;
+            const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
+            insertPosition.innerHTML = ['<option value="">末尾に追加</option>']
+                .concat(tokens.map((token, index) => `<option value="${index}">${index + 1}個目の前 (${escapeHtml(tokenLabel(token))})</option>`))
+                .join('');
+            if (current !== '' && Number(current) < tokens.length) {
+                insertPosition.value = current;
             }
-            if (expectsOperand) {
-                throw new Error('括弧の中に条件を入れてください。');
+        };
+        const renderToken = (token, kind, target = '') => {
+            token.className = 'logic-filter-token';
+            token.dataset.kind = kind;
+            const kindSelect = `<select class="logic-filter-kind">${kindOptionsHtml(kind)}</select>`;
+            if (kind === 'condition') {
+                token.innerHTML = `${kindSelect}<select class="logic-filter-target">${targetOptionsHtml(target)}</select><button type="button" class="logic-filter-remove" aria-label="部品を削除">x</button>`;
+            } else if (kind === 'open' || kind === 'close') {
+                token.classList.add('paren');
+                token.innerHTML = `${kindSelect}<span>${kind === 'open' ? '(' : ')'}</span><button type="button" class="logic-filter-remove" aria-label="部品を削除">x</button>`;
+            } else {
+                token.classList.add('operator');
+                token.dataset.operator = kind.toUpperCase();
+                token.innerHTML = `${kindSelect}<span>${kind.toUpperCase()}</span><button type="button" class="logic-filter-remove" aria-label="部品を削除">x</button>`;
             }
-            depth--;
-            expectsOperand = false;
+        };
+        const addToken = (kind) => {
+            const token = document.createElement('span');
+            renderToken(token, kind);
+            const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
+            const position = insertPosition.value === '' ? tokens.length : Number(insertPosition.value);
+            if (Number.isInteger(position) && position >= 0 && position < tokens.length) {
+                builder.insertBefore(token, tokens[position]);
+                insertPosition.value = String(position + 1);
+            } else {
+                builder.appendChild(token);
+            }
+            updateInsertOptions();
+            evaluateAndApply();
+        };
+        const getTokens = () => Array.from(builder.querySelectorAll('.logic-filter-token')).map((token) => {
+            const kind = token.dataset.kind;
+            if (kind === 'condition') {
+                const [targetType, targetId] = String(token.querySelector('.logic-filter-target')?.value || '').split(':');
+                return { type: 'condition', targetType, targetId };
+            }
+            if (kind === 'open' || kind === 'close') {
+                return { type: 'paren', paren: kind === 'open' ? '(' : ')' };
+            }
+            return { type: 'operator', operator: kind.toUpperCase() };
         });
+        const syncMasterChecks = () => {
+            container.querySelectorAll(selectAllClassSelector).forEach((input) => {
+                const items = getItems().filter((item) => String(item.dataset.classId) === String(input.dataset.classId));
+                input.checked = items.length > 0 && items.every((item) => getCheckbox(item)?.checked);
+                input.indeterminate = items.some((item) => getCheckbox(item)?.checked) && !input.checked;
+            });
+            const selectAll = container.querySelector(selectAllSelector);
+            if (selectAll) {
+                const items = getItems();
+                selectAll.checked = items.length > 0 && items.every((item) => getCheckbox(item)?.checked);
+                selectAll.indeterminate = items.some((item) => getCheckbox(item)?.checked) && !selectAll.checked;
+            }
+        };
+        const applyIds = (selected) => {
+            getItems().forEach((item) => {
+                const checkbox = getCheckbox(item);
+                if (checkbox) {
+                    checkbox.checked = selected.has(String(checkbox.value));
+                }
+            });
+            syncMasterChecks();
+            onSelectionChanged?.();
+        };
+        const evaluateAndApply = () => {
+            try {
+                const universe = new Set(allIds());
+                const tokens = getTokens();
+                const selected = tokens.length === 0
+                    ? universe
+                    : evaluateSetExpression(tokens, (token) => {
+                        const source = token.targetType === 'group' ? uidLogicFilterStudentsByGroup : classMap();
+                        const values = source[String(token.targetId)] || [];
+                        return new Set(values.map(String).filter((uid) => universe.has(uid)));
+                    }, universe);
+                applyIds(selected);
+                summary.textContent = tokens.length === 0
+                    ? 'すべての学習者を対象にしています。'
+                    : `${selected.size}名の学習者を選択しています。`;
+                summary.classList.remove('is-error');
+                return true;
+            } catch (error) {
+                summary.textContent = error.message || '論理式を確認してください。';
+                summary.classList.add('is-error');
+                return false;
+            }
+        };
 
-        if (depth > 0) {
-            throw new Error('閉じていない括弧があります。');
-        }
-        if (expectsOperand) {
-            throw new Error('式の最後は条件または閉じ括弧にしてください。');
-        }
+        panel.querySelectorAll(addButtonSelector).forEach((button) => {
+            button.addEventListener('click', () => addToken(button.dataset.addUidFilter || button.dataset.addHistogramUidFilter));
+        });
+        builder.addEventListener('click', (event) => {
+            const removeButton = event.target.closest('.logic-filter-remove');
+            if (!removeButton) return;
+            removeButton.closest('.logic-filter-token')?.remove();
+            updateInsertOptions();
+            evaluateAndApply();
+        });
+        builder.addEventListener('change', (event) => {
+            const token = event.target.closest('.logic-filter-token');
+            if (!token) return;
+            if (event.target.classList.contains('logic-filter-kind')) {
+                renderToken(token, event.target.value);
+            }
+            updateInsertOptions();
+            evaluateAndApply();
+        });
+        document.getElementById(resetButtonId)?.addEventListener('click', () => {
+            builder.innerHTML = '';
+            updateInsertOptions();
+            evaluateAndApply();
+        });
+        document.getElementById(clearButtonId)?.addEventListener('click', () => {
+            builder.innerHTML = '';
+            updateInsertOptions();
+            evaluateAndApply();
+        });
+        document.getElementById(trimButtonId)?.addEventListener('click', () => {
+            if (insertPosition.value === '') {
+                summary.textContent = '削除を開始する追加位置を選択してください。';
+                summary.classList.add('is-error');
+                return;
+            }
+            const start = Number(insertPosition.value);
+            Array.from(builder.querySelectorAll('.logic-filter-token')).forEach((token, index) => {
+                if (index >= start) token.remove();
+            });
+            updateInsertOptions();
+            evaluateAndApply();
+        });
+        container.addEventListener('change', (event) => {
+            const target = event.target;
+            if (target.matches(selectAllSelector)) {
+                getItems().forEach((item) => {
+                    const checkbox = getCheckbox(item);
+                    if (checkbox) checkbox.checked = target.checked;
+                });
+                container.querySelectorAll(selectAllClassSelector).forEach((input) => {
+                    input.checked = target.checked;
+                    input.indeterminate = false;
+                });
+            } else if (target.matches(selectAllClassSelector)) {
+                getItems()
+                    .filter((item) => String(item.dataset.classId) === String(target.dataset.classId))
+                    .forEach((item) => {
+                        const checkbox = getCheckbox(item);
+                        if (checkbox) checkbox.checked = target.checked;
+                    });
+            }
+            if (target.matches(`${checkboxSelector}, ${selectAllSelector}, ${selectAllClassSelector}`)) {
+                syncMasterChecks();
+                onSelectionChanged?.();
+            }
+        });
+        updateInsertOptions();
+        syncMasterChecks();
+        return { evaluateAndApply, syncMasterChecks };
     };
 
-    const syncFeatureFilterExpressionInput = (showError = false) => {
-        if (!featureFilterExpressionInput) {
-            return true;
-        }
+    setupUidSelectionArea({
+        panelId: 'uid-logic-filter-panel',
+        builderId: 'uid-logic-filter-builder',
+        summaryId: 'uid-logic-filter-summary',
+        containerId: 'uid-checkbox-list',
+        insertPositionId: 'uid-logic-filter-insert-position',
+        addButtonSelector: '[data-add-uid-filter]',
+        resetButtonId: 'reset-uid-logic-filter',
+        trimButtonId: 'trim-uid-logic-filter',
+        clearButtonId: 'clear-uid-logic-filter',
+        itemSelector: '.uid-filter-item',
+        checkboxSelector: '.uid-checkbox',
+        selectAllSelector: '.select-all',
+        selectAllClassSelector: '.select-all-class',
+        onSelectionChanged: () => scheduleFilterSearch(0),
+    });
+    setupUidSelectionArea({
+        panelId: 'histogram-uid-logic-filter-panel',
+        builderId: 'histogram-uid-logic-filter-builder',
+        summaryId: 'histogram-uid-logic-filter-summary',
+        containerId: 'histogram-uid-checkbox-list',
+        insertPositionId: 'histogram-uid-logic-filter-insert-position',
+        addButtonSelector: '[data-add-histogram-uid-filter]',
+        resetButtonId: 'reset-histogram-uid-logic-filter',
+        trimButtonId: 'trim-histogram-uid-logic-filter',
+        clearButtonId: 'clear-histogram-uid-logic-filter',
+        itemSelector: '.histogram-uid-filter-item',
+        checkboxSelector: '.histogram-uid-checkbox',
+        selectAllSelector: '.histogram-select-all',
+        selectAllClassSelector: '.histogram-select-all-class',
+        onSelectionChanged: () => scheduleHistogramRendering(true),
+    });
 
-        const tokens = getFeatureFilterExpressionTokens();
-        try {
-            validateFeatureFilterExpression(tokens);
-        } catch (error) {
-            if (featureFilterSummary) {
+    const featureFilterBuilder = document.getElementById('feature-filter-builder');
+    const featureFilterExpressionInput = document.getElementById('feature-filter-expression');
+    const featureFilterSettings = document.getElementById('feature-filter-settings');
+    const featureFilterSummary = document.getElementById('feature-filter-summary');
+    const featureFilterInsertPosition = document.getElementById('feature-filter-insert-position');
+    const featureSettingValues = {};
+
+    const setupFeatureFilterBuilder = () => {
+        if (!featureFilterBuilder || !featureFilterExpressionInput || !featureFilterSettings || !featureFilterInsertPosition) {
+            return;
+        }
+        const tokens = () => Array.from(featureFilterBuilder.querySelectorAll('.feature-filter-token'));
+        const kindOptions = (selected) => [
+            ['condition', '特徴量'],
+            ['and', 'AND'],
+            ['or', 'OR'],
+            ['not', 'NOT'],
+            ['open', '('],
+            ['close', ')'],
+        ].map(([value, label]) => `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`).join('');
+        const featureTargetOptions = (selected = '') => featureOptions.map((option) => (
+            `<option value="${escapeHtml(option.value)}"${option.value === selected ? ' selected' : ''}>${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`
+        )).join('');
+        const tokenLabel = (token) => {
+            if (token.dataset.kind === 'condition') {
+                const select = token.querySelector('.feature-filter-target');
+                return select?.options[select.selectedIndex]?.textContent || '特徴量';
+            }
+            if (token.dataset.kind === 'open') return '(';
+            if (token.dataset.kind === 'close') return ')';
+            return token.dataset.kind.toUpperCase();
+        };
+        const updateInsert = () => {
+            const current = featureFilterInsertPosition.value;
+            featureFilterInsertPosition.innerHTML = ['<option value="">末尾に追加</option>']
+                .concat(tokens().map((token, index) => `<option value="${index}">${index + 1}個目の前 (${escapeHtml(tokenLabel(token))})</option>`))
+                .join('');
+            if (current !== '' && Number(current) < tokens().length) {
+                featureFilterInsertPosition.value = current;
+            }
+        };
+        const readSettings = () => {
+            featureFilterSettings.querySelectorAll('.feature-filter-setting-row').forEach((row) => {
+                featureSettingValues[row.dataset.feature] = {
+                    min: row.querySelector('.feature-filter-min')?.value || '',
+                    max: row.querySelector('.feature-filter-max')?.value || '',
+                };
+            });
+        };
+        const renderSettings = () => {
+            readSettings();
+            const selectedFeatures = [];
+            tokens().forEach((token) => {
+                if (token.dataset.kind !== 'condition') return;
+                const feature = token.querySelector('.feature-filter-target')?.value;
+                if (feature && !selectedFeatures.includes(feature)) selectedFeatures.push(feature);
+            });
+            if (selectedFeatures.length === 0) {
+                featureFilterSettings.innerHTML = '<p class="feature-filter-empty">論理式に特徴量を追加すると、ここに最小値・最大値の設定欄が表示されます。</p>';
+                return;
+            }
+            featureFilterSettings.innerHTML = selectedFeatures.map((feature) => {
+                const option = featureOptions.find((item) => item.value === feature);
+                const values = featureSettingValues[feature] || { min: '', max: '' };
+                return `
+                    <div class="feature-filter-setting-row" data-feature="${escapeHtml(feature)}">
+                        <div>
+                            <div class="feature-filter-setting-name">${escapeHtml(option?.label || feature)}</div>
+                            <div class="feature-filter-setting-key">${escapeHtml(feature)}</div>
+                            <input type="hidden" name="feature_filters[${escapeHtml(feature)}][enabled]" value="1">
+                        </div>
+                        <label><span>${escapeHtml(featureFilterPlaceholders.min)}</span><input class="feature-filter-min" type="number" step="any" name="feature_filters[${escapeHtml(feature)}][min]" value="${escapeHtml(values.min)}"></label>
+                        <label><span>${escapeHtml(featureFilterPlaceholders.max)}</span><input class="feature-filter-max" type="number" step="any" name="feature_filters[${escapeHtml(feature)}][max]" value="${escapeHtml(values.max)}"></label>
+                    </div>
+                `;
+            }).join('');
+        };
+        const renderToken = (token, kind, selectedTarget = '') => {
+            token.className = 'feature-filter-token';
+            token.dataset.kind = kind;
+            const kindSelect = `<select class="feature-filter-token-kind">${kindOptions(kind)}</select>`;
+            if (kind === 'condition') {
+                token.innerHTML = `${kindSelect}<select class="feature-filter-target">${featureTargetOptions(selectedTarget || featureOptions[0]?.value || '')}</select><button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>`;
+            } else {
+                token.innerHTML = `${kindSelect}<button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>`;
+            }
+        };
+        const addToken = (kind) => {
+            const token = document.createElement('div');
+            renderToken(token, kind);
+            const currentTokens = tokens();
+            const position = featureFilterInsertPosition.value === '' ? currentTokens.length : Number(featureFilterInsertPosition.value);
+            if (Number.isInteger(position) && position >= 0 && position < currentTokens.length) {
+                featureFilterBuilder.insertBefore(token, currentTokens[position]);
+                featureFilterInsertPosition.value = String(position + 1);
+            } else {
+                featureFilterBuilder.appendChild(token);
+            }
+            updateInsert();
+            renderSettings();
+            syncExpression();
+        };
+        const expressionTokens = () => tokens().map((token) => {
+            const kind = token.dataset.kind;
+            if (kind === 'condition') {
+                return { type: 'condition', feature: token.querySelector('.feature-filter-target')?.value || '' };
+            }
+            if (kind === 'open' || kind === 'close') {
+                return { type: 'paren', paren: kind === 'open' ? '(' : ')' };
+            }
+            return { type: 'operator', operator: kind.toUpperCase() };
+        });
+        const validateExpression = (list) => {
+            if (list.length === 0) return;
+            evaluateSetExpression(
+                list,
+                (token) => token.feature ? new Set([token.feature]) : null,
+                new Set(featureOptions.map((option) => option.value))
+            );
+        };
+        const syncExpression = () => {
+            const list = expressionTokens();
+            try {
+                validateExpression(list);
+                featureFilterExpressionInput.value = JSON.stringify(list);
+                featureFilterSummary.textContent = list.length === 0
+                    ? '特徴量条件は未設定です。'
+                    : `${list.filter((token) => token.type === 'condition').length}個の特徴量条件を検索に使用します。`;
+                featureFilterSummary.classList.remove('is-error');
+                scheduleFilterSearch(300);
+                return true;
+            } catch (error) {
                 featureFilterSummary.textContent = error.message || '特徴量の論理式が正しくありません。';
                 featureFilterSummary.classList.add('is-error');
+                return false;
             }
-            if (showError) {
-                alert(error.message || '特徴量の論理式が正しくありません。');
-            }
-            return false;
-        }
+        };
 
-        readFeatureFilterSettingValues();
-        featureFilterExpressionInput.value = JSON.stringify(tokens);
-        if (featureFilterSummary) {
-            featureFilterSummary.textContent = tokens.length === 0
-                ? '特徴量条件は未設定です。'
-                : `${tokens.filter((token) => token.type === 'condition').length}個の特徴量条件を検索に使用します。`;
-            featureFilterSummary.classList.remove('is-error');
-        }
-        return true;
-    };
-
-    const createFeatureFilterToken = (type, value = '') => {
-        if (!featureFilterBuilder) {
-            return null;
-        }
-
-        const token = document.createElement('div');
-        token.className = 'feature-filter-token';
-        token.dataset.tokenType = type;
-        const kind = getFeatureFilterKindFromToken(type, value);
-        const kindSelect = `<select class="feature-filter-token-kind" aria-label="部品の種類">${getFeatureFilterKindSelectHtml(kind)}</select>`;
-
-        if (type === 'condition') {
-            const selectedFeature = value || featureFilterOptions[0]?.value || '';
-            token.classList.add('feature-filter-token-condition');
-            token.innerHTML = `
-                ${kindSelect}
-                <select class="feature-filter-target" aria-label="絞り込み特徴量">
-                    ${createFeatureFilterTargetOptionsHtml(selectedFeature)}
-                </select>
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
-            `;
-        } else if (type === 'operator') {
-            token.classList.add('feature-filter-token-operator');
-            token.classList.toggle('feature-filter-token-not', value === 'NOT');
-            token.dataset.operator = value;
-            token.innerHTML = `
-                ${kindSelect}
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
-            `;
-        } else {
-            token.classList.add('feature-filter-token-paren');
-            token.dataset.paren = value;
-            token.innerHTML = `
-                ${kindSelect}
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
-            `;
-        }
-
-        const insertedIndex = insertFeatureFilterToken(token);
-        updateFeatureFilterInsertOptions();
-        if (insertedIndex !== null && featureFilterInsertPosition) {
-            featureFilterInsertPosition.value = String(insertedIndex + 1);
-        }
-        renderFeatureFilterSettings();
-        syncFeatureFilterExpressionInput(false);
-        return token;
-    };
-    const replaceFeatureFilterToken = (token, nextKind) => {
-        const { type, value } = getFeatureFilterTokenSpecFromKind(nextKind);
-        token.className = 'feature-filter-token';
-        token.dataset.tokenType = type;
-        delete token.dataset.operator;
-        delete token.dataset.paren;
-
-        const kindSelect = `<select class="feature-filter-token-kind" aria-label="部品の種類">${getFeatureFilterKindSelectHtml(nextKind)}</select>`;
-        if (type === 'condition') {
-            token.classList.add('feature-filter-token-condition');
-            token.innerHTML = `
-                ${kindSelect}
-                <select class="feature-filter-target" aria-label="絞り込み特徴量">
-                    ${createFeatureFilterTargetOptionsHtml()}
-                </select>
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
-            `;
-        } else if (type === 'operator') {
-            token.classList.add('feature-filter-token-operator');
-            token.classList.toggle('feature-filter-token-not', value === 'NOT');
-            token.dataset.operator = value;
-            token.innerHTML = `
-                ${kindSelect}
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
-            `;
-        } else {
-            token.classList.add('feature-filter-token-paren');
-            token.dataset.paren = value;
-            token.innerHTML = `
-                ${kindSelect}
-                <button type="button" class="feature-filter-token-remove" aria-label="部品を削除">x</button>
-            `;
-        }
-
-        renderFeatureFilterSettings();
-        updateFeatureFilterInsertOptions();
-        syncFeatureFilterExpressionInput(false);
-    };
-    const clearFeatureFilterExpression = (message = '特徴量条件は未設定です。') => {
-        if (!featureFilterBuilder) {
-            return;
-        }
-
-        featureFilterBuilder.innerHTML = '';
-        updateFeatureFilterInsertOptions();
-        renderFeatureFilterSettings();
-        syncFeatureFilterExpressionInput(false);
-        if (featureFilterSummary) {
-            featureFilterSummary.textContent = message;
-            featureFilterSummary.classList.remove('is-error');
-        }
-    };
-
-    const trimFeatureFilterExpressionFromPosition = () => {
-        const tokens = getFeatureFilterTokens();
-        if (tokens.length === 0) {
-            if (featureFilterSummary) {
-                featureFilterSummary.textContent = '削除する部品がありません。';
-                featureFilterSummary.classList.remove('is-error');
-            }
-            return;
-        }
-
-        if (!featureFilterInsertPosition || featureFilterInsertPosition.value === '') {
-            if (featureFilterSummary) {
-                featureFilterSummary.textContent = '削除を開始する位置を「追加位置」から選んでください。';
+        document.getElementById('add-feature-filter-condition')?.addEventListener('click', () => addToken('condition'));
+        document.getElementById('add-feature-filter-and')?.addEventListener('click', () => addToken('and'));
+        document.getElementById('add-feature-filter-or')?.addEventListener('click', () => addToken('or'));
+        document.getElementById('add-feature-filter-not')?.addEventListener('click', () => addToken('not'));
+        document.getElementById('add-feature-filter-open')?.addEventListener('click', () => addToken('open'));
+        document.getElementById('add-feature-filter-close')?.addEventListener('click', () => addToken('close'));
+        document.getElementById('reset-feature-filter-expression')?.addEventListener('click', () => {
+            featureFilterBuilder.innerHTML = '';
+            updateInsert();
+            renderSettings();
+            syncExpression();
+        });
+        document.getElementById('clear-feature-filter-expression')?.addEventListener('click', () => {
+            featureFilterBuilder.innerHTML = '';
+            updateInsert();
+            renderSettings();
+            syncExpression();
+        });
+        document.getElementById('trim-feature-filter-expression')?.addEventListener('click', () => {
+            if (featureFilterInsertPosition.value === '') {
+                featureFilterSummary.textContent = '削除を開始する追加位置を選択してください。';
                 featureFilterSummary.classList.add('is-error');
+                return;
             }
+            const start = Number(featureFilterInsertPosition.value);
+            tokens().forEach((token, index) => {
+                if (index >= start) token.remove();
+            });
+            updateInsert();
+            renderSettings();
+            syncExpression();
+        });
+        featureFilterBuilder.addEventListener('change', (event) => {
+            const token = event.target.closest('.feature-filter-token');
+            if (!token) return;
+            if (event.target.classList.contains('feature-filter-token-kind')) {
+                renderToken(token, event.target.value);
+            }
+            updateInsert();
+            renderSettings();
+            syncExpression();
+        });
+        featureFilterBuilder.addEventListener('click', (event) => {
+            const remove = event.target.closest('.feature-filter-token-remove');
+            if (!remove) return;
+            remove.closest('.feature-filter-token')?.remove();
+            updateInsert();
+            renderSettings();
+            syncExpression();
+        });
+        featureFilterSettings.addEventListener('input', () => {
+            readSettings();
+            scheduleFilterSearch(300);
+        });
+        updateInsert();
+        renderSettings();
+        featureFilterExpressionInput.value = '[]';
+    };
+    setupFeatureFilterBuilder();
+
+    const filterStudentCheckboxState = new Map();
+    let filterRequestController = null;
+    let filterSearchTimer = null;
+    const saveFilterStudentChecks = () => {
+        studentList?.querySelectorAll('input[name="students[]"]').forEach((input) => {
+            filterStudentCheckboxState.set(String(input.value), input.checked);
+        });
+    };
+    const restoreFilterStudentChecks = () => {
+        studentList?.querySelectorAll('input[name="students[]"]').forEach((input) => {
+            input.checked = filterStudentCheckboxState.get(String(input.value)) || false;
+        });
+    };
+    const requestFilterStudents = async () => {
+        if (!searchForm || !studentList) {
             return;
         }
+        window.clearTimeout(filterSearchTimer);
+        saveFilterStudentChecks();
+        const formData = new FormData(searchForm);
+        formData.set('uid_selection_present', '1');
+        formData.set('wid_selection_present', '1');
+        formData.set('average_scope', filterAverageScope?.value || 'selected');
+        if (!formData.get('accuracy_min')) formData.set('accuracy_min', '0');
+        if (!formData.get('accuracy_max')) formData.set('accuracy_max', '100');
+        if (!formData.get('hesitation_rate_min')) formData.set('hesitation_rate_min', '0');
+        if (!formData.get('hesitation_rate_max')) formData.set('hesitation_rate_max', '100');
+        if (!formData.get('total_answers_min')) formData.set('total_answers_min', '0');
+        if (!formData.get('total_answers_max')) formData.set('total_answers_max', '99999999');
 
-        const startIndex = Number(featureFilterInsertPosition.value);
-        tokens.forEach((token, index) => {
-            if (index >= startIndex) {
-                token.remove();
+        filterRequestController?.abort();
+        const requestController = new AbortController();
+        filterRequestController = requestController;
+        studentList.setAttribute('aria-busy', 'true');
+        try {
+            const response = await fetch('search-students.php', {
+                method: 'POST',
+                body: formData,
+                signal: requestController.signal,
+            });
+            const html = await response.text();
+            if (filterRequestController !== requestController) {
+                return;
+            }
+            if (!response.ok) {
+                throw new Error(html.replace(/<[^>]+>/g, '').trim() || '学習者の検索に失敗しました。');
+            }
+            studentList.innerHTML = html;
+            restoreFilterStudentChecks();
+            syncStudentListDisplayMode();
+        } catch (error) {
+            if (error.name !== 'AbortError' && filterRequestController === requestController) {
+                studentList.innerHTML = `<li class="student-list-status student-list-error">${escapeHtml(error.message || '学習者の検索に失敗しました。')}</li>`;
+            }
+        } finally {
+            if (filterRequestController === requestController) {
+                studentList.removeAttribute('aria-busy');
+            }
+        }
+    };
+    scheduleFilterSearch = (delay = 0) => {
+        window.clearTimeout(filterSearchTimer);
+        filterSearchTimer = window.setTimeout(requestFilterStudents, Math.max(0, delay));
+    };
+
+    searchForm?.addEventListener('change', (event) => {
+        if (event.target.matches('input[type="number"]')) {
+            scheduleFilterSearch(300);
+        } else {
+            scheduleFilterSearch(0);
+        }
+    });
+    searchForm?.addEventListener('input', (event) => {
+        if (event.target.matches('input[type="number"]')) {
+            scheduleFilterSearch(300);
+        }
+    });
+    studentList?.addEventListener('change', (event) => {
+        if (event.target.matches('input[name="students[]"]')) {
+            filterStudentCheckboxState.set(String(event.target.value), event.target.checked);
+        }
+    });
+    filterAverageScope?.addEventListener('change', () => scheduleFilterSearch(0));
+    document.getElementById('select-all-wid-btn')?.addEventListener('click', () => {
+        document.querySelectorAll('#wid-checkbox-list .wid-checkbox').forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        scheduleFilterSearch(0);
+    });
+    document.getElementById('deselect-all-wid-btn')?.addEventListener('click', () => {
+        document.querySelectorAll('#wid-checkbox-list .wid-checkbox').forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        scheduleFilterSearch(0);
+    });
+
+    const histogramStudentDirectory = new Map(
+        Array.from(document.querySelectorAll('.histogram-uid-filter-item')).map((item) => {
+            const input = item.querySelector('.histogram-uid-checkbox');
+            return [String(input?.value || ''), item.dataset.studentName || ''];
+        }).filter(([uid]) => uid)
+    );
+    const allHistogramUids = new Set(histogramStudentDirectory.keys());
+    const allHistogramWids = new Set(
+        Array.from(document.querySelectorAll('.histogram-wid-checkbox')).map((input) => String(input.value))
+    );
+    const getCheckedIds = (selector) => new Set(
+        Array.from(document.querySelectorAll(selector)).filter((input) => input.checked).map((input) => String(input.value))
+    );
+    const histogramStudentCheckboxState = new Map();
+    const histogramBarConditions = {
+        uid: new Map(),
+        wid: new Map(),
+    };
+    const barLogicControllers = {};
+    let applyingWidBarResult = false;
+    let appliedHistogramWids = getCheckedIds('.histogram-wid-checkbox');
+    const savedWidBarsList = document.getElementById('histogram-saved-wid-bars-list');
+    const widFilterApplySummary = document.getElementById('histogram-wid-filter-apply-summary');
+
+    const markWidFilterPending = () => {
+        if (!widFilterApplySummary) return;
+        widFilterApplySummary.textContent = 'WID選択に未反映の変更があります。「検索」を押すとヒストグラムと特徴量平均へ反映されます。';
+        widFilterApplySummary.classList.add('is-pending');
+    };
+    const renderSavedWidBars = () => {
+        if (!savedWidBarsList) return;
+        const conditions = [...histogramBarConditions.wid.values()];
+        if (conditions.length === 0) {
+            savedWidBarsList.innerHTML = '<span class="histogram-saved-wid-bars-empty">保存したWID縦棒はありません。</span>';
+            return;
+        }
+        savedWidBarsList.innerHTML = conditions.map((condition) => `
+            <span class="histogram-saved-wid-bar">
+                <span>${escapeHtml(condition.label)}</span>
+                <button type="button" data-saved-wid-bar-id="${escapeHtml(condition.id)}" aria-label="${escapeHtml(condition.label)}を削除">×</button>
+            </span>
+        `).join('');
+    };
+
+    const getHistogramFeatureAverages = (uid) => {
+        const selectedOnly = (histogramAverageScope?.value || 'selected') === 'selected';
+        const selectedWids = selectedOnly ? appliedHistogramWids : null;
+        const sums = {};
+        const counts = {};
+        histogramFeaturePairs.forEach((pair) => {
+            if (String(pair.uid) !== String(uid)) return;
+            if (selectedWids && !selectedWids.has(String(pair.wid))) return;
+            featureOptions.forEach((option) => {
+                const average = pair.features?.[option.value];
+                const count = Number(pair.featureCounts?.[option.value] || 0);
+                if (average === null || average === undefined || !Number.isFinite(Number(average)) || count <= 0) return;
+                sums[option.value] = (sums[option.value] || 0) + (Number(average) * count);
+                counts[option.value] = (counts[option.value] || 0) + count;
+            });
+        });
+        const values = {};
+        featureOptions.forEach((option) => {
+            values[option.value] = counts[option.value] ? sums[option.value] / counts[option.value] : null;
+        });
+        return {
+            values,
+            count: Math.max(0, ...Object.values(counts)),
+        };
+    };
+    const renderHistogramStudentList = (selectedUids = null) => {
+        if (!histogramStudentList) return;
+        histogramStudentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
+            histogramStudentCheckboxState.set(String(input.value), input.checked);
+        });
+        const result = selectedUids instanceof Set
+            ? [...selectedUids].sort(compareIds)
+            : [];
+        const activeLookup = new Set(result);
+        [...histogramStudentCheckboxState.keys()].forEach((uid) => {
+            if (!activeLookup.has(uid)) histogramStudentCheckboxState.delete(uid);
+        });
+        const histogramModeActive = studentListDisplayMode?.value === 'histogram';
+        if (result.length === 0) {
+            histogramStudentList.innerHTML = '<li class="histogram-student-list-empty">UIDを含む縦棒をクリックすると、ここにグループ候補が表示されます。</li>';
+        } else {
+            const scopeTitle = histogramAverageScope?.value === 'all'
+                ? '学習者ごとの全解答問題における特徴量平均'
+                : '学習者ごとの選択した問題における特徴量平均';
+            histogramStudentList.innerHTML = result.map((uid) => {
+                const name = histogramStudentDirectory.get(uid) || '名前未登録';
+                const checked = histogramStudentCheckboxState.has(uid) ? histogramStudentCheckboxState.get(uid) : true;
+                histogramStudentCheckboxState.set(uid, checked);
+                const average = getHistogramFeatureAverages(uid);
+                return `
+                    <li class="student-item histogram-student-item" data-uid="${escapeHtml(uid)}">
+                        <label class="student-choice student-result-choice click-tooltip-choice">
+                            <input type="checkbox" name="students[]" value="${escapeHtml(uid)}"${checked ? ' checked' : ''}${histogramModeActive ? '' : ' disabled'}>
+                            <span class="student-result-identity">
+                                <strong>UID: ${escapeHtml(uid)}</strong>
+                                <span>名前: ${escapeHtml(name)}</span>
+                            </span>
+                            <button type="button" class="student-info-button" aria-label="学習者ごとの特徴量平均を表示">ⓘ</button>
+                            ${createFeatureTooltipHtml(scopeTitle, average.values, average.count)}
+                        </label>
+                    </li>
+                `;
+            }).join('');
+        }
+        if (histogramStudentListSummary) {
+            histogramStudentListSummary.textContent = `選択中のUID縦棒: ${histogramBarConditions.uid.size}本 / 対象UID: ${result.length}人`;
+        }
+    };
+    histogramStudentList?.addEventListener('change', (event) => {
+        if (event.target.matches('input[name="students[]"]')) {
+            histogramStudentCheckboxState.set(String(event.target.value), event.target.checked);
+        }
+    });
+    histogramAverageScope?.addEventListener('change', () => {
+        const current = barLogicControllers.uid?.lastResult || new Set();
+        renderHistogramStudentList(current);
+    });
+
+    const setupBarLogic = (entity, onResult) => {
+        const builder = document.getElementById(`histogram-${entity}-bar-logic-builder`);
+        const summary = document.getElementById(`histogram-${entity}-bar-logic-summary`);
+        const insertPosition = document.getElementById(`histogram-${entity}-bar-logic-insert-position`);
+        const panel = document.getElementById(`histogram-${entity}-bar-logic-panel`);
+        if (!builder || !summary || !insertPosition || !panel) return null;
+        const available = histogramBarConditions[entity];
+        const universe = entity === 'uid' ? allHistogramUids : allHistogramWids;
+        const controller = { lastResult: new Set() };
+        const tokens = () => Array.from(builder.querySelectorAll('.logic-filter-token'));
+        const conditionOptions = (selected = '') => {
+            if (available.size === 0) return '<option value="">選択中の縦棒がありません</option>';
+            return [...available.values()].map((condition) => (
+                `<option value="${escapeHtml(condition.id)}"${condition.id === selected ? ' selected' : ''}>${escapeHtml(condition.label)}</option>`
+            )).join('');
+        };
+        const kindOptions = (selected) => [
+            ['condition', '縦棒'],
+            ['and', 'AND'],
+            ['or', 'OR'],
+            ['not', 'NOT'],
+            ['open', '('],
+            ['close', ')'],
+        ].map(([value, label]) => `<option value="${value}"${value === selected ? ' selected' : ''}>${label}</option>`).join('');
+        const renderToken = (token, kind, conditionId = '') => {
+            token.className = 'logic-filter-token';
+            token.dataset.kind = kind;
+            const kindSelect = `<select class="logic-filter-kind">${kindOptions(kind)}</select>`;
+            if (kind === 'condition') {
+                token.innerHTML = `${kindSelect}<select class="logic-filter-target">${conditionOptions(conditionId)}</select><button type="button" class="logic-filter-remove" aria-label="部品を削除">x</button>`;
+            } else if (kind === 'open' || kind === 'close') {
+                token.innerHTML = `${kindSelect}<span>${kind === 'open' ? '(' : ')'}</span><button type="button" class="logic-filter-remove" aria-label="部品を削除">x</button>`;
+            } else {
+                token.innerHTML = `${kindSelect}<span>${kind.toUpperCase()}</span><button type="button" class="logic-filter-remove" aria-label="部品を削除">x</button>`;
+            }
+        };
+        const tokenLabel = (token) => {
+            if (token.dataset.kind === 'condition') {
+                const select = token.querySelector('.logic-filter-target');
+                return select?.options[select.selectedIndex]?.textContent || '縦棒';
+            }
+            if (token.dataset.kind === 'open') return '(';
+            if (token.dataset.kind === 'close') return ')';
+            return token.dataset.kind.toUpperCase();
+        };
+        const updateInsert = () => {
+            const current = insertPosition.value;
+            insertPosition.innerHTML = ['<option value="">末尾に追加</option>']
+                .concat(tokens().map((token, index) => `<option value="${index}">${index + 1}個目の前 (${escapeHtml(tokenLabel(token))})</option>`))
+                .join('');
+            if (current !== '' && Number(current) < tokens().length) insertPosition.value = current;
+        };
+        const addToken = (kind, conditionId = '', evaluate = true) => {
+            const token = document.createElement('span');
+            renderToken(token, kind, conditionId);
+            const currentTokens = tokens();
+            const position = insertPosition.value === '' ? currentTokens.length : Number(insertPosition.value);
+            if (Number.isInteger(position) && position >= 0 && position < currentTokens.length) {
+                builder.insertBefore(token, currentTokens[position]);
+            } else {
+                builder.appendChild(token);
+            }
+            updateInsert();
+            if (evaluate) evaluateAndApply();
+        };
+        const expressionTokens = () => tokens().map((token) => {
+            const kind = token.dataset.kind;
+            if (kind === 'condition') {
+                return { type: 'condition', conditionId: token.querySelector('.logic-filter-target')?.value || '' };
+            }
+            if (kind === 'open' || kind === 'close') {
+                return { type: 'paren', paren: kind === 'open' ? '(' : ')' };
+            }
+            return { type: 'operator', operator: kind.toUpperCase() };
+        });
+        const implicitOrResult = () => {
+            let result = new Set();
+            available.forEach((condition) => {
+                result = setUnion(result, condition.members);
+            });
+            return result;
+        };
+        const evaluateAndApply = () => {
+            try {
+                const list = expressionTokens();
+                const result = list.length === 0
+                    ? implicitOrResult()
+                    : evaluateSetExpression(list, (token) => available.get(token.conditionId)?.members || null, universe);
+                controller.lastResult = result;
+                summary.textContent = available.size === 0
+                    ? `${entity.toUpperCase()}の縦棒は選択されていません。`
+                    : `${available.size}本の縦棒から${result.size}件を選択しています。`;
+                summary.classList.remove('is-error');
+                onResult(result, available.size);
+                return true;
+            } catch (error) {
+                summary.textContent = error.message || '縦棒の論理式を確認してください。';
+                summary.classList.add('is-error');
+                return false;
+            }
+        };
+        const rebuildDefault = () => {
+            builder.innerHTML = '';
+            [...available.keys()].forEach((conditionId, index) => {
+                if (index > 0) addToken('or', '', false);
+                addToken('condition', conditionId, false);
+            });
+            updateInsert();
+            evaluateAndApply();
+        };
+        controller.selectionAdded = (conditionId) => {
+            if (tokens().length === 0) {
+                addToken('condition', conditionId, false);
+            } else if (evaluateAndApply()) {
+                addToken('or', '', false);
+                addToken('condition', conditionId, false);
+            } else {
+                rebuildDefault();
+                return;
+            }
+            updateInsert();
+            evaluateAndApply();
+        };
+        controller.selectionRemoved = () => rebuildDefault();
+        controller.rebuildDefault = rebuildDefault;
+
+        panel.querySelectorAll(`[data-add-histogram-bar-logic^="${entity}-"]`).forEach((button) => {
+            button.addEventListener('click', () => {
+                const kind = button.dataset.addHistogramBarLogic.replace(`${entity}-`, '');
+                addToken(kind);
+            });
+        });
+        builder.addEventListener('click', (event) => {
+            const remove = event.target.closest('.logic-filter-remove');
+            if (!remove) return;
+            remove.closest('.logic-filter-token')?.remove();
+            updateInsert();
+            evaluateAndApply();
+        });
+        builder.addEventListener('change', (event) => {
+            const token = event.target.closest('.logic-filter-token');
+            if (!token) return;
+            if (event.target.classList.contains('logic-filter-kind')) {
+                renderToken(token, event.target.value);
+            }
+            updateInsert();
+            evaluateAndApply();
+        });
+        document.getElementById(`reset-histogram-${entity}-bar-logic`)?.addEventListener('click', rebuildDefault);
+        document.getElementById(`clear-histogram-${entity}-bar-logic`)?.addEventListener('click', () => {
+            builder.innerHTML = '';
+            updateInsert();
+            evaluateAndApply();
+        });
+        updateInsert();
+        return controller;
+    };
+
+    barLogicControllers.uid = setupBarLogic('uid', (result) => renderHistogramStudentList(result));
+    barLogicControllers.wid = setupBarLogic('wid', (result, conditionCount) => {
+        if (conditionCount === 0 && !applyingWidBarResult) {
+            applyingWidBarResult = true;
+            document.querySelectorAll('.histogram-wid-checkbox').forEach((checkbox) => {
+                checkbox.checked = false;
+            });
+            applyingWidBarResult = false;
+            markWidFilterPending();
+            return;
+        }
+        applyingWidBarResult = true;
+        document.querySelectorAll('.histogram-wid-checkbox').forEach((checkbox) => {
+            checkbox.checked = result.has(String(checkbox.value));
+        });
+        applyingWidBarResult = false;
+        markWidFilterPending();
+    });
+
+    const clearEntityBarConditions = (entity) => {
+        if (histogramBarConditions[entity].size === 0) return;
+        histogramBarConditions[entity].clear();
+        barLogicControllers[entity]?.rebuildDefault();
+        if (entity === 'wid') renderSavedWidBars();
+    };
+    const clearChartBarConditions = (chartKey, entities = ['uid']) => {
+        entities.forEach((entity) => {
+            let changed = false;
+            histogramBarConditions[entity].forEach((condition, id) => {
+                if (condition.chartKey === chartKey) {
+                    histogramBarConditions[entity].delete(id);
+                    changed = true;
+                }
+            });
+            if (changed) {
+                barLogicControllers[entity]?.rebuildDefault();
+                if (entity === 'wid') renderSavedWidBars();
             }
         });
-        updateFeatureFilterInsertOptions();
-        renderFeatureFilterSettings();
-        syncFeatureFilterExpressionInput(false);
-        if (featureFilterSummary) {
-            featureFilterSummary.textContent = `${startIndex + 1}個目以降の部品を削除しました。`;
-            featureFilterSummary.classList.remove('is-error');
-        }
     };
+
+    document.getElementById('histogram-select-all-wid-btn')?.addEventListener('click', () => {
+        document.querySelectorAll('.histogram-wid-checkbox').forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        markWidFilterPending();
+    });
+    document.getElementById('histogram-deselect-all-wid-btn')?.addEventListener('click', () => {
+        document.querySelectorAll('.histogram-wid-checkbox').forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        markWidFilterPending();
+    });
+    document.getElementById('histogram-wid-checkbox-list')?.addEventListener('change', (event) => {
+        if (!event.target.matches('.histogram-wid-checkbox') || applyingWidBarResult) return;
+        markWidFilterPending();
+    });
+    savedWidBarsList?.addEventListener('click', (event) => {
+        const deleteButton = event.target.closest('[data-saved-wid-bar-id]');
+        if (!deleteButton) return;
+        const conditionId = deleteButton.dataset.savedWidBarId;
+        if (!histogramBarConditions.wid.delete(conditionId)) return;
+        barLogicControllers.wid?.selectionRemoved(conditionId);
+        renderSavedWidBars();
+        scheduleHistogramRendering(false);
+    });
+    document.getElementById('clear-saved-histogram-wid-bars')?.addEventListener('click', () => {
+        clearEntityBarConditions('wid');
+        scheduleHistogramRendering(false);
+    });
+    document.getElementById('apply-histogram-wid-filter')?.addEventListener('click', () => {
+        appliedHistogramWids = getCheckedIds('.histogram-wid-checkbox');
+        if (widFilterApplySummary) {
+            widFilterApplySummary.textContent = `${appliedHistogramWids.size}件のWIDをヒストグラムと特徴量平均へ反映しました。`;
+            widFilterApplySummary.classList.remove('is-pending');
+        }
+        scheduleHistogramRendering(false);
+        renderHistogramStudentList(barLogicControllers.uid?.lastResult || new Set());
+    });
+    renderSavedWidBars();
 
     const formatHistogramValue = (value) => {
         const number = Number(value);
-        if (!Number.isFinite(number)) {
-            return '-';
-        }
-
-        const abs = Math.abs(number);
-        let maximumFractionDigits = 2;
-        if (abs >= 100) {
-            maximumFractionDigits = 0;
-        } else if (abs >= 10) {
-            maximumFractionDigits = 1;
-        } else if (abs < 1) {
-            maximumFractionDigits = 4;
-        }
-
-        return new Intl.NumberFormat('ja-JP', {
-            maximumFractionDigits,
-            minimumFractionDigits: 0,
-        }).format(number);
+        if (!Number.isFinite(number)) return '-';
+        const absolute = Math.abs(number);
+        const digits = absolute >= 100 ? 0 : absolute >= 10 ? 1 : absolute < 1 ? 4 : 2;
+        return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: digits }).format(number);
     };
-
-    const getQuantile = (sortedValues, quantile) => {
-        if (sortedValues.length === 0) {
-            return 0;
-        }
-
-        const position = (sortedValues.length - 1) * quantile;
-        const lowerIndex = Math.floor(position);
-        const upperIndex = Math.ceil(position);
-        if (lowerIndex === upperIndex) {
-            return sortedValues[lowerIndex];
-        }
-
-        return sortedValues[lowerIndex] + ((sortedValues[upperIndex] - sortedValues[lowerIndex]) * (position - lowerIndex));
+    const quantile = (sorted, ratio) => {
+        if (sorted.length === 0) return 0;
+        const position = (sorted.length - 1) * ratio;
+        const lower = Math.floor(position);
+        const upper = Math.ceil(position);
+        if (lower === upper) return sorted[lower];
+        return sorted[lower] + ((sorted[upper] - sorted[lower]) * (position - lower));
     };
-
-    const getNiceHistogramStep = (rawStep) => {
-        if (!Number.isFinite(rawStep) || rawStep <= 0) {
-            return 1;
-        }
-
-        const exponent = Math.floor(Math.log10(rawStep));
+    const niceStep = (raw) => {
+        if (!Number.isFinite(raw) || raw <= 0) return 1;
+        const exponent = Math.floor(Math.log10(raw));
         const magnitude = 10 ** exponent;
-        const fraction = rawStep / magnitude;
-        let niceFraction = 10;
-        if (fraction < 1.5) {
-            niceFraction = 1;
-        } else if (fraction < 2.25) {
-            niceFraction = 2;
-        } else if (fraction < 3.5) {
-            niceFraction = 2.5;
-        } else if (fraction < 7.5) {
-            niceFraction = 5;
-        }
-
+        const fraction = raw / magnitude;
+        const niceFraction = fraction < 1.5 ? 1 : fraction < 2.25 ? 2 : fraction < 3.5 ? 2.5 : fraction < 7.5 ? 5 : 10;
         return niceFraction * magnitude;
     };
-
-    const getNextNiceHistogramStep = (step) => {
-        const exponent = Math.floor(Math.log10(step));
-        const magnitude = 10 ** exponent;
-        const fraction = step / magnitude;
-        if (fraction < 2) {
-            return 2 * magnitude;
-        }
-        if (fraction < 2.5) {
-            return 2.5 * magnitude;
-        }
-        if (fraction < 5) {
-            return 5 * magnitude;
-        }
-        if (fraction < 10) {
-            return 10 * magnitude;
-        }
-        return 10 * magnitude;
-    };
-
-    const buildHistogram = (rawPoints, options = {}) => {
+    const buildHistogram = (rawPoints, percentage = false) => {
         const points = rawPoints
             .map((point) => ({ id: String(point.id), value: Number(point.value) }))
             .filter((point) => Number.isFinite(point.value))
             .sort((a, b) => a.value - b.value);
-        if (points.length === 0) {
-            return null;
-        }
-
+        if (points.length === 0) return null;
         const values = points.map((point) => point.value);
         const min = values[0];
         const max = values[values.length - 1];
-        const formatLabelValue = options.formatLabelValue || formatHistogramValue;
         if (min === max) {
             return {
-                labels: [formatLabelValue(min)],
-                counts: [points.length],
+                labels: [formatHistogramValue(min)],
                 bins: [{ start: min, end: max, members: points }],
-                step: 0,
+                counts: [points.length],
                 min,
                 max,
+                step: 0,
             };
         }
-
         const range = max - min;
-        const q1 = getQuantile(values, 0.25);
-        const q3 = getQuantile(values, 0.75);
-        const iqr = q3 - q1;
+        const iqr = quantile(values, 0.75) - quantile(values, 0.25);
         const fdWidth = iqr > 0 ? (2 * iqr) / Math.cbrt(values.length) : 0;
         const fdBins = fdWidth > 0 ? Math.ceil(range / fdWidth) : 0;
-        const sturgesBins = Math.ceil(Math.log2(values.length) + 1);
-        const minBins = Math.min(5, values.length);
-        const targetBins = Math.max(minBins, Math.min(12, Math.max(fdBins, sturgesBins)));
-        let step = getNiceHistogramStep(range / targetBins);
+        const targetBins = Math.max(Math.min(5, values.length), Math.min(12, Math.max(fdBins, Math.ceil(Math.log2(values.length) + 1))));
+        let step = niceStep(range / targetBins);
         let lower = Math.floor(min / step) * step;
-        if (min >= 0 && lower < 0) {
-            lower = 0;
-        }
-        if (Number.isFinite(options.domainMin)) {
-            lower = Math.max(options.domainMin, lower);
-        }
         let upper = Math.ceil(max / step) * step;
-        if (Number.isFinite(options.domainMax)) {
-            upper = Math.min(options.domainMax, upper);
+        if (percentage) {
+            lower = Math.max(0, lower);
+            upper = Math.min(100, upper);
+        } else if (min >= 0) {
+            lower = Math.max(0, lower);
         }
-        if (upper <= lower) {
-            upper = Number.isFinite(options.domainMax)
-                ? Math.min(options.domainMax, lower + step)
-                : lower + step;
-        }
+        if (upper <= lower) upper = lower + step;
         let binCount = Math.max(1, Math.ceil((upper - lower) / step));
-
         while (binCount > 12) {
-            step = getNextNiceHistogramStep(step);
+            step = niceStep(step * 1.5);
             lower = Math.floor(min / step) * step;
-            if (min >= 0 && lower < 0) {
-                lower = 0;
-            }
-            if (Number.isFinite(options.domainMin)) {
-                lower = Math.max(options.domainMin, lower);
-            }
             upper = Math.ceil(max / step) * step;
-            if (Number.isFinite(options.domainMax)) {
-                upper = Math.min(options.domainMax, upper);
-            }
-            if (upper <= lower) {
-                upper = Number.isFinite(options.domainMax)
-                    ? Math.min(options.domainMax, lower + step)
-                    : lower + step;
+            if (percentage) {
+                lower = Math.max(0, lower);
+                upper = Math.min(100, upper);
             }
             binCount = Math.max(1, Math.ceil((upper - lower) / step));
         }
-
         const bins = Array.from({ length: binCount }, (_, index) => ({
             start: lower + (step * index),
             end: lower + (step * (index + 1)),
@@ -771,1120 +1151,355 @@
             const index = Math.max(0, Math.min(binCount - 1, rawIndex));
             bins[index].members.push(point);
         });
-
         return {
-            labels: bins.map((bin) => `${formatLabelValue(bin.start)}〜${formatLabelValue(bin.end)}`),
-            counts: bins.map((bin) => bin.members.length),
+            labels: bins.map((bin) => `${formatHistogramValue(bin.start)}〜${formatHistogramValue(bin.end)}`),
             bins,
-            step,
+            counts: bins.map((bin) => bin.members.length),
             min,
             max,
+            step,
         };
     };
 
-    const getHistogramYAxis = (counts) => {
-        const positiveCounts = counts.filter((count) => count > 0).sort((a, b) => a - b);
-        if (positiveCounts.length < 3) {
-            return { max: null, outlierIndexes: [] };
-        }
-
-        const largest = positiveCounts[positiveCounts.length - 1];
-        const secondLargest = positiveCounts[positiveCounts.length - 2];
-        const isOutlier = largest >= secondLargest * 3 && largest - secondLargest >= 5;
-        if (!isOutlier) {
-            return { max: null, outlierIndexes: [] };
-        }
-
+    const histogramCharts = { uidFeature: null, widFeature: null, metric: null };
+    const destroyChart = (key) => {
+        histogramCharts[key]?.destroy();
+        histogramCharts[key] = null;
+    };
+    const aggregateFeaturePoints = (entity, feature, uidScope, widScope) => {
+        const selectedUids = uidScope === 'checked' ? getCheckedIds('.histogram-uid-checkbox') : null;
+        const selectedWids = widScope === 'checked' ? appliedHistogramWids : null;
+        if (selectedUids && selectedUids.size === 0) return { points: [], reason: '選択したUIDがありません。' };
+        if (selectedWids && selectedWids.size === 0) return { points: [], reason: '選択したWIDがありません。' };
+        const grouped = new Map();
+        histogramFeaturePairs.forEach((pair) => {
+            const uid = String(pair.uid);
+            const wid = String(pair.wid);
+            if (selectedUids && !selectedUids.has(uid)) return;
+            if (selectedWids && !selectedWids.has(wid)) return;
+            const value = toDisplayFeatureValue(feature, pair.features?.[feature]);
+            const count = Number(pair.featureCounts?.[feature] || 0);
+            if (value === null || !Number.isFinite(value) || count <= 0) return;
+            const id = entity === 'uid' ? uid : wid;
+            const group = grouped.get(id) || { sum: 0, count: 0 };
+            group.sum += value * count;
+            group.count += count;
+            grouped.set(id, group);
+        });
         return {
-            max: Math.max(secondLargest + 1, Math.ceil(secondLargest * 1.2)),
-            outlierIndexes: counts
-                .map((count, index) => count === largest ? index : -1)
-                .filter((index) => index >= 0),
+            points: [...grouped.entries()].filter(([, group]) => group.count > 0).map(([id, group]) => ({ id, value: group.sum / group.count })),
+            reason: '対象範囲に特徴量データがありません。',
         };
     };
-
-    const histogramOverflowMarkerPlugin = {
-        id: 'histogramOverflowMarker',
-        afterDatasetsDraw(chart, _args, options) {
-            const indexes = Array.isArray(options?.indexes) ? options.indexes : [];
-            const counts = Array.isArray(options?.counts) ? options.counts : [];
-            if (indexes.length === 0) {
-                return;
-            }
-
-            const meta = chart.getDatasetMeta(0);
-            const { ctx, chartArea } = chart;
-            ctx.save();
-            ctx.font = '700 12px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            indexes.forEach((index) => {
-                const bar = meta.data[index];
-                if (!bar) {
-                    return;
-                }
-                const text = `↑ ${counts[index]}`;
-                const width = ctx.measureText(text).width + 8;
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-                ctx.fillRect(bar.x - (width / 2), chartArea.top + 2, width, 18);
-                ctx.fillStyle = '#b91c1c';
-                ctx.fillText(text, bar.x, chartArea.top + 4);
-            });
-            ctx.restore();
-        },
-    };
-
-    const getHistogramTooltipElement = (chart) => {
-        const parent = chart.canvas.parentNode;
-        let tooltipElement = parent.querySelector('.histogram-hover-tooltip');
-        if (tooltipElement) {
-            return tooltipElement;
-        }
-
-        tooltipElement = document.createElement('div');
-        tooltipElement.className = 'histogram-hover-tooltip';
-        tooltipElement.setAttribute('role', 'tooltip');
-        tooltipElement.dataset.hovered = 'false';
-        tooltipElement.addEventListener('mouseenter', () => {
-            tooltipElement.dataset.hovered = 'true';
-            window.clearTimeout(tooltipElement.hideTimer);
+    const aggregateMetricPoints = (entity, metric, uidScope, widScope) => {
+        const selectedUids = uidScope === 'checked' ? getCheckedIds('.histogram-uid-checkbox') : null;
+        const selectedWids = widScope === 'checked' ? appliedHistogramWids : null;
+        if (selectedUids && selectedUids.size === 0) return { points: [], reason: '選択したUIDがありません。' };
+        if (selectedWids && selectedWids.size === 0) return { points: [], reason: '選択したWIDがありません。' };
+        const grouped = new Map();
+        histogramMetricAttempts.forEach((attempt) => {
+            const uid = String(attempt.uid);
+            const wid = String(attempt.wid);
+            if (selectedUids && !selectedUids.has(uid)) return;
+            if (selectedWids && !selectedWids.has(wid)) return;
+            const stored = metric === 'accuracy' ? attempt.correctness : attempt.hesitation;
+            const raw = Number(stored);
+            const valid = metric === 'accuracy' ? raw === 0 || raw === 1 : raw === 2 || raw === 4;
+            if (!valid) return;
+            const id = entity === 'uid' ? uid : wid;
+            const group = grouped.get(id) || { numerator: 0, denominator: 0 };
+            group.denominator += 1;
+            if ((metric === 'accuracy' && raw === 1) || (metric === 'hesitation' && raw === 2)) group.numerator += 1;
+            grouped.set(id, group);
         });
-        tooltipElement.addEventListener('mouseleave', () => {
-            tooltipElement.dataset.hovered = 'false';
-            tooltipElement.classList.remove('is-visible');
-        });
-        parent.appendChild(tooltipElement);
-        return tooltipElement;
+        return {
+            points: [...grouped.entries()].map(([id, group]) => ({ id, value: (group.numerator * 100) / group.denominator })),
+            reason: metric === 'accuracy' ? '対象範囲に正誤データがありません。' : '対象範囲に迷い推定データがありません。',
+        };
     };
-
-    const renderHistogramTooltip = (context) => {
-        const { chart, tooltip } = context;
-        const tooltipElement = getHistogramTooltipElement(chart);
-        if (!tooltip || tooltip.opacity === 0) {
-            window.clearTimeout(tooltipElement.hideTimer);
-            tooltipElement.hideTimer = window.setTimeout(() => {
-                if (tooltipElement.dataset.hovered !== 'true') {
-                    tooltipElement.classList.remove('is-visible');
-                }
-            }, 120);
-            return;
-        }
-
-        const dataIndex = tooltip.dataPoints?.[0]?.dataIndex;
-        const tooltipConfig = chart.$histogramTooltipConfig;
-        const bin = tooltipConfig?.histogram?.bins?.[dataIndex];
-        if (!bin) {
-            tooltipElement.classList.remove('is-visible');
-            return;
-        }
-
-        window.clearTimeout(tooltipElement.hideTimer);
-        const members = [...bin.members].sort((a, b) => String(a.id).localeCompare(String(b.id), 'ja', { numeric: true }));
-        tooltipElement.innerHTML = `
-            <div class="histogram-tooltip-title">${escapeHtml(tooltipConfig.histogram.labels[dataIndex])}</div>
-            <div class="histogram-tooltip-count">${escapeHtml(tooltipConfig.entityLabel)}数: ${members.length}</div>
-            <ul>${members.map((member) => `
-                <li>
-                    <strong>${escapeHtml(tooltipConfig.entityLabel)}:${escapeHtml(member.id)}</strong>
-                    <span>${escapeHtml(tooltipConfig.formatValue(member.value))}</span>
-                </li>
-            `).join('')}</ul>
-        `;
-        tooltipElement.classList.add('is-visible');
-
-        const maxLeft = Math.max(8, chart.canvas.clientWidth - tooltipElement.offsetWidth - 8);
-        const preferredLeft = tooltip.caretX + 12;
-        const left = Math.max(8, Math.min(preferredLeft, maxLeft));
-        const preferredTop = tooltip.caretY + 12;
-        const top = preferredTop + tooltipElement.offsetHeight <= chart.canvas.clientHeight
-            ? preferredTop
-            : Math.max(8, tooltip.caretY - tooltipElement.offsetHeight - 12);
-        tooltipElement.style.left = `${left}px`;
-        tooltipElement.style.top = `${top}px`;
-    };
-
-    const destroyHistogramChart = (key) => {
-        if (histogramCharts[key]) {
-            const tooltipElement = histogramCharts[key].canvas.parentNode.querySelector('.histogram-hover-tooltip');
-            histogramCharts[key].canvas.classList.remove('is-histogram-selectable');
-            tooltipElement?.remove();
-            histogramCharts[key].destroy();
-            histogramCharts[key] = null;
-        }
-    };
-
-    const showHistogramEmptyState = (key, summaryElement, message) => {
-        destroyHistogramChart(key);
-        clearHistogramSelection(key);
-        if (summaryElement) {
-            summaryElement.textContent = message;
-            summaryElement.classList.add('is-empty');
-        }
-    };
-
-    const updateHistogramSelectionAppearance = (chart) => {
-        const config = chart.$histogramSelectionConfig;
-        if (!config) {
-            return;
-        }
-        const dataset = chart.data.datasets[0];
-        dataset.backgroundColor = config.histogram.counts.map((_count, index) => (
-            config.state.selectedIndexes.has(index) ? config.selectedBackgroundColor : config.backgroundColor
-        ));
-        dataset.borderColor = config.histogram.counts.map((_count, index) => (
-            config.state.selectedIndexes.has(index) ? config.selectedBorderColor : config.borderColor
-        ));
-        dataset.borderWidth = config.histogram.counts.map((_count, index) => (
-            config.state.selectedIndexes.has(index) ? 3 : 1
-        ));
-        chart.update('none');
-    };
-
-    const renderHistogramChart = ({
+    const renderChart = ({
         key,
         canvas,
-        summaryElement,
+        summary,
         points,
         title,
         xTitle,
-        entityLabel,
-        backgroundColor,
+        entity,
+        color,
         borderColor,
-        selectedBackgroundColor = 'rgba(37, 99, 235, 0.88)',
-        selectedBorderColor = 'rgba(30, 64, 175, 1)',
-        formatValue = formatHistogramValue,
+        signature,
         percentage = false,
-        selectable = false,
+        formatValue = formatHistogramValue,
     }) => {
-        if (!canvas || !summaryElement) {
-            return;
-        }
-
-        const histogram = buildHistogram(points, {
-            domainMin: percentage ? 0 : undefined,
-            domainMax: percentage ? 100 : undefined,
-            formatLabelValue: formatHistogramValue,
-        });
+        if (!canvas || !summary) return;
+        const histogram = buildHistogram(points, percentage);
         if (!histogram) {
-            showHistogramEmptyState(key, summaryElement, '表示できるデータがありません。');
+            destroyChart(key);
+            summary.textContent = '表示できるデータがありません。';
+            summary.classList.add('is-empty');
             return;
         }
-
-        const yAxis = getHistogramYAxis(histogram.counts);
-        const selectionState = histogramSelectionState[key];
-        if (selectionState) {
-            if (selectable) {
-                selectionState.bins = histogram.bins;
-                selectionState.selectedIndexes = new Set(
-                    Array.from(selectionState.selectedIndexes)
-                        .filter((index) => histogram.bins[index]?.members?.length > 0)
-                );
-            } else {
-                selectionState.selectedIndexes.clear();
-                selectionState.bins = [];
-            }
-        }
-        const formatSummaryValue = (value) => percentage ? `${formatHistogramValue(value)}%` : formatValue(value);
-        const rangeSummary = histogram.step > 0
-            ? `対象${entityLabel}数: ${points.length} / 実測範囲: ${formatSummaryValue(histogram.min)}〜${formatSummaryValue(histogram.max)} / 階級幅: ${formatSummaryValue(histogram.step)}`
-            : `対象${entityLabel}数: ${points.length} / すべて同じ値: ${formatSummaryValue(histogram.min)}`;
-        const yAxisSummary = yAxis.max === null
-            ? ''
-            : ` / 縦軸上限: ${yAxis.max}（突出棒の実度数: ${Math.max(...histogram.counts)}）`;
-        summaryElement.textContent = `${rangeSummary}${yAxisSummary}`;
-        summaryElement.classList.remove('is-empty');
-
+        summary.textContent = histogram.step > 0
+            ? `対象${entity.toUpperCase()}数: ${points.length} / 実測範囲: ${formatValue(histogram.min)}〜${formatValue(histogram.max)} / 階級幅: ${formatValue(histogram.step)}`
+            : `対象${entity.toUpperCase()}数: ${points.length} / すべて同じ値: ${formatValue(histogram.min)}`;
+        summary.classList.remove('is-empty');
         if (typeof Chart === 'undefined') {
-            summaryElement.textContent += ' / グラフライブラリを読み込めませんでした。';
+            summary.textContent += ' / グラフライブラリを読み込めませんでした。';
             return;
         }
-
-        destroyHistogramChart(key);
-        canvas.classList.toggle('is-histogram-selectable', selectable);
-        const backgroundColors = histogram.counts.map((_count, index) => (
-            selectable && selectionState?.selectedIndexes.has(index) ? selectedBackgroundColor : backgroundColor
-        ));
-        const borderColors = histogram.counts.map((_count, index) => (
-            selectable && selectionState?.selectedIndexes.has(index) ? selectedBorderColor : borderColor
-        ));
-        const borderWidths = histogram.counts.map((_count, index) => (
-            selectable && selectionState?.selectedIndexes.has(index) ? 3 : 1
-        ));
+        destroyChart(key);
+        const conditions = histogram.bins.map((bin, index) => {
+            const members = new Set(bin.members.map((member) => String(member.id)));
+            const id = JSON.stringify([key, signature, bin.start, bin.end]);
+            return {
+                id,
+                chartKey: key,
+                entity,
+                members,
+                label: `${title} / ${histogram.labels[index]}`,
+            };
+        });
+        const selectedMap = histogramBarConditions[entity];
+        const isSelected = (index) => selectedMap.has(conditions[index].id);
         const chart = new Chart(canvas, {
             type: 'bar',
             data: {
                 labels: histogram.labels,
                 datasets: [{
-                    label: `${entityLabel}数`,
+                    label: `${entity.toUpperCase()}数`,
                     data: histogram.counts,
-                    backgroundColor: backgroundColors,
-                    borderColor: borderColors,
-                    borderWidth: borderWidths,
+                    backgroundColor: histogram.counts.map((_count, index) => isSelected(index) ? 'rgba(37, 99, 235, 0.88)' : color),
+                    borderColor: histogram.counts.map((_count, index) => isSelected(index) ? 'rgba(30, 64, 175, 1)' : borderColor),
+                    borderWidth: histogram.counts.map((_count, index) => isSelected(index) ? 3 : 1),
                     borderRadius: 4,
                 }],
             },
-            plugins: [histogramOverflowMarkerPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: true,
-                },
-                onClick: selectable ? (_event, elements, activeChart) => {
-                    const dataIndex = elements?.[0]?.index;
-                    if (!Number.isInteger(dataIndex) || histogram.bins[dataIndex]?.members?.length === 0 || !selectionState) {
-                        return;
-                    }
-                    if (selectionState.selectedIndexes.has(dataIndex)) {
-                        selectionState.selectedIndexes.delete(dataIndex);
+                interaction: { mode: 'index', intersect: true },
+                onClick: (_event, elements, activeChart) => {
+                    const index = elements?.[0]?.index;
+                    if (!Number.isInteger(index) || conditions[index].members.size === 0) return;
+                    const condition = conditions[index];
+                    if (selectedMap.has(condition.id)) {
+                        selectedMap.delete(condition.id);
+                        barLogicControllers[entity]?.selectionRemoved(condition.id);
                     } else {
-                        selectionState.selectedIndexes.add(dataIndex);
+                        selectedMap.set(condition.id, condition);
+                        barLogicControllers[entity]?.selectionAdded(condition.id);
                     }
-                    updateHistogramSelectionAppearance(activeChart);
-                    renderHistogramStudentList();
-                } : undefined,
+                    if (entity === 'wid') renderSavedWidBars();
+                    const dataset = activeChart.data.datasets[0];
+                    dataset.backgroundColor = histogram.counts.map((_count, itemIndex) => selectedMap.has(conditions[itemIndex].id) ? 'rgba(37, 99, 235, 0.88)' : color);
+                    dataset.borderColor = histogram.counts.map((_count, itemIndex) => selectedMap.has(conditions[itemIndex].id) ? 'rgba(30, 64, 175, 1)' : borderColor);
+                    dataset.borderWidth = histogram.counts.map((_count, itemIndex) => selectedMap.has(conditions[itemIndex].id) ? 3 : 1);
+                    activeChart.update('none');
+                },
                 onHover: (event, elements) => {
-                    if (event.native?.target) {
-                        event.native.target.style.cursor = selectable && elements.length > 0 ? 'pointer' : 'default';
-                    }
+                    if (event.native?.target) event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
                 },
                 plugins: {
-                    legend: {
-                        display: false,
-                    },
-                    title: {
-                        display: true,
-                        text: title,
-                        color: '#1f2937',
-                        font: {
-                            size: 14,
-                            weight: '700',
-                        },
-                    },
+                    legend: { display: false },
+                    title: { display: true, text: title, color: '#1f2937', font: { size: 14, weight: '700' } },
                     tooltip: {
-                        enabled: false,
-                        external: renderHistogramTooltip,
-                    },
-                    histogramOverflowMarker: {
-                        indexes: yAxis.outlierIndexes,
-                        counts: histogram.counts,
+                        callbacks: {
+                            afterBody: (items) => {
+                                const index = items?.[0]?.dataIndex;
+                                const ids = histogram.bins[index]?.members?.map((member) => String(member.id)).sort(compareIds) || [];
+                                return ids.length <= 12 ? ids.join(', ') : `${ids.slice(0, 12).join(', ')} ほか${ids.length - 12}件`;
+                            },
+                        },
                     },
                 },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: xTitle,
-                        },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 0,
-                        },
-                    },
-                    y: {
-                        beginAtZero: true,
-                        max: yAxis.max ?? undefined,
-                        grace: yAxis.max === null ? '8%' : 0,
-                        title: {
-                            display: true,
-                            text: `${entityLabel}数`,
-                        },
-                        ticks: {
-                            precision: 0,
-                        },
-                    },
+                    x: { title: { display: true, text: xTitle }, ticks: { maxRotation: 45, minRotation: 0 } },
+                    y: { beginAtZero: true, title: { display: true, text: `${entity.toUpperCase()}数` }, ticks: { precision: 0 } },
                 },
             },
         });
-        chart.$histogramTooltipConfig = {
-            histogram,
-            entityLabel,
-            formatValue,
-        };
-        if (selectable && selectionState) {
-            chart.$histogramSelectionConfig = {
-                histogram,
-                state: selectionState,
-                backgroundColor,
-                borderColor,
-                selectedBackgroundColor,
-                selectedBorderColor,
-            };
-        }
         histogramCharts[key] = chart;
-        renderHistogramStudentList();
     };
 
-    const getCheckedHistogramIds = (selector) => new Set(
-        Array.from(document.querySelectorAll(selector))
-            .filter((checkbox) => checkbox.checked)
-            .map((checkbox) => String(checkbox.value))
-    );
-
-    const aggregateFeatureHistogramPoints = (entity, feature, uidScope, widScope) => {
-        const checkedUids = uidScope === 'checked' ? getCheckedHistogramIds('.uid-checkbox') : null;
-        const checkedWids = widScope === 'checked' ? getCheckedHistogramIds('.wid-checkbox') : null;
-        if (checkedUids && checkedUids.size === 0) {
-            return { points: [], reason: 'チェックしたUIDがありません。' };
-        }
-        if (checkedWids && checkedWids.size === 0) {
-            return { points: [], reason: 'チェックしたWIDがありません。' };
-        }
-
-        const grouped = new Map();
-        histogramFeaturePairs.forEach((pair) => {
-            const uid = String(pair.uid);
-            const wid = String(pair.wid);
-            if ((checkedUids && !checkedUids.has(uid)) || (checkedWids && !checkedWids.has(wid))) {
-                return;
-            }
-
-            const displayValue = toFeatureDisplayValue(feature, pair.features?.[feature]);
-            if (displayValue === null || !Number.isFinite(displayValue)) {
-                return;
-            }
-
-            const id = entity === 'uid' ? uid : wid;
-            if (!grouped.has(id)) {
-                grouped.set(id, { sum: 0, count: 0 });
-            }
-            const group = grouped.get(id);
-            group.sum += displayValue;
-            group.count += 1;
-        });
-
-        return {
-            points: Array.from(grouped.entries())
-                .filter(([, group]) => group.count > 0)
-                .map(([id, group]) => ({ id, value: group.sum / group.count })),
-            reason: '対象範囲に特徴量データがありません。',
-        };
-    };
-
-    const aggregateMetricHistogramPoints = (entity, metric) => {
-        const checkedUids = getCheckedHistogramIds('.uid-checkbox');
-        const checkedWids = getCheckedHistogramIds('.wid-checkbox');
-        if (checkedUids.size === 0) {
-            return { points: [], reason: 'チェックしたUIDがありません。' };
-        }
-        if (checkedWids.size === 0) {
-            return { points: [], reason: 'チェックしたWIDがありません。' };
-        }
-
-        const grouped = new Map();
-        histogramMetricAttempts.forEach((attempt) => {
-            const uid = String(attempt.uid);
-            const wid = String(attempt.wid);
-            if (!checkedUids.has(uid) || !checkedWids.has(wid)) {
-                return;
-            }
-
-            const storedValue = metric === 'accuracy' ? attempt.correctness : attempt.hesitation;
-            if (storedValue === null || storedValue === undefined || storedValue === '') {
-                return;
-            }
-            const rawValue = Number(storedValue);
-            const isValid = metric === 'accuracy'
-                ? rawValue === 0 || rawValue === 1
-                : rawValue === 2 || rawValue === 4;
-            if (!isValid) {
-                return;
-            }
-
-            const id = entity === 'uid' ? uid : wid;
-            if (!grouped.has(id)) {
-                grouped.set(id, { numerator: 0, denominator: 0 });
-            }
-            const group = grouped.get(id);
-            group.denominator += 1;
-            if ((metric === 'accuracy' && rawValue === 1) || (metric === 'hesitation' && rawValue === 2)) {
-                group.numerator += 1;
-            }
-        });
-
-        return {
-            points: Array.from(grouped.entries())
-                .filter(([, group]) => group.denominator > 0)
-                .map(([id, group]) => ({ id, value: (group.numerator * 100) / group.denominator })),
-            reason: metric === 'accuracy'
-                ? '選択範囲に正誤が記録された解答がありません。'
-                : '選択範囲に迷い有り・迷い無しが推定された解答がありません。',
-        };
-    };
-
-    const setupDistributionHistograms = () => {
+    let histogramsInitialized = false;
+    let histogramFrame = null;
+    const setupHistograms = () => {
         const uidFeatureSelect = document.getElementById('uid-feature-histogram-feature');
         const uidScopeSelect = document.getElementById('uid-feature-histogram-uid-scope');
         const uidWidScopeSelect = document.getElementById('uid-feature-histogram-wid-scope');
-        const uidCanvas = document.getElementById('uid-feature-histogram-chart');
-        const uidSummary = document.getElementById('uid-feature-histogram-summary');
         const widFeatureSelect = document.getElementById('wid-feature-histogram-feature');
         const widUidScopeSelect = document.getElementById('wid-feature-histogram-uid-scope');
         const widScopeSelect = document.getElementById('wid-feature-histogram-wid-scope');
-        const widCanvas = document.getElementById('wid-feature-histogram-chart');
-        const widSummary = document.getElementById('wid-feature-histogram-summary');
         const metricSelect = document.getElementById('metric-histogram-metric');
         const metricEntitySelect = document.getElementById('metric-histogram-entity');
-        const metricCanvas = document.getElementById('metric-histogram-chart');
-        const metricSummary = document.getElementById('metric-histogram-summary');
-        if (!uidFeatureSelect || !widFeatureSelect || !metricSelect || !metricEntitySelect) {
-            return;
+        const metricUidScopeSelect = document.getElementById('metric-histogram-uid-scope');
+        const metricWidScopeSelect = document.getElementById('metric-histogram-wid-scope');
+        if (!uidFeatureSelect || !widFeatureSelect || !metricSelect || !metricEntitySelect) return;
+
+        if (!histogramsInitialized) {
+            const featureHtml = featureOptions.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`).join('');
+            uidFeatureSelect.innerHTML = featureHtml;
+            widFeatureSelect.innerHTML = featureHtml;
         }
-
-        const featureOptionsHtml = featureFilterOptions.map((option) => (
-            `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`
-        )).join('');
-        uidFeatureSelect.innerHTML = featureOptionsHtml;
-        widFeatureSelect.innerHTML = featureOptionsHtml;
-
-        const renderUidFeatureHistogram = () => {
-            const feature = uidFeatureSelect.value;
-            if (!feature) {
-                showHistogramEmptyState('uidFeature', uidSummary, '表示できる特徴量がありません。');
-                return;
-            }
-            const result = aggregateFeatureHistogramPoints('uid', feature, uidScopeSelect.value, uidWidScopeSelect.value);
-            if (result.points.length === 0) {
-                showHistogramEmptyState('uidFeature', uidSummary, result.reason);
-                return;
-            }
-            const featureLabel = featureFilterOptions.find((option) => option.value === feature)?.label || feature;
-            const unit = getFeatureDisplayMeta(feature).unit || '';
-            renderHistogramChart({
+        const renderAll = () => {
+            const uidFeature = uidFeatureSelect.value;
+            const uidFeatureResult = aggregateFeaturePoints('uid', uidFeature, uidScopeSelect.value, uidWidScopeSelect.value);
+            renderChart({
                 key: 'uidFeature',
-                canvas: uidCanvas,
-                summaryElement: uidSummary,
-                points: result.points,
-                title: `${featureLabel}のUID分布`,
-                xTitle: `UIDごとの平均値${unit ? ` (${unit})` : ''}`,
-                entityLabel: 'UID',
-                backgroundColor: 'rgba(20, 184, 166, 0.62)',
+                canvas: document.getElementById('uid-feature-histogram-chart'),
+                summary: document.getElementById('uid-feature-histogram-summary'),
+                points: uidFeatureResult.points,
+                title: `${featureOptions.find((option) => option.value === uidFeature)?.label || uidFeature}のUID分布`,
+                xTitle: `UIDごとの平均値 (${getFeatureMeta(uidFeature).unit || '-'})`,
+                entity: 'uid',
+                color: 'rgba(20, 184, 166, 0.62)',
                 borderColor: 'rgba(15, 118, 110, 1)',
-                selectedBackgroundColor: 'rgba(13, 148, 136, 0.92)',
-                selectedBorderColor: 'rgba(17, 94, 89, 1)',
-                formatValue: (value) => `${formatHistogramValue(value)}${unit}`,
-                selectable: true,
+                signature: `${uidFeature}|${uidScopeSelect.value}|${uidWidScopeSelect.value}`,
+                formatValue: (value) => `${formatHistogramValue(value)}${getFeatureMeta(uidFeature).unit || ''}`,
             });
-        };
+            if (uidFeatureResult.points.length === 0) document.getElementById('uid-feature-histogram-summary').textContent = uidFeatureResult.reason;
 
-        const renderWidFeatureHistogram = () => {
-            const feature = widFeatureSelect.value;
-            if (!feature) {
-                showHistogramEmptyState('widFeature', widSummary, '表示できる特徴量がありません。');
-                return;
-            }
-            const result = aggregateFeatureHistogramPoints('wid', feature, widUidScopeSelect.value, widScopeSelect.value);
-            if (result.points.length === 0) {
-                showHistogramEmptyState('widFeature', widSummary, result.reason);
-                return;
-            }
-            const featureLabel = featureFilterOptions.find((option) => option.value === feature)?.label || feature;
-            const unit = getFeatureDisplayMeta(feature).unit || '';
-            renderHistogramChart({
+            const widFeature = widFeatureSelect.value;
+            const widFeatureResult = aggregateFeaturePoints('wid', widFeature, widUidScopeSelect.value, widScopeSelect.value);
+            renderChart({
                 key: 'widFeature',
-                canvas: widCanvas,
-                summaryElement: widSummary,
-                points: result.points,
-                title: `${featureLabel}のWID分布`,
-                xTitle: `WIDごとの平均値${unit ? ` (${unit})` : ''}`,
-                entityLabel: 'WID',
-                backgroundColor: 'rgba(59, 130, 246, 0.58)',
+                canvas: document.getElementById('wid-feature-histogram-chart'),
+                summary: document.getElementById('wid-feature-histogram-summary'),
+                points: widFeatureResult.points,
+                title: `${featureOptions.find((option) => option.value === widFeature)?.label || widFeature}のWID分布`,
+                xTitle: `WIDごとの平均値 (${getFeatureMeta(widFeature).unit || '-'})`,
+                entity: 'wid',
+                color: 'rgba(59, 130, 246, 0.58)',
                 borderColor: 'rgba(29, 78, 216, 1)',
-                formatValue: (value) => `${formatHistogramValue(value)}${unit}`,
+                signature: `${widFeature}|${widUidScopeSelect.value}|${widScopeSelect.value}`,
+                formatValue: (value) => `${formatHistogramValue(value)}${getFeatureMeta(widFeature).unit || ''}`,
             });
-        };
+            if (widFeatureResult.points.length === 0) document.getElementById('wid-feature-histogram-summary').textContent = widFeatureResult.reason;
 
-        const renderMetricHistogram = () => {
             const metric = metricSelect.value;
             const entity = metricEntitySelect.value;
-            const result = aggregateMetricHistogramPoints(entity, metric);
-            if (result.points.length === 0) {
-                showHistogramEmptyState('metric', metricSummary, result.reason);
-                return;
-            }
+            const metricResult = aggregateMetricPoints(entity, metric, metricUidScopeSelect.value, metricWidScopeSelect.value);
             const metricLabel = metric === 'accuracy' ? '正答率' : '迷い率';
-            const entityLabel = entity === 'uid' ? 'UID' : 'WID';
-            renderHistogramChart({
+            renderChart({
                 key: 'metric',
-                canvas: metricCanvas,
-                summaryElement: metricSummary,
-                points: result.points,
-                title: `${entityLabel}ごとの${metricLabel}分布`,
+                canvas: document.getElementById('metric-histogram-chart'),
+                summary: document.getElementById('metric-histogram-summary'),
+                points: metricResult.points,
+                title: `${entity.toUpperCase()}ごとの${metricLabel}分布`,
                 xTitle: `${metricLabel} (%)`,
-                entityLabel,
-                backgroundColor: metric === 'accuracy' ? 'rgba(34, 197, 94, 0.58)' : 'rgba(249, 115, 22, 0.58)',
+                entity,
+                color: metric === 'accuracy' ? 'rgba(34, 197, 94, 0.58)' : 'rgba(249, 115, 22, 0.58)',
                 borderColor: metric === 'accuracy' ? 'rgba(21, 128, 61, 1)' : 'rgba(194, 65, 12, 1)',
-                selectedBackgroundColor: metric === 'accuracy' ? 'rgba(22, 163, 74, 0.92)' : 'rgba(234, 88, 12, 0.92)',
-                selectedBorderColor: metric === 'accuracy' ? 'rgba(20, 83, 45, 1)' : 'rgba(124, 45, 18, 1)',
-                formatValue: (value) => `${formatHistogramValue(value)}%`,
+                signature: `${metric}|${entity}|${metricUidScopeSelect.value}|${metricWidScopeSelect.value}`,
                 percentage: true,
-                selectable: entity === 'uid',
+                formatValue: (value) => `${formatHistogramValue(value)}%`,
+            });
+            if (metricResult.points.length === 0) document.getElementById('metric-histogram-summary').textContent = metricResult.reason;
+        };
+        scheduleHistogramRendering = (clearSelections = false) => {
+            if (!histogramsInitialized) return;
+            if (clearSelections) {
+                clearChartBarConditions('uidFeature');
+                clearChartBarConditions('metric');
+            }
+            if (histogramFrame !== null) window.cancelAnimationFrame(histogramFrame);
+            histogramFrame = window.requestAnimationFrame(() => {
+                histogramFrame = null;
+                renderAll();
             });
         };
-
-        const renderAllHistograms = () => {
-            renderUidFeatureHistogram();
-            renderWidFeatureHistogram();
-            renderMetricHistogram();
-        };
-        let renderFrame = null;
-        const scheduleAllHistogramRendering = () => {
-            if (renderFrame !== null) {
-                window.cancelAnimationFrame(renderFrame);
-            }
-            renderFrame = window.requestAnimationFrame(() => {
-                renderFrame = null;
-                renderAllHistograms();
-            });
-        };
-
-        [uidFeatureSelect, uidScopeSelect, uidWidScopeSelect].forEach((element) => element?.addEventListener('change', () => {
-            clearHistogramSelection('uidFeature', false);
-            renderUidFeatureHistogram();
-        }));
-        [widFeatureSelect, widUidScopeSelect, widScopeSelect].forEach((element) => element?.addEventListener('change', renderWidFeatureHistogram));
-        [metricSelect, metricEntitySelect].forEach((element) => element?.addEventListener('change', () => {
-            clearHistogramSelection('metric', false);
-            renderMetricHistogram();
-        }));
-        document.addEventListener('change', (event) => {
-            if (event.target.matches('.uid-checkbox, .wid-checkbox, .select-all, .select-all-class')) {
-                const uidSelectionChanged = event.target.matches('.uid-checkbox, .select-all, .select-all-class');
-                const widSelectionChanged = event.target.matches('.wid-checkbox');
-                if ((uidSelectionChanged && uidScopeSelect.value === 'checked')
-                    || (widSelectionChanged && uidWidScopeSelect.value === 'checked')) {
-                    clearHistogramSelection('uidFeature', false);
-                }
-                clearHistogramSelection('metric', false);
-                renderHistogramStudentList();
-                scheduleAllHistogramRendering();
-            }
-        });
-        document.addEventListener('click', (event) => {
-            if (event.target.closest('#select-all-wid-btn, #deselect-all-wid-btn, #apply-uid-logic-filter, #reset-uid-logic-filter')) {
-                const widSelectionChanged = event.target.closest('#select-all-wid-btn, #deselect-all-wid-btn');
-                const uidSelectionChanged = event.target.closest('#apply-uid-logic-filter, #reset-uid-logic-filter');
-                if ((uidSelectionChanged && uidScopeSelect.value === 'checked')
-                    || (widSelectionChanged && uidWidScopeSelect.value === 'checked')) {
-                    clearHistogramSelection('uidFeature', false);
-                }
-                clearHistogramSelection('metric', false);
-                renderHistogramStudentList();
-                scheduleAllHistogramRendering();
-            }
-        });
-
-        renderAllHistograms();
-    };
-
-    setupDistributionHistograms();
-
-    const setupUidLogicFilter = () => {
-        const panel = document.getElementById('uid-logic-filter-panel');
-        const builder = document.getElementById('uid-logic-filter-builder');
-        const summary = document.getElementById('uid-logic-filter-summary');
-        const studentContainer = document.getElementById('uid-checkbox-list');
-        const insertPosition = document.getElementById('uid-logic-filter-insert-position');
-        if (!panel || !builder || !summary || !studentContainer || !insertPosition) return;
-
-        const getStudentItems = () => Array.from(studentContainer.querySelectorAll('.checkbox-item'));
-        const getStudentCheckbox = (item) => item.querySelector('input[type="checkbox"]');
-        const allStudentIds = () => getStudentItems().map((item) => getStudentCheckbox(item).value);
-        const classOptions = () => Array.from(studentContainer.querySelectorAll('.select-all-class')).map((input) => {
-            const heading = input.closest('.class-group-header');
-            return { id: String(input.dataset.classId), label: heading?.querySelector('h5')?.textContent?.trim() || `Class ${input.dataset.classId}` };
-        });
-        const classMap = () => {
-            const map = {};
-            getStudentItems().forEach((item) => {
-                const classId = String(item.dataset.classId);
-                if (!map[classId]) map[classId] = [];
-                map[classId].push(getStudentCheckbox(item).value);
-            });
-            return map;
-        };
-        const targetOptions = () => [
-            ...classOptions().map((item) => ({ value: `class:${item.id}`, label: `グループ(クラス): ${item.label}` })),
-            ...uidLogicFilterGroups.map((item) => ({ value: `group:${item.group_id}`, label: `グループ: ${item.group_name}` })),
-        ];
-        const optionHtml = () => {
-            const options = targetOptions();
-            return options.length === 0 ? '<option value="">対象がありません</option>' : options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
-        };
-        const kindOptionsHtml = (selectedKind) => [
-            ['condition', '対象'], ['and', 'AND'], ['or', 'OR'], ['not', 'NOT'], ['open', '('], ['close', ')'],
-        ].map(([value, label]) => `<option value="${value}"${value === selectedKind ? ' selected' : ''}>${label}</option>`).join('');
-        const tokenLabel = (token) => {
-            const kind = token.dataset.kind;
-            if (kind === 'condition') {
-                const select = token.querySelector('.logic-filter-target');
-                return select?.options[select.selectedIndex]?.textContent || '対象';
-            }
-            if (kind === 'open') return '(';
-            if (kind === 'close') return ')';
-            return token.dataset.operator || kind.toUpperCase();
-        };
-        const updateInsertOptions = () => {
-            const current = insertPosition.value;
-            const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
-            insertPosition.innerHTML = ['<option value="">末尾に追加</option>'].concat(tokens.map((token, index) => `<option value="${index}">${index + 1}個目の前 (${escapeHtml(tokenLabel(token))})</option>`)).join('');
-            if (current !== '' && Number(current) < tokens.length) insertPosition.value = current;
-        };
-        const renderToken = (token, kind) => {
-            token.className = 'logic-filter-token';
-            token.dataset.kind = kind;
-            delete token.dataset.operator;
-            const kindSelect = `<select class="logic-filter-kind">${kindOptionsHtml(kind)}</select>`;
-            if (kind === 'condition') {
-                token.innerHTML = `${kindSelect}<select class="logic-filter-target">${optionHtml()}</select><button type="button" class="logic-filter-remove">x</button>`;
-            } else if (kind === 'open' || kind === 'close') {
-                token.classList.add('paren');
-                token.innerHTML = `${kindSelect}<span>${kind === 'open' ? '(' : ')'}</span><button type="button" class="logic-filter-remove">x</button>`;
-            } else {
-                token.classList.add('operator');
-                if (kind === 'not') token.classList.add('not');
-                token.dataset.operator = kind.toUpperCase();
-                token.innerHTML = `${kindSelect}<span>${kind.toUpperCase()}</span><button type="button" class="logic-filter-remove">x</button>`;
-            }
-        };
-        const addToken = (kind) => {
-            const token = document.createElement('span');
-            renderToken(token, kind);
-            const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
-            const position = insertPosition.value !== '' ? Number(insertPosition.value) : tokens.length;
-            if (Number.isInteger(position) && position >= 0 && position < tokens.length) {
-                builder.insertBefore(token, tokens[position]);
-                insertPosition.value = String(position + 1);
-            } else {
-                builder.appendChild(token);
-            }
-            updateInsertOptions();
-        };
-        const getTokens = () => Array.from(builder.querySelectorAll('.logic-filter-token')).map((token) => {
-            const kind = token.dataset.kind;
-            if (kind === 'condition') {
-                const [targetType, targetId] = token.querySelector('.logic-filter-target').value.split(':');
-                return { type: 'condition', targetType, targetId };
-            }
-            if (kind === 'open' || kind === 'close') return { type: 'paren', paren: kind === 'open' ? '(' : ')' };
-            return { type: 'operator', operator: token.dataset.operator };
-        });
-        const setForCondition = (type, id) => {
-            const available = new Set(allStudentIds());
-            const source = type === 'group' ? uidLogicFilterStudentsByGroup : classMap();
-            return new Set((source[String(id)] || []).map(String).filter((uid) => available.has(uid)));
-        };
-        const complement = (source) => {
-            const selected = new Set(source);
-            return new Set(allStudentIds().filter((uid) => !selected.has(uid)));
-        };
-        const evaluate = () => {
-            const list = getTokens();
-            if (list.length === 0) return new Set(allStudentIds());
-            let index = 0;
-            const primary = () => {
-                const token = list[index];
-                if (!token) throw new Error('条件が途中で終わっています。');
-                if (token.type === 'operator' && token.operator === 'NOT') {
-                    index++;
-                    return complement(primary());
-                }
-                if (token.type === 'paren' && token.paren === '(') {
-                    index++;
-                    const result = orExpr();
-                    if (!list[index] || list[index].type !== 'paren' || list[index].paren !== ')') throw new Error('閉じ括弧を置いてください。');
-                    index++;
-                    return result;
-                }
-                if (token.type === 'condition') {
-                    index++;
-                    if (!token.targetType || !token.targetId) throw new Error('対象を選択してください。');
-                    return setForCondition(token.targetType, token.targetId);
-                }
-                throw new Error('条件または括弧を置いてください。');
-            };
-            const andExpr = () => {
-                let result = primary();
-                while (list[index]?.type === 'operator' && list[index].operator === 'AND') {
-                    index++;
-                    const right = primary();
-                    result = new Set([...result].filter((uid) => right.has(uid)));
-                }
-                return result;
-            };
-            const orExpr = () => {
-                let result = andExpr();
-                while (list[index]?.type === 'operator' && list[index].operator === 'OR') {
-                    index++;
-                    result = new Set([...result, ...andExpr()]);
-                }
-                return result;
-            };
-            const result = orExpr();
-            if (index !== list.length) throw new Error('式の並びを確認してください。');
-            return result;
-        };
-        const syncClassChecks = () => {
-            studentContainer.querySelectorAll('.select-all-class').forEach((input) => {
-                const items = getStudentItems().filter((item) => item.dataset.classId === input.dataset.classId);
-                input.checked = items.length > 0 && items.every((item) => getStudentCheckbox(item).checked);
-            });
-            const selectAll = studentContainer.querySelector('.select-all');
-            if (selectAll) {
-                const items = getStudentItems();
-                selectAll.checked = items.length > 0 && items.every((item) => getStudentCheckbox(item).checked);
-            }
-        };
-
-        panel.querySelectorAll('[data-add-uid-filter]').forEach((button) => button.addEventListener('click', () => addToken(button.dataset.addUidFilter)));
-        builder.addEventListener('click', (event) => {
-            if (!event.target.classList.contains('logic-filter-remove')) return;
-            event.target.closest('.logic-filter-token').remove();
-            updateInsertOptions();
-        });
-        builder.addEventListener('change', (event) => {
-            const token = event.target.closest('.logic-filter-token');
-            if (!token) return;
-            if (event.target.classList.contains('logic-filter-kind')) renderToken(token, event.target.value);
-            updateInsertOptions();
-        });
-        document.getElementById('apply-uid-logic-filter')?.addEventListener('click', () => {
-            try {
-                const selected = evaluate();
-                getStudentItems().forEach((item) => { getStudentCheckbox(item).checked = selected.has(getStudentCheckbox(item).value); });
-                syncClassChecks();
-                summary.textContent = `${selected.size}名の学習者を選択しています。`;
-                summary.classList.remove('is-error');
-            } catch (error) {
-                summary.textContent = error.message || '論理式を確認してください。';
-                summary.classList.add('is-error');
-            }
-        });
-        document.getElementById('reset-uid-logic-filter')?.addEventListener('click', () => {
-            builder.innerHTML = '';
-            getStudentItems().forEach((item) => { getStudentCheckbox(item).checked = true; });
-            syncClassChecks();
-            summary.textContent = 'すべての学習者を対象にしています。';
-            summary.classList.remove('is-error');
-            addToken('condition');
-        });
-        document.getElementById('trim-uid-logic-filter')?.addEventListener('click', () => {
-            if (insertPosition.value === '') {
-                summary.textContent = '削除を開始する追加位置を選択してください。';
-                summary.classList.add('is-error');
-                return;
-            }
-            const start = Number(insertPosition.value);
-            Array.from(builder.querySelectorAll('.logic-filter-token')).forEach((token, index) => { if (index >= start) token.remove(); });
-            updateInsertOptions();
-            summary.textContent = `${start + 1}個目以降の部品を削除しました。`;
-            summary.classList.remove('is-error');
-        });
-        document.getElementById('clear-uid-logic-filter')?.addEventListener('click', () => {
-            builder.innerHTML = '';
-            updateInsertOptions();
-            summary.textContent = '式を空にしました。空のまま適用すると、すべての学習者が対象になります。';
-            summary.classList.remove('is-error');
-        });
-        studentContainer.addEventListener('change', (event) => {
-            const target = event.target;
-            if (target.classList.contains('select-all')) {
-                getStudentItems().forEach((item) => { getStudentCheckbox(item).checked = target.checked; });
-                studentContainer.querySelectorAll('.select-all-class').forEach((input) => { input.checked = target.checked; });
-                return;
-            }
-            if (target.classList.contains('select-all-class')) {
-                getStudentItems().filter((item) => item.dataset.classId === target.dataset.classId).forEach((item) => { getStudentCheckbox(item).checked = target.checked; });
-                syncClassChecks();
-                return;
-            }
-            if (target.classList.contains('uid-checkbox')) syncClassChecks();
-        });
-        addToken('condition');
-        syncClassChecks();
-    };
-
-    setupUidLogicFilter();
-
-    if (featureFilterBuilder) {
-        updateFeatureFilterInsertOptions();
-        renderFeatureFilterSettings();
-        syncFeatureFilterExpressionInput(false);
-
-        addFeatureFilterConditionButton?.addEventListener('click', () => createFeatureFilterToken('condition'));
-        addFeatureFilterAndButton?.addEventListener('click', () => createFeatureFilterToken('operator', 'AND'));
-        addFeatureFilterOrButton?.addEventListener('click', () => createFeatureFilterToken('operator', 'OR'));
-        addFeatureFilterNotButton?.addEventListener('click', () => createFeatureFilterToken('operator', 'NOT'));
-        addFeatureFilterOpenButton?.addEventListener('click', () => createFeatureFilterToken('paren', '('));
-        addFeatureFilterCloseButton?.addEventListener('click', () => createFeatureFilterToken('paren', ')'));
-        resetFeatureFilterExpressionButton?.addEventListener('click', () => clearFeatureFilterExpression());
-        clearFeatureFilterExpressionButton?.addEventListener('click', () => clearFeatureFilterExpression('式を空にしました。検索時は特徴量条件を使用しません。'));
-        trimFeatureFilterExpressionButton?.addEventListener('click', trimFeatureFilterExpressionFromPosition);
-
-        featureFilterBuilder.addEventListener('change', (event) => {
-            const token = event.target.closest('.feature-filter-token');
-            if (!token) {
-                return;
-            }
-            if (event.target.classList.contains('feature-filter-token-kind')) {
-                replaceFeatureFilterToken(token, event.target.value);
-                return;
-            }
-            renderFeatureFilterSettings();
-            updateFeatureFilterInsertOptions();
-            syncFeatureFilterExpressionInput(false);
-        });
-
-        featureFilterBuilder.addEventListener('click', (event) => {
-            if (!event.target.classList.contains('feature-filter-token-remove')) {
-                return;
-            }
-            event.target.closest('.feature-filter-token').remove();
-            renderFeatureFilterSettings();
-            updateFeatureFilterInsertOptions();
-            syncFeatureFilterExpressionInput(false);
-        });
-
-        featureFilterSettings?.addEventListener('input', () => {
-            readFeatureFilterSettingValues();
-            syncFeatureFilterExpressionInput(false);
-        });
-    }
-
-    const removeFloatingTooltip = () => {
-        if (floatingTooltip) {
-            floatingTooltip.remove();
-            floatingTooltip = null;
+        if (!histogramsInitialized) {
+            [
+                [uidFeatureSelect, 'uidFeature'],
+                [uidScopeSelect, 'uidFeature'],
+                [uidWidScopeSelect, 'uidFeature'],
+                [widFeatureSelect, 'widFeature'],
+                [widUidScopeSelect, 'widFeature'],
+                [widScopeSelect, 'widFeature'],
+                [metricSelect, 'metric'],
+                [metricEntitySelect, 'metric'],
+                [metricUidScopeSelect, 'metric'],
+                [metricWidScopeSelect, 'metric'],
+            ].forEach(([element, key]) => element?.addEventListener('change', () => {
+                if (key !== 'widFeature') clearChartBarConditions(key);
+                renderAll();
+            }));
+            histogramsInitialized = true;
         }
-        if (activeChoice) {
-            activeChoice.classList.remove('tooltip-floating-active');
-            activeChoice = null;
+        renderAll();
+    };
+    initializeHistograms = () => {
+        if (!histogramsInitialized) {
+            setupHistograms();
+        } else {
+            Object.values(histogramCharts).forEach((chart) => chart?.resize());
         }
     };
 
+    const syncStudentListDisplayMode = () => {
+        const histogramActive = studentListDisplayMode?.value === 'histogram';
+        if (studentList) {
+            studentList.hidden = histogramActive;
+            studentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
+                input.disabled = histogramActive;
+            });
+        }
+        if (histogramStudentList) {
+            histogramStudentList.hidden = !histogramActive;
+            histogramStudentList.querySelectorAll('input[name="students[]"]').forEach((input) => {
+                input.disabled = !histogramActive;
+            });
+        }
+        document.querySelectorAll('[data-average-scope-mode]').forEach((control) => {
+            control.hidden = control.dataset.averageScopeMode !== (histogramActive ? 'histogram' : 'filter');
+        });
+        if (histogramStudentListSummary) histogramStudentListSummary.hidden = !histogramActive;
+    };
+    studentListDisplayMode?.addEventListener('change', syncStudentListDisplayMode);
+    syncStudentListDisplayMode();
+
+    let floatingTooltip = null;
+    let activeTooltipChoice = null;
+    const closeFloatingTooltip = () => {
+        floatingTooltip?.remove();
+        floatingTooltip = null;
+        activeTooltipChoice?.classList.remove('tooltip-floating-active');
+        activeTooltipChoice = null;
+    };
     const positionFloatingTooltip = () => {
-        if (!floatingTooltip || !activeChoice) {
-            return;
-        }
-
-        const rect = activeChoice.getBoundingClientRect();
-        const margin = 12;
-        floatingTooltip.style.left = `${margin}px`;
-        floatingTooltip.style.top = `${margin}px`;
-
+        if (!floatingTooltip || !activeTooltipChoice) return;
+        const sourceRect = activeTooltipChoice.getBoundingClientRect();
         const tooltipRect = floatingTooltip.getBoundingClientRect();
-        const centerOffset = Math.min(80, window.innerWidth * 0.08);
-        let left = ((window.innerWidth - tooltipRect.width) / 2) + centerOffset;
-        let top = rect.bottom + 8;
-
+        const margin = 12;
+        let left = Math.max(margin, Math.min((window.innerWidth - tooltipRect.width) / 2, window.innerWidth - tooltipRect.width - margin));
+        let top = sourceRect.bottom + 8;
         if (top + tooltipRect.height > window.innerHeight - margin) {
-            top = Math.max(margin, rect.top - tooltipRect.height - 8);
+            top = Math.max(margin, sourceRect.top - tooltipRect.height - 8);
         }
-
-        left = Math.max(margin, Math.min(left, window.innerWidth - tooltipRect.width - margin));
         floatingTooltip.style.left = `${left}px`;
         floatingTooltip.style.top = `${top}px`;
     };
-
-    const openFloatingTooltip = (choice, closeable = false) => {
-        const tooltip = choice.querySelector('.student-feature-popup, .student-tooltip');
-        if (!tooltip) {
-            return;
-        }
-
-        removeFloatingTooltip();
-        activeChoice = choice;
-        activeChoice.classList.add('tooltip-floating-active');
-        floatingTooltip = document.createElement('div');
-        floatingTooltip.className = closeable ? 'student-floating-tooltip student-floating-tooltip-click' : 'student-floating-tooltip';
-        floatingTooltip.innerHTML = closeable
-            ? `<button type="button" class="student-tooltip-close" aria-label="閉じる">×</button>${tooltip.innerHTML}`
-            : tooltip.innerHTML;
-        floatingTooltip.addEventListener('mouseleave', () => {
-            if (!closeable) {
-                removeFloatingTooltip();
-            }
-        });
-        floatingTooltip.querySelector('.student-tooltip-close')?.addEventListener('click', removeFloatingTooltip);
-        document.body.appendChild(floatingTooltip);
-        positionFloatingTooltip();
-    };
-
-    document.addEventListener('mouseover', (event) => {
-        const choice = event.target.closest('.student-choice');
-        if (!choice || choice === activeChoice || choice.classList.contains('uid-filter-choice') || choice.classList.contains('click-tooltip-choice')) {
-            return;
-        }
-
-        openFloatingTooltip(choice);
-    });
-
-    document.addEventListener('mouseout', (event) => {
-        if (!activeChoice || !event.target.closest('.student-choice')) {
-            return;
-        }
-
-        if (activeChoice.classList.contains('uid-filter-choice') || activeChoice.classList.contains('click-tooltip-choice')) {
-            return;
-        }
-
-        if (floatingTooltip && floatingTooltip.contains(event.relatedTarget)) {
-            return;
-        }
-
-        if (!activeChoice.contains(event.relatedTarget)) {
-            removeFloatingTooltip();
-        }
-    });
-
-    document.addEventListener('focusin', (event) => {
-        const choice = event.target.closest('.student-choice');
-        if (!choice || choice.classList.contains('uid-filter-choice') || choice.classList.contains('click-tooltip-choice')) {
-            return;
-        }
-
-        openFloatingTooltip(choice);
-    });
-
-    document.addEventListener('focusout', (event) => {
-        if (activeChoice?.classList.contains('uid-filter-choice') || activeChoice?.classList.contains('click-tooltip-choice')) {
-            return;
-        }
-        if (activeChoice && activeChoice.contains(event.target)) {
-            removeFloatingTooltip();
-        }
-    });
-
     document.addEventListener('click', (event) => {
-        const infoButton = event.target.closest('.student-info-button');
-        if (!infoButton) {
-            return;
-        }
-
+        const button = event.target.closest('.student-info-button');
+        if (!button) return;
         event.preventDefault();
         event.stopPropagation();
-        const choice = infoButton.closest('.student-choice');
-        if (choice) {
-            openFloatingTooltip(choice, true);
-        }
+        const choice = button.closest('.student-choice');
+        const tooltip = choice?.querySelector('.student-feature-popup');
+        if (!choice || !tooltip) return;
+        closeFloatingTooltip();
+        activeTooltipChoice = choice;
+        activeTooltipChoice.classList.add('tooltip-floating-active');
+        floatingTooltip = document.createElement('div');
+        floatingTooltip.className = 'student-floating-tooltip student-floating-tooltip-click';
+        floatingTooltip.innerHTML = `<button type="button" class="student-tooltip-close" aria-label="閉じる">×</button>${tooltip.innerHTML}`;
+        floatingTooltip.querySelector('.student-tooltip-close')?.addEventListener('click', closeFloatingTooltip);
+        document.body.appendChild(floatingTooltip);
+        positionFloatingTooltip();
     });
-
     window.addEventListener('scroll', positionFloatingTooltip, true);
     window.addEventListener('resize', positionFloatingTooltip);
 
-    const renderStudentFeatureAverages = () => {
-        if (!studentFeatureAverageList || !studentList) {
-            return;
-        }
-
-        const items = Array.from(studentList.querySelectorAll('.student-pair-item'));
-        if (items.length === 0) {
-            studentFeatureAverageList.innerHTML = '<p class="feature-filter-empty">表示中のUID/WIDペアがありません。</p>';
-            return;
-        }
-
-        const grouped = new Map();
-        items.forEach((item) => {
-            const uid = item.dataset.uid || '';
-            if (!uid) {
-                return;
-            }
-
-            let features = {};
-            try {
-                features = JSON.parse(item.dataset.features || '{}');
-            } catch (error) {
-                features = {};
-            }
-
-            if (!grouped.has(uid)) {
-                grouped.set(uid, { count: 0, sums: {}, counts: {} });
-            }
-
-            const group = grouped.get(uid);
-            group.count += 1;
-            featureFilterOptions.forEach((option) => {
-                const value = features[option.value];
-                if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) {
-                    return;
-                }
-                group.sums[option.value] = (group.sums[option.value] || 0) + Number(value);
-                group.counts[option.value] = (group.counts[option.value] || 0) + 1;
-            });
-        });
-
-        studentFeatureAverageList.innerHTML = Array.from(grouped.entries()).map(([uid, group]) => {
-            const averages = {};
-            featureFilterOptions.forEach((option) => {
-                averages[option.value] = group.counts[option.value] ? group.sums[option.value] / group.counts[option.value] : null;
-            });
-
-            return `
-                <div class="student-average-item">
-                    <span class="student-choice student-average-choice click-tooltip-choice" tabindex="0">
-                        <span class="student-average-label">UID:${escapeHtml(uid)}</span>
-                        <button type="button" class="student-info-button" aria-label="学習者ごとの選択した問題における各特徴量の平均表示">ⓘ</button>
-                        ${createFeatureTooltipHtml('学習者ごとの選択した問題における各特徴量の平均表示', averages, group.count)}
-                    </span>
-                </div>
-            `;
-        }).join('');
-    };
-
-    showStudentFeatureAveragesButton?.addEventListener('click', renderStudentFeatureAverages);
-
-    searchButton.addEventListener('click', () => {
-        if (!syncFeatureFilterExpressionInput(true)) {
-            return;
-        }
-
-        // 繝輔か繝ｼ繝繝・・繧ｿ繧貞庶髮・
-        const formData = new FormData(document.getElementById('search-form'));
-        // FormData縺ｮ蜀・ｮｹ繧堤｢ｺ隱・
-        for (const [key, value] of formData.entries()) {
-            console.log(`${key}: ${value}`);
-        }
-        if(!formData.get(('accuracy_min'))){
-            formData.set('accuracy_min', 0);
-        }
-        if(!formData.get(('accuracy_max'))){
-            formData.set('accuracy_max', 100);
-        }
-        if(!formData.get(('hesitation_rate_min'))){
-            formData.set('hesitation_rate_min', 0);
-        }
-        if(!formData.get(('hesitation_rate_max'))){
-            formData.set('hesitation_rate_max', 100);
-        }
-        if(!formData.get(('total_answers_min'))){
-            formData.set('total_answers_min', 0);
-        }
-        if(!formData.get(('total_answers_max'))){
-            formData.set('total_answers_max', 99999999);
-            
-        }
-        // FormData縺ｮ蜀・ｮｹ繧堤｢ｺ隱・
-        for (const [key, value] of formData.entries()) {
-            console.log(`${key}: ${value}`);
-        }
-
-        // 繧ｵ繝ｼ繝舌・縺ｫ讀懃ｴ｢譚｡莉ｶ繧帝∽ｿ｡
-        fetch('search-students.php', {
-            method: 'POST',
-            body: formData,
-        })
-        .then(response => response.text())
-        .then(data => {
-            // 繝ｪ繧ｹ繝医ｒ譖ｴ譁ｰ
-            
-            studentList.innerHTML = data;
-            syncStudentListDisplayMode();
-            if (studentFeatureAverageList) {
-                studentFeatureAverageList.innerHTML = '';
-            }
-        })
-        .catch(error => console.error('エラー:', error));
-    });
+    renderHistogramStudentList(new Set());
+    scheduleFilterSearch(0);
 });
-
