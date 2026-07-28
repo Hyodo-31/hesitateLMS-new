@@ -69,6 +69,70 @@ $featureDisplayFeatureKeys = [
             margin: 0 auto;
             /* 左右のマージンを自動で中央揃え */
         }
+
+        .classification-target-controls {
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .classification-group-selector {
+            margin-bottom: 12px;
+            padding: 10px;
+            border: 1px solid #b8cbe0;
+            background: #f4f8fc;
+        }
+
+        .classification-group-selector h4 {
+            margin: 0 0 4px;
+        }
+
+        .classification-group-help {
+            margin: 0 0 8px;
+            color: #475569;
+            font-size: 0.9rem;
+            font-weight: normal;
+        }
+
+        .classification-group-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+        }
+
+        .classification-target-list {
+            max-height: 260px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background: #fff;
+        }
+
+        .classification-class-group {
+            margin: 0 0 10px;
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .classification-class-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .classification-class-group legend {
+            padding: 0 6px;
+            font-weight: bold;
+        }
+
+        .classification-student-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+            margin-top: 8px;
+        }
+
+        .classification-empty-message {
+            margin: 0;
+            color: #b91c1c;
+        }
     </style>
 
     <?php
@@ -200,6 +264,141 @@ $featureDisplayFeatureKeys = [
             ?>
             <?php
             require "../dbc.php";
+
+            // 分類対象として選択できる、担当クラスまたは作成済みグループ内の学習者を取得
+            $classificationStudentsByClass = [];
+            $allowedClassificationStudentUids = [];
+            $classificationTeacherId = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
+
+            if ($classificationTeacherId) {
+                $stmtClassificationStudents = $conn->prepare(
+                    "SELECT DISTINCT
+                         s.uid AS UID,
+                         s.Name,
+                         s.ClassID,
+                         COALESCE(c.ClassName, 'グループ(クラス)未設定') AS ClassName
+                     FROM students s
+                     LEFT JOIN classes c ON s.ClassID = c.ClassID
+                     WHERE EXISTS (
+                           SELECT 1
+                           FROM test_featurevalue tfv
+                           WHERE tfv.UID = s.uid
+                       )
+                       AND (
+                           EXISTS (
+                               SELECT 1
+                               FROM classteacher ct
+                               WHERE ct.ClassID = s.ClassID
+                                 AND ct.TID = ?
+                           )
+                           OR EXISTS (
+                               SELECT 1
+                               FROM `groups` g
+                               JOIN group_members gm ON gm.group_id = g.group_id
+                               WHERE g.TID = ?
+                                 AND gm.uid = s.uid
+                           )
+                       )
+                     ORDER BY c.ClassName, s.Name, s.uid"
+                );
+                if ($stmtClassificationStudents) {
+                    $stmtClassificationStudents->bind_param(
+                        "ss",
+                        $classificationTeacherId,
+                        $classificationTeacherId
+                    );
+                    $stmtClassificationStudents->execute();
+                    $classificationStudentResult = $stmtClassificationStudents->get_result();
+                    while ($classificationStudent = $classificationStudentResult->fetch_assoc()) {
+                        $classId = (string)$classificationStudent['ClassID'];
+                        $uid = (string)$classificationStudent['UID'];
+                        if (!isset($classificationStudentsByClass[$classId])) {
+                            $classificationStudentsByClass[$classId] = [
+                                'ClassID' => $classId,
+                                'ClassName' => $classificationStudent['ClassName'],
+                                'students' => [],
+                            ];
+                        }
+                        $classificationStudentsByClass[$classId]['students'][] = [
+                            'UID' => $uid,
+                            'Name' => $classificationStudent['Name'],
+                        ];
+                        $allowedClassificationStudentUids[] = $uid;
+                    }
+                    $stmtClassificationStudents->close();
+                }
+            }
+
+            $allowedClassificationStudentUids = array_values(array_unique($allowedClassificationStudentUids));
+            $allowedClassificationStudentUidLookup = array_fill_keys($allowedClassificationStudentUids, true);
+            $classificationGroups = [];
+
+            // 作成済みグループのうち、現在分類可能な学習者だけをグループ選択肢にする
+            foreach ($groups as $group) {
+                $groupId = (string)$group['group_id'];
+                $groupMemberUids = [];
+                foreach ($group['students'] as $groupStudent) {
+                    $uid = (string)$groupStudent['student_id'];
+                    if (isset($allowedClassificationStudentUidLookup[$uid])) {
+                        $groupMemberUids[$uid] = $uid;
+                    }
+                }
+                $groupMemberUids = array_values($groupMemberUids);
+                if (!empty($groupMemberUids)) {
+                    $classificationGroups[$groupId] = [
+                        'group_id' => $groupId,
+                        'group_name' => $group['group_name'],
+                        'member_uids' => $groupMemberUids,
+                    ];
+                }
+            }
+
+            $allowedClassificationGroupLookup = array_fill_keys(array_keys($classificationGroups), true);
+            $selectedClassificationStudentUids = [];
+            $selectedClassificationGroupIds = [];
+
+            if ($_SERVER["REQUEST_METHOD"] === "POST") {
+                $postedClassificationStudentUids = $_POST['classificationUIDs'] ?? [];
+                if (is_array($postedClassificationStudentUids)) {
+                    foreach ($postedClassificationStudentUids as $postedUid) {
+                        if (!is_scalar($postedUid)) {
+                            continue;
+                        }
+                        $uid = (string)$postedUid;
+                        if (isset($allowedClassificationStudentUidLookup[$uid])) {
+                            $selectedClassificationStudentUids[$uid] = $uid;
+                        }
+                    }
+                }
+
+                // グループIDはログイン中の教師が作成したものだけを受け付け、所属UIDへ展開する
+                $postedClassificationGroupIds = $_POST['classificationGroupIds'] ?? [];
+                if (is_array($postedClassificationGroupIds)) {
+                    foreach ($postedClassificationGroupIds as $postedGroupId) {
+                        if (!is_scalar($postedGroupId)) {
+                            continue;
+                        }
+                        $groupId = (string)$postedGroupId;
+                        if (!isset($allowedClassificationGroupLookup[$groupId])) {
+                            continue;
+                        }
+                        $selectedClassificationGroupIds[$groupId] = $groupId;
+                        foreach ($classificationGroups[$groupId]['member_uids'] as $groupMemberUid) {
+                            $selectedClassificationStudentUids[$groupMemberUid] = $groupMemberUid;
+                        }
+                    }
+                }
+
+                $selectedClassificationStudentUids = array_values($selectedClassificationStudentUids);
+                $selectedClassificationGroupIds = array_values($selectedClassificationGroupIds);
+            } else {
+                $selectedClassificationStudentUids = $allowedClassificationStudentUids;
+            }
+            $selectedClassificationStudentUidLookup = array_fill_keys($selectedClassificationStudentUids, true);
+
+            $machineLearningRunReady = false;
+            $machineLearningInputError = '';
+
             // フォームからの入力を受け取る
             $UIDrange = isset($_POST['UIDrange']) ? $_POST['UIDrange'] : null;
             $WIDrange = isset($_POST['WIDrange']) ? $_POST['WIDrange'] : null;
@@ -387,9 +586,11 @@ $featureDisplayFeatureKeys = [
             ?>
             <?php
             if ($_SERVER["REQUEST_METHOD"] == "POST") {
-                if (isset($_POST['featureLabel']) && !empty($_POST['featureLabel'])) {
-
-                    // --- 修正コード開始 ---
+                if (!isset($_POST['featureLabel']) || !is_array($_POST['featureLabel']) || empty($_POST['featureLabel'])) {
+                    $machineLearningInputError = translate('machineLearning_sample.php_424行目_データを選択してください');
+                } elseif (empty($selectedClassificationStudentUids)) {
+                    $machineLearningInputError = '分類する学習者を1名以上選択してください。';
+                } else {
 
                     // データベース接続とセッション開始
                     require "../dbc.php";
@@ -403,43 +604,11 @@ $featureDisplayFeatureKeys = [
                     $test_filename = "./pydata/test_{$uniqueId}_{$timestamp}.csv";      // 教師データ用
                     $testdata_filename = "./pydata/testdata_{$uniqueId}_{$timestamp}.csv"; // テストデータ用
 
-                    // 1. ログイン中の教員IDを取得
-                    $teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
-
-                    // 2. 教員が担当するクラスの学習者UIDリストを取得（テストデータ絞り込み用）
-                    $allowed_student_uids_for_sql = [];
-                    if ($teacher_id) {
-                        $class_ids = [];
-                        $stmt_classes = $conn->prepare("SELECT ClassID FROM classteacher WHERE TID = ?");
-                        if ($stmt_classes) {
-                            $stmt_classes->bind_param("s", $teacher_id);
-                            $stmt_classes->execute();
-                            $result_classes = $stmt_classes->get_result();
-                            while ($row_class = $result_classes->fetch_assoc()) {
-                                $class_ids[] = $row_class['ClassID'];
-                            }
-                            $stmt_classes->close();
-                        }
-
-                        if (!empty($class_ids)) {
-                            $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
-                            $sql_students = "SELECT UID FROM students WHERE ClassID IN ($placeholders)";
-                            $stmt_students = $conn->prepare($sql_students);
-                            if ($stmt_students) {
-                                $types = str_repeat('i', count($class_ids));
-                                $stmt_students->bind_param($types, ...$class_ids);
-                                $stmt_students->execute();
-                                $result_students = $stmt_students->get_result();
-                                while ($row_student = $result_students->fetch_assoc()) {
-                                    $allowed_student_uids_for_sql[] = "'" . $conn->real_escape_string($row_student['UID']) . "'";
-                                }
-                                $stmt_students->close();
-                            }
-                        }
-                    }
-                    $uid_list_str_for_sql = implode(',', $allowed_student_uids_for_sql);
-
-                    // --- 修正コードここまで ---
+                    // 画面で選択され、かつ担当クラスに所属する学習者だけを分類対象にする
+                    $selectedClassificationStudentUidsForSql = array_map(function ($uid) use ($conn) {
+                        return "'" . $conn->real_escape_string($uid) . "'";
+                    }, $selectedClassificationStudentUids);
+                    $uid_list_str_for_sql = implode(',', $selectedClassificationStudentUidsForSql);
 
                     // 元のコードの変数定義
                     $allresult = array();
@@ -491,11 +660,8 @@ $featureDisplayFeatureKeys = [
                         $sql .= " WHERE " . implode(" AND ", $tempwhere);
                     }
 
-                    // ★★★【テストデータSQLの最終調整】(修正箇所) ★★★
-                    // 担当クラスの学習者でのみ絞り込み、$_SESSION['conditions']は適用しない
-                    if (!empty($uid_list_str_for_sql)) {
-                        $sql_test .= " WHERE UID IN (" . $uid_list_str_for_sql . ")";
-                    }
+                    // 分類対象として選択された学習者でテストデータを絞り込む
+                    $sql_test .= " WHERE UID IN (" . $uid_list_str_for_sql . ")";
 
                     // --- この後のCSVファイル生成とPython実行部分は元のコードのまま ---
 
@@ -523,8 +689,13 @@ $featureDisplayFeatureKeys = [
                         fputcsv($fp_test, $row);
                     }
                     fclose($fp_test);
-                } else {
-                    echo '<script type="text/javascript">alert("' . translate('machineLearning_sample.php_424行目_データを選択してください') . '");</script>';
+                    $machineLearningRunReady = true;
+                }
+
+                if ($machineLearningInputError !== '') {
+                    echo '<script type="text/javascript">alert('
+                        . json_encode($machineLearningInputError, JSON_UNESCAPED_UNICODE)
+                        . ');</script>';
                 }
             }
             ?>
@@ -1129,8 +1300,71 @@ $featureDisplayFeatureKeys = [
                                         const groupDataRadio = document.getElementById('groupdata');
                                         const groupDropdown = document.getElementById('selectedGroup');
                                         const form = document.getElementById('machineLearningForm');
+                                        const classificationSelectAll = document.getElementById('classification-select-all');
+                                        const classificationStudentCheckboxes = Array.from(
+                                            document.querySelectorAll('.classification-student-checkbox')
+                                        );
+                                        const classificationClassToggles = Array.from(
+                                            document.querySelectorAll('.classification-class-toggle')
+                                        );
+                                        const classificationGroupToggles = Array.from(
+                                            document.querySelectorAll('.classification-group-toggle')
+                                        );
 
+                                        function getClassificationGroupMemberUids(toggle) {
+                                            try {
+                                                const memberUids = JSON.parse(toggle.dataset.memberUids || '[]');
+                                                return new Set(memberUids.map(String));
+                                            } catch (error) {
+                                                return new Set();
+                                            }
+                                        }
 
+                                        function syncClassificationSelectionControls() {
+                                            const selectedCount = classificationStudentCheckboxes.filter(
+                                                checkbox => checkbox.checked
+                                            ).length;
+
+                                            if (classificationSelectAll) {
+                                                classificationSelectAll.checked =
+                                                    classificationStudentCheckboxes.length > 0 &&
+                                                    selectedCount === classificationStudentCheckboxes.length;
+                                                classificationSelectAll.indeterminate =
+                                                    selectedCount > 0 &&
+                                                    selectedCount < classificationStudentCheckboxes.length;
+                                            }
+
+                                            classificationClassToggles.forEach(toggle => {
+                                                const classCheckboxes = classificationStudentCheckboxes.filter(
+                                                    checkbox => checkbox.dataset.classId === toggle.dataset.classId
+                                                );
+                                                const selectedClassCount = classCheckboxes.filter(
+                                                    checkbox => checkbox.checked
+                                                ).length;
+                                                toggle.checked =
+                                                    classCheckboxes.length > 0 &&
+                                                    selectedClassCount === classCheckboxes.length;
+                                                toggle.indeterminate =
+                                                    selectedClassCount > 0 &&
+                                                    selectedClassCount < classCheckboxes.length;
+                                            });
+
+                                            classificationGroupToggles.forEach(toggle => {
+                                                const memberUids = getClassificationGroupMemberUids(toggle);
+                                                const groupCheckboxes = classificationStudentCheckboxes.filter(
+                                                    checkbox => memberUids.has(String(checkbox.value))
+                                                );
+                                                const selectedGroupCount = groupCheckboxes.filter(
+                                                    checkbox => checkbox.checked
+                                                ).length;
+                                                toggle.checked =
+                                                    groupCheckboxes.length > 0 &&
+                                                    selectedGroupCount === groupCheckboxes.length;
+                                                toggle.indeterminate =
+                                                    selectedGroupCount > 0 &&
+                                                    selectedGroupCount < groupCheckboxes.length;
+                                            });
+                                        }
 
                                         // ラジオボタンのクリックイベント
                                         groupDataRadio.addEventListener('change', () => {
@@ -1153,12 +1387,57 @@ $featureDisplayFeatureKeys = [
                                                 });
                                             }
                                         });
+
+                                        if (classificationSelectAll) {
+                                            classificationSelectAll.addEventListener('change', () => {
+                                                classificationStudentCheckboxes.forEach(checkbox => {
+                                                    checkbox.checked = classificationSelectAll.checked;
+                                                });
+                                                syncClassificationSelectionControls();
+                                            });
+                                        }
+
+                                        classificationClassToggles.forEach(toggle => {
+                                            toggle.addEventListener('change', () => {
+                                                classificationStudentCheckboxes
+                                                    .filter(checkbox => checkbox.dataset.classId === toggle.dataset.classId)
+                                                    .forEach(checkbox => {
+                                                        checkbox.checked = toggle.checked;
+                                                    });
+                                                syncClassificationSelectionControls();
+                                            });
+                                        });
+
+                                        classificationGroupToggles.forEach(toggle => {
+                                            toggle.addEventListener('change', () => {
+                                                const memberUids = getClassificationGroupMemberUids(toggle);
+                                                classificationStudentCheckboxes
+                                                    .filter(checkbox => memberUids.has(String(checkbox.value)))
+                                                    .forEach(checkbox => {
+                                                        checkbox.checked = toggle.checked;
+                                                    });
+                                                syncClassificationSelectionControls();
+                                            });
+                                        });
+
+                                        classificationStudentCheckboxes.forEach(checkbox => {
+                                            checkbox.addEventListener('change', syncClassificationSelectionControls);
+                                        });
+
+                                        syncClassificationSelectionControls();
+
                                         // フォーム送信時のバリデーション
                                         form.addEventListener('submit', (e) => {
                                             if (groupDataRadio.checked && groupDropdown.value === '') {
                                                 e.preventDefault();
                                                 alert(<?= json_encode(translate('machineLearning_sample.php_896行目_作成したグループを選択してください')) ?>);
                                                 groupDropdown.focus();
+                                                return;
+                                            }
+
+                                            if (!classificationStudentCheckboxes.some(checkbox => checkbox.checked)) {
+                                                e.preventDefault();
+                                                alert('分類する学習者を1名以上選択してください。');
                                             }
                                         });
                                     });
@@ -1169,6 +1448,102 @@ $featureDisplayFeatureKeys = [
                                             value="alalldata">
                                         <?= translate('machineLearning_sample.php_903行目_2019年度のA大学全データ') ?>
                                     </label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>分類するデータ</th>
+                                <td colspan="2">
+                                    <?php if (empty($classificationStudentsByClass)): ?>
+                                        <p class="classification-empty-message">
+                                            担当クラスまたは作成済みグループ内に分類可能な学習者データがありません。
+                                        </p>
+                                    <?php else: ?>
+                                        <?php
+                                        $allClassificationStudentsSelected =
+                                            count($selectedClassificationStudentUids) === count($allowedClassificationStudentUids);
+                                        ?>
+                                        <?php if (!empty($classificationGroups)): ?>
+                                            <div class="classification-group-selector">
+                                                <h4>作成したグループから選択</h4>
+                                                <p class="classification-group-help">
+                                                    グループを選択すると、所属する学習者のデータが分類対象になります。個別選択と併用できます。
+                                                </p>
+                                                <div class="classification-group-options">
+                                                    <?php foreach ($classificationGroups as $classificationGroup): ?>
+                                                        <?php
+                                                        $selectedGroupMemberUids = array_filter(
+                                                            $classificationGroup['member_uids'],
+                                                            function ($uid) use ($selectedClassificationStudentUidLookup) {
+                                                                return isset($selectedClassificationStudentUidLookup[$uid]);
+                                                            }
+                                                        );
+                                                        $allClassificationGroupMembersSelected =
+                                                            count($selectedGroupMemberUids) === count($classificationGroup['member_uids']);
+                                                        $groupMemberUidsJson = json_encode(
+                                                            $classificationGroup['member_uids'],
+                                                            JSON_UNESCAPED_UNICODE
+                                                        );
+                                                        ?>
+                                                        <label>
+                                                            <input type="checkbox" name="classificationGroupIds[]"
+                                                                class="classification-group-toggle"
+                                                                value="<?= htmlspecialchars($classificationGroup['group_id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                                data-member-uids="<?= htmlspecialchars($groupMemberUidsJson, ENT_QUOTES, 'UTF-8') ?>"
+                                                                <?= $allClassificationGroupMembersSelected ? 'checked' : '' ?>>
+                                                            <?= htmlspecialchars($classificationGroup['group_name'], ENT_QUOTES, 'UTF-8') ?>
+                                                            (<?= count($classificationGroup['member_uids']) ?>名)
+                                                        </label>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="classification-target-controls">
+                                            <label>
+                                                <input type="checkbox" id="classification-select-all"
+                                                    <?= $allClassificationStudentsSelected ? 'checked' : '' ?>>
+                                                分類可能な学習者を全て選択 / 解除
+                                            </label>
+                                        </div>
+                                        <div class="classification-target-list">
+                                            <?php foreach ($classificationStudentsByClass as $classificationClass): ?>
+                                                <?php
+                                                $classificationClassStudentUids = array_column($classificationClass['students'], 'UID');
+                                                $selectedClassificationClassStudentUids = array_filter(
+                                                    $classificationClassStudentUids,
+                                                    function ($uid) use ($selectedClassificationStudentUidLookup) {
+                                                        return isset($selectedClassificationStudentUidLookup[$uid]);
+                                                    }
+                                                );
+                                                $allClassificationClassStudentsSelected =
+                                                    count($selectedClassificationClassStudentUids) === count($classificationClassStudentUids);
+                                                ?>
+                                                <fieldset class="classification-class-group">
+                                                    <legend>
+                                                        <?= htmlspecialchars($classificationClass['ClassName'], ENT_QUOTES, 'UTF-8') ?>
+                                                    </legend>
+                                                    <label>
+                                                        <input type="checkbox" class="classification-class-toggle"
+                                                            data-class-id="<?= htmlspecialchars($classificationClass['ClassID'], ENT_QUOTES, 'UTF-8') ?>"
+                                                            <?= $allClassificationClassStudentsSelected ? 'checked' : '' ?>>
+                                                        このグループ(クラス)を全て選択 / 解除
+                                                    </label>
+                                                    <div class="classification-student-list">
+                                                        <?php foreach ($classificationClass['students'] as $classificationStudent): ?>
+                                                            <label>
+                                                                <input type="checkbox" name="classificationUIDs[]"
+                                                                    class="classification-student-checkbox"
+                                                                    data-class-id="<?= htmlspecialchars($classificationClass['ClassID'], ENT_QUOTES, 'UTF-8') ?>"
+                                                                    value="<?= htmlspecialchars($classificationStudent['UID'], ENT_QUOTES, 'UTF-8') ?>"
+                                                                    <?= isset($selectedClassificationStudentUidLookup[$classificationStudent['UID']]) ? 'checked' : '' ?>>
+                                                                <?= htmlspecialchars($classificationStudent['Name'], ENT_QUOTES, 'UTF-8') ?>
+                                                                (<?= htmlspecialchars($classificationStudent['UID'], ENT_QUOTES, 'UTF-8') ?>)
+                                                            </label>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </fieldset>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <!--20250117消去-->
@@ -1651,15 +2026,15 @@ $featureDisplayFeatureKeys = [
                 </div>
             </div>
             <script>
-                // 全てのチェックボックスをリセット（選択を解除）
+                // 機械学習に使用する特徴量の選択をリセット
                 function resetCheckboxes() {
-                    const checkboxes = document.querySelectorAll("input[type='checkbox']");
+                    const checkboxes = document.querySelectorAll('#feature-modal input[name="featureLabel[]"]');
                     checkboxes.forEach(checkbox => checkbox.checked = false);
                 }
 
                 // 分類器を選択した時に該当する特徴量をチェックする関数
                 function selectClassifier(classifier) {
-                    resetCheckboxes(); // 全てのチェックボックスをリセット
+                    resetCheckboxes(); // 特徴量のチェックボックスをリセット
 
                     // feature-modal内のチェックボックスを特定
                     const modalCheckboxes = document.querySelectorAll("#feature-modal .feature-modal-checkbox");
@@ -1714,7 +2089,7 @@ $featureDisplayFeatureKeys = [
                         <h3><?= translate('machineLearning_sample.php_1112行目_解答情報') ?></h3>
                         <?php
                         require "../dbc.php";
-                        if ($_SERVER["REQUEST_METHOD"] == "POST") {
+                        if ($_SERVER["REQUEST_METHOD"] == "POST" && $machineLearningRunReady) {
                             // (...既存のPythonスクリプト実行とCSVファイル読み込み処理はそのまま...)
                             // この部分は変更しないでください
                             $pyscript = "./machineLearning/sampleSHAP.py";

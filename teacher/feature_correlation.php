@@ -1076,8 +1076,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button id="load-btn" type="button">相関を表示</button>
         </section>
 
-        <section class="filter-section" id="filter-section" aria-label="絞り込み条件">
-            <button class="filter-section-header" id="filter-section-toggle" type="button" aria-expanded="true" aria-controls="filter-section-body">
+        <section class="filter-section is-collapsed" id="filter-section" aria-label="絞り込み条件">
+            <button class="filter-section-header" id="filter-section-toggle" type="button" aria-expanded="false" aria-controls="filter-section-body">
                 <span class="filter-title-wrap">
                     <h2 class="filter-section-title">絞り込み条件</h2>
                     <span class="filter-help" aria-label="論理式の説明">ⓘ
@@ -1086,7 +1086,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </span>
                     </span>
                 </span>
-                <span class="toggle-mark" id="filter-section-mark" aria-hidden="true">-</span>
+                <span class="toggle-mark" id="filter-section-mark" aria-hidden="true">+</span>
             </button>
             <div class="filter-section-body" id="filter-section-body">
                 <div class="filter-parts" aria-label="論理式パーツ">
@@ -1110,10 +1110,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="filter-summary" id="filter-summary">すべての学習者を表示しています。</p>
                 </div>
 
-            <div class="collapsible-filter" id="student-filter-panel">
-                <button class="collapsible-header" type="button" aria-expanded="true" aria-controls="student-filter-body">
+            <div class="collapsible-filter is-collapsed" id="student-filter-panel">
+                <button class="collapsible-header" type="button" aria-expanded="false" aria-controls="student-filter-body">
                     <span>学習者(UID)で絞り込み</span>
-                    <span class="toggle-mark" aria-hidden="true">−</span>
+                    <span class="toggle-mark" aria-hidden="true">+</span>
                 </button>
                 <div class="collapsible-body" id="student-filter-body">
                     <div class="checkbox-controls">
@@ -1137,10 +1137,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <div class="collapsible-filter" id="question-filter-panel">
-                <button class="collapsible-header" type="button" aria-expanded="true" aria-controls="question-filter-body">
+            <div class="collapsible-filter is-collapsed" id="question-filter-panel">
+                <button class="collapsible-header" type="button" aria-expanded="false" aria-controls="question-filter-body">
                     <span>問題(WID)で絞り込み</span>
-                    <span class="toggle-mark" aria-hidden="true">−</span>
+                    <span class="toggle-mark" aria-hidden="true">+</span>
                 </button>
                 <div class="collapsible-body" id="question-filter-body">
                     <div class="checkbox-controls">
