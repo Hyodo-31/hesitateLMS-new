@@ -113,11 +113,11 @@ if (!function_exists('teacher_menu_group_class')) {
                 <li><a href="<?= teacher_menu_path('create-test-ja.php') ?>"<?= teacher_menu_link_attrs(['create-test-ja.php']) ?>>新規日本語テスト作成</a></li>
             </ul>
         </li>
-        <li class="<?= teacher_menu_group_class(['create-student-group.php']) ?>">
+        <li class="<?= teacher_menu_group_class(['create-student-group.php', 'submit-student-group.php', 'submit-update-student-class.php']) ?>">
             <a href="#" class="submenu-toggle">学習者関連</a>
             <ul class="submenu">
                 <li><a href="<?= teacher_menu_path('#') ?>">学習者グラフ表示</a></li>
-                <li><a href="<?= teacher_menu_path('create-student-group.php') ?>"<?= teacher_menu_link_attrs(['create-student-group.php']) ?>>学習者グルーピング作成</a></li>
+                <li><a href="<?= teacher_menu_path('create-student-group.php') ?>"<?= teacher_menu_link_attrs(['create-student-group.php', 'submit-student-group.php', 'submit-update-student-class.php']) ?>>学習者グルーピング作成</a></li>
             </ul>
         </li>
     </ul>
