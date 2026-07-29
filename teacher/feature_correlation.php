@@ -138,7 +138,7 @@ function getSelectedWidsFromPost(): array
     return array_values(array_unique(array_map('intval', $selectedWids)));
 }
 
-function appendWidFilter(string $sql, array $selectedWids, string &$types, array &$params): string
+function appendWidFilter(string $sql, array $selectedWids, string &$types, array &$params, string $widColumn = 'WID'): string
 {
     if (empty($selectedWids)) {
         return $sql;
@@ -148,7 +148,61 @@ function appendWidFilter(string $sql, array $selectedWids, string &$types, array
     $types .= str_repeat('i', count($selectedWids));
     $params = array_merge($params, $selectedWids);
 
-    return $sql . " AND WID IN ({$widPlaceholders})";
+    return $sql . " AND {$widColumn} IN ({$widPlaceholders})";
+}
+
+function latestPredictionJoinSql(): string
+{
+    return "
+        LEFT JOIN (
+            SELECT tr.UID, tr.WID, tr.attempt, tr.Understand
+            FROM temporary_results tr
+            INNER JOIN (
+                SELECT UID, WID, attempt, MAX(id) AS latest_id
+                FROM temporary_results
+                WHERE teacher_id = ?
+                GROUP BY UID, WID, attempt
+            ) latest_prediction ON latest_prediction.latest_id = tr.id
+        ) prediction
+            ON prediction.UID = tf.UID
+           AND prediction.WID = tf.WID
+           AND prediction.attempt = tf.attempt";
+}
+
+function getPredictionFilterFromPost(): string
+{
+    $predictionFilter = $_POST['prediction_filter'] ?? 'all';
+    $allowedFilters = ['all', 'hesitated', 'not_hesitated'];
+
+    if (!in_array($predictionFilter, $allowedFilters, true)) {
+        jsonResponse(['error' => '無効な迷い推定結果の絞り込み条件です。']);
+    }
+
+    return $predictionFilter;
+}
+
+function appendPredictionFilter(string $sql, string $predictionFilter): string
+{
+    if ($predictionFilter === 'hesitated') {
+        return $sql . ' AND prediction.Understand = 2';
+    }
+    if ($predictionFilter === 'not_hesitated') {
+        return $sql . ' AND prediction.Understand = 4';
+    }
+
+    return $sql;
+}
+
+function predictionLabelFromCode(?int $predictionCode): string
+{
+    if ($predictionCode === 2) {
+        return '迷い有り';
+    }
+    if ($predictionCode === 4) {
+        return '迷い無し';
+    }
+
+    return '未推定';
 }
 
 $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
@@ -361,6 +415,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mode = $_POST['mode'] ?? 'understand';
         $xFeature = $_POST['feature_x'] ?? ($_POST['feature'] ?? '');
         $yFeature = $_POST['feature_y'] ?? '';
+        $predictionFilter = getPredictionFilterFromPost();
+        $allowedModes = ['understand', 'hesitation_degree', 'feature_pair'];
+        if (!in_array($mode, $allowedModes, true)) {
+            $mode = 'understand';
+        }
 
         if (!isset($featureMap[$xFeature])) {
             jsonResponse(['error' => '無効な特徴量です。']);
@@ -370,12 +429,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $selectedWids = getSelectedWidsFromPost();
 
         if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
+            $emptyYLabel = '迷い推定結果';
+            if ($mode === 'feature_pair') {
+                $emptyYLabel = feature_display_label($yFeature, $yFeature);
+            } elseif ($mode === 'hesitation_degree') {
+                $emptyYLabel = '迷い度';
+            }
             jsonResponse([
                 'mode' => $mode,
                 'feature_x' => $xFeature,
                 'feature_y' => $mode === 'feature_pair' ? $yFeature : null,
+                'prediction_filter' => $mode === 'feature_pair' ? $predictionFilter : 'all',
                 'x_label' => feature_display_label($xFeature, $xFeature),
-                'y_label' => $mode === 'feature_pair' ? feature_display_label($yFeature, $yFeature) : 'Understand(迷い度)',
+                'y_label' => $emptyYLabel,
                 'count' => 0,
                 'correlation' => null,
                 'points' => [],
@@ -384,32 +450,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
         $studentType = str_repeat('s', count($selectedStudents));
-        $queryTypes = $studentType;
-        $queryParams = $selectedStudents;
 
         if ($mode === 'feature_pair') {
             if (!isset($featureMap[$yFeature])) {
                 jsonResponse(['error' => '比較する特徴量を選択してください。']);
             }
 
+            $queryTypes = 'i' . $studentType;
+            $queryParams = array_merge([(int)$teacherId], $selectedStudents);
+            $predictionJoin = latestPredictionJoinSql();
             $xSql = quoteIdentifier($xFeature);
             $ySql = quoteIdentifier($yFeature);
-            $sql = "SELECT UID, WID, attempt, Understand, {$xSql} AS x_value, {$ySql} AS y_value
-                    FROM test_featurevalue
-                    WHERE {$xSql} IS NOT NULL AND {$ySql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
+            $sql = "SELECT tf.UID, tf.WID, tf.attempt, prediction.Understand AS prediction_code,
+                           tf.{$xSql} AS x_value, tf.{$ySql} AS y_value
+                    FROM test_featurevalue tf
+                    {$predictionJoin}
+                    WHERE tf.{$xSql} IS NOT NULL
+                      AND tf.{$ySql} IS NOT NULL
+                      AND tf.UID IN ({$studentPlaceholders})";
+            $sql = appendPredictionFilter($sql, $predictionFilter);
             $xLabel = feature_display_label($xFeature, $xFeature);
             $yLabel = feature_display_label($yFeature, $yFeature);
-        } else {
+        } elseif ($mode === 'hesitation_degree') {
+            $queryTypes = $studentType;
+            $queryParams = $selectedStudents;
             $xSql = quoteIdentifier($xFeature);
-            $sql = "SELECT UID, WID, attempt, Understand, {$xSql} AS x_value, Understand AS y_value
-                    FROM test_featurevalue
-                    WHERE Understand IS NOT NULL AND {$xSql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
+            $sql = "SELECT tf.UID, tf.WID, tf.attempt, NULL AS prediction_code,
+                           tf.{$xSql} AS x_value,
+                           CASE l.Understand WHEN 2 THEN 3 WHEN 3 THEN 2 WHEN 4 THEN 1 END AS y_value
+                    FROM test_featurevalue tf
+                    INNER JOIN linedata l
+                        ON l.UID = tf.UID
+                       AND l.WID = tf.WID
+                       AND l.attempt = tf.attempt
+                    WHERE l.Understand IN (2, 3, 4)
+                      AND tf.{$xSql} IS NOT NULL
+                      AND tf.UID IN ({$studentPlaceholders})";
             $xLabel = feature_display_label($xFeature, $xFeature);
-            $yLabel = 'Understand(迷い度)';
+            $yLabel = '迷い度';
+            $predictionFilter = 'all';
+        } else {
+            $queryTypes = 'i' . $studentType;
+            $queryParams = array_merge([(int)$teacherId], $selectedStudents);
+            $predictionJoin = latestPredictionJoinSql();
+            $xSql = quoteIdentifier($xFeature);
+            $sql = "SELECT tf.UID, tf.WID, tf.attempt, prediction.Understand AS prediction_code,
+                           tf.{$xSql} AS x_value,
+                           CASE prediction.Understand WHEN 2 THEN 1 WHEN 4 THEN 0 END AS y_value
+                    FROM test_featurevalue tf
+                    {$predictionJoin}
+                    WHERE prediction.Understand IN (2, 4)
+                      AND tf.{$xSql} IS NOT NULL
+                      AND tf.UID IN ({$studentPlaceholders})";
+            $xLabel = feature_display_label($xFeature, $xFeature);
+            $yLabel = '迷い推定結果';
             $mode = 'understand';
+            $predictionFilter = 'all';
         }
 
-        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams);
+        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams, 'tf.WID');
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             jsonResponse(['error' => 'データ取得に失敗しました。']);
@@ -436,13 +535,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $xValues[] = $x;
             $yValues[] = $y;
+            $predictionCode = is_numeric($row['prediction_code']) ? (int)$row['prediction_code'] : null;
             $points[] = [
                 'x' => $x,
                 'y' => $y,
                 'uid' => $row['UID'],
                 'wid' => $row['WID'],
                 'attempt' => $row['attempt'],
-                'understand' => is_numeric($row['Understand']) ? (float)$row['Understand'] : null,
+                'prediction_code' => $predictionCode,
+                'prediction_label' => predictionLabelFromCode($predictionCode),
             ];
         }
         $result->close();
@@ -452,6 +553,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'mode' => $mode,
             'feature_x' => $xFeature,
             'feature_y' => $mode === 'feature_pair' ? $yFeature : null,
+            'prediction_filter' => $predictionFilter,
             'x_label' => $xLabel,
             'y_label' => $yLabel,
             'count' => count($points),
@@ -468,17 +570,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['items' => []]);
         }
 
-        $selectParts = ['Understand AS understand_value'];
+        $selectParts = ['CASE prediction.Understand WHEN 2 THEN 1 WHEN 4 THEN 0 END AS understand_value'];
         foreach ($featureColumns as $feature) {
-            $selectParts[] = quoteIdentifier($feature);
+            $selectParts[] = 'tf.' . quoteIdentifier($feature);
+        }
+
+        $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
+        $studentType = str_repeat('s', count($selectedStudents));
+        $queryTypes = 'i' . $studentType;
+        $queryParams = array_merge([(int)$teacherId], $selectedStudents);
+        $sql = 'SELECT ' . implode(', ', $selectParts)
+            . ' FROM test_featurevalue tf '
+            . latestPredictionJoinSql()
+            . " WHERE prediction.Understand IN (2, 4) AND tf.UID IN ({$studentPlaceholders})";
+        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams, 'tf.WID');
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            jsonResponse(['error' => '迷い推定結果との相関一覧の取得に失敗しました。']);
+        }
+        $stmt->bind_param($queryTypes, ...$queryParams);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $stats = [];
+        foreach ($featureColumns as $feature) {
+            $stats[$feature] = [
+                'n' => 0,
+                'sumX' => 0.0,
+                'sumY' => 0.0,
+                'sumXY' => 0.0,
+                'sumX2' => 0.0,
+                'sumY2' => 0.0,
+            ];
+        }
+
+        while ($row = $result->fetch_assoc()) {
+            if (!is_numeric($row['understand_value'])) {
+                continue;
+            }
+
+            $x = (float)$row['understand_value'];
+            foreach ($featureColumns as $feature) {
+                if (!isset($row[$feature]) || !is_numeric($row[$feature])) {
+                    continue;
+                }
+
+                $y = (float)$row[$feature];
+                $stats[$feature]['n']++;
+                $stats[$feature]['sumX'] += $x;
+                $stats[$feature]['sumY'] += $y;
+                $stats[$feature]['sumXY'] += $x * $y;
+                $stats[$feature]['sumX2'] += $x * $x;
+                $stats[$feature]['sumY2'] += $y * $y;
+            }
+        }
+        $result->close();
+        $stmt->close();
+
+        $items = [];
+        foreach ($stats as $feature => $values) {
+            if ($values['n'] === 0) {
+                continue;
+            }
+            $correlation = pearsonCorrelationFromSums(
+                $values['n'],
+                $values['sumX'],
+                $values['sumY'],
+                $values['sumXY'],
+                $values['sumX2'],
+                $values['sumY2']
+            );
+            $items[] = [
+                'feature' => $feature,
+                'correlation' => $correlation,
+                'count' => $values['n'],
+            ];
+        }
+
+        usort($items, function ($a, $b) {
+            $aValue = $a['correlation'] === null ? -1 : abs($a['correlation']);
+            $bValue = $b['correlation'] === null ? -1 : abs($b['correlation']);
+            return $bValue <=> $aValue;
+        });
+
+        jsonResponse(['items' => $items]);
+    }
+
+    if ($action === 'get_hesitation_degree_correlation_list') {
+        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
+        $selectedWids = getSelectedWidsFromPost();
+        if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
+            jsonResponse(['items' => []]);
+        }
+
+        $selectParts = ['CASE l.Understand WHEN 2 THEN 3 WHEN 3 THEN 2 WHEN 4 THEN 1 END AS understand_value'];
+        foreach ($featureColumns as $feature) {
+            $selectParts[] = 'tf.' . quoteIdentifier($feature);
         }
 
         $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
         $studentType = str_repeat('s', count($selectedStudents));
         $queryTypes = $studentType;
         $queryParams = $selectedStudents;
-        $sql = 'SELECT ' . implode(', ', $selectParts) . " FROM test_featurevalue WHERE Understand IS NOT NULL AND UID IN ({$studentPlaceholders})";
-        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams);
+        $sql = 'SELECT ' . implode(', ', $selectParts)
+            . " FROM test_featurevalue tf
+               INNER JOIN linedata l
+                   ON l.UID = tf.UID
+                  AND l.WID = tf.WID
+                  AND l.attempt = tf.attempt
+               WHERE l.Understand IN (2, 3, 4)
+                 AND tf.UID IN ({$studentPlaceholders})";
+        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams, 'tf.WID');
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             jsonResponse(['error' => '迷い度との相関一覧の取得に失敗しました。']);
@@ -524,6 +726,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $items = [];
         foreach ($stats as $feature => $values) {
+            if ($values['n'] === 0) {
+                continue;
+            }
             $correlation = pearsonCorrelationFromSums(
                 $values['n'],
                 $values['sumX'],
@@ -550,6 +755,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'get_feature_correlation_list') {
         $xFeature = $_POST['feature_x'] ?? '';
+        $predictionFilter = getPredictionFilterFromPost();
         if (!isset($featureMap[$xFeature])) {
             jsonResponse(['error' => '無効な特徴量です。']);
         }
@@ -557,7 +763,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
         $selectedWids = getSelectedWidsFromPost();
         if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
-            jsonResponse(['feature_x' => $xFeature, 'items' => []]);
+            jsonResponse(['feature_x' => $xFeature, 'prediction_filter' => $predictionFilter, 'items' => []]);
         }
 
         $comparisonFeatures = array_values(array_filter($featureColumns, function ($feature) use ($xFeature) {
@@ -565,21 +771,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }));
 
         if (empty($comparisonFeatures)) {
-            jsonResponse(['feature_x' => $xFeature, 'items' => []]);
+            jsonResponse(['feature_x' => $xFeature, 'prediction_filter' => $predictionFilter, 'items' => []]);
         }
 
-        $selectParts = [quoteIdentifier($xFeature) . ' AS base_value'];
+        $selectParts = ['tf.' . quoteIdentifier($xFeature) . ' AS base_value'];
         foreach ($comparisonFeatures as $feature) {
-            $selectParts[] = quoteIdentifier($feature);
+            $selectParts[] = 'tf.' . quoteIdentifier($feature);
         }
 
-        $baseSql = quoteIdentifier($xFeature);
+        $baseSql = 'tf.' . quoteIdentifier($xFeature);
         $studentPlaceholders = implode(',', array_fill(0, count($selectedStudents), '?'));
         $studentType = str_repeat('s', count($selectedStudents));
-        $queryTypes = $studentType;
-        $queryParams = $selectedStudents;
-        $sql = 'SELECT ' . implode(', ', $selectParts) . " FROM test_featurevalue WHERE {$baseSql} IS NOT NULL AND UID IN ({$studentPlaceholders})";
-        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams);
+        $queryTypes = 'i' . $studentType;
+        $queryParams = array_merge([(int)$teacherId], $selectedStudents);
+        $sql = 'SELECT ' . implode(', ', $selectParts)
+            . ' FROM test_featurevalue tf '
+            . latestPredictionJoinSql()
+            . " WHERE {$baseSql} IS NOT NULL AND tf.UID IN ({$studentPlaceholders})";
+        $sql = appendPredictionFilter($sql, $predictionFilter);
+        $sql = appendWidFilter($sql, $selectedWids, $queryTypes, $queryParams, 'tf.WID');
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             jsonResponse(['error' => '相関一覧の取得に失敗しました。']);
@@ -625,6 +835,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $items = [];
         foreach ($stats as $feature => $values) {
+            if ($values['n'] === 0) {
+                continue;
+            }
             $correlation = pearsonCorrelationFromSums(
                 $values['n'],
                 $values['sumX'],
@@ -647,7 +860,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return $bValue <=> $aValue;
         });
 
-        jsonResponse(['feature_x' => $xFeature, 'items' => $items]);
+        jsonResponse([
+            'feature_x' => $xFeature,
+            'prediction_filter' => $predictionFilter,
+            'items' => $items,
+        ]);
     }
 
     jsonResponse(['error' => '無効な操作です。']);
@@ -1028,6 +1245,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="mode-toggle" role="group" aria-label="表示対象">
                     <label>
                         <input type="radio" name="correlation-mode" value="understand" checked>
+                        迷い推定結果
+                    </label>
+                    <label>
+                        <input type="radio" name="correlation-mode" value="hesitation_degree">
                         迷い度
                     </label>
                     <label>
@@ -1071,6 +1292,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </select>
                     <span class="feature-tooltip-popup" id="feature-y-select-description" role="tooltip"></span>
                 </span>
+            </div>
+
+            <div class="control-group hidden" id="prediction-filter-control">
+                <label for="prediction-filter-select">迷い推定結果</label>
+                <select id="prediction-filter-select">
+                    <option value="all">指定なし</option>
+                    <option value="hesitated">迷い有り</option>
+                    <option value="not_hesitated">迷い無し</option>
+                </select>
             </div>
 
             <button id="load-btn" type="button">相関を表示</button>
@@ -1221,6 +1451,8 @@ const modeInputs = document.querySelectorAll('input[name="correlation-mode"]');
 const featureXSelect = document.getElementById('feature-x-select');
 const featureYSelect = document.getElementById('feature-y-select');
 const featureYControl = document.getElementById('feature-y-control');
+const predictionFilterControl = document.getElementById('prediction-filter-control');
+const predictionFilterSelect = document.getElementById('prediction-filter-select');
 const featureXDescription = document.getElementById('feature-x-description');
 const featureXSelectDescription = document.getElementById('feature-x-select-description');
 const featureYDescription = document.getElementById('feature-y-description');
@@ -1775,6 +2007,32 @@ function getMode() {
     return checked ? checked.value : 'understand';
 }
 
+function getPredictionFilterLabel(predictionFilter = predictionFilterSelect.value) {
+    if (predictionFilter === 'hesitated') {
+        return '迷い有りのみ';
+    }
+    if (predictionFilter === 'not_hesitated') {
+        return '迷い無しのみ';
+    }
+
+    return '';
+}
+
+function getHesitationDegreeLabel(value) {
+    const degree = Number(value);
+    if (degree === 3) {
+        return '迷った';
+    }
+    if (degree === 2) {
+        return '少し迷った';
+    }
+    if (degree === 1) {
+        return '迷わなかった';
+    }
+
+    return '-';
+}
+
 function formatValue(value, fractionDigits = 3) {
     const number = Number(value);
     if (!Number.isFinite(number)) {
@@ -1860,8 +2118,16 @@ function syncControls() {
     const mode = getMode();
     const isFeaturePair = mode === 'feature_pair';
     featureYControl.classList.toggle('hidden', !isFeaturePair);
-    rankingPanel.classList.toggle('hidden', !(mode === 'understand' || isFeaturePair));
-    rankingTitle.textContent = mode === 'understand' ? '迷い度との相関ランキング' : '相関ランキング';
+    predictionFilterControl.classList.toggle('hidden', !isFeaturePair);
+    rankingPanel.classList.toggle('hidden', !(mode === 'understand' || mode === 'hesitation_degree' || isFeaturePair));
+    if (mode === 'understand') {
+        rankingTitle.textContent = '迷い推定結果との相関ランキング';
+    } else if (mode === 'hesitation_degree') {
+        rankingTitle.textContent = '迷い度との相関ランキング';
+    } else {
+        const filterLabel = getPredictionFilterLabel();
+        rankingTitle.textContent = filterLabel ? `相関ランキング（${filterLabel}）` : '相関ランキング';
+    }
     if (isFeaturePair) {
         ensureDifferentFeaturePair();
     }
@@ -1874,10 +2140,15 @@ function setLoading(isLoading) {
 }
 
 function renderStats(data) {
+    const filterLabel = data.mode === 'feature_pair'
+        ? getPredictionFilterLabel(data.prediction_filter)
+        : '';
+    const pairLabel = `${data.x_label} × ${data.y_label}`;
+    const displayLabel = filterLabel ? `${pairLabel}（${filterLabel}）` : pairLabel;
     correlationValue.textContent = formatCorrelation(data.correlation);
     countValue.textContent = formatValue(data.count, 0);
-    pairValue.textContent = `${data.x_label} × ${data.y_label}`;
-    chartTitle.textContent = `${data.x_label} × ${data.y_label}`;
+    pairValue.textContent = displayLabel;
+    chartTitle.textContent = displayLabel;
     chartSubtitle.textContent = `r = ${formatCorrelation(data.correlation)}`;
 }
 
@@ -1921,6 +2192,50 @@ function renderChart(points, xLabel, yLabel, mode) {
 
     const xAxis = calculateAxisOptions(points, 'x');
     const yAxis = calculateAxisOptions(points, 'y');
+    const pointBackgroundColor = mode === 'feature_pair'
+        ? 'rgba(20, 184, 166, 0.82)'
+        : mode === 'hesitation_degree'
+            ? 'rgba(37, 99, 235, 0.82)'
+            : 'rgba(225, 29, 72, 0.82)';
+    const pointBorderColor = mode === 'feature_pair'
+        ? 'rgba(15, 118, 110, 0.95)'
+        : mode === 'hesitation_degree'
+            ? 'rgba(29, 78, 216, 0.95)'
+            : 'rgba(190, 18, 60, 0.95)';
+    const yScaleOptions = mode === 'understand'
+        ? {
+            title: { display: true, text: yLabel, color: '#334155', font: { weight: 'bold' } },
+            grid: { color: '#d8dee4' },
+            min: -0.15,
+            max: 1.15,
+            afterBuildTicks: (axis) => {
+                axis.ticks = [{ value: 0 }, { value: 1 }];
+            },
+            ticks: {
+                color: '#334155',
+                callback: (value) => Number(value) === 1 ? '迷い有り' : '迷い無し',
+            },
+        }
+        : mode === 'hesitation_degree'
+            ? {
+                title: { display: true, text: yLabel, color: '#334155', font: { weight: 'bold' } },
+                grid: { color: '#d8dee4' },
+                min: 0.75,
+                max: 3.25,
+                afterBuildTicks: (axis) => {
+                    axis.ticks = [{ value: 1 }, { value: 2 }, { value: 3 }];
+                },
+                ticks: {
+                    color: '#334155',
+                    callback: (value) => getHesitationDegreeLabel(value),
+                },
+            }
+        : {
+            title: { display: true, text: yLabel, color: '#334155', font: { weight: 'bold' } },
+            grid: { color: '#d8dee4' },
+            ticks: { color: '#334155' },
+            ...yAxis,
+        };
 
     scatterChart = new Chart(ctx, {
         type: 'scatter',
@@ -1928,8 +2243,8 @@ function renderChart(points, xLabel, yLabel, mode) {
             datasets: [{
                 label: `${xLabel} × ${yLabel}`,
                 data: points,
-                backgroundColor: mode === 'feature_pair' ? 'rgba(20, 184, 166, 0.82)' : 'rgba(225, 29, 72, 0.82)',
-                borderColor: mode === 'feature_pair' ? 'rgba(15, 118, 110, 0.95)' : 'rgba(190, 18, 60, 0.95)',
+                backgroundColor: pointBackgroundColor,
+                borderColor: pointBorderColor,
                 borderWidth: 1,
                 pointRadius: 4,
                 pointHoverRadius: 6,
@@ -1947,13 +2262,18 @@ function renderChart(points, xLabel, yLabel, mode) {
                     callbacks: {
                         label: (context) => {
                             const point = context.raw;
+                            const yValueLabel = mode === 'understand'
+                                ? point.prediction_label
+                                : mode === 'hesitation_degree'
+                                    ? getHesitationDegreeLabel(point.y)
+                                    : formatValue(point.y, 4);
                             const lines = [
                                 `UID:${point.uid} WID:${point.wid} attempt:${point.attempt}`,
                                 `${xLabel}: ${formatValue(point.x, 4)}`,
-                                `${yLabel}: ${formatValue(point.y, 4)}`,
+                                `${yLabel}: ${yValueLabel}`,
                             ];
-                            if (mode === 'feature_pair' && point.understand !== null) {
-                                lines.push(`Understand(迷い度): ${formatValue(point.understand, 0)}`);
+                            if (mode === 'feature_pair') {
+                                lines.push(`迷い推定結果: ${point.prediction_label || '未推定'}`);
                             }
                             return lines;
                         }
@@ -1968,10 +2288,7 @@ function renderChart(points, xLabel, yLabel, mode) {
                     ...xAxis,
                 },
                 y: {
-                    title: { display: true, text: yLabel, color: '#334155', font: { weight: 'bold' } },
-                    grid: { color: '#d8dee4' },
-                    ticks: { color: '#334155' },
-                    ...yAxis,
+                    ...yScaleOptions,
                 }
             }
         }
@@ -1981,14 +2298,23 @@ function renderChart(points, xLabel, yLabel, mode) {
 function renderRanking(items) {
     const mode = getMode();
     const isUnderstandMode = mode === 'understand';
+    const isHesitationDegreeMode = mode === 'hesitation_degree';
+    const isOutcomeMode = isUnderstandMode || isHesitationDegreeMode;
+    const filterLabel = getPredictionFilterLabel();
     hideRankingFeaturePopup();
     rankingBody.innerHTML = '';
     emptyList.classList.toggle('hidden', items.length > 0);
-    rankingBaseLabel.textContent = isUnderstandMode ? 'Understand(迷い度)' : getFeatureLabel(featureXSelect.value);
+    if (isUnderstandMode) {
+        rankingBaseLabel.textContent = '迷い推定結果（迷い有り=1・迷い無し=0）';
+    } else if (isHesitationDegreeMode) {
+        rankingBaseLabel.textContent = '迷い度（迷わなかった=1・少し迷った=2・迷った=3）';
+    } else {
+        rankingBaseLabel.textContent = `${getFeatureLabel(featureXSelect.value)}${filterLabel ? `・${filterLabel}` : ''}`;
+    }
 
-    const selectedFeature = isUnderstandMode ? featureXSelect.value : featureYSelect.value;
+    const selectedFeature = isOutcomeMode ? featureXSelect.value : featureYSelect.value;
     items.forEach((item) => {
-        const feature = isUnderstandMode ? item.feature : item.feature_y;
+        const feature = isOutcomeMode ? item.feature : item.feature_y;
         const row = document.createElement('tr');
         row.dataset.feature = feature;
         row.classList.toggle('is-selected', feature === selectedFeature);
@@ -2020,7 +2346,7 @@ function renderRanking(items) {
 
         row.append(featureCell, correlationCell, countCell);
         row.addEventListener('click', () => {
-            if (isUnderstandMode) {
+            if (isOutcomeMode) {
                 featureXSelect.value = feature;
             } else {
                 featureYSelect.value = feature;
@@ -2033,7 +2359,7 @@ function renderRanking(items) {
 
 function updateRankingSelection() {
     const mode = getMode();
-    const selectedFeature = mode === 'understand' ? featureXSelect.value : featureYSelect.value;
+    const selectedFeature = mode === 'feature_pair' ? featureYSelect.value : featureXSelect.value;
     rankingBody.querySelectorAll('tr').forEach((row) => {
         row.classList.toggle('is-selected', row.dataset.feature === selectedFeature);
     });
@@ -2043,6 +2369,7 @@ async function loadRanking() {
     const body = new URLSearchParams({
         action: 'get_feature_correlation_list',
         feature_x: featureXSelect.value,
+        prediction_filter: predictionFilterSelect.value,
         student_ids: JSON.stringify(getSelectedStudentIds()),
         wids: JSON.stringify(getSelectedWids()),
         wid_filter_enabled: '1',
@@ -2086,6 +2413,29 @@ async function loadUnderstandRanking() {
     renderRanking(currentRanking);
 }
 
+async function loadHesitationDegreeRanking() {
+    const body = new URLSearchParams({
+        action: 'get_hesitation_degree_correlation_list',
+        student_ids: JSON.stringify(getSelectedStudentIds()),
+        wids: JSON.stringify(getSelectedWids()),
+        wid_filter_enabled: '1',
+    });
+
+    const response = await fetch('feature_correlation.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+    });
+    const data = await response.json();
+
+    if (data.error) {
+        throw new Error(data.error);
+    }
+
+    currentRanking = data.items || [];
+    renderRanking(currentRanking);
+}
+
 async function loadData(refreshRanking = true) {
     syncControls();
     setLoading(true);
@@ -2098,6 +2448,7 @@ async function loadData(refreshRanking = true) {
             feature: featureXSelect.value,
             feature_x: featureXSelect.value,
             feature_y: featureYSelect.value,
+            prediction_filter: predictionFilterSelect.value,
             student_ids: JSON.stringify(getSelectedStudentIds()),
             wids: JSON.stringify(getSelectedWids()),
             wid_filter_enabled: '1',
@@ -2120,6 +2471,12 @@ async function loadData(refreshRanking = true) {
         if (mode === 'understand') {
             if (refreshRanking) {
                 await loadUnderstandRanking();
+            } else {
+                updateRankingSelection();
+            }
+        } else if (mode === 'hesitation_degree') {
+            if (refreshRanking) {
+                await loadHesitationDegreeRanking();
             } else {
                 updateRankingSelection();
             }
@@ -2148,6 +2505,7 @@ featureYSelect.addEventListener('change', () => {
     updateFeatureSelectDescriptions();
     loadData(false);
 });
+predictionFilterSelect.addEventListener('change', () => loadData(true));
 window.addEventListener('resize', hideRankingFeaturePopup);
 window.addEventListener('scroll', hideRankingFeaturePopup, { capture: true, passive: true });
 loadButton.addEventListener('click', () => loadData(true));
