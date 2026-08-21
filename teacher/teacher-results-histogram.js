@@ -174,12 +174,14 @@
             this.barTokens = { uid: [], wid: [] };
             this.barConditions = { uid: new Map(), wid: new Map() };
             this.sourceUids = new Set();
+            this.pendingWids = new Set();
             this.appliedWids = new Set();
+            this.widLogicResult = null;
             this.uidResult = new Set();
             this.resultChecks = new Map();
             this.detailUid = '';
             this.widPending = false;
-            this.charts = { uidFeature: null, widFeature: null, metric: null };
+            this.charts = { uidFeature: null, widFeature: null };
             this.contentBound = false;
             this.renderShell();
             this.bindShell();
@@ -244,7 +246,9 @@
             this.barTokens = { uid: [], wid: [] };
             this.barConditions = { uid: new Map(), wid: new Map() };
             this.sourceUids = new Set();
+            this.pendingWids = new Set();
             this.appliedWids = new Set();
+            this.widLogicResult = null;
             this.uidResult = new Set();
             this.resultChecks.clear();
             this.detailUid = '';
@@ -271,6 +275,7 @@
                 this.resetState();
                 this.sourceUids = new Set(data.students.map((student) => String(student.uid)));
                 this.appliedWids = new Set(data.wids.map((wid) => String(wid.WID)));
+                this.pendingWids = new Set(this.appliedWids);
                 this.renderContent();
                 this.loaded = true;
                 this.q('status').hidden = true;
@@ -288,20 +293,27 @@
         }
 
         renderContent() {
-            const featureOptions = this.features.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)} (${escapeHtml(item.value)})</option>`).join('');
+            const featureOptions = `<optgroup label="特徴量">${this.features.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)} (${escapeHtml(item.value)})</option>`).join('')}</optgroup><optgroup label="結果指標"><option value="__accuracy">正答率 (%)</option><option value="__hesitation">迷い率 (%)</option></optgroup>`;
             this.q('content').innerHTML = `
                 <div class="trh-heading"><h4>ヒストグラムでの検索</h4><p>特徴量・正答率・迷い率の縦棒を選択し、論理式で検索対象を作成します。</p></div>
-                <div class="trh-source-grid">
-                    <section class="trh-source"><h5>ヒストグラム対象UID</h5><div data-role="source-logic"></div><div data-role="uid-list"></div></section>
-                    <section class="trh-source"><h5>ヒストグラム対象WID</h5><div data-role="wid-logic"></div><div data-role="wid-saved"></div><div class="trh-actions"><button type="button" data-action="wid-all">すべて選択</button><button type="button" data-action="wid-none">すべて解除</button></div><div data-role="wid-list"></div><div class="trh-actions"><button type="button" class="trh-primary" data-action="apply-wids">検索</button><span data-role="wid-apply-summary">${this.appliedWids.size}件のWIDを反映しています。</span></div></section>
-                </div>
-                <section class="trh-bar-logic"><h5>学習者候補のUID縦棒論理式</h5><p>保存したUID縦棒をAND・OR・NOT・括弧で組み合わせます。式が空の場合はORで結合します。</p><div data-role="uid-logic"></div><div data-role="uid-saved"></div></section>
-                <div class="trh-chart-grid">
-                    <article class="trh-chart-card"><h5>UIDごとの特徴量分布</h5><div class="trh-chart-controls"><label>特徴量<select data-role="uid-feature">${featureOptions}</select></label><label>対象UID<select data-role="uid-feature-uids"><option value="all">全UID</option><option value="checked">選択UID</option></select></label><label>対象WID<select data-role="uid-feature-wids"><option value="all">全WID</option><option value="checked">選択WID</option></select></label></div><div class="trh-canvas"><canvas data-role="uid-feature-chart"></canvas></div><p data-role="uid-feature-summary"></p></article>
-                    <article class="trh-chart-card"><h5>WIDごとの特徴量分布</h5><div class="trh-chart-controls"><label>特徴量<select data-role="wid-feature">${featureOptions}</select></label><label>対象UID<select data-role="wid-feature-uids"><option value="all">全UID</option><option value="checked">選択UID</option></select></label><label>対象WID<select data-role="wid-feature-wids"><option value="all">全WID</option><option value="checked">選択WID</option></select></label></div><div class="trh-canvas"><canvas data-role="wid-feature-chart"></canvas></div><p data-role="wid-feature-summary"></p></article>
-                    <article class="trh-chart-card"><h5>正答率・迷い率の分布</h5><div class="trh-chart-controls"><label>指標<select data-role="metric"><option value="hesitation">迷い率</option><option value="accuracy">正答率</option></select></label><label>表示単位<select data-role="metric-entity"><option value="uid">UID</option><option value="wid">WID</option></select></label><label>対象UID<select data-role="metric-uids"><option value="all">全UID</option><option value="checked">選択UID</option></select></label><label>対象WID<select data-role="metric-wids"><option value="all">全WID</option><option value="checked">選択WID</option></select></label></div><div class="trh-canvas"><canvas data-role="metric-chart"></canvas></div><p data-role="metric-summary"></p></article>
-                </div>
-                <section class="trh-result"><h5>ヒストグラム選択結果</h5><p data-role="result-summary">UID縦棒を選択してください。</p><div data-role="result-list"></div><div class="trh-result-filters" data-role="result-filters"></div><div class="trh-actions"><button type="button" class="trh-primary" data-action="show-results">ヒストグラム条件で結果を表示</button></div></section>`;
+                <details class="trh-step trh-step-wid" data-role="wid-step" open>
+                    <summary class="trh-step-summary"><span class="trh-step-number">1</span><span><strong>WIDに関する検索</strong><small>問題を選び、WID分布の縦棒から条件を作成します。</small></span><span class="trh-step-icon" aria-hidden="true"></span></summary>
+                    <div class="trh-step-body">
+                        <section class="trh-stage"><div class="trh-stage-heading"><span>①</span><div><h5>WIDの選択</h5><p>UID検索に使用する問題をチェックしてください。</p></div></div><div class="trh-actions"><button type="button" data-action="wid-all">すべて選択</button><button type="button" data-action="wid-none">すべて解除</button></div><div data-role="wid-list"></div></section>
+                        <section class="trh-stage"><div class="trh-stage-heading"><span>②</span><div><h5>WIDのヒストグラム</h5><p>正答率・迷い率も「特徴量・指標」から選択できます。</p></div></div><article class="trh-chart-card"><div class="trh-chart-controls"><label>特徴量・指標<select data-role="wid-feature">${featureOptions}</select></label><label>対象UID<select data-role="wid-feature-uids"><option value="all">全UID</option><option value="checked">選択UID</option></select></label><label>対象WID<select data-role="wid-feature-wids"><option value="checked" selected>チェック中のWID</option><option value="all">全WID</option></select></label></div><div class="trh-canvas"><canvas data-role="wid-feature-chart"></canvas></div><p data-role="wid-feature-summary"></p></article></section>
+                        <section class="trh-stage"><div class="trh-stage-heading"><span>③</span><div><h5>WID縦棒の論理式</h5><p>縦棒を選び、AND・OR・NOT・括弧で組み合わせた結果をWIDチェックへ反映します。</p></div></div><div data-role="wid-logic"></div><div data-role="wid-saved"></div></section>
+                        <div class="trh-flow-action"><div><strong>WIDの選択を確定</strong><span data-role="wid-apply-summary">${this.appliedWids.size}件のWIDをUID検索へ反映しています。</span></div><button type="button" class="trh-primary" data-action="apply-wids">選択したWIDをUID検索へ反映</button></div>
+                    </div>
+                </details>
+                <details class="trh-step trh-step-uid" data-role="uid-step">
+                    <summary class="trh-step-summary"><span class="trh-step-number">2</span><span><strong>UIDに関する検索</strong><small>学習者を選び、UID分布の縦棒から候補を絞り込みます。</small></span><span class="trh-step-icon" aria-hidden="true"></span></summary>
+                    <div class="trh-step-body">
+                        <section class="trh-stage"><div class="trh-stage-heading"><span>④</span><div><h5>論理式とUIDの選択</h5><p>グループ条件の論理式、またはチェックボックスで対象UIDを選択します。</p></div></div><div data-role="source-logic"></div><div data-role="uid-list"></div></section>
+                        <section class="trh-stage"><div class="trh-stage-heading"><span>⑤</span><div><h5>UIDのヒストグラム</h5><p>正答率・迷い率も「特徴量・指標」から選択できます。</p></div></div><article class="trh-chart-card"><div class="trh-chart-controls"><label>特徴量・指標<select data-role="uid-feature">${featureOptions}</select></label><label>対象UID<select data-role="uid-feature-uids"><option value="checked" selected>チェック中のUID</option><option value="all">全UID</option></select></label><label>対象WID<select data-role="uid-feature-wids"><option value="checked" selected>反映済みのWID</option><option value="all">全WID</option></select></label></div><div class="trh-canvas"><canvas data-role="uid-feature-chart"></canvas></div><p data-role="uid-feature-summary"></p></article></section>
+                        <section class="trh-stage"><div class="trh-stage-heading"><span>⑥</span><div><h5>UID縦棒の論理式</h5><p>論理式の結果は下の「ヒストグラム選択結果」へ自動で反映されます。</p></div></div><div data-role="uid-logic"></div><div data-role="uid-saved"></div></section>
+                    </div>
+                </details>
+                <section class="trh-result"><div class="trh-result-heading"><span class="trh-step-number">3</span><div><h5>ヒストグラム選択結果</h5><p>⑥のUID縦棒論理式による検索結果です。</p></div></div><p data-role="result-summary">UID縦棒を選択してください。</p><div data-role="result-list"></div><div class="trh-result-filters" data-role="result-filters"></div><div class="trh-actions"><button type="button" class="trh-primary" data-action="show-results">ヒストグラム条件で結果を表示</button></div></section>`;
             this.renderSourceLogic();
             this.renderUidList();
             this.renderWidList();
@@ -319,6 +331,9 @@
             this.contentBound = true;
             this.root.addEventListener('click', this.boundClick = (event) => this.handleClick(event), { once: false });
             this.root.addEventListener('change', this.boundChange = (event) => this.handleChange(event), { once: false });
+            this.root.addEventListener('toggle', (event) => {
+                if (event.target.matches('.trh-step') && event.target.open) requestAnimationFrame(() => this.renderCharts());
+            }, true);
         }
 
         handleClick(event) {
@@ -334,7 +349,13 @@
             else if (action.startsWith('bar-clear-saved-')) this.clearSavedBars(action.replace('bar-clear-saved-', ''));
             else if (action.startsWith('bar-clear-')) { const entity = action.replace('bar-clear-', ''); this.barTokens[entity] = []; this.renderBarLogic(entity); this.applyBarExpression(entity); }
             else if (action.startsWith('bar-remove-')) this.removeSavedBar(action.replace('bar-remove-', ''), event.target.closest('[data-condition-id]')?.dataset.conditionId || '');
-            else if (action === 'wid-all' || action === 'wid-none') { this.qa('wid-checkbox').forEach((input) => { input.checked = action === 'wid-all'; }); this.markWidPending(); }
+            else if (action === 'wid-all' || action === 'wid-none') {
+                this.qa('wid-checkbox').forEach((input) => { input.checked = action === 'wid-all'; });
+                this.pendingWids = new Set(this.qa('wid-checkbox').filter((input) => input.checked).map((input) => String(input.value)));
+                this.markWidPending();
+                this.renderCharts();
+            }
+            else if (action === 'apply-wid-logic') this.applyWidLogicToChecks();
             else if (action === 'apply-wids') this.applyWids();
             else if (action === 'show-results') this.submit();
             else if (action === 'remove-token') this.removeToken(event.target);
@@ -354,13 +375,17 @@
             } else if (role === 'uid-checkbox') {
                 this.sourceUids = new Set(this.qa('uid-checkbox').filter((input) => input.checked).map((input) => input.value));
                 this.syncUidMasters(); this.renderCharts();
-            } else if (role === 'wid-checkbox') this.markWidPending();
+            } else if (role === 'wid-checkbox') {
+                this.pendingWids = new Set(this.qa('wid-checkbox').filter((input) => input.checked).map((input) => String(input.value)));
+                this.markWidPending();
+                this.renderCharts();
+            }
             else if (role === 'source-kind' || role === 'source-value') this.updateTokenFromControl('source', event.target);
             else if (role === 'uid-bar-kind' || role === 'uid-bar-value') this.updateTokenFromControl('uid', event.target);
             else if (role === 'wid-bar-kind' || role === 'wid-bar-value') this.updateTokenFromControl('wid', event.target);
             else if (role === 'result-checkbox') this.resultChecks.set(event.target.value, event.target.checked);
             else if (role === 'detail-student') this.selectDetailStudent(event.target.value);
-            else if (['uid-feature', 'uid-feature-uids', 'uid-feature-wids', 'wid-feature', 'wid-feature-uids', 'wid-feature-wids', 'metric', 'metric-entity', 'metric-uids', 'metric-wids'].includes(role)) this.renderCharts();
+            else if (['uid-feature', 'uid-feature-uids', 'uid-feature-wids', 'wid-feature', 'wid-feature-uids', 'wid-feature-wids'].includes(role)) this.renderCharts();
         }
 
         sourceOptions() {
@@ -462,7 +487,7 @@
 
         renderWidList() {
             const rows = this.activeWidRows();
-            this.q('wid-list').innerHTML = `<div class="trh-check-list">${rows.length ? rows.map((row) => `<label class="trh-check-item"><input type="checkbox" data-role="wid-checkbox" value="${escapeHtml(row.WID)}"${this.appliedWids.has(String(row.WID)) ? ' checked' : ''}> WID:${escapeHtml(row.WID)}${row.Sentence ? ` : ${escapeHtml(row.Sentence)}` : ''}</label>`).join('') : '<p>対象のWIDがありません。</p>'}</div>`;
+            this.q('wid-list').innerHTML = `<div class="trh-check-list">${rows.length ? rows.map((row) => `<label class="trh-check-item"><input type="checkbox" data-role="wid-checkbox" value="${escapeHtml(row.WID)}"${this.pendingWids.has(String(row.WID)) ? ' checked' : ''}> WID:${escapeHtml(row.WID)}${row.Sentence ? ` : ${escapeHtml(row.Sentence)}` : ''}</label>`).join('') : '<p>対象のWIDがありません。</p>'}</div>`;
         }
 
         renderResultFilters() {
@@ -491,11 +516,15 @@
             this.barConditions.wid.clear();
             this.barTokens.wid = [];
             this.appliedWids = new Set(this.activeWidRows().map((row) => String(row.WID)));
+            this.pendingWids = new Set(this.appliedWids);
+            this.widLogicResult = null;
             this.widPending = false;
             this.renderWidList();
             this.renderBarLogic('wid');
             this.renderSaved('wid');
-            this.q('wid-apply-summary').textContent = `${this.appliedWids.size}件のWIDを反映しています。`;
+            const widSummary = this.q('wid-apply-summary');
+            widSummary.textContent = `${this.appliedWids.size}件のWIDをUID検索へ反映しています。`;
+            widSummary.classList.remove('is-pending');
             this.onDetailStudentChange(this.detailUid);
             this.renderCharts();
         }
@@ -506,7 +535,8 @@
             const options = (selected) => conditions.size
                 ? [...conditions.values()].map((condition) => `<option value="${escapeHtml(condition.id)}"${condition.id === selected ? ' selected' : ''}>${escapeHtml(condition.label)}</option>`).join('')
                 : '<option value="">選択中の縦棒がありません</option>';
-            target.innerHTML = `<div class="trh-logic"><strong>選択した${entity.toUpperCase()}縦棒の論理式</strong><div class="trh-toolbar">${['condition', 'and', 'or', 'not', 'open', 'close'].map((kind) => `<button type="button" data-action="bar-add-${entity}-${kind}">${kind === 'condition' ? '縦棒を追加' : kind === 'open' ? '(' : kind === 'close' ? ')' : kind.toUpperCase()}</button>`).join('')}<label>追加位置<select data-role="${entity}-bar-insert">${this.insertOptions(this.barTokens[entity])}</select></label></div><div class="trh-builder">${this.barTokens[entity].map((token, index) => this.tokenHtml(token, index, entity, options)).join('')}</div><div class="trh-actions"><button type="button" data-action="bar-reset-${entity}">OR式に戻す</button><button type="button" data-action="bar-clear-${entity}">式を空にする</button><span class="${message.startsWith('エラー:') ? 'is-error' : ''}" data-role="${entity}-bar-summary">${escapeHtml(message || `${entity.toUpperCase()}の縦棒は選択されていません。`)}</span></div></div>`;
+            const widApplyButton = entity === 'wid' ? `<button type="button" class="trh-primary" data-action="apply-wid-logic"${conditions.size ? '' : ' disabled'}>論理式の結果をWIDチェックへ反映</button>` : '';
+            target.innerHTML = `<div class="trh-logic"><strong>選択した${entity.toUpperCase()}縦棒の論理式</strong><div class="trh-toolbar">${['condition', 'and', 'or', 'not', 'open', 'close'].map((kind) => `<button type="button" data-action="bar-add-${entity}-${kind}">${kind === 'condition' ? '縦棒を追加' : kind === 'open' ? '(' : kind === 'close' ? ')' : kind.toUpperCase()}</button>`).join('')}<label>追加位置<select data-role="${entity}-bar-insert">${this.insertOptions(this.barTokens[entity])}</select></label></div><div class="trh-builder">${this.barTokens[entity].map((token, index) => this.tokenHtml(token, index, entity, options)).join('')}</div><div class="trh-actions"><button type="button" data-action="bar-reset-${entity}">OR式に戻す</button><button type="button" data-action="bar-clear-${entity}">式を空にする</button>${widApplyButton}<span class="${message.startsWith('エラー:') ? 'is-error' : ''}" data-role="${entity}-bar-summary">${escapeHtml(message || `${entity.toUpperCase()}の縦棒は選択されていません。`)}</span></div></div>`;
         }
 
         renderSaved(entity) {
@@ -578,12 +608,24 @@
                     if (this.detailUid && !result.has(this.detailUid)) this.selectDetailStudent('');
                     this.renderResultList();
                 } else {
-                    this.qa('wid-checkbox').forEach((input) => { input.checked = result.has(input.value); });
-                    this.markWidPending();
+                    this.widLogicResult = result;
                 }
             } catch (error) {
+                if (entity === 'wid') this.widLogicResult = null;
                 this.renderBarLogic(entity, `エラー: ${error.message || '論理式を確認してください。'}`);
             }
+        }
+
+        applyWidLogicToChecks() {
+            if (!(this.widLogicResult instanceof Set)) {
+                window.alert('WID縦棒の論理式を完成させてください。');
+                return;
+            }
+            const available = new Set(this.activeWidRows().map((row) => String(row.WID)));
+            this.pendingWids = new Set([...this.widLogicResult].filter((wid) => available.has(wid)));
+            this.qa('wid-checkbox').forEach((input) => { input.checked = this.pendingWids.has(String(input.value)); });
+            this.markWidPending(`論理式の結果（${this.pendingWids.size}件）をWIDチェックへ反映しました。続けてUID検索への反映ボタンを押してください。`);
+            this.renderCharts();
         }
 
         removeSavedBar(entity, id) {
@@ -602,28 +644,44 @@
             this.renderCharts();
         }
 
-        markWidPending() {
+        markWidPending(message = 'WIDチェックに未反映の変更があります。「選択したWIDをUID検索へ反映」を押してください。') {
             this.widPending = true;
             const summary = this.q('wid-apply-summary');
-            summary.textContent = 'WID選択に未反映の変更があります。「検索」を押してください。';
+            summary.textContent = message;
             summary.classList.add('is-pending');
         }
 
         applyWids() {
-            this.appliedWids = new Set(this.qa('wid-checkbox').filter((input) => input.checked).map((input) => String(input.value)));
+            this.pendingWids = new Set(this.qa('wid-checkbox').filter((input) => input.checked).map((input) => String(input.value)));
+            const changed = this.pendingWids.size !== this.appliedWids.size
+                || [...this.pendingWids].some((wid) => !this.appliedWids.has(wid));
+            this.appliedWids = new Set(this.pendingWids);
             this.widPending = false;
             const summary = this.q('wid-apply-summary');
-            summary.textContent = `${this.appliedWids.size}件のWIDをヒストグラムと結果条件へ反映しました。`;
+            summary.textContent = `${this.appliedWids.size}件のWIDをUID検索と結果条件へ反映しました。`;
             summary.classList.remove('is-pending');
+            if (changed) {
+                this.barConditions.uid.clear();
+                this.barTokens.uid = [];
+                this.uidResult.clear();
+                this.renderBarLogic('uid');
+                this.renderSaved('uid');
+                this.renderResultList();
+            }
+            const uidStep = this.q('uid-step');
+            if (uidStep) uidStep.open = true;
             this.renderCharts();
         }
 
         selectedSourceUids(mode) { return mode === 'checked' ? new Set(this.sourceUids) : new Set(this.data.students.map((item) => String(item.uid))); }
-        selectedWids(mode) { return mode === 'checked' ? new Set(this.appliedWids) : new Set(this.activeWidRows().map((item) => String(item.WID))); }
+        selectedWids(mode, source = 'applied') {
+            if (mode !== 'checked') return new Set(this.activeWidRows().map((item) => String(item.WID)));
+            return new Set(source === 'pending' ? this.pendingWids : this.appliedWids);
+        }
 
-        aggregateFeature(entity, feature, uidMode, widMode) {
+        aggregateFeature(entity, feature, uidMode, widMode, widSource = 'applied') {
             let uids = this.selectedSourceUids(uidMode);
-            const wids = this.selectedWids(widMode);
+            const wids = this.selectedWids(widMode, widSource);
             if (this.scope === 'student' && this.detailUid && entity === 'wid') uids = new Set([this.detailUid]);
             const grouped = new Map();
             this.data.featurePairs.forEach((pair) => {
@@ -639,9 +697,9 @@
             return [...grouped.entries()].map(([id, group]) => ({ id, value: group.sum / group.count }));
         }
 
-        aggregateMetric(entity, metric, uidMode, widMode) {
+        aggregateMetric(entity, metric, uidMode, widMode, widSource = 'applied') {
             let uids = this.selectedSourceUids(uidMode);
-            const wids = this.selectedWids(widMode);
+            const wids = this.selectedWids(widMode, widSource);
             if (this.scope === 'student' && this.detailUid && entity === 'wid') uids = new Set([this.detailUid]);
             const grouped = new Map();
             this.data.metricAttempts.forEach((attempt) => {
@@ -661,13 +719,24 @@
 
         renderCharts() {
             if (!this.loaded && !this.data) return;
-            const uidFeature = this.q('uid-feature').value;
-            this.renderChart('uidFeature', this.q('uid-feature-chart'), this.q('uid-feature-summary'), this.aggregateFeature('uid', uidFeature, this.q('uid-feature-uids').value, this.q('uid-feature-wids').value), `${this.features.find((item) => item.value === uidFeature)?.label || uidFeature}のUID分布`, `UIDごとの平均値 (${this.meta(uidFeature).unit || '-'})`, 'uid', false, `${uidFeature}|${this.q('uid-feature-uids').value}|${this.q('uid-feature-wids').value}`);
-            const widFeature = this.q('wid-feature').value;
-            this.renderChart('widFeature', this.q('wid-feature-chart'), this.q('wid-feature-summary'), this.aggregateFeature('wid', widFeature, this.q('wid-feature-uids').value, this.q('wid-feature-wids').value), `${this.features.find((item) => item.value === widFeature)?.label || widFeature}のWID分布`, `WIDごとの平均値 (${this.meta(widFeature).unit || '-'})`, 'wid', false, `${widFeature}|${this.q('wid-feature-uids').value}|${this.q('wid-feature-wids').value}|${this.detailUid}`);
-            const metric = this.q('metric').value, entity = this.q('metric-entity').value;
-            const label = metric === 'accuracy' ? '正答率' : '迷い率';
-            this.renderChart('metric', this.q('metric-chart'), this.q('metric-summary'), this.aggregateMetric(entity, metric, this.q('metric-uids').value, this.q('metric-wids').value), `${entity.toUpperCase()}ごとの${label}分布`, `${label} (%)`, entity, true, `${metric}|${entity}|${this.q('metric-uids').value}|${this.q('metric-wids').value}|${this.detailUid}`);
+            this.renderEntityChart('wid', 'pending');
+            this.renderEntityChart('uid', 'applied');
+        }
+
+        renderEntityChart(entity, widSource) {
+            const feature = this.q(`${entity}-feature`)?.value;
+            if (!feature) return;
+            const uidMode = this.q(`${entity}-feature-uids`).value;
+            const widMode = this.q(`${entity}-feature-wids`).value;
+            const metric = feature === '__accuracy' ? 'accuracy' : feature === '__hesitation' ? 'hesitation' : '';
+            const percentage = Boolean(metric);
+            const label = metric ? (metric === 'accuracy' ? '正答率' : '迷い率') : (this.features.find((item) => item.value === feature)?.label || feature);
+            const points = metric
+                ? this.aggregateMetric(entity, metric, uidMode, widMode, widSource)
+                : this.aggregateFeature(entity, feature, uidMode, widMode, widSource);
+            const unit = metric ? '%' : (this.meta(feature).unit || '-');
+            const detailSignature = entity === 'wid' ? `|${this.detailUid}` : '';
+            this.renderChart(`${entity}Feature`, this.q(`${entity}-feature-chart`), this.q(`${entity}-feature-summary`), points, `${label}の${entity.toUpperCase()}分布`, `${entity.toUpperCase()}ごとの平均値 (${unit})`, entity, percentage, `${feature}|${uidMode}|${widMode}|${widSource}${detailSignature}`);
         }
 
         renderChart(key, canvas, summary, points, title, xTitle, entity, percentage, signature) {
