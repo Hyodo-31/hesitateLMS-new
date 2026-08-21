@@ -2,9 +2,126 @@
 // セッションを開始し、多言語対応とデータベース接続を読み込みます
 include '../lang.php';
 require "../dbc.php";
+ob_start();
+require_once __DIR__ . '/student-feature-tooltip.php';
+ob_end_clean();
 
 // ログイン中の教師IDを取得します
 $teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
+
+function teacher_result_normalize_ids(array $values): array
+{
+    $normalized = [];
+    foreach ($values as $value) {
+        if (!is_scalar($value) || !preg_match('/^\d+$/', trim((string)$value))) {
+            continue;
+        }
+        $normalized[] = (string)((int)$value);
+    }
+    return array_values(array_unique($normalized));
+}
+
+function teacher_result_filter_students(mysqli $conn, string $teacher_id, array $student_ids): array
+{
+    $normalized = teacher_result_normalize_ids($student_ids);
+    if (empty($normalized)) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($normalized), '?'));
+    $types = 's' . str_repeat('i', count($normalized));
+    $params = array_merge([$teacher_id], array_map('intval', $normalized));
+    $stmt = $conn->prepare("SELECT DISTINCT s.uid FROM students s JOIN ClassTeacher ct ON s.ClassID = ct.ClassID WHERE ct.TID = ? AND s.uid IN ($placeholders)");
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $allowed = [];
+    while ($row = $result->fetch_assoc()) {
+        $allowed[] = (string)$row['uid'];
+    }
+    $stmt->close();
+    return $allowed;
+}
+
+function teacher_result_test_context(mysqli $conn, string $teacher_id, int $test_id): ?array
+{
+    $stmt = $conn->prepare('SELECT id, target_type, target_group FROM tests WHERE id = ? AND teacher_id = ? LIMIT 1');
+    if (!$stmt) {
+        return null;
+    }
+    $stmt->bind_param('is', $test_id, $teacher_id);
+    $stmt->execute();
+    $test = $stmt->get_result()->fetch_assoc() ?: null;
+    $stmt->close();
+    return $test;
+}
+
+function teacher_result_test_students(mysqli $conn, string $teacher_id, array $test, array $requested_ids = []): array
+{
+    $target_group = (int)$test['target_group'];
+    if ($test['target_type'] === 'class') {
+        $stmt = $conn->prepare('SELECT DISTINCT s.uid FROM students s JOIN ClassTeacher ct ON s.ClassID = ct.ClassID WHERE s.ClassID = ? AND ct.TID = ?');
+        $stmt->bind_param('is', $target_group, $teacher_id);
+    } else {
+        $stmt = $conn->prepare('SELECT DISTINCT s.uid FROM `groups` g JOIN group_members gm ON g.group_id = gm.group_id JOIN students s ON gm.uid = s.uid JOIN ClassTeacher ct ON s.ClassID = ct.ClassID WHERE g.group_id = ? AND g.TID = ? AND ct.TID = ?');
+        $stmt->bind_param('iss', $target_group, $teacher_id, $teacher_id);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $allowed = [];
+    while ($row = $result->fetch_assoc()) {
+        $allowed[] = (string)$row['uid'];
+    }
+    $stmt->close();
+    if (empty($requested_ids)) {
+        return $allowed;
+    }
+    $lookup = array_fill_keys($allowed, true);
+    return array_values(array_filter(teacher_result_normalize_ids($requested_ids), static fn(string $uid): bool => isset($lookup[$uid])));
+}
+
+function teacher_result_test_wids(mysqli $conn, int $test_id, array $requested_wids = []): array
+{
+    $stmt = $conn->prepare('SELECT DISTINCT WID FROM test_questions WHERE test_id = ? ORDER BY OID, WID');
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param('i', $test_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $allowed = [];
+    while ($row = $result->fetch_assoc()) {
+        $allowed[] = (string)$row['WID'];
+    }
+    $stmt->close();
+    if (empty($requested_wids)) {
+        return $allowed;
+    }
+    $lookup = array_fill_keys($allowed, true);
+    return array_values(array_filter(teacher_result_normalize_ids($requested_wids), static fn(string $wid): bool => isset($lookup[$wid])));
+}
+
+function teacher_result_student_wids(mysqli $conn, string $student_id, array $requested_wids): array
+{
+    if (empty($requested_wids)) {
+        return [];
+    }
+    $stmt = $conn->prepare('SELECT DISTINCT WID FROM linedata WHERE UID = ?');
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param('s', $student_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $allowed = [];
+    while ($row = $result->fetch_assoc()) {
+        $allowed[(string)$row['WID']] = true;
+    }
+    $stmt->close();
+    return array_values(array_filter(teacher_result_normalize_ids($requested_wids), static fn(string $wid): bool => isset($allowed[$wid])));
+}
 
 //不正侵入対策
 if (empty($_SESSION['MemberID'])) {
@@ -54,7 +171,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         // 【新規追加】アクション: 担当クラスの全学習者の結果を取得
         if ($_POST['action'] === 'get_class_results' && isset($_POST['student_ids'])) {
             $student_ids = json_decode($_POST['student_ids']);
+            $student_ids = is_array($student_ids) ? teacher_result_filter_students($conn, (string)$teacher_id, $student_ids) : [];
             $wids = isset($_POST['wids']) && !empty($_POST['wids']) ? json_decode($_POST['wids']) : [];
+            $wids = is_array($wids) ? teacher_result_normalize_ids($wids) : [];
             // ★★★ 新機能: 絞り込み条件を取得 ★★★
             $correctness_filter = $_POST['correctness'] ?? 'all';
             $hesitation_filter = $_POST['hesitation'] ?? 'all';
@@ -122,6 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
         elseif ($_POST['action'] === 'get_wids_for_students' && isset($_POST['student_ids'])) {
             $student_ids = json_decode($_POST['student_ids']);
+            $student_ids = is_array($student_ids) ? teacher_result_filter_students($conn, (string)$teacher_id, $student_ids) : [];
             if (!empty($student_ids) && is_array($student_ids)) {
                 $placeholders = implode(',', array_fill(0, count($student_ids), '?'));
                 $types = str_repeat('s', count($student_ids));
@@ -141,14 +261,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
         }
         elseif ($_POST['action'] === 'get_students_for_test' && isset($_POST['test_id'])) {
-            $test_id = $_POST['test_id'];
+            $test_id = (int)$_POST['test_id'];
             $assigned_students = [];
 
-            $stmt_test = $conn->prepare("SELECT target_type, target_group FROM tests WHERE id = ?");
-            $stmt_test->bind_param("i", $test_id);
-            $stmt_test->execute();
-            $test_info = $stmt_test->get_result()->fetch_assoc();
-            $stmt_test->close();
+            $test_info = teacher_result_test_context($conn, (string)$teacher_id, $test_id);
 
             if ($test_info) {
                 if ($test_info['target_type'] === 'class') {
@@ -183,38 +299,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         elseif ($_POST['action'] === 'get_questions_for_test' && isset($_POST['test_id'])) {
-            $stmt = $conn->prepare(
-                "SELECT tq.WID, qi.Sentence 
-                 FROM test_questions tq
-                 LEFT JOIN question_info qi ON tq.WID = qi.WID
-                 WHERE tq.test_id = ? ORDER BY tq.OID, tq.WID"
-            );
-            $stmt->bind_param("i", $_POST['test_id']);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            while ($row = $result->fetch_assoc())
-                $response[] = $row;
-            $stmt->close();
+            $test_id = (int)$_POST['test_id'];
+            if (teacher_result_test_context($conn, (string)$teacher_id, $test_id)) {
+                $stmt = $conn->prepare(
+                    "SELECT tq.WID, qi.Sentence
+                     FROM test_questions tq
+                     LEFT JOIN question_info qi ON tq.WID = qi.WID
+                     WHERE tq.test_id = ? ORDER BY tq.OID, tq.WID"
+                );
+                $stmt->bind_param("i", $test_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                while ($row = $result->fetch_assoc())
+                    $response[] = $row;
+                $stmt->close();
+            }
         }
 
         elseif ($_POST['action'] === 'get_questions_for_student' && isset($_POST['student_id'])) {
-            $stmt = $conn->prepare(
-                "SELECT DISTINCT l.WID, q.Sentence 
-                 FROM linedata l
-                 LEFT JOIN question_info q ON l.WID = q.WID
-                 WHERE l.UID = ? ORDER BY l.WID"
-            );
-            $stmt->bind_param("s", $_POST['student_id']);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            while ($row = $result->fetch_assoc())
-                $response[] = $row;
-            $stmt->close();
+            $allowed_students = teacher_result_filter_students($conn, (string)$teacher_id, [$_POST['student_id']]);
+            if (!empty($allowed_students)) {
+                $student_id = $allowed_students[0];
+                $stmt = $conn->prepare(
+                    "SELECT DISTINCT l.WID, q.Sentence
+                     FROM linedata l
+                     LEFT JOIN question_info q ON l.WID = q.WID
+                     WHERE l.UID = ? ORDER BY l.WID"
+                );
+                $stmt->bind_param("s", $student_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                while ($row = $result->fetch_assoc())
+                    $response[] = $row;
+                $stmt->close();
+            }
         }
 
         elseif ($_POST['action'] === 'get_test_results' && isset($_POST['test_id'], $_POST['student_ids'], $_POST['wids'])) {
             $student_ids = json_decode($_POST['student_ids']);
             $wids = json_decode($_POST['wids']);
+            $test_id = (int)$_POST['test_id'];
+            $test_context = teacher_result_test_context($conn, (string)$teacher_id, $test_id);
+            $student_ids = $test_context && is_array($student_ids)
+                ? teacher_result_test_students($conn, (string)$teacher_id, $test_context, $student_ids)
+                : [];
+            $wids = $test_context && is_array($wids) ? teacher_result_test_wids($conn, $test_id, $wids) : [];
             // ★★★ 新機能: 絞り込み条件を取得 ★★★
             $correctness_filter = $_POST['correctness'] ?? 'all';
             $hesitation_filter = $_POST['hesitation'] ?? 'all';
@@ -228,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $placeholders_students = implode(',', array_fill(0, count($student_ids), '?'));
                 $placeholders_wids = implode(',', array_fill(0, count($wids), '?'));
                 $types = 's' . 'i' . str_repeat('i', count($student_ids)) . str_repeat('i', count($wids));
-                $params = array_merge([$teacher_id, $_POST['test_id']], $student_ids, $wids);
+                $params = array_merge([$teacher_id, $test_id], $student_ids, $wids);
 
                 $stmt = $conn->prepare(
                     "SELECT l.UID as student_id, s.Name as student_name, l.WID, l.Date as date, l.attempt,
@@ -302,8 +431,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
         }
         elseif ($_POST['action'] === 'get_student_details' && isset($_POST['student_id'])) {
-            $student_id = $_POST['student_id'];
+            $allowed_students = teacher_result_filter_students($conn, (string)$teacher_id, [$_POST['student_id']]);
+            if (empty($allowed_students)) {
+                http_response_code(403);
+                echo json_encode(['error' => '対象学習者を確認できません。'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            $student_id = $allowed_students[0];
             $wids = isset($_POST['wids']) ? json_decode($_POST['wids']) : [];
+            $wids = is_array($wids) ? teacher_result_student_wids($conn, $student_id, $wids) : [];
             // ★★★ 新機能: 絞り込み条件を取得 ★★★
             $correctness_filter = $_POST['correctness'] ?? 'all';
             $hesitation_filter = $_POST['hesitation'] ?? 'all';
@@ -392,11 +528,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $gid_map[$row['GID']] = $row['Item'];
             $stmt_gid->close();
             $raw_data_stmt = $conn->prepare(
-                "SELECT l.WID, l.TF, l.attempt, qi.grammar, tr.Understand 
+                "SELECT l.WID, l.TF, l.attempt, l.test_id, qi.grammar, tr.Understand
          FROM linedata l 
          JOIN question_info qi ON l.WID = qi.WID 
          LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
-         WHERE l.UID = ?"
+         WHERE l.UID = ?
+         ORDER BY l.WID, l.attempt"
             );
             $raw_data_stmt->bind_param("ss", $teacher_id, $student_id);
             $raw_data_stmt->execute();
@@ -411,13 +548,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             continue;
                         $grammar_name = $gid_map[$gid];
                         if (!isset($temp_grammar_stats[$grammar_name])) {
-                            $temp_grammar_stats[$grammar_name] = ['total' => 0, 'correct' => 0, 'hesitated' => 0, 'estimated' => 0];
+                            $temp_grammar_stats[$grammar_name] = [
+                                'total' => 0,
+                                'correct' => 0,
+                                'hesitated' => 0,
+                                'estimated' => 0,
+                                'hesitated_attempts' => []
+                            ];
                         }
                         $temp_grammar_stats[$grammar_name]['total']++;
                         if ($attempt['TF'] == 1)
                             $temp_grammar_stats[$grammar_name]['correct']++;
-                        if ($attempt['Understand'] == 2)
+                        if ($attempt['Understand'] == 2) {
                             $temp_grammar_stats[$grammar_name]['hesitated']++;
+                            $temp_grammar_stats[$grammar_name]['hesitated_attempts'][] = [
+                                'WID' => $attempt['WID'],
+                                'attempt' => $attempt['attempt'],
+                                'test_id' => $attempt['test_id']
+                            ];
+                        }
                         if (in_array($attempt['Understand'], [2, 4]))
                             $temp_grammar_stats[$grammar_name]['estimated']++;
                     }
@@ -431,6 +580,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'hesitated_count' => $stats['hesitated'],
                     'correct_rate' => ($stats['total'] > 0) ? round(($stats['correct'] / $stats['total']) * 100, 2) : 0,
                     'hesitation_rate' => ($stats['estimated'] > 0) ? round(($stats['hesitated'] / $stats['estimated']) * 100, 2) : 0,
+                    'hesitated_attempts' => $stats['hesitated_attempts'],
                 ];
             }
             $response = ['summary' => $summary, 'attempts' => $attempts, 'grammar_stats' => $grammar_stats, 'all_questions' => $all_questions, 'student_levels' => $student_levels];
@@ -452,6 +602,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS 教師用ホーム画面</title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teacher_results_histogram.css?v=<?= filemtime(__DIR__ . '/../style/teacher_results_histogram.css') ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* フィルター用の追加スタイル */
@@ -706,6 +857,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         }
                     }
                     ?>
+                    <div id="class-results-histogram" aria-label="担当グループ（クラス）学習者結果のヒストグラム検索"></div>
                     <div id="class-results-container" class="results-container">
                         <p>学習者を選択して結果を表示してください。</p>
                     </div>
@@ -768,6 +920,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         <div id="test-controls" style="display:none;">
                             <button id="show-test-results-btn" class="action-button">結果を表示</button>
                         </div>
+                        <div id="test-results-histogram" aria-label="テスト結果のヒストグラム検索"></div>
                         <div id="test-results-container" class="results-container">
                             <p>テストを選択してください。</p>
                         </div>
@@ -831,6 +984,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <div id="student-controls" style="display:none;">
                         <button id="show-student-details-btn" class="action-button">選択した問題の結果を表示</button>
                     </div>
+                    <div id="student-results-histogram" aria-label="学習者詳細結果のヒストグラム検索"></div>
                     <div id="student-details-container" class="results-container">
                         <p>学習者を選択すると、解答した問題リストが表示されます。</p>
                     </div>
@@ -841,6 +995,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         </main>
     </div>
 
+    <script src="teacher-results-histogram.js?v=<?= filemtime(__DIR__ . '/teacher-results-histogram.js') ?>"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // 要素の取得
@@ -886,6 +1041,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             let classWIDFetchDebounceTimer;
             const logicFilterGroups = <?= json_encode($logic_filter_groups, JSON_UNESCAPED_UNICODE) ?>;
             const logicFilterStudentsByGroup = <?= json_encode((object)$logic_filter_students_by_group, JSON_UNESCAPED_UNICODE) ?>;
+            const resultHistogramFeatures = <?= json_encode(student_feature_columns(), JSON_UNESCAPED_UNICODE) ?>;
+            const resultHistogramFeatureMeta = <?= json_encode(feature_display_metadata(array_keys(student_feature_columns())), JSON_UNESCAPED_UNICODE) ?>;
+            const histogramBaseOptions = {
+                features: resultHistogramFeatures,
+                featureMeta: resultHistogramFeatureMeta,
+                groups: logicFilterGroups,
+                groupStudents: logicFilterStudentsByGroup
+            };
+            let histogramDetailRequestSequence = 0;
+
+            const classResultsHistogram = window.TeacherResultsHistogram?.create({
+                ...histogramBaseOptions,
+                root: '#class-results-histogram',
+                scope: 'class',
+                onSubmit: async ({ uids, wids, correctness, hesitation }) => {
+                    classResultsContainer.innerHTML = '<p class="loading">ヒストグラム条件の結果を読み込んでいます...</p>';
+                    try {
+                        const results = await fetchData({
+                            action: 'get_class_results',
+                            student_ids: JSON.stringify(uids),
+                            wids: JSON.stringify(wids),
+                            correctness,
+                            hesitation
+                        });
+                        renderClassResults(results);
+                    } catch (error) {
+                        classResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
+                    }
+                }
+            });
+
+            const testResultsHistogram = window.TeacherResultsHistogram?.create({
+                ...histogramBaseOptions,
+                root: '#test-results-histogram',
+                scope: 'test',
+                getTestId: () => testSelect?.value || '',
+                onSubmit: async ({ uids, wids, correctness, hesitation }) => {
+                    const testId = testSelect?.value || '';
+                    if (!testId) return alert('テストを選択してください。');
+                    testResultsContainer.innerHTML = '<p class="loading">ヒストグラム条件の結果を読み込んでいます...</p>';
+                    try {
+                        const results = await fetchData({
+                            action: 'get_test_results',
+                            test_id: testId,
+                            student_ids: JSON.stringify(uids),
+                            wids: JSON.stringify(wids),
+                            correctness,
+                            hesitation
+                        });
+                        renderTestResults(results);
+                    } catch (error) {
+                        testResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
+                    }
+                }
+            });
+
+            const studentResultsHistogram = window.TeacherResultsHistogram?.create({
+                ...histogramBaseOptions,
+                root: '#student-results-histogram',
+                scope: 'student',
+                onDetailStudentChange: async (studentId) => {
+                    const requestSequence = ++histogramDetailRequestSequence;
+                    studentDetailsContainer.innerHTML = studentId
+                        ? '<p>問題を選択して結果を表示してください。</p>'
+                        : '<p>ヒストグラムの候補から学習者を選択してください。</p>';
+                    grammarAnalysisWrapper.style.display = 'none';
+                    grammarAnalysisWrapper.innerHTML = '';
+                    if (!studentId) return;
+                    try {
+                        const data = await fetchData({ action: 'get_student_details', student_id: studentId });
+                        if (requestSequence !== histogramDetailRequestSequence) return;
+                        renderGrammarAnalysis(data.grammar_stats, data.student_levels, studentId);
+                    } catch (error) {
+                        if (requestSequence !== histogramDetailRequestSequence) return;
+                        grammarAnalysisWrapper.innerHTML = '<p class="error">分析データの読み込みに失敗しました。</p>';
+                        grammarAnalysisWrapper.style.display = 'block';
+                    }
+                },
+                onSubmit: async ({ studentId, wids, correctness, hesitation }) => {
+                    studentDetailsContainer.innerHTML = '<p class="loading">ヒストグラム条件の詳細を読み込んでいます...</p>';
+                    try {
+                        const data = await fetchData({
+                            action: 'get_student_details',
+                            student_id: studentId,
+                            wids: JSON.stringify(wids),
+                            correctness,
+                            hesitation
+                        });
+                        renderStudentProblemResults(data, studentId);
+                        renderGrammarAnalysis(data.grammar_stats, data.student_levels, studentId);
+                    } catch (error) {
+                        studentDetailsContainer.innerHTML = '<p class="error">詳細の読み込みに失敗しました。</p>';
+                    }
+                }
+            });
 
             function setupStudentLogicFilter({ panel, builder, summary, studentContainer, onApplied }) {
                 if (!panel || !builder || !summary || !studentContainer) return;
@@ -1196,6 +1446,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if (testSelect) {
                 testSelect.addEventListener('change', async function () {
                     const testId = this.value;
+                    testResultsHistogram?.resetContext();
                     studentCheckboxContainer.innerHTML = '';
                     testQuestionCheckboxContainer.innerHTML = '';
                     testControls.style.display = 'none';
@@ -1253,7 +1504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     questionCheckboxContainerStudent.innerHTML = '<p class="loading">問題リストと分析データを読み込んでいます...</p>';
                     try {
                         const data = await fetchData({ action: 'get_student_details', student_id: studentId });
-                        renderGrammarAnalysis(data.grammar_stats, data.student_levels);
+                        renderGrammarAnalysis(data.grammar_stats, data.student_levels, studentId);
                         renderCheckboxes(questionCheckboxContainerStudent, data.all_questions, 'question', '問題');
                         if (data.all_questions && data.all_questions.length > 0) {
                             studentControls.style.display = 'block';
@@ -1564,7 +1815,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             testResultsContainer.addEventListener('click', (e) => handleSort(e, currentTestSort, renderTestTable));
             studentDetailsContainer.addEventListener('click', (e) => handleSort(e, currentStudentDetailsSort, () => renderStudentDetailsTable()));
 
-            function renderGrammarAnalysis(grammarStats, studentLevels) {
+            function renderGrammarAnalysis(grammarStats, studentLevels, targetStudentId = studentSelect?.value || '') {
                 grammarAnalysisWrapper.style.display = 'block';
 
                 const grammarInfoPopupHtml = `
@@ -1595,13 +1846,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 grammarHtml += `<div class="grammar-analysis-container"><div class="grammar-table-container">
-                <table><thead><tr><th>文法項目</th><th>総解答数</th><th>正解数</th><th>迷い数</th><th>正解率</th><th>迷い率</th></tr></thead><tbody>`;
+                <table><thead><tr><th>文法項目</th><th>総解答数</th><th>正解数</th><th>迷い数</th><th>迷い問題（軌跡再現）</th><th>正解率</th><th>迷い率</th></tr></thead><tbody>`;
                 grammarStats.forEach(stat => {
+                    const hesitatedAttempts = Array.isArray(stat.hesitated_attempts) ? stat.hesitated_attempts : [];
+                    const hesitantAttemptLinks = hesitatedAttempts.length > 0
+                        ? `<div style="display: flex; flex-wrap: wrap; gap: 6px;">${hesitatedAttempts.map(attempt => {
+                            const params = new URLSearchParams({
+                                UID: targetStudentId,
+                                WID: attempt.WID,
+                                test_id: attempt.test_id ?? '',
+                                LogID: attempt.attempt
+                            });
+                            return `<a href="../mousemove/mousemove.php?${params.toString()}" target="_blank" rel="noopener noreferrer" class="link-button">WID:${attempt.WID}（${attempt.attempt}回目）</a>`;
+                        }).join('')}</div>`
+                        : '—';
                     grammarHtml += `<tr>
                     <td>${stat.grammar_name}</td>
                     <td>${stat.total_attempts}</td>
                     <td>${stat.correct_count}</td>
                     <td>${stat.hesitated_count}</td>
+                    <td style="white-space: normal;">${hesitantAttemptLinks}</td>
                     <td>${stat.correct_rate.toFixed(2)}%</td>
                     <td>${stat.hesitation_rate.toFixed(2)}%</td>
                 </tr>`;

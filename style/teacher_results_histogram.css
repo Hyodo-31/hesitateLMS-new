@@ -1,0 +1,359 @@
+.trh-root {
+    margin: 18px 0;
+    color: #1f2937;
+}
+
+.trh-root *,
+.trh-root *::before,
+.trh-root *::after {
+    box-sizing: border-box;
+}
+
+.trh-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #1e293b;
+    text-align: left;
+    cursor: pointer;
+}
+
+.trh-toggle > span:first-child {
+    display: grid;
+    gap: 4px;
+}
+
+.trh-toggle strong {
+    font-size: 1rem;
+}
+
+.trh-toggle small {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.trh-toggle-icon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    border-right: 2px solid #475569;
+    border-bottom: 2px solid #475569;
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform .2s ease;
+}
+
+.trh-toggle[aria-expanded="true"] .trh-toggle-icon {
+    transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.trh-panel {
+    margin-top: 10px;
+    padding: 16px;
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.trh-panel[hidden],
+.trh-root [hidden] {
+    display: none !important;
+}
+
+.trh-status {
+    margin: 0;
+    padding: 12px;
+    border-radius: 8px;
+    background: #eef6ff;
+    color: #1d4ed8;
+}
+
+.trh-status.is-error,
+.trh-root .is-error {
+    color: #b91c1c;
+}
+
+.trh-heading h4,
+.trh-heading p,
+.trh-source h5,
+.trh-chart-card h5,
+.trh-result h5,
+.trh-bar-logic h5 {
+    margin-top: 0;
+}
+
+.trh-heading p,
+.trh-bar-logic > p {
+    color: #64748b;
+}
+
+.trh-source-grid,
+.trh-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.trh-source,
+.trh-chart-card,
+.trh-bar-logic,
+.trh-result {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #dbe3ec;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.trh-bar-logic,
+.trh-result,
+.trh-chart-grid {
+    margin-top: 14px;
+}
+
+.trh-chart-card:last-child {
+    grid-column: 1 / -1;
+}
+
+.trh-logic {
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #dbe3ec;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.trh-toolbar,
+.trh-actions,
+.trh-chart-controls,
+.trh-result-filters,
+.trh-saved-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.trh-root button,
+.trh-root select {
+    min-height: 34px;
+    border: 1px solid #b8c4d1;
+    border-radius: 6px;
+    background: #fff;
+    color: #243447;
+}
+
+.trh-root button {
+    padding: 5px 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.trh-root button:disabled {
+    cursor: wait;
+    opacity: .65;
+}
+
+.trh-root .trh-primary {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #fff;
+}
+
+.trh-toolbar label,
+.trh-chart-controls label,
+.trh-result-filters label,
+.trh-detail-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+}
+
+.trh-builder {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    min-height: 48px;
+    margin-top: 10px;
+    padding: 9px;
+    border: 1px solid #dbe3ec;
+    border-radius: 7px;
+    background: #fff;
+}
+
+.trh-token {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 5px 4px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+}
+
+.trh-token.and,
+.trh-token.or {
+    border-color: #99f6e4;
+    background: #ecfeff;
+}
+
+.trh-token.not {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.trh-list-controls {
+    margin: 10px 0 6px;
+    font-weight: 700;
+}
+
+.trh-check-list {
+    max-height: 280px;
+    overflow: auto;
+    padding: 8px;
+    border: 1px solid #dbe3ec;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.trh-class-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 7px 0;
+    padding: 8px;
+    border-radius: 6px;
+    background: #eef2f7;
+}
+
+.trh-check-item {
+    display: block;
+    padding: 6px 8px;
+    border-bottom: 1px solid #edf1f5;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.trh-saved-heading {
+    justify-content: space-between;
+}
+
+.trh-saved-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.trh-saved {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 5px 7px;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    background: #eff6ff;
+}
+
+.trh-saved > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trh-chart-controls {
+    align-items: flex-end;
+}
+
+.trh-chart-controls label,
+.trh-result-filters label {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.trh-canvas {
+    position: relative;
+    height: 330px;
+    margin-top: 12px;
+}
+
+.trh-canvas canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.trh-root .is-pending {
+    color: #b45309;
+    font-weight: 700;
+}
+
+.trh-detail-select {
+    width: min(100%, 620px);
+    margin: 8px 0;
+}
+
+.trh-detail-select select {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    .trh-source-grid,
+    .trh-chart-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .trh-chart-card:last-child {
+        grid-column: auto;
+    }
+
+    .trh-class-header {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 560px) {
+    .trh-panel {
+        padding: 10px;
+    }
+
+    .trh-source,
+    .trh-chart-card,
+    .trh-bar-logic,
+    .trh-result {
+        padding: 10px;
+    }
+
+    .trh-toolbar,
+    .trh-actions,
+    .trh-chart-controls,
+    .trh-result-filters {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .trh-toolbar label,
+    .trh-chart-controls label,
+    .trh-result-filters label,
+    .trh-detail-select {
+        width: 100%;
+    }
+
+    .trh-root select,
+    .trh-root button {
+        max-width: 100%;
+    }
+
+    .trh-canvas {
+        height: 290px;
+    }
+}
+
