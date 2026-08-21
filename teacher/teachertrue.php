@@ -742,6 +742,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 <div class="grades-section">
                     <h3>担当グループ(クラス)学習者の結果表示</h3>
+                    <div class="result-search-mode-control">
+                        <label for="class-result-search-mode">選択方法</label>
+                        <select id="class-result-search-mode" class="result-search-mode-select" data-checkbox-panel="class-checkbox-search-panel" data-histogram-panel="class-histogram-search-panel">
+                            <option value="checkbox" selected>チェックボックスで選択</option>
+                            <option value="histogram">ヒストグラムで検索</option>
+                        </select>
+                    </div>
+                    <div id="class-checkbox-search-panel" class="result-search-mode-panel">
                     <?php
                     if ($teacher_id) {
                         $teacher_classes = [];
@@ -857,7 +865,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         }
                     }
                     ?>
-                    <div id="class-results-histogram" aria-label="担当グループ（クラス）学習者結果のヒストグラム検索"></div>
+                    </div>
+                    <div id="class-histogram-search-panel" class="result-search-mode-panel" hidden>
+                        <div id="class-results-histogram" aria-label="担当グループ（クラス）学習者結果のヒストグラム検索"></div>
+                    </div>
                     <div id="class-results-container" class="results-container">
                         <p>学習者を選択して結果を表示してください。</p>
                     </div>
@@ -896,6 +907,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <div class="result-search-mode-control">
+                            <label for="test-result-search-mode">選択方法</label>
+                            <select id="test-result-search-mode" class="result-search-mode-select" data-checkbox-panel="test-checkbox-search-panel" data-histogram-panel="test-histogram-search-panel">
+                                <option value="checkbox" selected>チェックボックスで選択</option>
+                                <option value="histogram">ヒストグラムで検索</option>
+                            </select>
+                        </div>
+                        <div id="test-checkbox-search-panel" class="result-search-mode-panel">
                         <div id="student-checkbox-container" class="checkbox-section"></div>
                         <div id="test-question-checkbox-container" class="checkbox-section" style="display:none;"></div>
                         
@@ -920,7 +939,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         <div id="test-controls" style="display:none;">
                             <button id="show-test-results-btn" class="action-button">結果を表示</button>
                         </div>
-                        <div id="test-results-histogram" aria-label="テスト結果のヒストグラム検索"></div>
+                        </div>
+                        <div id="test-histogram-search-panel" class="result-search-mode-panel" hidden>
+                            <div id="test-results-histogram" aria-label="テスト結果のヒストグラム検索"></div>
+                        </div>
                         <div id="test-results-container" class="results-container">
                             <p>テストを選択してください。</p>
                         </div>
@@ -929,6 +951,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 <div class="grades-section">
                     <h3>学習者ごとの詳細結果</h3>
+                    <div class="result-search-mode-control">
+                        <label for="student-result-search-mode">選択方法</label>
+                        <select id="student-result-search-mode" class="result-search-mode-select" data-checkbox-panel="student-checkbox-search-panel" data-histogram-panel="student-histogram-search-panel">
+                            <option value="checkbox" selected>チェックボックスで選択</option>
+                            <option value="histogram">ヒストグラムで検索</option>
+                        </select>
+                    </div>
+                    <div id="student-checkbox-search-panel" class="result-search-mode-panel">
                     <div class="controls">
                         <label for="student-select">学習者を選択:</label>
                         <select id="student-select" name="student-select">
@@ -984,7 +1014,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <div id="student-controls" style="display:none;">
                         <button id="show-student-details-btn" class="action-button">選択した問題の結果を表示</button>
                     </div>
-                    <div id="student-results-histogram" aria-label="学習者詳細結果のヒストグラム検索"></div>
+                    </div>
+                    <div id="student-histogram-search-panel" class="result-search-mode-panel" hidden>
+                        <div id="student-results-histogram" aria-label="学習者詳細結果のヒストグラム検索"></div>
+                    </div>
                     <div id="student-details-container" class="results-container">
                         <p>学習者を選択すると、解答した問題リストが表示されます。</p>
                     </div>
@@ -1135,6 +1168,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         studentDetailsContainer.innerHTML = '<p class="error">詳細の読み込みに失敗しました。</p>';
                     }
                 }
+            });
+
+            document.querySelectorAll('.result-search-mode-select').forEach(select => {
+                const syncSearchMode = () => {
+                    const histogramActive = select.value === 'histogram';
+                    const checkboxPanel = document.getElementById(select.dataset.checkboxPanel || '');
+                    const histogramPanel = document.getElementById(select.dataset.histogramPanel || '');
+                    if (checkboxPanel) checkboxPanel.hidden = histogramActive;
+                    if (histogramPanel) histogramPanel.hidden = !histogramActive;
+                };
+                select.addEventListener('change', syncSearchMode);
+                syncSearchMode();
             });
 
             function setupStudentLogicFilter({ panel, builder, summary, studentContainer, onApplied }) {

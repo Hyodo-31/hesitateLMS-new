@@ -736,10 +736,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedUidBarsList = document.getElementById('histogram-saved-uid-bars-list');
     const savedWidBarsList = document.getElementById('histogram-saved-wid-bars-list');
     const widFilterApplySummary = document.getElementById('histogram-wid-filter-apply-summary');
+    const widBarResultApplyButton = document.getElementById('apply-histogram-wid-bar-result');
 
-    const markWidFilterPending = () => {
+    const markWidFilterPending = (message = 'WIDチェックに未反映の変更があります。「選択したWIDをUID検索へ反映」を押してください。') => {
         if (!widFilterApplySummary) return;
-        widFilterApplySummary.textContent = 'WID選択に未反映の変更があります。「検索」を押すとヒストグラムと特徴量平均へ反映されます。';
+        widFilterApplySummary.textContent = message;
         widFilterApplySummary.classList.add('is-pending');
     };
     const renderSavedUidBars = () => {
@@ -1008,22 +1009,20 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     barLogicControllers.uid = setupBarLogic('uid', (result) => renderHistogramStudentList(result));
-    barLogicControllers.wid = setupBarLogic('wid', (result, conditionCount) => {
-        if (conditionCount === 0 && !applyingWidBarResult) {
-            applyingWidBarResult = true;
-            document.querySelectorAll('.histogram-wid-checkbox').forEach((checkbox) => {
-                checkbox.checked = false;
-            });
-            applyingWidBarResult = false;
-            markWidFilterPending();
-            return;
-        }
+    barLogicControllers.wid = setupBarLogic('wid', (_result, conditionCount) => {
+        if (widBarResultApplyButton) widBarResultApplyButton.disabled = conditionCount === 0;
+    });
+
+    widBarResultApplyButton?.addEventListener('click', () => {
+        const result = barLogicControllers.wid?.lastResult;
+        if (!(result instanceof Set)) return;
         applyingWidBarResult = true;
         document.querySelectorAll('.histogram-wid-checkbox').forEach((checkbox) => {
             checkbox.checked = result.has(String(checkbox.value));
         });
         applyingWidBarResult = false;
-        markWidFilterPending();
+        markWidFilterPending(`論理式の結果（${result.size}件）をWIDチェックへ反映しました。続けてUID検索への反映ボタンを押してください。`);
+        scheduleHistogramRendering();
     });
 
     const clearEntityBarConditions = (entity) => {
@@ -1039,16 +1038,19 @@ document.addEventListener('DOMContentLoaded', () => {
             checkbox.checked = true;
         });
         markWidFilterPending();
+        scheduleHistogramRendering();
     });
     document.getElementById('histogram-deselect-all-wid-btn')?.addEventListener('click', () => {
         document.querySelectorAll('.histogram-wid-checkbox').forEach((checkbox) => {
             checkbox.checked = false;
         });
         markWidFilterPending();
+        scheduleHistogramRendering();
     });
     document.getElementById('histogram-wid-checkbox-list')?.addEventListener('change', (event) => {
         if (!event.target.matches('.histogram-wid-checkbox') || applyingWidBarResult) return;
         markWidFilterPending();
+        scheduleHistogramRendering();
     });
     savedUidBarsList?.addEventListener('click', (event) => {
         const deleteButton = event.target.closest('[data-saved-uid-bar-id]');
@@ -1077,11 +1079,17 @@ document.addEventListener('DOMContentLoaded', () => {
         scheduleHistogramRendering();
     });
     document.getElementById('apply-histogram-wid-filter')?.addEventListener('click', () => {
-        appliedHistogramWids = getCheckedIds('.histogram-wid-checkbox');
+        const nextWids = getCheckedIds('.histogram-wid-checkbox');
+        const changed = nextWids.size !== appliedHistogramWids.size
+            || [...nextWids].some((wid) => !appliedHistogramWids.has(wid));
+        appliedHistogramWids = nextWids;
         if (widFilterApplySummary) {
-            widFilterApplySummary.textContent = `${appliedHistogramWids.size}件のWIDをヒストグラムと特徴量平均へ反映しました。`;
+            widFilterApplySummary.textContent = `${appliedHistogramWids.size}件のWIDをUID検索と特徴量平均へ反映しました。`;
             widFilterApplySummary.classList.remove('is-pending');
         }
+        if (changed) clearEntityBarConditions('uid');
+        const uidWorkflowStep = document.getElementById('histogram-uid-workflow-step');
+        if (uidWorkflowStep) uidWorkflowStep.open = true;
         scheduleHistogramRendering();
         renderHistogramStudentList(barLogicControllers.uid?.lastResult || new Set());
     });
@@ -1176,14 +1184,16 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     };
 
-    const histogramCharts = { uidFeature: null, widFeature: null, metric: null };
+    const histogramCharts = { uidFeature: null, widFeature: null };
     const destroyChart = (key) => {
         histogramCharts[key]?.destroy();
         histogramCharts[key] = null;
     };
     const aggregateFeaturePoints = (entity, feature, uidScope, widScope) => {
         const selectedUids = uidScope === 'checked' ? getCheckedIds('.histogram-uid-checkbox') : null;
-        const selectedWids = widScope === 'checked' ? appliedHistogramWids : null;
+        const selectedWids = widScope === 'checked'
+            ? (entity === 'wid' ? getCheckedIds('.histogram-wid-checkbox') : appliedHistogramWids)
+            : null;
         if (selectedUids && selectedUids.size === 0) return { points: [], reason: '選択したUIDがありません。' };
         if (selectedWids && selectedWids.size === 0) return { points: [], reason: '選択したWIDがありません。' };
         const grouped = new Map();
@@ -1208,7 +1218,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const aggregateMetricPoints = (entity, metric, uidScope, widScope) => {
         const selectedUids = uidScope === 'checked' ? getCheckedIds('.histogram-uid-checkbox') : null;
-        const selectedWids = widScope === 'checked' ? appliedHistogramWids : null;
+        const selectedWids = widScope === 'checked'
+            ? (entity === 'wid' ? getCheckedIds('.histogram-wid-checkbox') : appliedHistogramWids)
+            : null;
         if (selectedUids && selectedUids.size === 0) return { points: [], reason: '選択したUIDがありません。' };
         if (selectedWids && selectedWids.size === 0) return { points: [], reason: '選択したWIDがありません。' };
         const grouped = new Map();
@@ -1346,71 +1358,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const widFeatureSelect = document.getElementById('wid-feature-histogram-feature');
         const widUidScopeSelect = document.getElementById('wid-feature-histogram-uid-scope');
         const widScopeSelect = document.getElementById('wid-feature-histogram-wid-scope');
-        const metricSelect = document.getElementById('metric-histogram-metric');
-        const metricEntitySelect = document.getElementById('metric-histogram-entity');
-        const metricUidScopeSelect = document.getElementById('metric-histogram-uid-scope');
-        const metricWidScopeSelect = document.getElementById('metric-histogram-wid-scope');
-        if (!uidFeatureSelect || !widFeatureSelect || !metricSelect || !metricEntitySelect) return;
+        if (!uidFeatureSelect || !widFeatureSelect) return;
 
         if (!histogramsInitialized) {
-            const featureHtml = featureOptions.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`).join('');
+            const featureHtml = `<optgroup label="特徴量">${featureOptions.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)} (${escapeHtml(option.value)})</option>`).join('')}</optgroup><optgroup label="結果指標"><option value="__accuracy">正答率 (%)</option><option value="__hesitation">迷い率 (%)</option></optgroup>`;
             uidFeatureSelect.innerHTML = featureHtml;
             widFeatureSelect.innerHTML = featureHtml;
         }
         const renderAll = () => {
-            const uidFeature = uidFeatureSelect.value;
-            const uidFeatureResult = aggregateFeaturePoints('uid', uidFeature, uidScopeSelect.value, uidWidScopeSelect.value);
-            renderChart({
-                key: 'uidFeature',
-                canvas: document.getElementById('uid-feature-histogram-chart'),
-                summary: document.getElementById('uid-feature-histogram-summary'),
-                points: uidFeatureResult.points,
-                title: `${featureOptions.find((option) => option.value === uidFeature)?.label || uidFeature}のUID分布`,
-                xTitle: `UIDごとの平均値 (${getFeatureMeta(uidFeature).unit || '-'})`,
-                entity: 'uid',
-                color: 'rgba(20, 184, 166, 0.62)',
-                borderColor: 'rgba(15, 118, 110, 1)',
-                signature: `${uidFeature}|${uidScopeSelect.value}|${uidWidScopeSelect.value}`,
-                formatValue: (value) => `${formatHistogramValue(value)}${getFeatureMeta(uidFeature).unit || ''}`,
-            });
-            if (uidFeatureResult.points.length === 0) document.getElementById('uid-feature-histogram-summary').textContent = uidFeatureResult.reason;
-
-            const widFeature = widFeatureSelect.value;
-            const widFeatureResult = aggregateFeaturePoints('wid', widFeature, widUidScopeSelect.value, widScopeSelect.value);
-            renderChart({
-                key: 'widFeature',
-                canvas: document.getElementById('wid-feature-histogram-chart'),
-                summary: document.getElementById('wid-feature-histogram-summary'),
-                points: widFeatureResult.points,
-                title: `${featureOptions.find((option) => option.value === widFeature)?.label || widFeature}のWID分布`,
-                xTitle: `WIDごとの平均値 (${getFeatureMeta(widFeature).unit || '-'})`,
-                entity: 'wid',
-                color: 'rgba(59, 130, 246, 0.58)',
-                borderColor: 'rgba(29, 78, 216, 1)',
-                signature: `${widFeature}|${widUidScopeSelect.value}|${widScopeSelect.value}`,
-                formatValue: (value) => `${formatHistogramValue(value)}${getFeatureMeta(widFeature).unit || ''}`,
-            });
-            if (widFeatureResult.points.length === 0) document.getElementById('wid-feature-histogram-summary').textContent = widFeatureResult.reason;
-
-            const metric = metricSelect.value;
-            const entity = metricEntitySelect.value;
-            const metricResult = aggregateMetricPoints(entity, metric, metricUidScopeSelect.value, metricWidScopeSelect.value);
-            const metricLabel = metric === 'accuracy' ? '正答率' : '迷い率';
-            renderChart({
-                key: 'metric',
-                canvas: document.getElementById('metric-histogram-chart'),
-                summary: document.getElementById('metric-histogram-summary'),
-                points: metricResult.points,
-                title: `${entity.toUpperCase()}ごとの${metricLabel}分布`,
-                xTitle: `${metricLabel} (%)`,
-                entity,
-                color: metric === 'accuracy' ? 'rgba(34, 197, 94, 0.58)' : 'rgba(249, 115, 22, 0.58)',
-                borderColor: metric === 'accuracy' ? 'rgba(21, 128, 61, 1)' : 'rgba(194, 65, 12, 1)',
-                signature: `${metric}|${entity}|${metricUidScopeSelect.value}|${metricWidScopeSelect.value}`,
-                percentage: true,
-                formatValue: (value) => `${formatHistogramValue(value)}%`,
-            });
-            if (metricResult.points.length === 0) document.getElementById('metric-histogram-summary').textContent = metricResult.reason;
+            const renderEntityDistribution = (entity, featureSelect, uidScopeSelect, widScopeSelect) => {
+                const selected = featureSelect.value;
+                const metric = selected === '__accuracy' ? 'accuracy' : selected === '__hesitation' ? 'hesitation' : '';
+                const result = metric
+                    ? aggregateMetricPoints(entity, metric, uidScopeSelect.value, widScopeSelect.value)
+                    : aggregateFeaturePoints(entity, selected, uidScopeSelect.value, widScopeSelect.value);
+                const label = metric
+                    ? (metric === 'accuracy' ? '正答率' : '迷い率')
+                    : (featureOptions.find((option) => option.value === selected)?.label || selected);
+                const unit = metric ? '%' : (getFeatureMeta(selected).unit || '-');
+                renderChart({
+                    key: `${entity}Feature`,
+                    canvas: document.getElementById(`${entity}-feature-histogram-chart`),
+                    summary: document.getElementById(`${entity}-feature-histogram-summary`),
+                    points: result.points,
+                    title: `${label}の${entity.toUpperCase()}分布`,
+                    xTitle: `${entity.toUpperCase()}ごとの平均値 (${unit})`,
+                    entity,
+                    color: entity === 'uid' ? 'rgba(20, 184, 166, 0.62)' : 'rgba(59, 130, 246, 0.58)',
+                    borderColor: entity === 'uid' ? 'rgba(15, 118, 110, 1)' : 'rgba(29, 78, 216, 1)',
+                    signature: `${selected}|${uidScopeSelect.value}|${widScopeSelect.value}`,
+                    percentage: Boolean(metric),
+                    formatValue: (value) => `${formatHistogramValue(value)}${metric ? '%' : (getFeatureMeta(selected).unit || '')}`,
+                });
+                if (result.points.length === 0) document.getElementById(`${entity}-feature-histogram-summary`).textContent = result.reason;
+            };
+            renderEntityDistribution('wid', widFeatureSelect, widUidScopeSelect, widScopeSelect);
+            renderEntityDistribution('uid', uidFeatureSelect, uidScopeSelect, uidWidScopeSelect);
         };
         scheduleHistogramRendering = () => {
             if (!histogramsInitialized) return;
@@ -1428,13 +1411,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 [widFeatureSelect, 'widFeature'],
                 [widUidScopeSelect, 'widFeature'],
                 [widScopeSelect, 'widFeature'],
-                [metricSelect, 'metric'],
-                [metricEntitySelect, 'metric'],
-                [metricUidScopeSelect, 'metric'],
-                [metricWidScopeSelect, 'metric'],
             ].forEach(([element]) => element?.addEventListener('change', () => {
                 renderAll();
             }));
+            document.querySelectorAll('.histogram-workflow-step').forEach((details) => {
+                details.addEventListener('toggle', () => {
+                    if (details.open) scheduleHistogramRendering();
+                });
+            });
             histogramsInitialized = true;
         }
         renderAll();
@@ -1449,6 +1433,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const syncStudentListDisplayMode = () => {
         const histogramActive = studentListDisplayMode?.value === 'histogram';
+        const checkboxSearchPanel = document.getElementById('checkbox-search-method-panel');
+        const histogramSearchPanel = document.getElementById('histogram-search-method-panel');
+        if (checkboxSearchPanel) checkboxSearchPanel.hidden = histogramActive;
+        if (histogramSearchPanel) histogramSearchPanel.hidden = !histogramActive;
+        if (histogramActive && document.getElementById('histogram-conditions-toggle')?.getAttribute('aria-expanded') === 'true') {
+            initializeHistograms();
+        }
         if (studentList) {
             studentList.hidden = histogramActive;
             studentList.querySelectorAll('input[name="students[]"]').forEach((input) => {

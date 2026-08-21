@@ -186,6 +186,30 @@
     font-size: 0.98rem;
 }
 
+.student-search-mode-control {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 18px;
+    padding: 12px 14px;
+    border: 1px solid var(--teacher-form-border);
+    border-radius: 9px;
+    background-color: var(--teacher-form-soft);
+}
+
+.student-search-mode-control label {
+    font-weight: 800;
+}
+
+.student-search-mode-control select {
+    min-width: min(100%, 280px);
+}
+
+.filter-conditions-accordion[hidden] {
+    display: none !important;
+}
+
 .logic-filter-panel {
     display: grid;
     gap: 10px;
@@ -694,6 +718,122 @@
     line-height: 1.6;
 }
 
+.histogram-workflow-step {
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background-color: #fff;
+}
+
+.histogram-workflow-summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 16px;
+    background-color: #eaf3ff;
+    color: #1e3a5f;
+    cursor: pointer;
+    list-style: none;
+}
+
+.histogram-workflow-summary::-webkit-details-marker {
+    display: none;
+}
+
+.histogram-workflow-summary > span:nth-child(2) {
+    display: grid;
+    gap: 3px;
+}
+
+.histogram-workflow-summary small {
+    color: #52677e;
+    font-weight: 500;
+}
+
+.histogram-workflow-number {
+    display: inline-grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    flex: 0 0 32px;
+    border-radius: 50%;
+    background-color: #2563eb;
+    color: #fff;
+    font-weight: 800;
+}
+
+.histogram-workflow-icon {
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid #475569;
+    border-bottom: 2px solid #475569;
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform 0.2s ease;
+}
+
+.histogram-workflow-step[open] .histogram-workflow-icon {
+    transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.histogram-workflow-body {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+    background-color: #f8fafc;
+}
+
+.histogram-workflow-stage,
+.histogram-workflow-result {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #dbe3ec;
+    border-radius: 10px;
+    background-color: #fff;
+}
+
+.histogram-stage-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.histogram-stage-heading > span:not(.histogram-workflow-number) {
+    display: inline-grid;
+    min-width: 30px;
+    height: 30px;
+    place-items: center;
+    border-radius: 7px;
+    background-color: #e0ecff;
+    color: #1d4ed8;
+    font-weight: 800;
+}
+
+.histogram-stage-heading h4,
+.histogram-stage-heading p {
+    margin: 0;
+}
+
+.histogram-stage-heading p {
+    margin-top: 4px;
+    color: #64748b;
+}
+
+.histogram-workflow-stage .histogram-card {
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+}
+
+.histogram-workflow-result {
+    border-color: #bfdbfe;
+}
+
+.histogram-workflow-result .histogram-stage-heading {
+    margin-bottom: 0;
+}
+
 .histogram-axis-details {
     width: min(100%, 480px);
     padding: 10px 12px;
@@ -742,6 +882,17 @@
     max-height: 330px;
     overflow-y: auto;
     padding-right: 6px;
+}
+
+.histogram-uid-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    align-items: start;
+    gap: 8px 14px;
+}
+
+.histogram-uid-checkbox-grid .class-group-header {
+    grid-column: 1 / -1;
 }
 
 .histogram-wid-buttons {
@@ -921,6 +1072,11 @@
     background-color: #eff6ff;
 }
 
+.histogram-wid-apply-actions > div {
+    display: grid;
+    gap: 4px;
+}
+
 .histogram-wid-filter-apply-summary {
     color: #1e3a8a;
     font-size: 0.9rem;
@@ -1035,9 +1191,16 @@
 }
 
 .student-result-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     align-self: center;
     color: #1f2937;
     font-weight: 800;
+}
+
+.histogram-workflow-number[hidden] {
+    display: none !important;
 }
 
 .student-list-display-mode-label {
@@ -1393,6 +1556,25 @@
 }
 
 @media (max-width: 768px) {
+    .student-search-mode-control {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .student-search-mode-control select {
+        width: 100%;
+    }
+
+    .histogram-workflow-body,
+    .histogram-workflow-stage,
+    .histogram-workflow-result {
+        padding: 10px;
+    }
+
+    .histogram-workflow-summary {
+        padding: 12px;
+    }
+
     .teacher-form-page {
         max-width: none;
     }
