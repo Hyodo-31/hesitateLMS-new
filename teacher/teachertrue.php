@@ -951,13 +951,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 <div class="grades-section">
                     <h3>学習者ごとの詳細結果</h3>
-                    <div class="result-search-mode-control">
-                        <label for="student-result-search-mode">選択方法</label>
-                        <select id="student-result-search-mode" class="result-search-mode-select" data-checkbox-panel="student-checkbox-search-panel" data-histogram-panel="student-histogram-search-panel">
-                            <option value="checkbox" selected>チェックボックスで選択</option>
-                            <option value="histogram">ヒストグラムで検索</option>
-                        </select>
-                    </div>
                     <div id="student-checkbox-search-panel" class="result-search-mode-panel">
                     <div class="controls">
                         <label for="student-select">学習者を選択:</label>
@@ -1015,20 +1008,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         <button id="show-student-details-btn" class="action-button">選択した問題の結果を表示</button>
                     </div>
                     </div>
-                    <div id="student-histogram-search-panel" class="result-search-mode-panel" hidden>
-                        <div id="student-results-histogram" aria-label="学習者詳細結果のヒストグラム検索"></div>
-                    </div>
                     <div id="student-details-container" class="results-container">
                         <p>学習者を選択すると、解答した問題リストが表示されます。</p>
                     </div>
                     <div id="grammar-analysis-wrapper" style="display: none; margin-top: 25px;">
                     </div>
+                    <div id="student-wid-analysis" class="trh-root swha-root" hidden aria-label="学習者が解いた問題のWID分布分析"></div>
                 </div>
             </section>
         </main>
     </div>
 
     <script src="teacher-results-histogram.js?v=<?= filemtime(__DIR__ . '/teacher-results-histogram.js') ?>"></script>
+    <script src="teacher-student-wid-analysis.js?v=<?= filemtime(__DIR__ . '/teacher-student-wid-analysis.js') ?>"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // 要素の取得
@@ -1082,7 +1074,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 groups: logicFilterGroups,
                 groupStudents: logicFilterStudentsByGroup
             };
-            let histogramDetailRequestSequence = 0;
 
             const classResultsHistogram = window.TeacherResultsHistogram?.create({
                 ...histogramBaseOptions,
@@ -1130,44 +1121,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
             });
 
-            const studentResultsHistogram = window.TeacherResultsHistogram?.create({
-                ...histogramBaseOptions,
-                root: '#student-results-histogram',
-                scope: 'student',
-                onDetailStudentChange: async (studentId) => {
-                    const requestSequence = ++histogramDetailRequestSequence;
-                    studentDetailsContainer.innerHTML = studentId
-                        ? '<p>問題を選択して結果を表示してください。</p>'
-                        : '<p>ヒストグラムの候補から学習者を選択してください。</p>';
-                    grammarAnalysisWrapper.style.display = 'none';
-                    grammarAnalysisWrapper.innerHTML = '';
-                    if (!studentId) return;
-                    try {
-                        const data = await fetchData({ action: 'get_student_details', student_id: studentId });
-                        if (requestSequence !== histogramDetailRequestSequence) return;
-                        renderGrammarAnalysis(data.grammar_stats, data.student_levels, studentId);
-                    } catch (error) {
-                        if (requestSequence !== histogramDetailRequestSequence) return;
-                        grammarAnalysisWrapper.innerHTML = '<p class="error">分析データの読み込みに失敗しました。</p>';
-                        grammarAnalysisWrapper.style.display = 'block';
-                    }
-                },
-                onSubmit: async ({ studentId, wids, correctness, hesitation }) => {
-                    studentDetailsContainer.innerHTML = '<p class="loading">ヒストグラム条件の詳細を読み込んでいます...</p>';
-                    try {
-                        const data = await fetchData({
-                            action: 'get_student_details',
-                            student_id: studentId,
-                            wids: JSON.stringify(wids),
-                            correctness,
-                            hesitation
-                        });
-                        renderStudentProblemResults(data, studentId);
-                        renderGrammarAnalysis(data.grammar_stats, data.student_levels, studentId);
-                    } catch (error) {
-                        studentDetailsContainer.innerHTML = '<p class="error">詳細の読み込みに失敗しました。</p>';
-                    }
-                }
+            const studentWidAnalysis = window.StudentWidHistogramAnalysis?.create({
+                root: '#student-wid-analysis',
+                features: resultHistogramFeatures,
+                featureMeta: resultHistogramFeatureMeta,
+                onResolve: ({ studentId, wids, correctness, hesitation }) => fetchData({
+                    action: 'get_student_details',
+                    student_id: studentId,
+                    wids: JSON.stringify(wids),
+                    correctness,
+                    hesitation
+                })
             });
 
             document.querySelectorAll('.result-search-mode-select').forEach(select => {
@@ -1540,6 +1504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     questionCheckboxContainerStudent.innerHTML = '';
                     grammarAnalysisWrapper.style.display = 'none';
                     grammarAnalysisWrapper.innerHTML = '';
+                    studentWidAnalysis?.clear();
                     studentControls.style.display = 'none';
                     studentFilters.style.display = 'none';
                     currentStudentDetailsData = [];
@@ -1550,6 +1515,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     try {
                         const data = await fetchData({ action: 'get_student_details', student_id: studentId });
                         renderGrammarAnalysis(data.grammar_stats, data.student_levels, studentId);
+                        studentWidAnalysis?.load(studentId);
                         renderCheckboxes(questionCheckboxContainerStudent, data.all_questions, 'question', '問題');
                         if (data.all_questions && data.all_questions.length > 0) {
                             studentControls.style.display = 'block';

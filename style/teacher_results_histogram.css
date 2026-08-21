@@ -486,6 +486,57 @@
     min-width: 0;
 }
 
+.swha-root {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 2px solid #dbe3ec;
+}
+
+.swha-stage + .swha-stage {
+    margin-top: 16px;
+}
+
+.swha-chart-card {
+    margin-top: 14px;
+}
+
+.swha-chart-card.trh-chart-card {
+    padding: 14px;
+    border: 1px solid #dbe3ec;
+}
+
+.swha-results {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #dbe3ec;
+}
+
+.swha-result-summary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #eef6ff;
+    color: #1e3a5f;
+}
+
+.swha-table-wrap {
+    max-height: 430px;
+    overflow: auto;
+}
+
+.swha-table-wrap thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.swha-root canvas.is-histogram-selectable {
+    cursor: pointer;
+}
+
 @media (max-width: 900px) {
     .trh-source-grid,
     .trh-chart-grid {
