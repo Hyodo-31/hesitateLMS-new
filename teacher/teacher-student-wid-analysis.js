@@ -212,20 +212,33 @@
 
     function syncOverflowHover(chart, event, elements, overflowIndexes) {
         const regularIndex = elements?.[0]?.index;
-        const overflowIndex = Number.isInteger(regularIndex) ? null : overflowIndexAtPointer(chart, event, overflowIndexes);
+        const regularOverflowIndex = Number.isInteger(regularIndex) && overflowIndexes.includes(regularIndex)
+            ? regularIndex
+            : null;
+        const overflowIndex = Number.isInteger(regularOverflowIndex)
+            ? regularOverflowIndex
+            : Number.isInteger(regularIndex)
+                ? null
+                : overflowIndexAtPointer(chart, event, overflowIndexes);
         const target = event.native?.target;
         if (target) target.style.cursor = Number.isInteger(regularIndex) || Number.isInteger(overflowIndex) ? 'pointer' : 'default';
         if (Number.isInteger(overflowIndex)) {
             chart.$overflowHoverIndex = overflowIndex;
             const active = [{ datasetIndex: 0, index: overflowIndex }];
+            const tooltipY = Math.min(
+                chart.chartArea.bottom - 14,
+                Math.max(chart.chartArea.top + 14, Number(event.y) || chart.chartArea.top + 14)
+            );
             chart.setActiveElements(active);
-            chart.tooltip?.setActiveElements(active, { x: event.x, y: Math.max(chart.chartArea.top + 14, event.y) });
+            chart.tooltip?.setActiveElements(active, { x: event.x, y: tooltipY });
             chart.draw();
-        } else if (!Number.isInteger(regularIndex) && Number.isInteger(chart.$overflowHoverIndex)) {
+        } else if (Number.isInteger(chart.$overflowHoverIndex)) {
             chart.$overflowHoverIndex = null;
-            chart.setActiveElements([]);
-            chart.tooltip?.setActiveElements([], { x: event.x, y: event.y });
-            chart.draw();
+            if (!Number.isInteger(regularIndex)) {
+                chart.setActiveElements([]);
+                chart.tooltip?.setActiveElements([], { x: event.x, y: event.y });
+                chart.draw();
+            }
         }
     }
 
@@ -505,9 +518,12 @@
                 members: new Set(bin.members.map((member) => String(member.id))),
             }));
             const colors = () => conditions.map((condition) => this.conditions.has(condition.id) ? 'rgba(37, 99, 235, .9)' : 'rgba(59, 130, 246, .58)');
+            const displayedCounts = histogram.counts.map((count, index) =>
+                countAxis.overflowIndexes.includes(index) ? countAxis.max : count
+            );
             this.chart = new window.Chart(canvas, {
                 type: 'bar',
-                data: { labels: histogram.labels, datasets: [{ label: '問題(WID)数', data: histogram.counts, backgroundColor: colors(), borderColor: conditions.map((condition) => this.conditions.has(condition.id) ? 'rgba(30, 64, 175, 1)' : 'rgba(29, 78, 216, 1)'), borderWidth: conditions.map((condition) => this.conditions.has(condition.id) ? 3 : 1), borderRadius: 4 }] },
+                data: { labels: histogram.labels, datasets: [{ label: '問題(WID)数', data: displayedCounts, backgroundColor: colors(), borderColor: conditions.map((condition) => this.conditions.has(condition.id) ? 'rgba(30, 64, 175, 1)' : 'rgba(29, 78, 216, 1)'), borderWidth: conditions.map((condition) => this.conditions.has(condition.id) ? 3 : 1), borderRadius: 4 }] },
                 plugins: [overflowMarkerPlugin(countAxis.overflowIndexes)],
                 options: {
                     responsive: true,
@@ -527,7 +543,9 @@
                         chart.update('none');
                     },
                     onHover: (event, elements, chart) => syncOverflowHover(chart, event, elements, countAxis.overflowIndexes),
-                    plugins: { legend: { display: false }, title: { display: true, text: `${label}の問題(WID)分布` }, tooltip: { callbacks: { afterBody: (items) => {
+                    plugins: { legend: { display: false }, title: { display: true, text: `${label}の問題(WID)分布` }, tooltip: { callbacks: {
+                        label: (context) => `問題(WID)数: ${histogram.counts[context.dataIndex]}件`,
+                        afterBody: (items) => {
                         const index = items?.[0]?.dataIndex;
                         const bin = histogram.bins[index];
                         return bin ? this.widChartTooltipLines(bin, histogram, unit, countAxis, index) : [];
@@ -653,6 +671,6 @@
             const root = typeof options.root === 'string' ? document.querySelector(options.root) : options.root;
             return root ? new StudentWidHistogramAnalysis(options) : null;
         },
-        _test: { buildHistogram, buildCountAxis, overflowIndexAtPointer },
+        _test: { buildHistogram, buildCountAxis, overflowIndexAtPointer, syncOverflowHover },
     };
 }());

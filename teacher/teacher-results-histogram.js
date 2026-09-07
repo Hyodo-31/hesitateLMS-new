@@ -163,20 +163,33 @@
 
     function syncOverflowHover(chart, event, elements, overflowIndexes) {
         const regularIndex = elements?.[0]?.index;
-        const overflowIndex = Number.isInteger(regularIndex) ? null : overflowIndexAtPointer(chart, event, overflowIndexes);
+        const regularOverflowIndex = Number.isInteger(regularIndex) && overflowIndexes.includes(regularIndex)
+            ? regularIndex
+            : null;
+        const overflowIndex = Number.isInteger(regularOverflowIndex)
+            ? regularOverflowIndex
+            : Number.isInteger(regularIndex)
+                ? null
+                : overflowIndexAtPointer(chart, event, overflowIndexes);
         const target = event.native?.target;
         if (target) target.style.cursor = Number.isInteger(regularIndex) || Number.isInteger(overflowIndex) ? 'pointer' : 'default';
         if (Number.isInteger(overflowIndex)) {
             chart.$overflowHoverIndex = overflowIndex;
             const active = [{ datasetIndex: 0, index: overflowIndex }];
+            const tooltipY = Math.min(
+                chart.chartArea.bottom - 14,
+                Math.max(chart.chartArea.top + 14, Number(event.y) || chart.chartArea.top + 14)
+            );
             chart.setActiveElements(active);
-            chart.tooltip?.setActiveElements(active, { x: event.x, y: Math.max(chart.chartArea.top + 14, event.y) });
+            chart.tooltip?.setActiveElements(active, { x: event.x, y: tooltipY });
             chart.draw();
-        } else if (!Number.isInteger(regularIndex) && Number.isInteger(chart.$overflowHoverIndex)) {
+        } else if (Number.isInteger(chart.$overflowHoverIndex)) {
             chart.$overflowHoverIndex = null;
-            chart.setActiveElements([]);
-            chart.tooltip?.setActiveElements([], { x: event.x, y: event.y });
-            chart.draw();
+            if (!Number.isInteger(regularIndex)) {
+                chart.setActiveElements([]);
+                chart.tooltip?.setActiveElements([], { x: event.x, y: event.y });
+                chart.draw();
+            }
         }
     }
 
@@ -302,7 +315,7 @@
             this.contextKey = '';
             this.loaded = false;
             this.loading = false;
-            this.expanded = true;
+            this.expanded = options.initialExpanded !== false;
             this.selectionModes = { wid: 'checkbox', uid: 'checkbox' };
             this.sourceTokens = [];
             this.barConditions = { uid: new Map(), wid: new Map() };
@@ -319,7 +332,7 @@
             this.contentBound = false;
             this.renderShell();
             this.bindShell();
-            queueMicrotask(() => this.ensureLoaded());
+            if (this.expanded) queueMicrotask(() => this.ensureLoaded());
         }
 
         id(role) { return `${this.root.id}-${role}`; }
@@ -335,10 +348,10 @@
             const detailText = '問題(WID)を先に選び、その問題だけを対象に学習者(UID)を絞り込みます。';
             this.root.classList.add('trh-root');
             this.root.innerHTML = `
-                <button type="button" class="trh-toggle" data-role="toggle" aria-expanded="true">
+                <button type="button" class="trh-toggle" data-role="toggle" aria-expanded="${String(this.expanded)}">
                     <span><strong>問題(WID) → 学習者(UID) の絞り込み</strong><small>${detailText}</small></span><span class="trh-toggle-icon" aria-hidden="true"></span>
                 </button>
-                <div class="trh-panel" data-role="panel">
+                <div class="trh-panel" data-role="panel"${this.expanded ? '' : ' hidden'}>
                     <p class="trh-status" data-role="status">選択に必要なデータを読み込んでいます...</p>
                     <div data-role="content" hidden></div>
                 </div>`;
@@ -1113,9 +1126,12 @@
             const color = entity === 'uid' ? 'rgba(20, 184, 166, .62)' : 'rgba(59, 130, 246, .58)';
             const border = entity === 'uid' ? 'rgba(15, 118, 110, 1)' : 'rgba(29, 78, 216, 1)';
             const selected = (condition) => saved.has(condition.id);
+            const displayedCounts = histogram.counts.map((count, index) =>
+                countAxis.overflowIndexes.includes(index) ? countAxis.max : count
+            );
             const chart = new window.Chart(canvas, {
                 type: 'bar',
-                data: { labels: histogram.labels, datasets: [{ label: `${entityLabel}数`, data: histogram.counts, backgroundColor: conditions.map((item) => selected(item) ? 'rgba(37, 99, 235, .88)' : color), borderColor: conditions.map((item) => selected(item) ? 'rgba(30, 64, 175, 1)' : border), borderWidth: conditions.map((item) => selected(item) ? 3 : 1), borderRadius: 4 }] },
+                data: { labels: histogram.labels, datasets: [{ label: `${entityLabel}数`, data: displayedCounts, backgroundColor: conditions.map((item) => selected(item) ? 'rgba(37, 99, 235, .88)' : color), borderColor: conditions.map((item) => selected(item) ? 'rgba(30, 64, 175, 1)' : border), borderWidth: conditions.map((item) => selected(item) ? 3 : 1), borderRadius: 4 }] },
                 plugins: [overflowMarkerPlugin(countAxis.overflowIndexes)],
                 options: {
                     responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: true },
@@ -1135,7 +1151,9 @@
                         activeChart.update('none');
                     },
                     onHover: (event, elements, activeChart) => syncOverflowHover(activeChart, event, elements, countAxis.overflowIndexes),
-                    plugins: { legend: { display: false }, title: { display: true, text: title }, tooltip: { callbacks: { afterBody: (items) => {
+                    plugins: { legend: { display: false }, title: { display: true, text: title }, tooltip: { callbacks: {
+                        label: (context) => `${entityLabel}数: ${histogram.counts[context.dataIndex]}件`,
+                        afterBody: (items) => {
                         const index = items?.[0]?.dataIndex;
                         const bin = histogram.bins[index];
                         if (!bin) return [];
@@ -1186,6 +1204,6 @@
             return new ResultsHistogram(options);
         },
         clearCache() { responseCache.clear(); },
-        _test: { buildHistogram, buildCountAxis, overflowIndexAtPointer },
+        _test: { buildHistogram, buildCountAxis, overflowIndexAtPointer, syncOverflowHover },
     };
 }());

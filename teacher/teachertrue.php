@@ -768,8 +768,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     </span>
                 </h2>
 
-                <div class="grades-section">
-                    <h3>担当グループ(クラス)学習者の結果表示</h3>
+                <details class="grades-section grades-section-collapsible" id="class-results-section">
+                    <summary class="grades-section-summary">担当グループ(クラス)学習者の結果表示</summary>
+                    <div class="grades-section-collapsible-body">
                     <div id="class-results-histogram" aria-label="担当グループ（クラス）の問題(WID)・学習者(UID)検索"></div>
                     <div id="class-results-container" class="results-container">
                         <p>問題(WID)、学習者(UID)の順に選択して結果を表示してください。</p>
@@ -784,7 +785,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         </div>
                         <div id="student-detail-slots" class="student-detail-slots"></div>
                     </section>
-                </div>
+                    </div>
+                </details>
 
                 <div class="grades-section">
                     <h3>テストごとの結果表示</h3>

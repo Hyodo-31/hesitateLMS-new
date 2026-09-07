@@ -60,6 +60,7 @@
         window.TeacherResultsHistogram.create({
             root,
             scope: 'class',
+            initialExpanded: false,
             features: window.studentGroupFeatureColumns || {},
             featureMeta: window.studentGroupFeatureDisplayMeta || {},
             groups: window.studentGroupLogicFilterGroups || [],

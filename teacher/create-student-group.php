@@ -142,14 +142,7 @@
             <h2>学生グループ作成</h2>
                 <div id="student-group-unified-selector" aria-label="問題(WID)・学習者(UID)の順でグループ対象を選択"></div>
                 <form id="search-form" method="GET" hidden aria-hidden="true">
-                    <section id="checkbox-search-method-panel" class="filter-conditions-accordion" aria-label="チェックボックスでの絞り込み">
-                        <button type="button" class="filter-conditions-toggle" id="filter-conditions-toggle" aria-expanded="false" aria-controls="filter-conditions-panel">
-                            <span>
-                                <span class="filter-conditions-title">チェックボックスでの絞り込み</span>
-                                <span class="filter-conditions-description">UID・WID・迷いの有無・特徴量などをまとめて設定できます。</span>
-                            </span>
-                            <span class="filter-conditions-icon" aria-hidden="true"></span>
-                        </button>
+                    <section id="checkbox-search-method-panel" class="filter-conditions-accordion" aria-label="従来の絞り込み" hidden>
                         <div class="filter-conditions-panel" id="filter-conditions-panel" hidden>
                     <label class="uid-label">UID:</label>
                     <div id="uid-logic-filter-panel" class="logic-filter-panel">

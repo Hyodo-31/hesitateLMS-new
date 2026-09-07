@@ -228,6 +228,59 @@ header h1 {
     margin-bottom: 15px;
 }
 
+.grades-section-summary {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 42px 12px 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #333;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.grades-section-summary::-webkit-details-marker {
+    display: none;
+}
+
+.grades-section-summary::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 4px;
+    height: 70%;
+    border-radius: 2px;
+    background: var(--primary-color);
+    transform: translateY(-50%);
+}
+
+.grades-section-summary::after {
+    content: '';
+    position: absolute;
+    right: 18px;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid #475569;
+    border-bottom: 2px solid #475569;
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform .2s ease;
+}
+
+.grades-section-collapsible[open] > .grades-section-summary::after {
+    transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.grades-section-collapsible-body {
+    padding-top: 1px;
+}
+
 .controls {
     display: flex;
     align-items: center;

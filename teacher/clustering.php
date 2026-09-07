@@ -982,6 +982,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                     throw new Error(text.trim() || 'グループ化に失敗しました。');
                 }
                 setStatus('選択したクラスタをグループ化しました。');
+                window.alert('選択したクラスタのグループ化が完了しました。');
             } catch (error) {
                 setStatus(error.message, true);
             } finally {
