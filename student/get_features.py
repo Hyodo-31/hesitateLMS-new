@@ -230,10 +230,13 @@ for uid_key in data.keys():
             # 距離や速度などを計算
             currentCoord = numpy.array([params[i]['x'], params[i]['y']])
             nextCoord    = numpy.array([params[i+1]['x'], params[i+1]['y']])
-            distance += numpy.sqrt(numpy.power(currentCoord-nextCoord, 2).sum())
-            speed = distance*1.0 / (params[i+1]['time']-params[i]['time'])
-            if params[i+1]['time']-params[i]['time'] != 0 and speed > maxSpeed:
-                maxSpeed = speed
+            segment_distance = numpy.sqrt(numpy.power(currentCoord-nextCoord, 2).sum())
+            distance += segment_distance
+            delta_time = params[i+1]['time'] - params[i]['time']
+            if delta_time > 0:
+                speed = segment_distance / delta_time
+                if speed > maxSpeed:
+                    maxSpeed = speed
             # 解答開始時刻
             if startTime == -1 and params[i]['dd'] == 2:
                 startTime = params[i]['time']

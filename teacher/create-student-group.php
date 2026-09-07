@@ -7,6 +7,7 @@
     <title>教師用ダッシュボード</title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
     <link rel="stylesheet" href="../style/teacher_form_styles.css?v=<?= filemtime(__DIR__ . '/../style/teacher_form_styles.css') ?>">
+    <link rel="stylesheet" href="../style/teacher_results_histogram.css?v=<?= filemtime(__DIR__ . '/../style/teacher_results_histogram.css') ?>">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
@@ -139,14 +140,8 @@
 
             <div class="content-class">
             <h2>学生グループ作成</h2>
-                <div class="student-search-mode-control">
-                    <label for="student-list-display-mode">学習者の選択方法</label>
-                    <select id="student-list-display-mode">
-                        <option value="filter" selected>チェックボックスで選択</option>
-                        <option value="histogram">ヒストグラムで検索</option>
-                    </select>
-                </div>
-                <form id="search-form" method="GET">
+                <div id="student-group-unified-selector" aria-label="問題(WID)・学習者(UID)の順でグループ対象を選択"></div>
+                <form id="search-form" method="GET" hidden aria-hidden="true">
                     <section id="checkbox-search-method-panel" class="filter-conditions-accordion" aria-label="チェックボックスでの絞り込み">
                         <button type="button" class="filter-conditions-toggle" id="filter-conditions-toggle" aria-expanded="false" aria-controls="filter-conditions-panel">
                             <span>
@@ -493,7 +488,7 @@
                         <input type="text" id="group_name" name="group_name" required>
                         <div class="student-result-toolbar">
                             <span class="student-result-title">選択結果（学習者リスト）</span>
-                            <label for="filter-feature-average-scope" class="student-list-display-mode-label average-scope-control" data-average-scope-mode="filter">
+                            <label for="filter-feature-average-scope" class="student-list-display-mode-label average-scope-control" data-average-scope-mode="filter" hidden>
                                 特徴量平均の範囲
                                 <select id="filter-feature-average-scope">
                                     <option value="selected" selected>選択した問題</option>
@@ -508,6 +503,7 @@
                                 </select>
                             </label>
                             <p id="histogram-student-list-summary" class="histogram-student-list-summary" aria-live="polite" hidden>選択中の縦棒: 0本 / 対象UID: 0人</p>
+                            <p id="unified-group-selection-summary" class="histogram-student-list-summary" aria-live="polite">問題(WID)と学習者(UID)を選択し、グループ候補へ反映してください。</p>
                         </div>
                         <ul class="student-list" id="student-list">
                             <li class="student-list-status">学習者を読み込んでいます。</li>
@@ -640,7 +636,13 @@
             min: '最小値',
             max: '最大値'
         };
+        window.studentGroupStudents = <?= json_encode(array_map(static fn(array $row): array => [
+            'uid' => (string)$row['uid'],
+            'name' => (string)$row['Name'],
+            'className' => (string)$row['ClassName'],
+        ], $student_filter_rows), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     </script>
-    <script src="search_studentlist.js?v=<?= filemtime(__DIR__ . '/search_studentlist.js') ?>"></script>
+    <script src="teacher-results-histogram.js?v=<?= filemtime(__DIR__ . '/teacher-results-histogram.js') ?>"></script>
+    <script src="student-group-selector.js?v=<?= filemtime(__DIR__ . '/student-group-selector.js') ?>"></script>
 </body>
 </html>

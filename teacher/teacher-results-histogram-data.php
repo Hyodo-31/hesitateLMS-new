@@ -3,7 +3,8 @@
 header('Content-Type: application/json; charset=utf-8');
 ini_set('display_errors', '0');
 
-require '../dbc.php';
+require_once __DIR__ . '/../lang.php';
+require __DIR__ . '/../dbc.php';
 ob_start();
 require_once __DIR__ . '/student-feature-tooltip.php';
 ob_end_clean();
@@ -113,7 +114,7 @@ function result_histogram_test_context(mysqli $conn, string $teacherId, int $tes
 
     $wids = result_histogram_rows(
         $conn,
-        'SELECT tq.WID, qi.Sentence
+        'SELECT tq.WID, qi.Sentence, qi.level, qi.grammar
          FROM test_questions tq
          LEFT JOIN question_info qi ON tq.WID = qi.WID
          WHERE tq.test_id = ?
@@ -122,6 +123,50 @@ function result_histogram_test_context(mysqli $conn, string $teacherId, int $tes
         [$testId]
     );
     return [$students, $wids];
+}
+
+function result_histogram_level_label($level): string
+{
+    return match ((string)$level) {
+        '1' => translate('get_wid.php_23行目_初級'),
+        '2' => translate('get_wid.php_25行目_中級'),
+        '3' => translate('get_wid.php_27行目_上級'),
+        default => '未設定',
+    };
+}
+
+function result_histogram_enrich_wids(mysqli $conn, array $widRows): array
+{
+    global $lang;
+
+    $grammarMap = [];
+    foreach (result_histogram_rows(
+        $conn,
+        'SELECT GID, Item FROM grammar_translations WHERE language = ?',
+        's',
+        [(string)($lang ?? 'ja')]
+    ) as $grammarRow) {
+        $grammarMap[(string)$grammarRow['GID']] = (string)$grammarRow['Item'];
+    }
+
+    return array_map(static function (array $row) use ($grammarMap): array {
+        $grammarIds = array_values(array_filter(
+            explode('#', trim((string)($row['grammar'] ?? ''), '#')),
+            static fn(string $value): bool => $value !== ''
+        ));
+        $grammarLabels = array_map(
+            static fn(string $gid): string => $grammarMap[$gid] ?? "GID:{$gid}",
+            $grammarIds
+        );
+
+        return [
+            'WID' => (string)$row['WID'],
+            'Sentence' => (string)($row['Sentence'] ?? ''),
+            'level' => (string)($row['level'] ?? ''),
+            'levelLabel' => result_histogram_level_label($row['level'] ?? ''),
+            'grammarLabels' => $grammarLabels,
+        ];
+    }, $widRows);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -149,7 +194,7 @@ try {
         [$studentRows, $widRows] = result_histogram_test_context($conn, $teacherId, (int)$testId);
     } else {
         $studentRows = result_histogram_teacher_students($conn, $teacherId);
-        $widSql = 'SELECT DISTINCT l.WID, qi.Sentence
+        $widSql = 'SELECT DISTINCT l.WID, qi.Sentence, qi.level, qi.grammar
                    FROM linedata l
                    JOIN students s ON l.UID = s.uid
                    JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
@@ -284,10 +329,7 @@ try {
         'ClassID' => (string)$row['ClassID'],
         'ClassName' => (string)$row['ClassName'],
     ], $studentRows);
-    $wids = array_map(static fn(array $row): array => [
-        'WID' => (string)$row['WID'],
-        'Sentence' => (string)($row['Sentence'] ?? ''),
-    ], $widRows);
+    $wids = result_histogram_enrich_wids($conn, $widRows);
 
     $conn->close();
     result_histogram_response([
