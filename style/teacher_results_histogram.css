@@ -189,6 +189,11 @@
     transform: rotate(225deg) translate(-2px, -2px);
 }
 
+.trh-step[data-locked="true"] .trh-step-summary {
+    cursor: not-allowed;
+    opacity: .65;
+}
+
 .trh-step-body {
     display: grid;
     gap: 14px;
@@ -431,6 +436,12 @@
     flex-wrap: wrap;
     gap: 7px;
     margin-top: 8px;
+}
+
+.trh-bar-summary {
+    margin: 10px 0;
+    color: #334155;
+    font-weight: 700;
 }
 
 .trh-saved {

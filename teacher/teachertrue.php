@@ -742,135 +742,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 <div class="grades-section">
                     <h3>担当グループ(クラス)学習者の結果表示</h3>
-                    <div class="result-search-mode-control">
-                        <label for="class-result-search-mode">選択方法</label>
-                        <select id="class-result-search-mode" class="result-search-mode-select" data-checkbox-panel="class-checkbox-search-panel" data-histogram-panel="class-histogram-search-panel">
-                            <option value="checkbox" selected>チェックボックスで選択</option>
-                            <option value="histogram">ヒストグラムで検索</option>
-                        </select>
-                    </div>
-                    <div id="class-checkbox-search-panel" class="result-search-mode-panel">
-                    <?php
-                    if ($teacher_id) {
-                        $teacher_classes = [];
-                        $stmt_classes = $conn->prepare("SELECT c.ClassID, c.ClassName FROM classteacher ct JOIN classes c ON ct.ClassID = c.ClassID WHERE ct.TID = ? ORDER BY c.ClassName");
-                        if ($stmt_classes) {
-                            $stmt_classes->bind_param("s", $teacher_id);
-                            $stmt_classes->execute();
-                            $class_result = $stmt_classes->get_result();
-                            while ($row = $class_result->fetch_assoc()) {
-                                $teacher_classes[] = $row;
-                            }
-                            $stmt_classes->close();
-                        }
-
-                        if (!empty($teacher_classes)) {
-                            ?>
-                            <div class="controls">
-                                <label for="class-filter-select">グループ(クラス)で絞り込み:</label>
-                                <select id="class-filter-select">
-                                    <option value="">全てのグループ(クラス)</option>
-                                    <?php foreach ($teacher_classes as $class): ?>
-                                        <option value="<?= htmlspecialchars($class['ClassID']) ?>">
-                                            <?= htmlspecialchars($class['ClassName']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="logic-filter-panel" id="class-logic-filter-panel">
-                                <h4>論理式で学習者を絞り込み</h4>
-                                <div class="logic-filter-parts">
-                                    <button type="button" data-add-filter="condition">対象を追加</button>
-                                    <button type="button" data-add-filter="and">AND</button>
-                                    <button type="button" data-add-filter="or">OR</button>
-                                    <button type="button" data-add-filter="not">NOT</button>
-                                    <button type="button" data-add-filter="open">(</button>
-                                    <button type="button" data-add-filter="close">)</button>
-                                    <span class="logic-filter-insert-control">
-                                        <label>追加位置</label>
-                                        <select class="logic-filter-insert-position"></select>
-                                    </span>
-                                </div>
-                                <div class="logic-filter-builder" id="class-logic-filter-builder"></div>
-                                <div class="logic-filter-actions">
-                                    <button type="button" id="apply-class-logic-filter">絞り込みを適用</button>
-                                    <button type="button" id="reset-class-logic-filter">リセット</button>
-                                    <button type="button" class="logic-filter-trim">追加位置から後ろを削除</button>
-                                    <button type="button" class="logic-filter-clear">式を空にする</button>
-                                    <p class="logic-filter-summary" id="class-logic-filter-summary">すべての学習者を対象にしています。</p>
-                                </div>
-                            </div>
-                            <div id="class-student-checkbox-container" class="checkbox-section">
-                                <div class="checkbox-controls">
-                                    <label><input type="checkbox" class="select-all" checked> 全ての表示中学習者を 選択 / 解除</label>
-                                </div>
-                                <div class="checkbox-list">
-                                    <?php
-                                    $class_ids = array_column($teacher_classes, 'ClassID');
-                                    $placeholders = implode(',', array_fill(0, count($class_ids), '?'));
-                                    $types = str_repeat('i', count($class_ids));
-                                    $stmt_students = $conn->prepare("SELECT s.uid, s.Name, s.ClassID, c.ClassName FROM students s JOIN classes c ON s.ClassID = c.ClassID WHERE s.ClassID IN ($placeholders) ORDER BY c.ClassName, s.uid");
-                                    if ($stmt_students) {
-                                        $stmt_students->bind_param($types, ...$class_ids);
-                                        $stmt_students->execute();
-                                        $student_result = $stmt_students->get_result();
-
-                                        $students_by_class = [];
-                                        while ($row = $student_result->fetch_assoc()) {
-                                            $students_by_class[$row['ClassName']][] = $row;
-                                        }
-                                        $stmt_students->close();
-
-                                        foreach ($students_by_class as $class_name => $students) {
-                                            $class_id = $students[0]['ClassID'];
-
-                                            echo '<div class="class-group-header">';
-                                            echo '<h5>' . htmlspecialchars($class_name) . '</h5>';
-                                            echo '<label><input type="checkbox" class="select-all-class" data-class-id="' . $class_id . '" checked> このグループ(クラス)を全て選択 / 解除</label>';
-                                            echo '</div>';
-
-                                            foreach ($students as $student) {
-                                                echo '<label class="checkbox-item" data-class-id="' . htmlspecialchars($student['ClassID']) . '"><input type="checkbox" value="' . htmlspecialchars($student['uid']) . '" checked> ' . htmlspecialchars($student['Name']) . '</label>';
-                                            }
-                                        }
-                                    }
-                                    ?>
-                                </div>
-                            </div>
-                            <div id="class-question-checkbox-container" class="checkbox-section" style="display:none; margin-top: 15px;"></div>
-                            
-                            <div id="class-filters" class="filter-group">
-                                <label for="class-correctness-filter">正誤で絞り込み:</label>
-                                <select id="class-correctness-filter">
-                                    <option value="all">すべて</option>
-                                    <option value="correct">正解</option>
-                                    <option value="incorrect">不正解</option>
-                                </select>
-                                <label for="class-hesitation-filter">迷い推定結果で絞り込み:</label>
-                                <select id="class-hesitation-filter">
-                                    <option value="all">すべて</option>
-                                    <option value="hesitated">迷い有り</option>
-                                    <option value="not_hesitated">迷い無し</option>
-                                    <option value="not_estimated">未推定</option>
-                                </select>
-                            </div>
-
-                            <div class="controls">
-                                <button id="show-class-results-btn" class="action-button">選択した学習者の結果を表示</button>
-                            </div>
-                            <?php
-                        } else {
-                            echo '<p>担当しているグループ(クラス)に学習者がいません。もしくは担当しているグループ(クラス)がありません。</p>';
-                            echo '<p><a href="register-classteacher.php">グループ(クラス)登録</a>からグループ(クラス)の作成や登録、<a href="register-student.php">新規学習者登録</a>からグループ(クラス)に学習者の登録を行ってください。</p>';
-                        }
-                    }
-                    ?>
-                    </div>
-                    <div id="class-histogram-search-panel" class="result-search-mode-panel" hidden>
-                        <div id="class-results-histogram" aria-label="担当グループ（クラス）学習者結果のヒストグラム検索"></div>
-                    </div>
+                    <div id="class-results-histogram" aria-label="担当グループ（クラス）の問題(WID)・学習者(UID)検索"></div>
                     <div id="class-results-container" class="results-container">
-                        <p>学習者を選択して結果を表示してください。</p>
+                        <p>問題(WID)、学習者(UID)の順に選択して結果を表示してください。</p>
                     </div>
                 </div>
 
@@ -907,42 +781,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="result-search-mode-control">
-                            <label for="test-result-search-mode">選択方法</label>
-                            <select id="test-result-search-mode" class="result-search-mode-select" data-checkbox-panel="test-checkbox-search-panel" data-histogram-panel="test-histogram-search-panel">
-                                <option value="checkbox" selected>チェックボックスで選択</option>
-                                <option value="histogram">ヒストグラムで検索</option>
-                            </select>
-                        </div>
-                        <div id="test-checkbox-search-panel" class="result-search-mode-panel">
-                        <div id="student-checkbox-container" class="checkbox-section"></div>
-                        <div id="test-question-checkbox-container" class="checkbox-section" style="display:none;"></div>
-                        
-                        <div id="test-filters" class="filter-group" style="display:none;">
-                            <label for="test-correctness-filter">正誤で絞り込み:</label>
-                            <select id="test-correctness-filter">
-                                <option value="all">すべて</option>
-                                <option value="correct">正解</option>
-                                <option value="incorrect">不正解</option>
-                                <option value="unanswered">未解答</option>
-                            </select>
-                            <label for="test-hesitation-filter">迷い推定結果で絞り込み:</label>
-                            <select id="test-hesitation-filter">
-                                <option value="all">すべて</option>
-                                <option value="hesitated">迷い有り</option>
-                                <option value="not_hesitated">迷い無し</option>
-                                <option value="not_estimated">未推定</option>
-                                <option value="na">-(該当なし)</option>
-                            </select>
-                        </div>
-
-                        <div id="test-controls" style="display:none;">
-                            <button id="show-test-results-btn" class="action-button">結果を表示</button>
-                        </div>
-                        </div>
-                        <div id="test-histogram-search-panel" class="result-search-mode-panel" hidden>
-                            <div id="test-results-histogram" aria-label="テスト結果のヒストグラム検索"></div>
-                        </div>
+                        <div id="test-results-histogram" aria-label="テスト結果の問題(WID)・学習者(UID)検索"></div>
                         <div id="test-results-container" class="results-container">
                             <p>テストを選択してください。</p>
                         </div>
@@ -953,7 +792,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <h3>学習者ごとの詳細結果</h3>
                     <div id="student-checkbox-search-panel" class="result-search-mode-panel">
                     <div class="controls">
-                        <label for="student-select">学習者を選択:</label>
+                        <label for="student-select">学習者(UID)を選択:</label>
                         <select id="student-select" name="student-select">
                             <option value="">-- 選択してください --</option>
                             <?php
@@ -977,7 +816,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                         $stmt_students->execute();
                                         $result_students = $stmt_students->get_result();
                                         while ($row_student = $result_students->fetch_assoc()) {
-                                            echo "<option value='" . $row_student['uid'] . "'>" . htmlspecialchars($row_student['Name']) . "</option>";
+                                            echo "<option value='" . $row_student['uid'] . "'>" . htmlspecialchars($row_student['Name']) . "（学習者(UID): " . htmlspecialchars($row_student['uid']) . "）</option>";
                                         }
                                         $stmt_students->close();
                                     }
@@ -1005,7 +844,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     </div>
 
                     <div id="student-controls" style="display:none;">
-                        <button id="show-student-details-btn" class="action-button">選択した問題の結果を表示</button>
+                        <button id="show-student-details-btn" class="action-button">選択した問題(WID)の結果を表示</button>
                     </div>
                     </div>
                     <div id="student-details-container" class="results-container">
@@ -1013,7 +852,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     </div>
                     <div id="grammar-analysis-wrapper" style="display: none; margin-top: 25px;">
                     </div>
-                    <div id="student-wid-analysis" class="trh-root swha-root" hidden aria-label="学習者が解いた問題のWID分布分析"></div>
+                    <div id="student-wid-analysis" class="trh-root swha-root" hidden aria-label="学習者が解いた問題(WID)の分布分析"></div>
                 </div>
             </section>
         </main>
@@ -1025,23 +864,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         document.addEventListener('DOMContentLoaded', function () {
             // 要素の取得
             // 「担当クラス」の要素
-            const classStudentCheckboxContainer = document.getElementById('class-student-checkbox-container');
-            const classQuestionCheckboxContainer = document.getElementById('class-question-checkbox-container');
-            const showClassResultsBtn = document.getElementById('show-class-results-btn');
             const classResultsContainer = document.getElementById('class-results-container');
-            const classCorrectnessFilter = document.getElementById('class-correctness-filter');
-            const classHesitationFilter = document.getElementById('class-hesitation-filter');
 
             // 「テストごと」の要素
             const testSelect = document.getElementById('test-select');
-            const studentCheckboxContainer = document.getElementById('student-checkbox-container');
-            const testQuestionCheckboxContainer = document.getElementById('test-question-checkbox-container');
-            const testControls = document.getElementById('test-controls');
-            const showTestResultsBtn = document.getElementById('show-test-results-btn');
             const testResultsContainer = document.getElementById('test-results-container');
-            const testFilters = document.getElementById('test-filters');
-            const testCorrectnessFilter = document.getElementById('test-correctness-filter');
-            const testHesitationFilter = document.getElementById('test-hesitation-filter');
 
             // 「学習者ごと」の要素
             const studentSelect = document.getElementById('student-select');
@@ -1054,7 +881,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const studentCorrectnessFilter = document.getElementById('student-correctness-filter');
             const studentHesitationFilter = document.getElementById('student-hesitation-filter');
 
-            const classFilterSelect = document.getElementById('class-filter-select');
             let currentClassData = [];
             let currentClassSort = { column: null, direction: 'asc' };
 
@@ -1063,7 +889,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             let currentStudentDetailsData = [];
             let currentStudentDetailsSort = { column: null, direction: 'asc' };
-            let classWIDFetchDebounceTimer;
             const logicFilterGroups = <?= json_encode($logic_filter_groups, JSON_UNESCAPED_UNICODE) ?>;
             const logicFilterStudentsByGroup = <?= json_encode((object)$logic_filter_students_by_group, JSON_UNESCAPED_UNICODE) ?>;
             const resultHistogramFeatures = <?= json_encode(student_feature_columns(), JSON_UNESCAPED_UNICODE) ?>;
@@ -1080,7 +905,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 root: '#class-results-histogram',
                 scope: 'class',
                 onSubmit: async ({ uids, wids, correctness, hesitation }) => {
-                    classResultsContainer.innerHTML = '<p class="loading">ヒストグラム条件の結果を読み込んでいます...</p>';
+                    classResultsContainer.innerHTML = '<p class="loading">選択条件の結果を読み込んでいます...</p>';
                     try {
                         const results = await fetchData({
                             action: 'get_class_results',
@@ -1104,7 +929,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 onSubmit: async ({ uids, wids, correctness, hesitation }) => {
                     const testId = testSelect?.value || '';
                     if (!testId) return alert('テストを選択してください。');
-                    testResultsContainer.innerHTML = '<p class="loading">ヒストグラム条件の結果を読み込んでいます...</p>';
+                    testResultsContainer.innerHTML = '<p class="loading">選択条件の結果を読み込んでいます...</p>';
                     try {
                         const results = await fetchData({
                             action: 'get_test_results',
@@ -1134,369 +959,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 })
             });
 
-            document.querySelectorAll('.result-search-mode-select').forEach(select => {
-                const syncSearchMode = () => {
-                    const histogramActive = select.value === 'histogram';
-                    const checkboxPanel = document.getElementById(select.dataset.checkboxPanel || '');
-                    const histogramPanel = document.getElementById(select.dataset.histogramPanel || '');
-                    if (checkboxPanel) checkboxPanel.hidden = histogramActive;
-                    if (histogramPanel) histogramPanel.hidden = !histogramActive;
-                };
-                select.addEventListener('change', syncSearchMode);
-                syncSearchMode();
-            });
-
-            function setupStudentLogicFilter({ panel, builder, summary, studentContainer, onApplied }) {
-                if (!panel || !builder || !summary || !studentContainer) return;
-                const insertPosition = panel.querySelector('.logic-filter-insert-position');
-                const trimButton = panel.querySelector('.logic-filter-trim');
-                const clearButton = panel.querySelector('.logic-filter-clear');
-                const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-                const getStudentItems = () => Array.from(studentContainer.querySelectorAll('.checkbox-item'));
-                const allStudentIds = () => getStudentItems().map(item => item.querySelector('input[type="checkbox"]').value);
-                const classOptions = () => Array.from(studentContainer.querySelectorAll('.select-all-class')).map(input => {
-                    const heading = input.closest('.class-group-header');
-                    return { id: String(input.dataset.classId), label: heading?.querySelector('h5')?.textContent?.trim() || `Class ${input.dataset.classId}` };
-                });
-                const classMap = () => {
-                    const map = {};
-                    getStudentItems().forEach(item => {
-                        const classId = String(item.dataset.classId);
-                        if (!map[classId]) map[classId] = [];
-                        map[classId].push(item.querySelector('input[type="checkbox"]').value);
-                    });
-                    return map;
-                };
-                const targetOptions = () => [
-                    ...classOptions().map(item => ({ value: `class:${item.id}`, label: `グループ(クラス): ${item.label}` })),
-                    ...logicFilterGroups.map(item => ({ value: `group:${item.group_id}`, label: `グループ: ${item.group_name}` }))
-                ];
-                const optionHtml = () => {
-                    const options = targetOptions();
-                    return options.length === 0 ? '<option value="">対象がありません</option>' : options.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
-                };
-                const kindOptionsHtml = selectedKind => [
-                    ['condition', '対象'], ['and', 'AND'], ['or', 'OR'], ['not', 'NOT'], ['open', '('], ['close', ')']
-                ].map(([value, label]) => `<option value="${value}"${value === selectedKind ? ' selected' : ''}>${label}</option>`).join('');
-                const tokenLabel = token => {
-                    const kind = token.dataset.kind;
-                    if (kind === 'condition') {
-                        const select = token.querySelector('.logic-filter-target');
-                        return select?.options[select.selectedIndex]?.textContent || '対象';
-                    }
-                    if (kind === 'open') return '(';
-                    if (kind === 'close') return ')';
-                    return token.dataset.operator || kind.toUpperCase();
-                };
-                const updateInsertOptions = () => {
-                    const current = insertPosition.value;
-                    const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
-                    insertPosition.innerHTML = ['<option value="">末尾に追加</option>']
-                        .concat(tokens.map((token, index) => `<option value="${index}">${index + 1}個目の前 (${escapeHtml(tokenLabel(token))})</option>`))
-                        .join('');
-                    if (current !== '' && Number(current) < tokens.length) insertPosition.value = current;
-                };
-                const renderToken = (token, kind) => {
-                    token.className = 'logic-filter-token';
-                    token.dataset.kind = kind;
-                    delete token.dataset.operator;
-                    const kindSelect = `<select class="logic-filter-kind">${kindOptionsHtml(kind)}</select>`;
-                    if (kind === 'condition') {
-                        token.innerHTML = `${kindSelect}<select class="logic-filter-target">${optionHtml()}</select><button type="button" class="logic-filter-remove">x</button>`;
-                    } else if (kind === 'open' || kind === 'close') {
-                        token.classList.add('paren');
-                        token.innerHTML = `${kindSelect}<span>${kind === 'open' ? '(' : ')'}</span><button type="button" class="logic-filter-remove">x</button>`;
-                    } else {
-                        token.classList.add('operator');
-                        if (kind === 'not') token.classList.add('not');
-                        token.dataset.operator = kind.toUpperCase();
-                        token.innerHTML = `${kindSelect}<span>${kind.toUpperCase()}</span><button type="button" class="logic-filter-remove">x</button>`;
-                    }
-                };
-                const addToken = kind => {
-                    const token = document.createElement('span');
-                    renderToken(token, kind);
-                    const tokens = Array.from(builder.querySelectorAll('.logic-filter-token'));
-                    const position = insertPosition.value !== '' ? Number(insertPosition.value) : tokens.length;
-                    if (Number.isInteger(position) && position >= 0 && position < tokens.length) {
-                        builder.insertBefore(token, tokens[position]);
-                        insertPosition.value = String(position + 1);
-                    } else {
-                        builder.appendChild(token);
-                    }
-                    updateInsertOptions();
-                };
-                const getTokens = () => Array.from(builder.querySelectorAll('.logic-filter-token')).map(token => {
-                    const kind = token.dataset.kind;
-                    if (kind === 'condition') {
-                        const [targetType, targetId] = token.querySelector('.logic-filter-target').value.split(':');
-                        return { type: 'condition', targetType, targetId };
-                    }
-                    if (kind === 'open' || kind === 'close') return { type: 'paren', paren: kind === 'open' ? '(' : ')' };
-                    return { type: 'operator', operator: token.dataset.operator };
-                });
-                const setForCondition = (type, id) => {
-                    const available = new Set(allStudentIds());
-                    const source = type === 'group' ? logicFilterStudentsByGroup : classMap();
-                    return new Set((source[String(id)] || []).map(String).filter(uid => available.has(uid)));
-                };
-                const complement = source => {
-                    const selected = new Set(source);
-                    return new Set(allStudentIds().filter(uid => !selected.has(uid)));
-                };
-                const evaluate = () => {
-                    const list = getTokens();
-                    if (list.length === 0) return new Set(allStudentIds());
-                    let index = 0;
-                    const primary = () => {
-                        const token = list[index];
-                        if (!token) throw new Error('条件が途中で終わっています。');
-                        if (token.type === 'operator' && token.operator === 'NOT') {
-                            index++;
-                            return complement(primary());
-                        }
-                        if (token.type === 'paren' && token.paren === '(') {
-                            index++;
-                            const result = orExpr();
-                            if (!list[index] || list[index].type !== 'paren' || list[index].paren !== ')') throw new Error('閉じ括弧を置いてください。');
-                            index++;
-                            return result;
-                        }
-                        if (token.type === 'condition') {
-                            index++;
-                            if (!token.targetType || !token.targetId) throw new Error('対象を選択してください。');
-                            return setForCondition(token.targetType, token.targetId);
-                        }
-                        throw new Error('条件または括弧を置いてください。');
-                    };
-                    const andExpr = () => {
-                        let result = primary();
-                        while (list[index]?.type === 'operator' && list[index].operator === 'AND') {
-                            index++;
-                            const right = primary();
-                            result = new Set([...result].filter(uid => right.has(uid)));
-                        }
-                        return result;
-                    };
-                    const orExpr = () => {
-                        let result = andExpr();
-                        while (list[index]?.type === 'operator' && list[index].operator === 'OR') {
-                            index++;
-                            result = new Set([...result, ...andExpr()]);
-                        }
-                        return result;
-                    };
-                    const result = orExpr();
-                    if (index !== list.length) throw new Error('式の並びを確認してください。');
-                    return result;
-                };
-                panel.querySelectorAll('[data-add-filter]').forEach(button => button.addEventListener('click', () => addToken(button.dataset.addFilter)));
-                builder.addEventListener('click', event => {
-                    if (event.target.classList.contains('logic-filter-remove')) {
-                        event.target.closest('.logic-filter-token').remove();
-                        updateInsertOptions();
-                    }
-                });
-                builder.addEventListener('change', event => {
-                    const token = event.target.closest('.logic-filter-token');
-                    if (!token) return;
-                    if (event.target.classList.contains('logic-filter-kind')) renderToken(token, event.target.value);
-                    updateInsertOptions();
-                });
-                trimButton.addEventListener('click', () => {
-                    if (insertPosition.value === '') {
-                        summary.textContent = '削除を始める追加位置を選択してください。';
-                        summary.classList.add('is-error');
-                        return;
-                    }
-                    const start = Number(insertPosition.value);
-                    Array.from(builder.querySelectorAll('.logic-filter-token')).forEach((token, index) => { if (index >= start) token.remove(); });
-                    updateInsertOptions();
-                    summary.textContent = `${start + 1}個目以降の部品を削除しました。`;
-                    summary.classList.remove('is-error');
-                });
-                clearButton.addEventListener('click', () => {
-                    builder.innerHTML = '';
-                    updateInsertOptions();
-                    summary.textContent = '式を空にしました。空のまま適用すると、すべての学習者が対象になります。';
-                    summary.classList.remove('is-error');
-                });
-                panel.querySelector('[id^="apply-"]').addEventListener('click', async () => {
-                    try {
-                        const selected = evaluate();
-                        getStudentItems().forEach(item => { item.querySelector('input[type="checkbox"]').checked = selected.has(item.querySelector('input[type="checkbox"]').value); });
-                        studentContainer.querySelectorAll('.select-all-class').forEach(input => {
-                            const items = getStudentItems().filter(item => item.dataset.classId === input.dataset.classId);
-                            input.checked = items.length > 0 && items.every(item => item.querySelector('input[type="checkbox"]').checked);
-                        });
-                        const selectAll = studentContainer.querySelector('.select-all');
-                        if (selectAll) selectAll.checked = getStudentItems().every(item => item.querySelector('input[type="checkbox"]').checked);
-                        summary.textContent = `${selected.size}名の学習者を選択しています。`;
-                        summary.classList.remove('is-error');
-                        if (onApplied) await onApplied();
-                    } catch (error) {
-                        summary.textContent = error.message || '論理式を確認してください。';
-                        summary.classList.add('is-error');
-                    }
-                });
-                panel.querySelector('[id^="reset-"]').addEventListener('click', async () => {
-                    builder.innerHTML = '';
-                    studentContainer.querySelectorAll('.checkbox-item input[type="checkbox"], .select-all-class, .select-all').forEach(input => { input.checked = true; });
-                    studentContainer.querySelectorAll('.checkbox-item').forEach(item => { item.style.display = 'block'; });
-                    studentContainer.querySelectorAll('.class-group-header').forEach(item => { item.style.display = 'flex'; });
-                    const classSelect = document.getElementById('class-filter-select');
-                    if (classSelect) classSelect.value = '';
-                    summary.textContent = 'すべての学習者を対象にしています。';
-                    summary.classList.remove('is-error');
-                    addToken('condition');
-                    if (onApplied) await onApplied();
-                });
-                addToken('condition');
-            }
-
-            // --- 2. 担当クラスの結果表示 ---
-            if (classStudentCheckboxContainer) {
-                async function updateWIDListForClassSection() {
-                    const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('.checkbox-item input[type="checkbox"]:checked'))
-                        .filter(cb => cb.closest('.checkbox-item').style.display !== 'none')
-                        .map(cb => cb.value);
-
-                    if (selectedStudents.length > 0) {
-                        classQuestionCheckboxContainer.style.display = 'block';
-                        classQuestionCheckboxContainer.innerHTML = '<p class="loading">関連する問題リストを読み込んでいます...</p>';
-                        try {
-                            const wids = await fetchData({ action: 'get_wids_for_students', student_ids: JSON.stringify(selectedStudents) });
-                            renderCheckboxes(classQuestionCheckboxContainer, wids, 'question', '問題で絞り込み (任意):');
-                        } catch (error) {
-                            classQuestionCheckboxContainer.innerHTML = '<p class="error">問題リストの読み込みに失敗しました。</p>';
-                        }
-                    } else {
-                        classQuestionCheckboxContainer.style.display = 'none';
-                        classQuestionCheckboxContainer.innerHTML = '';
-                    }
-                }
-
-                setupStudentLogicFilter({
-                    panel: document.getElementById('class-logic-filter-panel'),
-                    builder: document.getElementById('class-logic-filter-builder'),
-                    summary: document.getElementById('class-logic-filter-summary'),
-                    studentContainer: classStudentCheckboxContainer,
-                    onApplied: updateWIDListForClassSection
-                });
-
-                classStudentCheckboxContainer.addEventListener('change', e => {
-                    const target = e.target;
-                    if (target.classList.contains('select-all-class')) {
-                        const classId = target.dataset.classId;
-                        const isChecked = target.checked;
-                        classStudentCheckboxContainer.querySelectorAll(`.checkbox-item[data-class-id="${classId}"] input[type="checkbox"]`).forEach(cb => { cb.checked = isChecked; });
-                    } else if (target.classList.contains('select-all')) {
-                        const isChecked = target.checked;
-                        classStudentCheckboxContainer.querySelectorAll('.checkbox-item').forEach(label => {
-                            if (label.style.display !== 'none') {
-                                label.querySelector('input[type="checkbox"]').checked = isChecked;
-                            }
-                        });
-                    }
-                    clearTimeout(classWIDFetchDebounceTimer);
-                    classWIDFetchDebounceTimer = setTimeout(updateWIDListForClassSection, 500);
-                });
-
-                if (classFilterSelect) {
-                    classFilterSelect.addEventListener('change', () => {
-                        const selectedClassId = classFilterSelect.value;
-                        const studentItems = classStudentCheckboxContainer.querySelectorAll('.checkbox-item');
-                        const classHeaders = classStudentCheckboxContainer.querySelectorAll('.class-group-header');
-
-                        studentItems.forEach(label => {
-                            const shouldShow = (selectedClassId === '' || label.dataset.classId === selectedClassId);
-                            label.style.display = shouldShow ? 'block' : 'none';
-                        });
-
-                        classHeaders.forEach(header => {
-                            const classId = header.querySelector('.select-all-class').dataset.classId;
-                            const shouldShow = (selectedClassId === '' || classId === selectedClassId);
-                            header.style.display = shouldShow ? 'flex' : 'none';
-                        });
-
-                        clearTimeout(classWIDFetchDebounceTimer);
-                        classWIDFetchDebounceTimer = setTimeout(updateWIDListForClassSection, 500);
-                    });
-                }
-
-                showClassResultsBtn.addEventListener('click', async () => {
-                    const selectedStudents = Array.from(classStudentCheckboxContainer.querySelectorAll('.checkbox-item input[type="checkbox"]:checked'))
-                        .filter(cb => cb.closest('.checkbox-item').style.display !== 'none')
-                        .map(cb => cb.value);
-
-                    const selectedWids = Array.from(classQuestionCheckboxContainer.querySelectorAll('.checkbox-item input[type="checkbox"]:checked')).map(cb => cb.value);
-
-                    if (selectedStudents.length === 0) return alert('学習者を1名以上選択してください。');
-
-                    classResultsContainer.innerHTML = '<p class="loading">結果を読み込んでいます...</p>';
-                    try {
-                        const results = await fetchData({
-                            action: 'get_class_results',
-                            student_ids: JSON.stringify(selectedStudents),
-                            wids: JSON.stringify(selectedWids),
-                            correctness: classCorrectnessFilter.value,
-                            hesitation: classHesitationFilter.value
-                        });
-                        renderClassResults(results);
-                    } catch (error) {
-                        console.error('Error fetching class results:', error);
-                        classResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
-                    }
-                });
-                updateWIDListForClassSection();
-            }
-
-            // --- 3. テストごとの結果表示 ---
+            // --- 2. テストごとの結果表示 ---
             if (testSelect) {
-                testSelect.addEventListener('change', async function () {
+                testSelect.addEventListener('change', function () {
                     const testId = this.value;
                     testResultsHistogram?.resetContext();
-                    studentCheckboxContainer.innerHTML = '';
-                    testQuestionCheckboxContainer.innerHTML = '';
-                    testControls.style.display = 'none';
-                    testFilters.style.display = 'none';
-                    testResultsContainer.innerHTML = '<p>テストを選択してください。</p>';
+                    testResultsContainer.innerHTML = testId
+                        ? '<p>問題(WID)、学習者(UID)の順に選択して結果を表示してください。</p>'
+                        : '<p>テストを選択してください。</p>';
                     currentTestData = [];
-                    if (!testId) return;
-                    studentCheckboxContainer.innerHTML = '<p class="loading">受験者を読み込んでいます...</p>';
-                    try {
-                        const students = await fetchData({ action: 'get_students_for_test', test_id: testId });
-                        renderCheckboxes(studentCheckboxContainer, students, 'student', '2. 学習者を選択:');
-                        studentCheckboxContainer.addEventListener('change', handleStudentSelectionChangeForTest);
-                    } catch (error) {
-                        studentCheckboxContainer.innerHTML = '<p class="error">受験者の読み込みに失敗しました。</p>';
-                    }
-                });
-
-                showTestResultsBtn.addEventListener('click', async () => {
-                    const testId = testSelect.value;
-                    const selectedStudents = Array.from(studentCheckboxContainer.querySelectorAll('input:checked:not(.select-all)')).map(cb => cb.value);
-                    const selectedWids = Array.from(testQuestionCheckboxContainer.querySelectorAll('input:checked:not(.select-all)')).map(cb => cb.value);
-                    if (selectedStudents.length === 0) return alert('学習者を1名以上選択してください。');
-                    if (selectedWids.length === 0) return alert('問題を1つ以上選択してください。');
-                    testResultsContainer.innerHTML = '<p class="loading">結果を読み込んでいます...</p>';
-                    try {
-                        const results = await fetchData({
-                            action: 'get_test_results',
-                            test_id: testId,
-                            student_ids: JSON.stringify(selectedStudents),
-                            wids: JSON.stringify(selectedWids),
-                            correctness: testCorrectnessFilter.value,
-                            hesitation: testHesitationFilter.value
-                        });
-                        renderTestResults(results);
-                    } catch (error) {
-                        testResultsContainer.innerHTML = '<p class="error">結果の読み込みに失敗しました。</p>';
-                    }
                 });
             }
 
-            // --- 4. 学習者ごとの詳細結果 ---
+            // --- 3. 学習者ごとの詳細結果 ---
             if (studentSelect) {
                 studentSelect.addEventListener('change', async function () {
                     const studentId = this.value;
@@ -1516,7 +991,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         const data = await fetchData({ action: 'get_student_details', student_id: studentId });
                         renderGrammarAnalysis(data.grammar_stats, data.student_levels, studentId);
                         studentWidAnalysis?.load(studentId);
-                        renderCheckboxes(questionCheckboxContainerStudent, data.all_questions, 'question', '問題');
+                        renderCheckboxes(questionCheckboxContainerStudent, data.all_questions, 'question', '問題(WID)');
                         if (data.all_questions && data.all_questions.length > 0) {
                             studentControls.style.display = 'block';
                             studentFilters.style.display = 'flex';
@@ -1534,7 +1009,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 showStudentDetailsBtn.addEventListener('click', async () => {
                     const studentId = studentSelect.value;
                     const selectedWids = Array.from(questionCheckboxContainerStudent.querySelectorAll('input:checked:not(.select-all)')).map(cb => cb.value);
-                    if (selectedWids.length === 0) return alert('問題を1つ以上選択してください。');
+                    if (selectedWids.length === 0) return alert('問題(WID)を1つ以上選択してください。');
                     studentDetailsContainer.innerHTML = '<p class="loading">詳細を読み込んでいます...</p>';
                     try {
                         const data = await fetchData({
@@ -1552,35 +1027,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 });
             }
             
-            // --- 5. 共通の描画・補助関数 ---
+            // --- 4. 共通の描画・補助関数 ---
             async function fetchData(bodyObj) {
                 const formData = new FormData();
                 for (const key in bodyObj) formData.append(key, bodyObj[key]);
                 const response = await fetch('teachertrue.php', { method: 'POST', body: formData });
                 if (!response.ok) throw new Error(`Network response was not ok, status: ${response.status}`);
                 return await response.json();
-            }
-
-            async function handleStudentSelectionChangeForTest() {
-                const selectedStudents = studentCheckboxContainer.querySelectorAll('input:checked');
-                const testId = testSelect.value;
-                if (selectedStudents.length > 0) {
-                    testQuestionCheckboxContainer.style.display = 'block';
-                    testFilters.style.display = 'flex';
-                    testQuestionCheckboxContainer.innerHTML = '<p class="loading">問題リストを読み込んでいます...</p>';
-                    try {
-                        const questions = await fetchData({ action: 'get_questions_for_test', test_id: testId });
-                        renderCheckboxes(testQuestionCheckboxContainer, questions, 'question', '3. 問題を選択:');
-                        testControls.style.display = 'block';
-                    } catch (error) {
-                        testQuestionCheckboxContainer.innerHTML = '<p class="error">問題リストの読み込みに失敗しました。</p>';
-                    }
-                } else {
-                    testQuestionCheckboxContainer.style.display = 'none';
-                    testQuestionCheckboxContainer.innerHTML = '';
-                    testControls.style.display = 'none';
-                    testFilters.style.display = 'none';
-                }
             }
 
             function renderCheckboxes(container, items, type, title) {
@@ -1607,7 +1060,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 <div class="checkbox-list">`;
                 items.forEach(item => {
                     const displayName = type === 'student' ?
-                        `${item[nameKey]} (${item[idKey]})` : `WID:${item[idKey]}` + (item[nameKey] ? ` : ${item[nameKey]}` : '');
+                        `${item[nameKey]}（学習者(UID): ${item[idKey]}）` : `問題(WID): ${item[idKey]}` + (item[nameKey] ? ` : ${item[nameKey]}` : '');
                     const asterisk = (item.is_unanswered) ? ' <span style="color: red; font-weight: bold;">*</span>' : '';
                     checkboxesHtml += `<label class="checkbox-item"><input type="checkbox" value="${item[idKey]}" checked> ${displayName} ${asterisk}</label>`;
                 });
@@ -1616,9 +1069,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 container.querySelector('.select-all').addEventListener('change', function (e) {
                     container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = e.target.checked);
-                    if (container === studentCheckboxContainer) handleStudentSelectionChangeForTest();
                 });
-                if (container === studentCheckboxContainer) handleStudentSelectionChangeForTest();
             }
 
             function sortData(data, column, direction) {
@@ -1682,9 +1133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 let tableHtml = `<table><thead><tr>
                 <th data-sort="ClassName">グループ(クラス)名</th>
-                <th data-sort="student_name">学習者名 (ID)</th>
+                <th data-sort="student_name">学習者名 / 学習者(UID)</th>
                 <th data-sort="test_name">テスト名</th>
-                <th data-sort="WID">問題ID (回数)</th>
+                <th data-sort="WID">問題(WID) (回数)</th>
                 <th data-sort="correctness">正誤</th>
                 <th data-sort="hesitation">迷い推定</th>
                 <th data-sort="date">解答日時</th>
@@ -1722,8 +1173,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 let tableHtml = `<table><thead><tr>
-            <th data-sort="student_name">学習者名 (ID)</th>
-            <th data-sort="WID">問題ID</th>
+            <th data-sort="student_name">学習者名 / 学習者(UID)</th>
+            <th data-sort="WID">問題(WID)</th>
             <th data-sort="correctness">正誤</th>
             <th data-sort="hesitation">迷い推定</th>
             <th data-sort="date">解答日時</th>
@@ -1769,7 +1220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     detailsHtml += '<p>選択された条件に合致する解答履歴はありません。</p>';
                 } else {
                     detailsHtml += `<table><thead><tr>
-                <th data-sort="WID">問題ID</th>
+                <th data-sort="WID">問題(WID)</th>
                 <th data-sort="test_name">テスト名</th>
                 <th data-sort="correctness">正誤</th>
                 <th data-sort="hesitation">迷い推定</th>
@@ -1868,7 +1319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 test_id: attempt.test_id ?? '',
                                 LogID: attempt.attempt
                             });
-                            return `<a href="../mousemove/mousemove.php?${params.toString()}" target="_blank" rel="noopener noreferrer" class="link-button">WID:${attempt.WID}（${attempt.attempt}回目）</a>`;
+                            return `<a href="../mousemove/mousemove.php?${params.toString()}" target="_blank" rel="noopener noreferrer" class="link-button">問題(WID): ${attempt.WID}（${attempt.attempt}回目）</a>`;
                         }).join('')}</div>`
                         : '—';
                     grammarHtml += `<tr>
