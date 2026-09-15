@@ -30,7 +30,7 @@ function teacher_result_filter_students(mysqli $conn, string $teacher_id, array 
     $placeholders = implode(',', array_fill(0, count($normalized), '?'));
     $types = 's' . str_repeat('i', count($normalized));
     $params = array_merge([$teacher_id], array_map('intval', $normalized));
-    $stmt = $conn->prepare("SELECT DISTINCT s.uid FROM students s JOIN ClassTeacher ct ON s.ClassID = ct.ClassID WHERE ct.TID = ? AND s.uid IN ($placeholders)");
+    $stmt = $conn->prepare("SELECT DISTINCT s.uid FROM students s JOIN classteacher ct ON s.ClassID = ct.ClassID WHERE ct.TID = ? AND s.uid IN ($placeholders)");
     if (!$stmt) {
         return [];
     }
@@ -62,10 +62,10 @@ function teacher_result_test_students(mysqli $conn, string $teacher_id, array $t
 {
     $target_group = (int)$test['target_group'];
     if ($test['target_type'] === 'class') {
-        $stmt = $conn->prepare('SELECT DISTINCT s.uid FROM students s JOIN ClassTeacher ct ON s.ClassID = ct.ClassID WHERE s.ClassID = ? AND ct.TID = ?');
+        $stmt = $conn->prepare('SELECT DISTINCT s.uid FROM students s JOIN classteacher ct ON s.ClassID = ct.ClassID WHERE s.ClassID = ? AND ct.TID = ?');
         $stmt->bind_param('is', $target_group, $teacher_id);
     } else {
-        $stmt = $conn->prepare('SELECT DISTINCT s.uid FROM `groups` g JOIN group_members gm ON g.group_id = gm.group_id JOIN students s ON gm.uid = s.uid JOIN ClassTeacher ct ON s.ClassID = ct.ClassID WHERE g.group_id = ? AND g.TID = ? AND ct.TID = ?');
+        $stmt = $conn->prepare('SELECT DISTINCT s.uid FROM `groups` g JOIN group_members gm ON g.group_id = gm.group_id JOIN students s ON gm.uid = s.uid JOIN classteacher ct ON s.ClassID = ct.ClassID WHERE g.group_id = ? AND g.TID = ? AND ct.TID = ?');
         $stmt->bind_param('iss', $target_group, $teacher_id, $teacher_id);
     }
     $stmt->execute();
@@ -768,9 +768,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     </span>
                 </h2>
 
-                <details class="grades-section grades-section-collapsible" id="class-results-section">
-                    <summary class="grades-section-summary">担当グループ(クラス)学習者の結果表示</summary>
-                    <div class="grades-section-collapsible-body">
+                <div class="grades-section" id="class-results-section">
+                    <h3>担当グループ(クラス)学習者の結果表示</h3>
                     <div id="class-results-histogram" aria-label="担当グループ（クラス）の問題(WID)・学習者(UID)検索"></div>
                     <div id="class-results-container" class="results-container">
                         <p>問題(WID)、学習者(UID)の順に選択して結果を表示してください。</p>
@@ -785,8 +784,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         </div>
                         <div id="student-detail-slots" class="student-detail-slots"></div>
                     </section>
-                    </div>
-                </details>
+                </div>
 
                 <div class="grades-section">
                     <h3>テストごとの結果表示</h3>
@@ -877,6 +875,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 ...histogramBaseOptions,
                 root: '#class-results-histogram',
                 scope: 'class',
+                initialExpanded: false,
                 onSubmit: async ({ uids, wids, correctness, hesitation }) => {
                     clearStudentDetailWorkspace();
                     classResultsContainer.innerHTML = '<p class="loading">選択条件の結果を読み込んでいます...</p>';
@@ -899,6 +898,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 ...histogramBaseOptions,
                 root: '#test-results-histogram',
                 scope: 'test',
+                initialExpanded: false,
                 getTestId: () => testSelect?.value || '',
                 onSubmit: async ({ uids, wids, correctness, hesitation }) => {
                     const testId = testSelect?.value || '';

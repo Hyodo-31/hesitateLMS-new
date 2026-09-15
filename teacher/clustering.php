@@ -117,11 +117,10 @@ function getClusteringFeatureColumns(mysqli $conn, array $fallbackFeatureColumns
 }
 
 $featureColumns = getClusteringFeatureColumns($conn, $fallbackFeatureColumns);
-foreach ($featureColumns as $featureColumn) {
-    if (!isset($featureLabels[$featureColumn])) {
-        $featureLabels[$featureColumn] = feature_display_label($featureColumn, $featureColumn);
-    }
-}
+$featureLabels = feature_display_labels_for_features($featureColumns);
+$featureDescriptions = feature_display_descriptions_for_features($featureColumns);
+$histogramFeatureLabels = feature_display_histogram_feature_labels();
+$histogramFeatureMeta = feature_display_metadata(array_keys($histogramFeatureLabels));
 $studentsByClass = [];
 $studentsByClassId = [];
 $teacherClasses = [];
@@ -216,6 +215,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>クラスタリング</title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teacher_results_histogram.css?v=<?= filemtime(__DIR__ . '/../style/teacher_results_histogram.css') ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
         .clustering-layout {
@@ -223,6 +223,10 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.3fr);
             gap: 20px;
             align-items: start;
+        }
+
+        .clustering-feature-layout {
+            grid-template-columns: 1fr;
         }
 
         .clustering-panel {
@@ -261,6 +265,42 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         .feature-selector label:hover,
         .student-selector label:hover {
             background: #f4f7f6;
+        }
+
+        .clustering-feature-name {
+            border-bottom: 1px dotted #64748b;
+            cursor: help;
+        }
+
+        .clustering-feature-name:focus {
+            border-radius: 3px;
+            outline: 2px solid rgba(37, 99, 235, 0.32);
+            outline-offset: 2px;
+        }
+
+        .clustering-feature-popup {
+            position: fixed;
+            z-index: 10000;
+            display: none;
+            width: min(380px, calc(100vw - 24px));
+            max-height: calc(100vh - 24px);
+            overflow-y: auto;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            color: #243447;
+            background: #fff;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.24);
+            font-size: 0.85rem;
+            font-weight: 500;
+            line-height: 1.55;
+            white-space: pre-line;
+            pointer-events: none;
+        }
+
+        .clustering-feature-popup.is-visible {
+            display: block;
         }
 
         .class-heading {
@@ -305,6 +345,12 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         .control-field input,
         .control-field select {
             min-width: 150px;
+        }
+
+        .cluster-method-value {
+            min-width: 150px;
+            padding: 9px 0;
+            color: #2c3e50;
         }
 
         .secondary-button {
@@ -498,8 +544,10 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             <section class="card">
                 <h2>クラスタリング</h2>
 
-                <div class="clustering-layout">
-                    <section class="clustering-panel">
+                <div id="clustering-target-selector" aria-label="クラスタリング対象の問題(WID)・学習者(UID)検索"></div>
+
+                <div class="clustering-layout clustering-feature-layout">
+                    <section class="clustering-panel" hidden aria-hidden="true">
                         <h3>対象学習者</h3>
                         <?php if (empty($studentsByClass)): ?>
                             <p>担当グループ(クラス)に学習者が登録されていません。</p>
@@ -563,9 +611,9 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                             </div>
                             <div class="feature-selector checkbox-section">
                                 <?php foreach ($featureColumns as $feature): ?>
-                                    <label title="<?= htmlspecialchars($feature, ENT_QUOTES, 'UTF-8') ?>">
+                                    <label>
                                         <input type="checkbox" class="feature-checkbox" value="<?= htmlspecialchars($feature, ENT_QUOTES, 'UTF-8') ?>" <?= isset($defaultSelectedFeatures[$feature]) ? 'checked' : '' ?>>
-                                        <?= htmlspecialchars($featureLabels[$feature] ?? $feature, ENT_QUOTES, 'UTF-8') ?>
+                                        <span class="clustering-feature-name" tabindex="0" data-feature="<?= htmlspecialchars($feature, ENT_QUOTES, 'UTF-8') ?>" aria-describedby="clustering-feature-popup"><?= htmlspecialchars($featureLabels[$feature] ?? $feature, ENT_QUOTES, 'UTF-8') ?></span>
                                     </label>
                                 <?php endforeach; ?>
                             </div>
@@ -582,11 +630,8 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                         </label>
                         <label class="control-field">
                             <span>手法</span>
-                            <select id="cluster-method">
-                                <option value="kmeans">K-Means</option>
-                                <option value="xmeans">X-Means</option>
-                                <option value="gmeans">G-Means</option>
-                            </select>
+                            <span class="cluster-method-value">K-Means</span>
+                            <input type="hidden" id="cluster-method" value="kmeans">
                         </label>
                         <p class="clustering-status" id="cluster-method-note" style="margin: 0;"></p>
                         <button type="button" class="action-button" id="run-clustering">クラスタリング実行</button>
@@ -607,8 +652,15 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         </main>
     </div>
 
+    <div class="clustering-feature-popup" id="clustering-feature-popup" role="tooltip"></div>
+
+    <script src="teacher-results-histogram.js?v=<?= filemtime(__DIR__ . '/teacher-results-histogram.js') ?>"></script>
     <script>
         const featureLabels = <?= json_encode($featureLabels, JSON_UNESCAPED_UNICODE) ?>;
+        const featureDescriptions = <?= json_encode($featureDescriptions, JSON_UNESCAPED_UNICODE) ?>;
+        const featureDisplayMeta = <?= json_encode(feature_display_metadata($featureColumns), JSON_UNESCAPED_UNICODE) ?>;
+        const histogramFeatureLabels = <?= json_encode($histogramFeatureLabels, JSON_UNESCAPED_UNICODE) ?>;
+        const histogramFeatureMeta = <?= json_encode($histogramFeatureMeta, JSON_UNESCAPED_UNICODE) ?>;
         const statusNode = document.getElementById('clustering-status');
         const resultsNode = document.getElementById('clustering-results');
         const summaryNode = document.getElementById('result-summary');
@@ -619,12 +671,70 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         const clusterCountInput = document.getElementById('cluster-count');
         const clusterMethodSelect = document.getElementById('cluster-method');
         const clusterMethodNote = document.getElementById('cluster-method-note');
+        const clusteringFeaturePopup = document.getElementById('clustering-feature-popup');
         let clusterChart = null;
         let latestClusters = {};
+        let selectedClusteringStudentIds = [];
+        let selectedClusteringWids = [];
+        let clusteringSelectionApplied = false;
         const studentIdsByClass = <?= json_encode((object)$studentsByClassId, JSON_UNESCAPED_UNICODE) ?>;
         const studentIdsByGroup = <?= json_encode((object)$studentsByGroup, JSON_UNESCAPED_UNICODE) ?>;
         const classFilterOptions = <?= json_encode($teacherClasses, JSON_UNESCAPED_UNICODE) ?>;
         const groupFilterOptions = <?= json_encode($teacherGroups, JSON_UNESCAPED_UNICODE) ?>;
+
+        const clusteringTargetSelector = window.TeacherResultsHistogram?.create({
+            root: '#clustering-target-selector',
+            scope: 'class',
+            initialExpanded: false,
+            features: histogramFeatureLabels,
+            featureMeta: histogramFeatureMeta,
+            groups: groupFilterOptions,
+            groupStudents: studentIdsByGroup,
+            showResultFilters: false,
+            submitLabel: '選択した学習者をクラスタリング対象へ反映',
+            onSubmit: async ({ uids, wids }) => {
+                selectedClusteringStudentIds = uids.map(String);
+                selectedClusteringWids = wids.map(String);
+                clusteringSelectionApplied = true;
+                setStatus(`問題(WID) ${selectedClusteringWids.length}件から絞り込んだ学習者(UID) ${selectedClusteringStudentIds.length}名を対象に設定しました。`);
+                window.alert('選択した学習者をクラスタリング対象へ反映しました。');
+            },
+        });
+
+        function hideClusteringFeaturePopup() {
+            clusteringFeaturePopup?.classList.remove('is-visible');
+        }
+
+        function showClusteringFeaturePopup(anchor) {
+            if (!clusteringFeaturePopup || !anchor) return;
+            const feature = anchor.dataset.feature || '';
+            const unit = featureDisplayMeta[feature]?.unit || '';
+            clusteringFeaturePopup.textContent = `${featureLabels[feature] || feature}\n${featureDescriptions[feature] || '特徴量の計測値です。'}${unit ? `\n表示単位: ${unit}` : ''}`;
+            clusteringFeaturePopup.classList.add('is-visible');
+            const margin = 12;
+            const gap = 8;
+            const rect = anchor.getBoundingClientRect();
+            const popupRect = clusteringFeaturePopup.getBoundingClientRect();
+            const left = Math.min(
+                window.innerWidth - popupRect.width - margin,
+                Math.max(margin, rect.left)
+            );
+            const below = rect.bottom + gap;
+            const top = below + popupRect.height <= window.innerHeight - margin
+                ? below
+                : Math.max(margin, rect.top - popupRect.height - gap);
+            clusteringFeaturePopup.style.left = `${left}px`;
+            clusteringFeaturePopup.style.top = `${top}px`;
+        }
+
+        document.querySelectorAll('.clustering-feature-name').forEach((featureName) => {
+            featureName.addEventListener('mouseenter', () => showClusteringFeaturePopup(featureName));
+            featureName.addEventListener('mouseleave', hideClusteringFeaturePopup);
+            featureName.addEventListener('focus', () => showClusteringFeaturePopup(featureName));
+            featureName.addEventListener('blur', hideClusteringFeaturePopup);
+        });
+        window.addEventListener('resize', hideClusteringFeaturePopup);
+        window.addEventListener('scroll', hideClusteringFeaturePopup, { capture: true, passive: true });
 
         function selectedValues(selector) {
             return Array.from(document.querySelectorAll(selector + ':checked')).map((input) => input.value);
@@ -890,10 +1000,15 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         updateClusterCountControl();
 
         runButton?.addEventListener('click', async () => {
-            const studentIDs = selectedValues('.student-checkbox');
+            const studentIDs = [...selectedClusteringStudentIds];
             const features = selectedValues('.feature-checkbox');
             const method = clusterMethodSelect?.value || 'kmeans';
             const clusterCount = method === 'kmeans' ? (clusterCountInput?.value || '2') : '';
+
+            if (!clusteringSelectionApplied) {
+                setStatus('問題(WID)→学習者(UID)の絞り込みで、クラスタリング対象を反映してください。', true);
+                return;
+            }
 
             if (studentIDs.length < 2) {
                 setStatus('学習者を2名以上選択してください。', true);
@@ -917,6 +1032,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                     body: new URLSearchParams({
                         features: features.join(','),
                         studentIDs: studentIDs.join(','),
+                        wids: selectedClusteringWids.join(','),
                         clusterCount,
                         method
                     }).toString()

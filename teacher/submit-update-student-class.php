@@ -4,60 +4,49 @@ require '../dbc.php';
 
 $isPostRequest = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
 $teacherId = (string)($_SESSION['MemberID'] ?? '');
-$studentUidValue = $_POST['student_uid'] ?? '';
+$studentUidValues = $_POST['student_uids'] ?? ($_POST['student_uid'] ?? []);
 $newClassIdValue = $_POST['class_id'] ?? '';
-$studentUid = is_scalar($studentUidValue) ? trim((string)$studentUidValue) : '';
 $newClassId = is_scalar($newClassIdValue) ? trim((string)$newClassIdValue) : '';
+
+if (!is_array($studentUidValues)) {
+    $studentUidValues = [$studentUidValues];
+}
+
+$studentUids = [];
+$hasInvalidStudentUid = false;
+foreach ($studentUidValues as $studentUidValue) {
+    if (!is_scalar($studentUidValue)) {
+        $hasInvalidStudentUid = true;
+        continue;
+    }
+
+    $studentUid = trim((string)$studentUidValue);
+    if ($studentUid !== '') {
+        $studentUids[$studentUid] = $studentUid;
+    }
+}
+$studentUids = array_values($studentUids);
 
 $resultStatus = 'error';
 $resultTitle = '所属クラスを変更できませんでした';
 $resultMessage = '';
-$studentName = '';
-$oldClassId = '';
-$oldClassName = '';
 $newClassName = '';
 $updateCompleted = false;
-$studentFound = false;
+$studentsVerified = false;
 $newClassAllowed = false;
+$selectedStudents = [];
+$updatedCount = 0;
+$unchangedCount = 0;
+$transactionStarted = false;
 
 if ($teacherId === '') {
     $resultMessage = 'ログイン情報を確認できません。もう一度ログインしてください。';
 } elseif (!$isPostRequest) {
     $resultMessage = 'このページは、学習者グループ作成画面から操作してください。';
-} elseif ($studentUid === '' || $newClassId === '') {
-    $resultMessage = '学習者と変更先グループ(クラス)を選択してください。';
+} elseif ($hasInvalidStudentUid || empty($studentUids) || $newClassId === '') {
+    $resultMessage = '学習者を1人以上選択し、変更先グループ(クラス)を指定してください。';
 } else {
-    $stmtAllowedStudent = $conn->prepare(
-        "SELECT s.uid, s.Name, s.ClassID, COALESCE(c.ClassName, '未設定') AS ClassName
-         FROM students s
-         JOIN classteacher ct ON s.ClassID = ct.ClassID
-         LEFT JOIN classes c ON s.ClassID = c.ClassID
-         WHERE s.uid = ? AND ct.TID = ?
-         LIMIT 1"
-    );
-
-    if (!$stmtAllowedStudent) {
-        $resultMessage = '学習者確認の準備に失敗しました。';
-    } else {
-        $stmtAllowedStudent->bind_param('ss', $studentUid, $teacherId);
-        if (!$stmtAllowedStudent->execute()) {
-            $resultMessage = '学習者情報を確認できませんでした。';
-        } else {
-            $allowedStudentResult = $stmtAllowedStudent->get_result();
-            $allowedStudent = $allowedStudentResult->fetch_assoc();
-            if (!$allowedStudent) {
-                $resultMessage = '担当グループ(クラス)外の学習者は変更できません。';
-            } else {
-                $studentFound = true;
-                $studentName = (string)$allowedStudent['Name'];
-                $oldClassId = (string)$allowedStudent['ClassID'];
-                $oldClassName = (string)$allowedStudent['ClassName'];
-            }
-        }
-        $stmtAllowedStudent->close();
-    }
-
-    if ($studentFound) {
+    try {
         $stmtAllowedClass = $conn->prepare(
             "SELECT ct.ClassID, c.ClassName
              FROM classteacher ct
@@ -84,32 +73,109 @@ if ($teacherId === '') {
             }
             $stmtAllowedClass->close();
         }
-    }
 
-    if ($studentFound && $newClassAllowed) {
-        if ($oldClassId === $newClassId) {
-            $resultStatus = 'success';
-            $resultTitle = '所属クラスに変更はありません';
-            $resultMessage = '選択された学習者は、すでに指定したグループ(クラス)に所属しています。';
-            $updateCompleted = true;
-        } else {
-            $stmtUpdate = $conn->prepare('UPDATE students SET ClassID = ? WHERE uid = ?');
-            if (!$stmtUpdate) {
-                $resultMessage = '所属グループ(クラス)変更の準備に失敗しました。';
+        if ($newClassAllowed) {
+            if (!$conn->begin_transaction()) {
+                $resultMessage = '一括変更の準備に失敗しました。';
             } else {
-                $stmtUpdate->bind_param('ss', $newClassId, $studentUid);
-                if ($stmtUpdate->execute()) {
-                    $resultStatus = 'success';
-                    $resultTitle = '所属クラスを変更しました';
-                    $resultMessage = '学習者の所属グループ(クラス)を更新しました。';
-                    $updateCompleted = true;
+                $transactionStarted = true;
+                $studentPlaceholders = implode(',', array_fill(0, count($studentUids), '?'));
+                $stmtAllowedStudents = $conn->prepare(
+                    "SELECT s.uid, s.Name, s.ClassID, COALESCE(c.ClassName, '未設定') AS ClassName
+                     FROM students s
+                     JOIN classteacher ct ON s.ClassID = ct.ClassID
+                     LEFT JOIN classes c ON s.ClassID = c.ClassID
+                     WHERE s.uid IN ({$studentPlaceholders}) AND ct.TID = ?
+                     FOR UPDATE"
+                );
+
+                if (!$stmtAllowedStudents) {
+                    $resultMessage = '学習者確認の準備に失敗しました。';
                 } else {
-                    $resultMessage = '所属グループ(クラス)変更中にエラーが発生しました：'
-                        . $stmtUpdate->error;
+                    $allowedStudentTypes = str_repeat('s', count($studentUids) + 1);
+                    $allowedStudentParams = array_merge($studentUids, [$teacherId]);
+                    $stmtAllowedStudents->bind_param($allowedStudentTypes, ...$allowedStudentParams);
+                    if (!$stmtAllowedStudents->execute()) {
+                        $resultMessage = '学習者情報を確認できませんでした。';
+                    } else {
+                        $allowedStudentResult = $stmtAllowedStudents->get_result();
+                        $allowedStudentsByUid = [];
+                        while ($allowedStudent = $allowedStudentResult->fetch_assoc()) {
+                            $allowedStudentsByUid[(string)$allowedStudent['uid']] = $allowedStudent;
+                        }
+
+                        if (count($allowedStudentsByUid) !== count($studentUids)) {
+                            $resultMessage = '担当グループ(クラス)外、または存在しない学習者が含まれているため変更できません。';
+                        } else {
+                            foreach ($studentUids as $studentUid) {
+                                $student = $allowedStudentsByUid[$studentUid];
+                                $selectedStudents[] = [
+                                    'uid' => (string)$student['uid'],
+                                    'name' => (string)$student['Name'],
+                                    'oldClassId' => (string)$student['ClassID'],
+                                    'oldClassName' => (string)$student['ClassName'],
+                                ];
+                            }
+                            $studentsVerified = true;
+                        }
+                    }
+                    $stmtAllowedStudents->close();
                 }
-                $stmtUpdate->close();
+
+                if ($studentsVerified) {
+                    $stmtUpdate = $conn->prepare('UPDATE students SET ClassID = ? WHERE uid = ?');
+                    if (!$stmtUpdate) {
+                        $resultMessage = '所属グループ(クラス)変更の準備に失敗しました。';
+                    } else {
+                        $updateUid = '';
+                        $stmtUpdate->bind_param('ss', $newClassId, $updateUid);
+                        $allUpdatesSucceeded = true;
+
+                        foreach ($selectedStudents as $student) {
+                            if ($student['oldClassId'] === $newClassId) {
+                                $unchangedCount++;
+                                continue;
+                            }
+
+                            $updateUid = $student['uid'];
+                            if (!$stmtUpdate->execute()) {
+                                $allUpdatesSucceeded = false;
+                                $resultMessage = '所属グループ(クラス)の一括変更中にエラーが発生しました。';
+                                break;
+                            }
+                            $updatedCount++;
+                        }
+                        $stmtUpdate->close();
+
+                        if ($allUpdatesSucceeded && $conn->commit()) {
+                            $transactionStarted = false;
+                            $resultStatus = 'success';
+                            $updateCompleted = true;
+                            $selectedCount = count($selectedStudents);
+
+                            if ($updatedCount === 0) {
+                                $resultTitle = '所属クラスに変更はありません';
+                                $resultMessage = "選択した{$selectedCount}人は、すでに指定したグループ(クラス)に所属しています。";
+                            } else {
+                                $resultTitle = '所属クラスを一括変更しました';
+                                $resultMessage = "選択した{$selectedCount}人のうち{$updatedCount}人を変更しました。";
+                                if ($unchangedCount > 0) {
+                                    $resultMessage .= " 残り{$unchangedCount}人は変更先に所属済みです。";
+                                }
+                            }
+                        } elseif ($allUpdatesSucceeded) {
+                            $resultMessage = '所属グループ(クラス)変更を確定できませんでした。';
+                        }
+                    }
+                }
             }
         }
+    } catch (Throwable $error) {
+        $resultMessage = '所属グループ(クラス)の一括変更中にエラーが発生しました。';
+    }
+
+    if ($transactionStarted) {
+        $conn->rollback();
     }
 }
 
@@ -145,41 +211,43 @@ $teacher_page_title = '学習者所属クラス変更結果';
                 <div class="submit-result-body">
                     <dl class="submit-result-summary-grid">
                         <div class="submit-result-summary-item">
-                            <dt>学習者</dt>
-                            <dd><?= htmlspecialchars($studentFound ? ($studentName !== '' ? $studentName : '名称未設定') : '確認できません', ENT_QUOTES, 'UTF-8') ?></dd>
+                            <dt>選択した学習者</dt>
+                            <dd><?= count($studentUids) ?>人</dd>
+                        </div>
+                        <?php if ($updateCompleted): ?>
+                        <div class="submit-result-summary-item">
+                            <dt>変更した学習者</dt>
+                            <dd><?= $updatedCount ?>人</dd>
                         </div>
                         <div class="submit-result-summary-item">
-                            <dt>UID</dt>
-                            <dd><?= htmlspecialchars($studentUid !== '' ? $studentUid : '未指定', ENT_QUOTES, 'UTF-8') ?></dd>
+                            <dt>変更先に所属済み</dt>
+                            <dd><?= $unchangedCount ?>人</dd>
                         </div>
+                        <?php endif; ?>
                     </dl>
 
-                    <?php if ($studentFound && $newClassAllowed): ?>
+                    <?php if ($updateCompleted && $studentsVerified && $newClassAllowed): ?>
                         <section class="class-transfer-section" aria-labelledby="class-transfer-title">
-                            <h3 id="class-transfer-title">所属グループ(クラス)</h3>
-                            <div class="class-transfer-flow">
-                                <div class="class-transfer-card">
-                                    <span class="class-transfer-label">変更前</span>
-                                    <span class="class-transfer-name">
-                                        <?= htmlspecialchars($oldClassName !== '' ? $oldClassName : '未設定', ENT_QUOTES, 'UTF-8') ?>
-                                    </span>
-                                    <span class="class-transfer-id">
-                                        ID: <?= htmlspecialchars($oldClassId !== '' ? $oldClassId : '未設定', ENT_QUOTES, 'UTF-8') ?>
-                                    </span>
-                                </div>
-
-                                <span class="class-transfer-arrow" aria-hidden="true">→</span>
-
-                                <div class="class-transfer-card is-destination">
-                                    <span class="class-transfer-label">変更後</span>
-                                    <span class="class-transfer-name">
-                                        <?= htmlspecialchars($newClassName, ENT_QUOTES, 'UTF-8') ?>
-                                    </span>
-                                    <span class="class-transfer-id">
-                                        ID: <?= htmlspecialchars($newClassId, ENT_QUOTES, 'UTF-8') ?>
-                                    </span>
-                                </div>
-                            </div>
+                            <h3 id="class-transfer-title">学習者ごとの変更内容</h3>
+                            <ul class="bulk-transfer-result-list">
+                                <?php foreach ($selectedStudents as $student): ?>
+                                    <?php $isUnchanged = $student['oldClassId'] === $newClassId; ?>
+                                    <li>
+                                        <span class="bulk-transfer-student">
+                                            <strong><?= htmlspecialchars($student['name'] !== '' ? $student['name'] : '名称未設定', ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <small>UID: <?= htmlspecialchars($student['uid'], ENT_QUOTES, 'UTF-8') ?></small>
+                                        </span>
+                                        <span class="bulk-transfer-route">
+                                            <?= htmlspecialchars($student['oldClassName'], ENT_QUOTES, 'UTF-8') ?>
+                                            <span aria-hidden="true">→</span>
+                                            <strong><?= htmlspecialchars($newClassName, ENT_QUOTES, 'UTF-8') ?></strong>
+                                        </span>
+                                        <span class="bulk-transfer-state<?= $isUnchanged ? ' is-unchanged' : '' ?>">
+                                            <?= $isUnchanged ? '変更なし' : '変更' ?>
+                                        </span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
                         </section>
                     <?php endif; ?>
 

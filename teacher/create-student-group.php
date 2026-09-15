@@ -62,7 +62,7 @@
             $pair_feature_sql = "SELECT " . implode(", ", $pair_average_selects) . "
                 FROM test_featurevalue tf
                 JOIN students s ON tf.UID = s.uid
-                JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+                JOIN classteacher ct ON s.ClassID = ct.ClassID
                 WHERE ct.TID = ?
                 GROUP BY tf.UID, tf.WID
                 ORDER BY tf.UID, tf.WID";
@@ -98,7 +98,7 @@
                 latest_hesitation.Understand
             FROM linedata l
             JOIN students s ON l.UID = s.uid
-            JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+            JOIN classteacher ct ON s.ClassID = ct.ClassID
             LEFT JOIN (
                 SELECT tr.UID, tr.WID, tr.attempt, tr.teacher_id, tr.Understand
                 FROM temporary_results tr
@@ -130,7 +130,7 @@
             }
             $metric_attempt_stmt->close();
         }
-        $teacher_page_title = '学生グループ作成';
+        $teacher_page_title = '学習者グルーピング作成';
         include __DIR__ . '/teacher-menu.php';
     ?>
     <div class="main-content">
@@ -139,7 +139,7 @@
 
 
             <div class="content-class">
-            <h2>学生グループ作成</h2>
+            <h2>学習者グルーピング作成</h2>
                 <div id="student-group-unified-selector" aria-label="問題(WID)・学習者(UID)の順でグループ対象を選択"></div>
                 <form id="search-form" method="GET" hidden aria-hidden="true">
                     <section id="checkbox-search-method-panel" class="filter-conditions-accordion" aria-label="従来の絞り込み" hidden>
@@ -186,7 +186,7 @@
                                         {$feature_select_sql}
                                     FROM students s
                                     JOIN classes c ON s.ClassID = c.ClassID
-                                    LEFT JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+                                    LEFT JOIN classteacher ct ON s.ClassID = ct.ClassID
                                     LEFT JOIN (
                                         SELECT
                                             uid,
@@ -258,7 +258,7 @@
                                         qi.Sentence
                                     FROM students s
                                     JOIN classes c ON s.ClassID = c.ClassID
-                                    LEFT JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+                                    LEFT JOIN classteacher ct ON s.ClassID = ct.ClassID
                                     {$feature_pair_join_sql}
                                     LEFT JOIN question_info qi ON feat.WID = qi.WID
                                     WHERE ct.TID = ? AND feat.WID IS NOT NULL
@@ -555,17 +555,60 @@
                 <?php elseif (empty($assigned_students_for_move)): ?>
                     <p>担当グループ(クラス)内に変更対象の学習者がいません。</p>
                 <?php else: ?>
-                    <form action="submit-update-student-class.php" method="post">
-                        <label for="move_student_uid">変更する学習者</label>
-                        <select id="move_student_uid" name="student_uid" required>
-                            <?php foreach ($assigned_students_for_move as $student_for_move): ?>
-                                <option value="<?= htmlspecialchars($student_for_move['uid'], ENT_QUOTES, 'UTF-8') ?>">
-                                    <?= htmlspecialchars($student_for_move['Name'], ENT_QUOTES, 'UTF-8') ?>
-                                    (UID: <?= htmlspecialchars($student_for_move['uid'], ENT_QUOTES, 'UTF-8') ?> / 現在: <?= htmlspecialchars($student_for_move['ClassName'], ENT_QUOTES, 'UTF-8') ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <br><br>
+                    <form action="submit-update-student-class.php" method="post" id="student-class-move-form">
+                        <fieldset class="student-class-move-picker">
+                            <legend>変更する学習者（複数選択可）</legend>
+                            <div class="student-class-move-toolbar">
+                                <div class="student-class-move-actions">
+                                    <button type="button" class="teacher-secondary-button" id="select-all-move-students">全員選択</button>
+                                    <button type="button" class="teacher-secondary-button" id="deselect-all-move-students">全員解除</button>
+                                </div>
+                                <span id="move-student-selection-summary" aria-live="polite">0人選択中</span>
+                            </div>
+                            <div class="student-class-move-list">
+                                <?php
+                                    $current_move_class_id = null;
+                                    foreach ($assigned_students_for_move as $student_for_move):
+                                        $move_class_id = (string)$student_for_move['ClassID'];
+                                        if ($current_move_class_id !== $move_class_id):
+                                            if ($current_move_class_id !== null):
+                                ?>
+                                            </div>
+                                        </section>
+                                <?php
+                                            endif;
+                                            $current_move_class_id = $move_class_id;
+                                ?>
+                                        <section class="student-class-move-group">
+                                            <div class="student-class-move-group-header">
+                                                <strong><?= htmlspecialchars($student_for_move['ClassName'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                                <label>
+                                                    <input type="checkbox" class="move-class-select-all" data-class-id="<?= htmlspecialchars($move_class_id, ENT_QUOTES, 'UTF-8') ?>">
+                                                    このクラスをすべて選択
+                                                </label>
+                                            </div>
+                                            <div class="student-class-move-group-members">
+                                <?php endif; ?>
+                                                <label class="student-class-move-choice">
+                                                    <input
+                                                        type="checkbox"
+                                                        class="move-student-checkbox"
+                                                        name="student_uids[]"
+                                                        value="<?= htmlspecialchars($student_for_move['uid'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        data-class-id="<?= htmlspecialchars($move_class_id, ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                    <span>
+                                                        <strong><?= htmlspecialchars($student_for_move['Name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                                        <small>UID: <?= htmlspecialchars($student_for_move['uid'], ENT_QUOTES, 'UTF-8') ?></small>
+                                                    </span>
+                                                </label>
+                                <?php endforeach; ?>
+                                <?php if ($current_move_class_id !== null): ?>
+                                            </div>
+                                        </section>
+                                <?php endif; ?>
+                            </div>
+                        </fieldset>
                         <label for="move_class_id">変更先グループ(クラス)</label>
                         <select id="move_class_id" name="class_id" required>
                             <?php foreach ($assigned_classes_for_move as $class_for_move): ?>
@@ -575,8 +618,7 @@
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <br><br>
-                        <button type="submit">所属グループ(クラス)を変更</button>
+                        <button type="submit">選択した学習者の所属グループ(クラス)を変更</button>
                     </form>
                 <?php endif; ?>
             </div>
@@ -637,5 +679,69 @@
     </script>
     <script src="teacher-results-histogram.js?v=<?= filemtime(__DIR__ . '/teacher-results-histogram.js') ?>"></script>
     <script src="student-group-selector.js?v=<?= filemtime(__DIR__ . '/student-group-selector.js') ?>"></script>
+    <script>
+        (() => {
+            const form = document.getElementById('student-class-move-form');
+            if (!form) {
+                return;
+            }
+
+            const studentCheckboxes = Array.from(form.querySelectorAll('.move-student-checkbox'));
+            const classCheckboxes = Array.from(form.querySelectorAll('.move-class-select-all'));
+            const summary = document.getElementById('move-student-selection-summary');
+            const selectAllButton = document.getElementById('select-all-move-students');
+            const deselectAllButton = document.getElementById('deselect-all-move-students');
+
+            const updateSelectionState = () => {
+                const selectedCount = studentCheckboxes.filter((checkbox) => checkbox.checked).length;
+                if (summary) {
+                    summary.textContent = `${selectedCount}人選択中`;
+                }
+
+                classCheckboxes.forEach((classCheckbox) => {
+                    const classStudents = studentCheckboxes.filter(
+                        (studentCheckbox) => studentCheckbox.dataset.classId === classCheckbox.dataset.classId
+                    );
+                    const selectedInClass = classStudents.filter((studentCheckbox) => studentCheckbox.checked).length;
+                    classCheckbox.checked = classStudents.length > 0 && selectedInClass === classStudents.length;
+                    classCheckbox.indeterminate = selectedInClass > 0 && selectedInClass < classStudents.length;
+                });
+            };
+
+            const setAllStudents = (checked) => {
+                studentCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = checked;
+                });
+                updateSelectionState();
+            };
+
+            selectAllButton?.addEventListener('click', () => setAllStudents(true));
+            deselectAllButton?.addEventListener('click', () => setAllStudents(false));
+
+            classCheckboxes.forEach((classCheckbox) => {
+                classCheckbox.addEventListener('change', () => {
+                    studentCheckboxes.forEach((studentCheckbox) => {
+                        if (studentCheckbox.dataset.classId === classCheckbox.dataset.classId) {
+                            studentCheckbox.checked = classCheckbox.checked;
+                        }
+                    });
+                    updateSelectionState();
+                });
+            });
+
+            studentCheckboxes.forEach((checkbox) => {
+                checkbox.addEventListener('change', updateSelectionState);
+            });
+
+            form.addEventListener('submit', (event) => {
+                if (!studentCheckboxes.some((checkbox) => checkbox.checked)) {
+                    event.preventDefault();
+                    window.alert('変更する学習者を1人以上選択してください。');
+                }
+            });
+
+            updateSelectionState();
+        })();
+    </script>
 </body>
 </html>

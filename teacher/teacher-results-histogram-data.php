@@ -63,7 +63,7 @@ function result_histogram_teacher_students(mysqli $conn, string $teacherId): arr
         'SELECT DISTINCT s.uid, s.Name, s.ClassID, c.ClassName
          FROM students s
          JOIN classes c ON s.ClassID = c.ClassID
-         JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+         JOIN classteacher ct ON s.ClassID = ct.ClassID
          WHERE ct.TID = ?
          ORDER BY c.ClassName, s.uid',
         's',
@@ -90,7 +90,7 @@ function result_histogram_test_context(mysqli $conn, string $teacherId, int $tes
             'SELECT DISTINCT s.uid, s.Name, s.ClassID, c.ClassName
              FROM students s
              JOIN classes c ON s.ClassID = c.ClassID
-             JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+             JOIN classteacher ct ON s.ClassID = ct.ClassID
              WHERE s.ClassID = ? AND ct.TID = ?
              ORDER BY s.uid',
             'is',
@@ -104,7 +104,7 @@ function result_histogram_test_context(mysqli $conn, string $teacherId, int $tes
              JOIN group_members gm ON g.group_id = gm.group_id
              JOIN students s ON gm.uid = s.uid
              JOIN classes c ON s.ClassID = c.ClassID
-             JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+             JOIN classteacher ct ON s.ClassID = ct.ClassID
              WHERE g.group_id = ? AND g.TID = ? AND ct.TID = ?
              ORDER BY c.ClassName, s.uid',
             'iss',
@@ -197,7 +197,7 @@ try {
         $widSql = 'SELECT DISTINCT l.WID, qi.Sentence, qi.level, qi.grammar
                    FROM linedata l
                    JOIN students s ON l.UID = s.uid
-                   JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+                   JOIN classteacher ct ON s.ClassID = ct.ClassID
                    LEFT JOIN question_info qi ON l.WID = qi.WID
                    WHERE ct.TID = ?';
         $widTypes = 's';
@@ -237,7 +237,7 @@ try {
         $featureSql = 'SELECT ' . implode(', ', $featureSelects) . '
                        FROM test_featurevalue tf
                        JOIN students s ON tf.UID = s.uid
-                       JOIN ClassTeacher ct ON s.ClassID = ct.ClassID';
+                       JOIN classteacher ct ON s.ClassID = ct.ClassID';
         $featureTypes = 's';
         $featureParams = [$teacherId];
         if ($scope === 'test') {
@@ -281,7 +281,7 @@ try {
         $metricSql = 'SELECT l.UID, l.WID, l.attempt, l.TF, latest_hesitation.Understand
                       FROM linedata l
                       JOIN students s ON l.UID = s.uid
-                      JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
+                      JOIN classteacher ct ON s.ClassID = ct.ClassID
                       LEFT JOIN (
                           SELECT tr.UID, tr.WID, tr.attempt, tr.Understand
                           FROM temporary_results tr

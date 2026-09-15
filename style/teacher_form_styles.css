@@ -1238,6 +1238,112 @@
     margin: 10px 0 0;
 }
 
+.student-class-move-picker {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.student-class-move-picker legend {
+    margin-bottom: 10px;
+    color: #374151;
+    font-weight: 800;
+}
+
+.student-class-move-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.student-class-move-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.teacher-form-card .student-class-move-actions button {
+    min-height: 36px;
+    padding: 7px 12px;
+}
+
+#move-student-selection-summary {
+    color: #0f766e;
+    font-weight: 800;
+}
+
+.student-class-move-list {
+    display: grid;
+    gap: 12px;
+    max-height: 440px;
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid var(--teacher-form-border);
+    border-radius: 8px;
+    background-color: var(--teacher-form-soft);
+}
+
+.student-class-move-group {
+    overflow: hidden;
+    border: 1px solid #dbe3ee;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.student-class-move-group-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #eff6ff;
+}
+
+.student-class-move-group-header label {
+    font-size: 0.9rem;
+}
+
+.student-class-move-group-members {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px;
+    padding: 10px;
+}
+
+.student-class-move-choice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background-color: #fff;
+    cursor: pointer;
+}
+
+.student-class-move-choice span {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.student-class-move-choice strong,
+.student-class-move-choice small {
+    overflow-wrap: anywhere;
+}
+
+.student-class-move-choice small {
+    color: #64748b;
+    font-weight: 600;
+}
+
 .student-list {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     max-height: 520px;

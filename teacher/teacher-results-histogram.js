@@ -306,6 +306,7 @@
             this.getTestId = options.getTestId || (() => '');
             this.onSubmit = options.onSubmit;
             this.submitLabel = options.submitLabel || '選択条件で結果を表示';
+            this.showResultFilters = options.showResultFilters !== false;
             this.onDetailStudentChange = options.onDetailStudentChange || (() => {});
             this.features = Object.entries(options.features || {}).map(([value, label]) => ({ value, label }));
             this.featureMeta = options.featureMeta || {};
@@ -856,6 +857,11 @@
         }
 
         renderResultFilters() {
+            if (!this.showResultFilters) {
+                this.q('result-filters').innerHTML = '';
+                this.q('result-filters').hidden = true;
+                return;
+            }
             const correctnessOptions = this.scope === 'test'
                 ? '<option value="all">すべて</option><option value="correct">正解</option><option value="incorrect">不正解</option><option value="unanswered">未解答</option>'
                 : '<option value="all">すべて</option><option value="correct">正解</option><option value="incorrect">不正解</option>';
@@ -1192,7 +1198,8 @@
             try {
                 await this.onSubmit({
                     uids, studentId: this.scope === 'student' ? this.detailUid : '', wids: [...this.appliedWids],
-                    correctness: this.q('result-correctness').value, hesitation: this.q('result-hesitation').value,
+                    correctness: this.showResultFilters ? this.q('result-correctness').value : 'all',
+                    hesitation: this.showResultFilters ? this.q('result-hesitation').value : 'all',
                 });
             } finally { button.disabled = false; }
         }

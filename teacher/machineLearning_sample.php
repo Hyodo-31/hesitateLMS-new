@@ -299,7 +299,7 @@ $featureDisplayFeatureKeys = [
                                  AND gm.uid = s.uid
                            )
                        )
-                     ORDER BY c.ClassName, s.Name, s.uid"
+                     ORDER BY ClassName, s.Name, s.uid"
                 );
                 if ($stmtClassificationStudents) {
                     $stmtClassificationStudents->bind_param(

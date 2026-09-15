@@ -206,56 +206,10 @@ function predictionLabelFromCode(?int $predictionCode): string
 }
 
 $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
-$featureLabels = [];
-foreach ($featureColumns as $featureColumn) {
-    $featureLabels[$featureColumn] = feature_display_label($featureColumn, $featureColumn);
-}
-$featureDescriptions = [
-    'Time' => '問題の解答開始から終了までにかかった時間です。',
-    'distance' => '解答中にマウスカーソルが移動した距離の合計です。',
-    'averageSpeed' => '解答中のマウスカーソルの平均移動速度です。',
-    'maxSpeed' => '解答中のマウスカーソルの最大移動速度です。',
-    'thinkingTime' => '解答開始から最初のドラッグまでの時間です。',
-    'answeringTime' => '最初のドラッグから解答終了までの時間です。',
-    'totalStopTime' => 'マウスカーソルが静止していた時間の合計です。',
-    'maxStopTime' => '1回のマウスカーソル静止のうち、最も長かった時間です。',
-    'stopcount' => '解答中にマウスカーソルが停止した回数です。',
-    'totalDDIntervalTime' => 'ドラッグ＆ドロップから次のドラッグ開始までの間隔時間の合計です。',
-    'maxDDIntervalTime' => 'ドラッグ＆ドロップ間の間隔時間の最大値です。',
-    'maxDDTime' => '1回のドラッグ＆ドロップにかかった時間の最大値です。',
-    'minDDTime' => '1回のドラッグ＆ドロップにかかった時間の最小値です。',
-    'DDCount' => 'ドラッグ＆ドロップを行った回数です。',
-    'groupingDDCount' => 'グルーピングされた単語をドラッグ＆ドロップした回数です。',
-    'groupingCountbool' => 'グルーピング機能を使用したかどうかを0または1で表します。',
-    'xUTurnCount' => 'マウスが横方向に折り返した回数です。',
-    'yUTurnCount' => 'マウスが縦方向に折り返した回数です。',
-    'xUTurnCountDD' => 'ドラッグ中にマウスが横方向へ折り返した回数です。',
-    'yUTurnCountDD' => 'ドラッグ中にマウスが縦方向へ折り返した回数です。',
-    'register_move_count1' => '単語をレジスタから別のレジスタへ移動した回数です。',
-    'register_move_count2' => '単語をレジスタからレジスタ外へ移動した回数です。',
-    'register_move_count3' => '単語をレジスタ外からレジスタへ移動した回数です。',
-    'register_move_count4' => '単語をレジスタ外の領域間で移動した回数です。',
-    'register01count1' => 'レジスタ間の移動があったかを0または1で表します。',
-    'register01count2' => 'レジスタからレジスタ外への移動があったかを0または1で表します。',
-    'register01count3' => 'レジスタ外からレジスタへの移動があったかを0または1で表します。',
-    'register01count4' => 'レジスタ外の領域間で移動があったかを0または1で表します。',
-    'registerDDCount' => 'レジスタの内外をまたぐ、またはレジスタ間のドラッグ＆ドロップ回数の合計です。',
-    'register_notDDCount' => 'レジスタに関する操作のうち、ドラッグ＆ドロップ以外の操作回数です。',
-    'FromlastdropToanswerTime' => '最後のドロップから解答終了までの時間です。',
-];
-
-foreach (range(1, 4) as $registerNumber) {
-    $featureDescriptions["register_fix_count{$registerNumber}"] = "レジスタ{$registerNumber}で単語の配置を修正した回数です。";
-    $featureDescriptions["register_delete_count{$registerNumber}"] = "レジスタ{$registerNumber}から単語を削除した回数です。";
-    $featureDescriptions["register_allDelete_count{$registerNumber}"] = "レジスタ{$registerNumber}の単語をすべて削除した回数です。";
-    $featureDescriptions["register_notallDelete_count{$registerNumber}"] = "レジスタ{$registerNumber}の単語を一部だけ削除した回数です。";
-}
-
-foreach ($featureColumns as $featureColumn) {
-    if (!isset($featureDescriptions[$featureColumn])) {
-        $featureDescriptions[$featureColumn] = "{$featureColumn} の計測値です。";
-    }
-}
+$featureLabels = feature_display_labels_for_features($featureColumns);
+$featureDescriptions = feature_display_descriptions_for_features($featureColumns);
+$histogramFeatureLabels = feature_display_histogram_feature_labels();
+$histogramFeatureMeta = feature_display_metadata(array_keys($histogramFeatureLabels));
 $teacherId = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
 $teacherClasses = [];
 $studentsByClass = [];
@@ -431,7 +385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             $emptyYLabel = '迷い推定結果';
             if ($mode === 'feature_pair') {
-                $emptyYLabel = feature_display_label($yFeature, $yFeature);
+                $emptyYLabel = $featureLabels[$yFeature] ?? feature_display_label($yFeature, $yFeature);
             } elseif ($mode === 'hesitation_degree') {
                 $emptyYLabel = '迷い度';
             }
@@ -440,7 +394,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'feature_x' => $xFeature,
                 'feature_y' => $mode === 'feature_pair' ? $yFeature : null,
                 'prediction_filter' => $mode === 'feature_pair' ? $predictionFilter : 'all',
-                'x_label' => feature_display_label($xFeature, $xFeature),
+                'x_label' => $featureLabels[$xFeature] ?? feature_display_label($xFeature, $xFeature),
                 'y_label' => $emptyYLabel,
                 'count' => 0,
                 'correlation' => null,
@@ -469,8 +423,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       AND tf.{$ySql} IS NOT NULL
                       AND tf.UID IN ({$studentPlaceholders})";
             $sql = appendPredictionFilter($sql, $predictionFilter);
-            $xLabel = feature_display_label($xFeature, $xFeature);
-            $yLabel = feature_display_label($yFeature, $yFeature);
+            $xLabel = $featureLabels[$xFeature] ?? feature_display_label($xFeature, $xFeature);
+            $yLabel = $featureLabels[$yFeature] ?? feature_display_label($yFeature, $yFeature);
         } elseif ($mode === 'hesitation_degree') {
             $queryTypes = $studentType;
             $queryParams = $selectedStudents;
@@ -486,7 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     WHERE l.Understand IN (2, 3, 4)
                       AND tf.{$xSql} IS NOT NULL
                       AND tf.UID IN ({$studentPlaceholders})";
-            $xLabel = feature_display_label($xFeature, $xFeature);
+            $xLabel = $featureLabels[$xFeature] ?? feature_display_label($xFeature, $xFeature);
             $yLabel = '迷い度';
             $predictionFilter = 'all';
         } else {
@@ -502,7 +456,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     WHERE prediction.Understand IN (2, 4)
                       AND tf.{$xSql} IS NOT NULL
                       AND tf.UID IN ({$studentPlaceholders})";
-            $xLabel = feature_display_label($xFeature, $xFeature);
+            $xLabel = $featureLabels[$xFeature] ?? feature_display_label($xFeature, $xFeature);
             $yLabel = '迷い推定結果';
             $mode = 'understand';
             $predictionFilter = 'all';
@@ -877,6 +831,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>特徴量相関分析</title>
     <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teacher_results_histogram.css?v=<?= filemtime(__DIR__ . '/../style/teacher_results_histogram.css') ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .feature-correlation-page {
@@ -1035,7 +990,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .analysis-layout {
             display: grid;
-            grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr);
             gap: 18px;
             align-items: start;
         }
@@ -1077,14 +1032,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .correlation-table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
+            border: 1px solid #cbd5e1;
+            table-layout: auto;
             font-size: 0.9rem;
         }
 
         .correlation-table th,
         .correlation-table td {
             padding: 10px 12px;
-            border-bottom: 1px solid #edf2f7;
+            border: 1px solid #d8dee4;
             text-align: left;
             vertical-align: middle;
         }
@@ -1098,11 +1054,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.82rem;
         }
 
-        .correlation-table td:first-child {
+        .correlation-table th.ranking-position,
+        .correlation-table td.ranking-position {
+            width: 64px;
+            text-align: center;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .correlation-table td:nth-child(2) {
             overflow: visible;
         }
 
-        .ranking-feature-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:help; }
+        .ranking-feature-name { display:block; overflow-wrap:anywhere; white-space:normal; cursor:help; }
         .ranking-feature-popup { position:fixed; z-index:10000; display:none; width:min(380px, calc(100vw - 24px)); max-height:calc(100vh - 24px); overflow-y:auto; box-sizing:border-box; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; color:#243447; background:#fff; box-shadow:0 12px 28px rgba(15, 23, 42, 0.24); font-size:0.85rem; font-weight:500; line-height:1.55; text-align:left; white-space:normal; pointer-events:none; }
         .ranking-feature-popup.is-visible { display:block; }
 
@@ -1239,6 +1203,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <div class="main-content">
     <main class="feature-correlation-page">
+        <div id="correlation-target-selector" aria-label="相関分析対象の問題(WID)・学習者(UID)検索"></div>
+
         <section class="analysis-controls" aria-label="相関分析条件">
             <div class="control-group">
                 <span class="mode-label">表示対象</span>
@@ -1306,7 +1272,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button id="load-btn" type="button">相関を表示</button>
         </section>
 
-        <section class="filter-section is-collapsed" id="filter-section" aria-label="絞り込み条件">
+        <section class="filter-section is-collapsed hidden" id="filter-section" aria-label="従来の絞り込み条件" hidden aria-hidden="true">
             <button class="filter-section-header" id="filter-section-toggle" type="button" aria-expanded="false" aria-controls="filter-section-body">
                 <span class="filter-title-wrap">
                     <h2 class="filter-section-title">絞り込み条件</h2>
@@ -1400,6 +1366,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </section>
 
         <section class="analysis-layout">
+            <section class="chart-panel">
+                <div class="panel-heading">
+                    <h2 id="chart-title">散布図</h2>
+                    <span class="panel-subtle" id="chart-subtitle"></span>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="scatterChart"></canvas>
+                </div>
+            </section>
+
             <aside class="correlation-list-panel hidden" id="correlation-list-panel">
                 <div class="panel-heading">
                     <h2 id="ranking-title">相関ランキング</h2>
@@ -1409,6 +1385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <table class="correlation-table">
                         <thead>
                             <tr>
+                                <th class="ranking-position">順位</th>
                                 <th>比較特徴量</th>
                                 <th class="numeric">r</th>
                                 <th class="numeric">件数</th>
@@ -1419,33 +1396,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="empty-list hidden" id="empty-list">相関を算出できる特徴量がありません。</div>
                 </div>
             </aside>
-
-            <section class="chart-panel">
-                <div class="panel-heading">
-                    <h2 id="chart-title">散布図</h2>
-                    <span class="panel-subtle" id="chart-subtitle"></span>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="scatterChart"></canvas>
-                </div>
-            </section>
         </section>
     </main>
 </div>
 
 <div class="ranking-feature-popup" id="ranking-feature-popup" role="tooltip"></div>
 
+<script src="teacher-results-histogram.js?v=<?= filemtime(__DIR__ . '/teacher-results-histogram.js') ?>"></script>
 <script>
 const featureColumns = <?= json_encode($featureColumns, JSON_UNESCAPED_UNICODE) ?>;
 const featureLabels = <?= json_encode($featureLabels, JSON_UNESCAPED_UNICODE) ?>;
 const featureDisplayMeta = <?= json_encode(feature_display_metadata($featureColumns), JSON_UNESCAPED_UNICODE) ?>;
 const featureDescriptions = <?= json_encode($featureDescriptions, JSON_UNESCAPED_UNICODE) ?>;
+const histogramFeatureLabels = <?= json_encode($histogramFeatureLabels, JSON_UNESCAPED_UNICODE) ?>;
+const histogramFeatureMeta = <?= json_encode($histogramFeatureMeta, JSON_UNESCAPED_UNICODE) ?>;
 const classStudentIdsByClass = <?= json_encode((object)$studentsByClassId, JSON_UNESCAPED_UNICODE) ?>;
 const groupStudentIdsByGroup = <?= json_encode((object)$studentsByGroup, JSON_UNESCAPED_UNICODE) ?>;
 const classFilterOptions = <?= json_encode($teacherClasses, JSON_UNESCAPED_UNICODE) ?>;
 const groupFilterOptions = <?= json_encode($teacherGroups, JSON_UNESCAPED_UNICODE) ?>;
 let scatterChart;
 let currentRanking = [];
+let unifiedCorrelationSelection = null;
 
 const modeInputs = document.querySelectorAll('input[name="correlation-mode"]');
 const featureXSelect = document.getElementById('feature-x-select');
@@ -1495,10 +1466,16 @@ function getStudentCheckboxItems() {
 }
 
 function getSelectedStudentIds() {
+    if (unifiedCorrelationSelection) {
+        return [...unifiedCorrelationSelection.uids];
+    }
     return Array.from(studentCheckboxList.querySelectorAll('.checkbox-item input:checked')).map((input) => input.value);
 }
 
 function getSelectedWids() {
+    if (unifiedCorrelationSelection) {
+        return [...unifiedCorrelationSelection.wids];
+    }
     return Array.from(questionCheckboxList.querySelectorAll('.question-checkbox-item input:checked')).map((input) => input.value);
 }
 
@@ -2313,11 +2290,15 @@ function renderRanking(items) {
     }
 
     const selectedFeature = isOutcomeMode ? featureXSelect.value : featureYSelect.value;
-    items.forEach((item) => {
+    items.forEach((item, index) => {
         const feature = isOutcomeMode ? item.feature : item.feature_y;
         const row = document.createElement('tr');
         row.dataset.feature = feature;
         row.classList.toggle('is-selected', feature === selectedFeature);
+
+        const rankCell = document.createElement('td');
+        rankCell.className = 'ranking-position';
+        rankCell.textContent = `${index + 1}位`;
 
         const featureCell = document.createElement('td');
         const featureTooltip = document.createElement('span');
@@ -2344,7 +2325,7 @@ function renderRanking(items) {
         countCell.className = 'numeric';
         countCell.textContent = formatValue(item.count, 0);
 
-        row.append(featureCell, correlationCell, countCell);
+        row.append(rankCell, featureCell, correlationCell, countCell);
         row.addEventListener('click', () => {
             if (isOutcomeMode) {
                 featureXSelect.value = feature;
@@ -2437,6 +2418,10 @@ async function loadHesitationDegreeRanking() {
 }
 
 async function loadData(refreshRanking = true) {
+    if (correlationTargetSelector && !unifiedCorrelationSelection) {
+        pairValue.textContent = '対象未選択';
+        return;
+    }
     syncControls();
     setLoading(true);
 
@@ -2494,6 +2479,25 @@ async function loadData(refreshRanking = true) {
     }
 }
 
+const correlationTargetSelector = window.TeacherResultsHistogram?.create({
+    root: '#correlation-target-selector',
+    scope: 'class',
+    initialExpanded: false,
+    features: histogramFeatureLabels,
+    featureMeta: histogramFeatureMeta,
+    groups: groupFilterOptions,
+    groupStudents: groupStudentIdsByGroup,
+    showResultFilters: false,
+    submitLabel: '選択条件で相関を表示',
+    onSubmit: async ({ uids, wids }) => {
+        unifiedCorrelationSelection = {
+            uids: uids.map(String),
+            wids: wids.map(String),
+        };
+        await loadData(true);
+    },
+});
+
 modeInputs.forEach((input) => {
     input.addEventListener('change', () => loadData(true));
 });
@@ -2508,7 +2512,13 @@ featureYSelect.addEventListener('change', () => {
 predictionFilterSelect.addEventListener('change', () => loadData(true));
 window.addEventListener('resize', hideRankingFeaturePopup);
 window.addEventListener('scroll', hideRankingFeaturePopup, { capture: true, passive: true });
-loadButton.addEventListener('click', () => loadData(true));
+loadButton.addEventListener('click', () => {
+    if (correlationTargetSelector && !unifiedCorrelationSelection) {
+        alert('先に問題(WID)→学習者(UID)の絞り込みを行い、相関分析の対象を確定してください。');
+        return;
+    }
+    loadData(true);
+});
 addFilterConditionButton.addEventListener('click', () => {
     createFilterToken('condition');
 });
@@ -2578,9 +2588,13 @@ resetFilterConditions();
 syncControls();
 updateVisibleStudents();
 syncStudentControlStates();
-refreshQuestionFilters()
-    .then(() => loadData(true))
-    .catch((error) => alert(error.message || '問題リストの読み込みに失敗しました。'));
+if (correlationTargetSelector) {
+    pairValue.textContent = '対象未選択';
+} else {
+    refreshQuestionFilters()
+        .then(() => loadData(true))
+        .catch((error) => alert(error.message || '問題リストの読み込みに失敗しました。'));
+}
 </script>
 </body>
 </html>

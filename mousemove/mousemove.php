@@ -1,6 +1,7 @@
 <?php
 // lang.phpでセッションが開始されるため、個別のsession_startは不要
 require "../lang.php";
+$show_word_level_ml_ui = false;
 ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
@@ -1241,7 +1242,7 @@ require "../lang.php";
                             }
 
                             // 単語単位機械学習結果に表示される単語を、スライダー上でも赤色表示するための対象を計算
-                            if (!empty($ml_hesitation_word_ids)) {
+                            if ($show_word_level_ml_ui && !empty($ml_hesitation_word_ids)) {
                                 $sql_DD_ml_occ = "select DD, Label from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num . " order by Time;";
                                 $res_DD_ml_occ = mysqli_query($conn, $sql_DD_ml_occ) or die("接続エラー");
                                 $ml_drag_label_parts = array();
@@ -1277,9 +1278,11 @@ require "../lang.php";
                                     $raw_hesitation_words[] = $diarray[$word_id];
                                 }
                             }
-                            foreach ($hesitation_words_ml as $ml_word) {
-                                if (isset($ml_word["word_name"])) {
-                                    $raw_hesitation_words[] = $ml_word["word_name"];
+                            if ($show_word_level_ml_ui) {
+                                foreach ($hesitation_words_ml as $ml_word) {
+                                    if (isset($ml_word["word_name"])) {
+                                        $raw_hesitation_words[] = $ml_word["word_name"];
+                                    }
                                 }
                             }
                             $all_dc_arrays = $DC_array2 + $DC_array1 + $DC_array075;
@@ -1516,6 +1519,7 @@ require "../lang.php";
                             }
                             ?>
                             <br>
+                            <?php if ($show_word_level_ml_ui): ?>
                             <b><u>単語単位機械学習結果</u></b><br>
                             <?php
                             if (empty($hesitation_words_ml)) {
@@ -1529,6 +1533,7 @@ require "../lang.php";
                                 }
                             }
                             ?>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 </table>

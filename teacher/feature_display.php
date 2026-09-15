@@ -214,3 +214,171 @@ function feature_display_metadata(array $features): array
     return $metadata;
 }
 
+function feature_display_name_map(): array
+{
+    return [
+        'Time' => '解答時間',
+        'distance' => '移動距離',
+        'averageSpeed' => '平均速度',
+        'maxSpeed' => '最大速度',
+        'thinkingTime' => '第1ドラッグ前時間',
+        'answeringTime' => '第1ドラッグ後時間',
+        'totalStopTime' => '合計静止時間',
+        'maxStopTime' => '最大静止時間',
+        'stopcount' => '静止回数',
+        'totalDDIntervalTime' => '合計D&D間隔時間',
+        'maxDDIntervalTime' => '最大D&D間隔時間',
+        'totalDDTime' => '合計D&D時間',
+        'maxDDTime' => '最大D&D時間',
+        'minDDTime' => '最小D&D時間',
+        'DDCount' => 'D&D回数',
+        'groupingDDCount' => 'グループ化D&D回数',
+        'groupingCountbool' => 'グループ化有無',
+        'xUTurnCount' => 'X軸Uターン回数',
+        'yUTurnCount' => 'Y軸Uターン回数',
+        'xUTurnCountDD' => 'X軸UターンD&D回数',
+        'yUTurnCountDD' => 'Y軸UターンD&D回数',
+        'register_move_count1' => 'レジスタからレジスタへの移動回数',
+        'register_move_count2' => 'レジスタからレジスタ外への移動回数',
+        'register_move_count3' => 'レジスタ外からレジスタへの移動回数',
+        'register_move_count4' => 'レジスタ外からレジスタ外への移動回数',
+        'register01count1' => 'レジスタからレジスタへの移動有無',
+        'register01count2' => 'レジスタからレジスタ外への移動有無',
+        'register01count3' => 'レジスタ外からレジスタへの移動有無',
+        'register01count4' => 'レジスタ外からレジスタ外への移動有無',
+        'registerDDCount' => 'レジスタに関するD&D回数',
+        'register_notDDCount' => 'レジスタ外のD&D回数',
+        'register_fix_count1' => 'レジスタ1修正回数',
+        'register_fix_count2' => 'レジスタ2修正回数',
+        'register_fix_count3' => 'レジスタ3修正回数',
+        'register_fix_count4' => 'レジスタ4修正回数',
+        'register_delete_count1' => 'レジスタ1削除回数',
+        'register_delete_count2' => 'レジスタ2削除回数',
+        'register_delete_count3' => 'レジスタ3削除回数',
+        'register_delete_count4' => 'レジスタ4削除回数',
+        'register_allDelete_count1' => 'レジスタ1全削除回数',
+        'register_allDelete_count2' => 'レジスタ2全削除回数',
+        'register_allDelete_count3' => 'レジスタ3全削除回数',
+        'register_allDelete_count4' => 'レジスタ4全削除回数',
+        'register_notallDelete_count1' => 'レジスタ1部分削除回数',
+        'register_notallDelete_count2' => 'レジスタ2部分削除回数',
+        'register_notallDelete_count3' => 'レジスタ3部分削除回数',
+        'register_notallDelete_count4' => 'レジスタ4部分削除回数',
+        'FromlastdropToanswerTime' => '最終ドロップ後時間',
+    ];
+}
+
+function feature_display_labels_for_features(array $features): array
+{
+    $names = feature_display_name_map();
+    $labels = [];
+    foreach ($features as $feature) {
+        $feature = (string)$feature;
+        $labels[$feature] = feature_display_label($feature, $names[$feature] ?? $feature);
+    }
+
+    return $labels;
+}
+
+function feature_display_histogram_feature_labels(): array
+{
+    return [
+        'Time' => '解答時間',
+        'distance' => '移動距離',
+        'averageSpeed' => '平均速度',
+        'maxSpeed' => '最大速度',
+        'thinkingTime' => '第1ドラッグ前時間',
+        'answeringTime' => '第1ドラッグ後時間',
+        'totalStopTime' => '合計静止時間',
+        'maxStopTime' => '最大静止時間',
+        'totalDDIntervalTime' => '合計D&D間隔時間',
+        'maxDDIntervalTime' => '最大D&D間隔時間',
+        'maxDDTime' => '最大D&D時間',
+        'minDDTime' => '最小D&D時間',
+        'DDCount' => 'D&D回数',
+        'groupingDDCount' => 'グループ化D&D回数',
+        'groupingCountbool' => 'グループ化使用率',
+        'xUTurnCount' => 'X軸Uターン回数',
+        'yUTurnCount' => 'Y軸Uターン回数',
+        'register_move_count1' => 'レジスタ間移動回数',
+        'register_move_count2' => 'レジスタ外への移動回数',
+        'register_move_count3' => 'レジスタ内への移動回数',
+        'register_move_count4' => 'レジスタ関連移動回数4',
+        'register01count1' => 'レジスタ間移動有無',
+        'register01count2' => 'レジスタ外移動有無',
+        'register01count3' => 'レジスタ内移動有無',
+        'register01count4' => 'レジスタ関連移動有無4',
+        'registerDDCount' => 'レジスタ内D&D回数',
+        'stopcount' => '静止回数',
+        'xUTurnCountDD' => 'X軸UターンD&D回数',
+        'yUTurnCountDD' => 'Y軸UターンD&D回数',
+        'FromlastdropToanswerTime' => '最終ドロップ後時間',
+    ];
+}
+
+function feature_display_description(string $feature): string
+{
+    $descriptions = [
+        'Time' => '問題の解答開始から終了までにかかった時間です。',
+        'distance' => '解答中にマウスカーソルが移動した距離の合計です。',
+        'averageSpeed' => '解答中のマウスカーソルの平均移動速度です。',
+        'maxSpeed' => '解答中のマウスカーソルの最大移動速度です。',
+        'thinkingTime' => '解答開始から最初のドラッグまでの時間です。',
+        'answeringTime' => '最初のドラッグから解答終了までの時間です。',
+        'totalStopTime' => 'マウスカーソルが静止していた時間の合計です。',
+        'maxStopTime' => '1回のマウスカーソル静止のうち、最も長かった時間です。',
+        'stopcount' => '解答中にマウスカーソルが停止した回数です。',
+        'totalDDIntervalTime' => 'ドラッグ＆ドロップから次のドラッグ開始までの間隔時間の合計です。',
+        'maxDDIntervalTime' => 'ドラッグ＆ドロップ間の間隔時間の最大値です。',
+        'totalDDTime' => 'ドラッグ＆ドロップにかかった時間の合計です。',
+        'maxDDTime' => '1回のドラッグ＆ドロップにかかった時間の最大値です。',
+        'minDDTime' => '1回のドラッグ＆ドロップにかかった時間の最小値です。',
+        'DDCount' => 'ドラッグ＆ドロップを行った回数です。',
+        'groupingDDCount' => 'グルーピングされた単語をドラッグ＆ドロップした回数です。',
+        'groupingCountbool' => 'グルーピング機能を使用したかどうかを0または1で表します。',
+        'xUTurnCount' => 'マウスが横方向に折り返した回数です。',
+        'yUTurnCount' => 'マウスが縦方向に折り返した回数です。',
+        'xUTurnCountDD' => 'ドラッグ中にマウスが横方向へ折り返した回数です。',
+        'yUTurnCountDD' => 'ドラッグ中にマウスが縦方向へ折り返した回数です。',
+        'register_move_count1' => '単語をレジスタから別のレジスタへ移動した回数です。',
+        'register_move_count2' => '単語をレジスタからレジスタ外へ移動した回数です。',
+        'register_move_count3' => '単語をレジスタ外からレジスタへ移動した回数です。',
+        'register_move_count4' => '単語をレジスタ外の領域間で移動した回数です。',
+        'register01count1' => 'レジスタ間の移動があったかを0または1で表します。',
+        'register01count2' => 'レジスタからレジスタ外への移動があったかを0または1で表します。',
+        'register01count3' => 'レジスタ外からレジスタへの移動があったかを0または1で表します。',
+        'register01count4' => 'レジスタ外の領域間で移動があったかを0または1で表します。',
+        'registerDDCount' => 'レジスタの内外をまたぐ、またはレジスタ間のドラッグ＆ドロップ回数の合計です。',
+        'register_notDDCount' => 'レジスタ外で行われたドラッグ＆ドロップ回数です。',
+        'FromlastdropToanswerTime' => '最後のドロップから解答終了までの時間です。',
+    ];
+
+    if (isset($descriptions[$feature])) {
+        return $descriptions[$feature];
+    }
+    if (preg_match('/^register_fix_count([1-4])$/', $feature, $matches)) {
+        return "レジスタ{$matches[1]}で単語の配置を修正した回数です。";
+    }
+    if (preg_match('/^register_delete_count([1-4])$/', $feature, $matches)) {
+        return "レジスタ{$matches[1]}から単語を削除した回数です。";
+    }
+    if (preg_match('/^register_allDelete_count([1-4])$/', $feature, $matches)) {
+        return "レジスタ{$matches[1]}の単語をすべて削除した回数です。";
+    }
+    if (preg_match('/^register_notallDelete_count([1-4])$/', $feature, $matches)) {
+        return "レジスタ{$matches[1]}の単語を一部だけ削除した回数です。";
+    }
+
+    return (feature_display_name_map()[$feature] ?? $feature) . 'の計測値です。';
+}
+
+function feature_display_descriptions_for_features(array $features): array
+{
+    $descriptions = [];
+    foreach ($features as $feature) {
+        $descriptions[(string)$feature] = feature_display_description((string)$feature);
+    }
+
+    return $descriptions;
+}
+

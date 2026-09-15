@@ -5,6 +5,7 @@ $teacher_menu_logout_path = $teacher_menu_logout_path ?? '../logout.php';
 $teacher_menu_teacher_name = '先生';
 $teacher_menu_teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
 $teacher_menu_has_assigned_class = false;
+$teacher_menu_show_word_ml = false;
 
 if ($teacher_menu_teacher_id && isset($conn) && $conn instanceof mysqli) {
     $stmt_teacher_menu = $conn->prepare("SELECT TName FROM teachers WHERE TID = ?");
@@ -86,9 +87,11 @@ if (!function_exists('teacher_menu_group_class')) {
             <a href="#" class="submenu-toggle">迷い推定・機械学習関連</a>
             <ul class="submenu">
                 <li><a href="<?= teacher_menu_path('machineLearning_sample.php') ?>"<?= teacher_menu_link_attrs(['machineLearning_sample.php']) ?>>迷い推定・機械学習（問題単位）</a></li>
+                <?php if ($teacher_menu_show_word_ml): ?>
                 <li><a href="<?= teacher_menu_path('machineLearning_word.php') ?>"<?= teacher_menu_link_attrs(['machineLearning_word.php']) ?>>迷い推定・機械学習（単語単位）</a></li>
-                <li><a href="<?= teacher_menu_path('feature_correlation.php') ?>"<?= teacher_menu_link_attrs(['feature_correlation.php']) ?>>特徴量相関表示</a></li>
-                <li><a href="<?= teacher_menu_path('clustering.php') ?>"<?= teacher_menu_link_attrs(['clustering.php']) ?>>クラスタリング</a></li>
+                <?php endif; ?>
+                <li><a href="<?= teacher_menu_path('feature_correlation.php') ?>" target="_blank" rel="noopener noreferrer"<?= teacher_menu_link_attrs(['feature_correlation.php']) ?>>特徴量相関表示</a></li>
+                <li><a href="<?= teacher_menu_path('clustering.php') ?>" target="_blank" rel="noopener noreferrer"<?= teacher_menu_link_attrs(['clustering.php']) ?>>クラスタリング</a></li>
             </ul>
         </li>
         <li class="<?= teacher_menu_group_class(['create-notification.php', 'register-student.php', 'register-classteacher.php']) ?>">
@@ -116,7 +119,6 @@ if (!function_exists('teacher_menu_group_class')) {
         <li class="<?= teacher_menu_group_class(['create-student-group.php', 'submit-student-group.php', 'submit-update-student-class.php']) ?>">
             <a href="#" class="submenu-toggle">学習者関連</a>
             <ul class="submenu">
-                <li><a href="<?= teacher_menu_path('#') ?>">学習者グラフ表示</a></li>
                 <li><a href="<?= teacher_menu_path('create-student-group.php') ?>"<?= teacher_menu_link_attrs(['create-student-group.php', 'submit-student-group.php', 'submit-update-student-class.php']) ?>>学習者グルーピング作成</a></li>
             </ul>
         </li>

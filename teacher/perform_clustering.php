@@ -104,13 +104,20 @@ if (empty($_SESSION['MemberID']) && empty($_SESSION['TID'])) {
 
 $teacherId = (string)($_SESSION['TID'] ?? $_SESSION['MemberID']);
 $features = array_values(array_filter(array_map('trim', explode(',', $_POST['features'] ?? ''))));
-$studentIds = array_values(array_unique(array_filter(array_map('trim', explode(',', $_POST['studentIDs'] ?? '')))));
+$studentIds = array_values(array_unique(array_filter(
+    array_map('trim', explode(',', $_POST['studentIDs'] ?? '')),
+    static fn(string $uid): bool => $uid !== ''
+)));
+$widIds = array_values(array_unique(array_map('intval', array_filter(
+    array_map('trim', explode(',', $_POST['wids'] ?? '')),
+    static fn(string $wid): bool => $wid !== '' && ctype_digit($wid)
+))));
 $method = $_POST['method'] ?? 'kmeans';
 $allowedMethods = ['kmeans' => true, 'xmeans' => true, 'gmeans' => true];
 $clusterCount = $method === 'kmeans' ? max(2, min(10, (int)($_POST['clusterCount'] ?? 2))) : 1;
 
-if (empty($features) || empty($studentIds)) {
-    clusteringJsonResponse(['error' => '特徴量または学習者IDが不足しています。'], 400);
+if (empty($features) || empty($studentIds) || empty($widIds)) {
+    clusteringJsonResponse(['error' => '特徴量、問題(WID)、または学習者(UID)が不足しています。'], 400);
 }
 
 if (!isset($allowedMethods[$method])) {
@@ -155,13 +162,17 @@ foreach ($features as $feature) {
     $selectParts[] = clusteringQuoteIdentifier($feature);
 }
 
-$sql = 'SELECT ' . implode(', ', $selectParts) . " FROM test_featurevalue WHERE UID IN ({$studentPlaceholders})";
+$widPlaceholders = implode(',', array_fill(0, count($widIds), '?'));
+$featureQueryTypes = $studentTypes . str_repeat('i', count($widIds));
+$featureQueryParams = array_merge($studentIds, $widIds);
+$sql = 'SELECT ' . implode(', ', $selectParts)
+    . " FROM test_featurevalue WHERE UID IN ({$studentPlaceholders}) AND WID IN ({$widPlaceholders})";
 $stmtFeatures = $conn->prepare($sql);
 if (!$stmtFeatures) {
     clusteringJsonResponse(['error' => '特徴量データの取得に失敗しました。'], 500);
 }
 
-$stmtFeatures->bind_param($studentTypes, ...$studentIds);
+$stmtFeatures->bind_param($featureQueryTypes, ...$featureQueryParams);
 $stmtFeatures->execute();
 $resultFeatures = $stmtFeatures->get_result();
 
@@ -246,5 +257,6 @@ clusteringJsonResponse([
     'cluster_count' => count($clustersJson['clusters']),
     'student_count' => count($studentsWithData),
     'features' => $features,
+    'wids' => $widIds,
     'method' => $method,
 ]);

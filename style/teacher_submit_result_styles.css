@@ -111,6 +111,70 @@
     font-size: 1.05rem;
 }
 
+.bulk-transfer-result-list {
+    display: grid;
+    gap: 9px;
+    max-height: 440px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bulk-transfer-result-list li {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(220px, 1.5fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+}
+
+.bulk-transfer-student {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.bulk-transfer-student strong,
+.bulk-transfer-student small,
+.bulk-transfer-route {
+    overflow-wrap: anywhere;
+}
+
+.bulk-transfer-student small {
+    color: #64748b;
+}
+
+.bulk-transfer-route {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    align-items: center;
+    color: #475569;
+}
+
+.bulk-transfer-route strong {
+    color: #0f766e;
+}
+
+.bulk-transfer-state {
+    padding: 4px 9px;
+    border-radius: 999px;
+    background-color: #ccfbf1;
+    color: #0f766e;
+    font-size: 0.8rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.bulk-transfer-state.is-unchanged {
+    background-color: #e2e8f0;
+    color: #475569;
+}
+
 .class-transfer-flow {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -221,6 +285,11 @@
     .submit-result-summary-grid,
     .class-transfer-flow {
         grid-template-columns: 1fr;
+    }
+
+    .bulk-transfer-result-list li {
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
 
     .class-transfer-arrow {
