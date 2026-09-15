@@ -128,6 +128,529 @@ function teacher_result_student_wids(mysqli $conn, string $student_id, array $re
     return array_values(array_filter(teacher_result_normalize_ids($requested_wids), static fn(string $wid): bool => isset($allowed[$wid])));
 }
 
+function teacher_usage_payload(): array
+{
+    $raw = $_POST['payload'] ?? '';
+    if (!is_string($raw) || $raw === '') {
+        throw new InvalidArgumentException('ログ内容がありません。');
+    }
+    try {
+        $payload = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+    } catch (JsonException $e) {
+        throw new InvalidArgumentException('ログ内容のJSONが不正です。', 0, $e);
+    }
+    if (!is_array($payload)) {
+        throw new InvalidArgumentException('ログ内容が不正です。');
+    }
+    return $payload;
+}
+
+function teacher_usage_json(array $value): string
+{
+    try {
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    } catch (JsonException $e) {
+        throw new InvalidArgumentException('ログ内容をJSONへ変換できません。', 0, $e);
+    }
+}
+
+function teacher_usage_insert(mysqli $conn, string $sql, array $params): void
+{
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new RuntimeException('ログ保存の準備に失敗しました。');
+    }
+    $types = str_repeat('s', count($params));
+    $stmt->bind_param($types, ...$params);
+    if (!$stmt->execute()) {
+        $message = $stmt->error;
+        $stmt->close();
+        throw new RuntimeException('ログ保存に失敗しました: ' . $message);
+    }
+    $stmt->close();
+}
+
+function teacher_usage_enum(array $payload, string $key, array $allowed): string
+{
+    $value = is_scalar($payload[$key] ?? null) ? (string)$payload[$key] : '';
+    if (!in_array($value, $allowed, true)) {
+        throw new InvalidArgumentException($key . ' が不正です。');
+    }
+    return $value;
+}
+
+function teacher_usage_same_ids(array $requested, array $allowed, string $label): array
+{
+    $requested = teacher_result_normalize_ids($requested);
+    $allowed = teacher_result_normalize_ids($allowed);
+    sort($requested, SORT_NUMERIC);
+    sort($allowed, SORT_NUMERIC);
+    if (empty($requested) || $requested !== $allowed) {
+        throw new InvalidArgumentException($label . ' に担当外または存在しない値が含まれています。');
+    }
+    return array_map('intval', $requested);
+}
+
+function teacher_usage_class_wids(mysqli $conn, string $teacher_id, array $requested_wids): array
+{
+    $normalized = teacher_result_normalize_ids($requested_wids);
+    if (empty($normalized)) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($normalized), '?'));
+    $params = array_merge([$teacher_id], array_map('intval', $normalized));
+    $types = 's' . str_repeat('i', count($normalized));
+    $stmt = $conn->prepare(
+        "SELECT DISTINCT l.WID
+         FROM linedata l
+         JOIN students s ON l.UID = s.uid
+         JOIN classteacher ct ON s.ClassID = ct.ClassID
+         WHERE ct.TID = ? AND l.WID IN ($placeholders)"
+    );
+    if (!$stmt) {
+        throw new RuntimeException('問題(WID)の確認に失敗しました。');
+    }
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $allowed = [];
+    while ($row = $result->fetch_assoc()) {
+        if (teacher_analysis_wid_is_allowed($row['WID'])) {
+            $allowed[] = (string)$row['WID'];
+        }
+    }
+    $stmt->close();
+    return $allowed;
+}
+
+function teacher_usage_teacher_students(mysqli $conn, string $teacher_id): array
+{
+    $stmt = $conn->prepare(
+        'SELECT DISTINCT s.uid FROM students s JOIN classteacher ct ON s.ClassID = ct.ClassID WHERE ct.TID = ?'
+    );
+    if (!$stmt) {
+        throw new RuntimeException('学習者(UID)の確認に失敗しました。');
+    }
+    $stmt->bind_param('s', $teacher_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $students = [];
+    while ($row = $result->fetch_assoc()) {
+        $students[] = (string)$row['uid'];
+    }
+    $stmt->close();
+    return $students;
+}
+
+function teacher_usage_allowed_features(bool $include_result_metrics): array
+{
+    $allowed = array_fill_keys(array_keys(student_feature_columns()), true);
+    if ($include_result_metrics) {
+        $allowed['__accuracy'] = true;
+        $allowed['__hesitation'] = true;
+    }
+    return $allowed;
+}
+
+function teacher_usage_histogram(
+    array $payload,
+    string $selection_method,
+    array $allowed_features,
+    array $allowed_member_ids,
+    array $selected_ids,
+    bool $selected_may_be_subset
+): array {
+    if ($selection_method !== 'histogram') {
+        return ['features' => null, 'conditions' => null, 'bin_width_changed' => null];
+    }
+
+    $raw_conditions = $payload['histogram_conditions'] ?? null;
+    if (!is_array($raw_conditions) || empty($raw_conditions) || count($raw_conditions) > 1000) {
+        throw new InvalidArgumentException('ヒストグラム条件が不正です。');
+    }
+    $allowed_members = array_fill_keys(array_map('strval', $allowed_member_ids), true);
+    $selected_lookup = array_fill_keys(array_map('strval', $selected_ids), true);
+    $union_members = [];
+    $features = [];
+    $conditions = [];
+    $changed = false;
+
+    foreach ($raw_conditions as $raw_condition) {
+        if (!is_array($raw_condition)) {
+            throw new InvalidArgumentException('ヒストグラム条件が不正です。');
+        }
+        $feature = is_scalar($raw_condition['feature'] ?? null) ? (string)$raw_condition['feature'] : '';
+        if (!isset($allowed_features[$feature])) {
+            throw new InvalidArgumentException('許可されていない特徴量です。');
+        }
+        $mode = is_scalar($raw_condition['bin_width_mode'] ?? null) ? (string)$raw_condition['bin_width_mode'] : '';
+        if (!in_array($mode, ['auto', 'manual'], true)) {
+            throw new InvalidArgumentException('階級幅の指定方法が不正です。');
+        }
+        foreach (['bin_start', 'bin_end', 'bin_width'] as $number_key) {
+            if (!array_key_exists($number_key, $raw_condition) || !is_numeric($raw_condition[$number_key])) {
+                throw new InvalidArgumentException('ヒストグラムの階級値が不正です。');
+            }
+        }
+        $bin_start = (float)$raw_condition['bin_start'];
+        $bin_end = (float)$raw_condition['bin_end'];
+        $bin_width = (float)$raw_condition['bin_width'];
+        if (!is_finite($bin_start) || !is_finite($bin_end) || !is_finite($bin_width)
+            || $bin_end < $bin_start || $bin_width < 0 || ($mode === 'manual' && $bin_width <= 0)) {
+            throw new InvalidArgumentException('ヒストグラムの階級値が不正です。');
+        }
+        $raw_members = $raw_condition['selected_ids'] ?? null;
+        if (!is_array($raw_members)) {
+            throw new InvalidArgumentException('ヒストグラムの選択対象が不正です。');
+        }
+        $members = teacher_result_normalize_ids($raw_members);
+        if (empty($members)) {
+            throw new InvalidArgumentException('空のヒストグラム階級は記録できません。');
+        }
+        foreach ($members as $member) {
+            if (!isset($allowed_members[$member])) {
+                throw new InvalidArgumentException('ヒストグラム条件に担当外の対象が含まれています。');
+            }
+            $union_members[$member] = true;
+        }
+        sort($members, SORT_NUMERIC);
+        $features[$feature] = true;
+        $changed = $changed || $mode === 'manual';
+        $conditions[] = [
+            'feature' => $feature,
+            'bin_start' => $bin_start,
+            'bin_end' => $bin_end,
+            'bin_width_mode' => $mode,
+            'bin_width' => $bin_width,
+            'selected_ids' => array_map('intval', $members),
+        ];
+    }
+
+    if ($selected_may_be_subset) {
+        foreach ($selected_lookup as $selected => $_) {
+            if (!isset($union_members[$selected])) {
+                throw new InvalidArgumentException('選択UIDとヒストグラム条件が一致しません。');
+            }
+        }
+    } else {
+        ksort($selected_lookup, SORT_NUMERIC);
+        ksort($union_members, SORT_NUMERIC);
+        if (array_keys($selected_lookup) !== array_keys($union_members)) {
+            throw new InvalidArgumentException('選択対象とヒストグラム条件が一致しません。');
+        }
+    }
+
+    return [
+        'features' => array_keys($features),
+        'conditions' => $conditions,
+        'bin_width_changed' => $changed ? 1 : 0,
+    ];
+}
+
+function teacher_usage_group_sources(mysqli $conn, string $teacher_id): array
+{
+    $stmt = $conn->prepare(
+        "SELECT CONCAT('class:', ClassID) AS source_value FROM classteacher WHERE TID = ?
+         UNION
+         SELECT CONCAT('group:', group_id) AS source_value FROM `groups` WHERE TID = ?"
+    );
+    if (!$stmt) {
+        throw new RuntimeException('グループ条件の確認に失敗しました。');
+    }
+    $stmt->bind_param('ss', $teacher_id, $teacher_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $sources = [];
+    while ($row = $result->fetch_assoc()) {
+        $sources[(string)$row['source_value']] = true;
+    }
+    $stmt->close();
+    return $sources;
+}
+
+function teacher_usage_group_tokens(mysqli $conn, string $teacher_id, $raw_tokens): array
+{
+    if (!is_array($raw_tokens) || empty($raw_tokens) || count($raw_tokens) > 200) {
+        throw new InvalidArgumentException('グループ条件式が不正です。');
+    }
+    $allowed_kinds = ['condition', 'and', 'or', 'not', 'open', 'close'];
+    $allowed_sources = teacher_usage_group_sources($conn, $teacher_id);
+    $tokens = [];
+    foreach ($raw_tokens as $raw_token) {
+        if (!is_array($raw_token)) {
+            throw new InvalidArgumentException('グループ条件式が不正です。');
+        }
+        $kind = is_scalar($raw_token['kind'] ?? null) ? (string)$raw_token['kind'] : '';
+        if (!in_array($kind, $allowed_kinds, true)) {
+            throw new InvalidArgumentException('グループ条件式が不正です。');
+        }
+        $value = '';
+        if ($kind === 'condition') {
+            $value = is_scalar($raw_token['value'] ?? null) ? (string)$raw_token['value'] : '';
+            if (!preg_match('/^(class|group):\d+$/', $value) || !isset($allowed_sources[$value])) {
+                throw new InvalidArgumentException('グループ条件の対象が不正です。');
+            }
+        }
+        $tokens[] = ['kind' => $kind, 'value' => $value];
+    }
+    return $tokens;
+}
+
+function teacher_usage_filters(array $payload): array
+{
+    $correctness = teacher_usage_enum($payload, 'correctness_filter', ['all', 'correct', 'incorrect']);
+    $hesitation = teacher_usage_enum($payload, 'hesitation_filter', ['all', 'hesitated', 'not_hesitated', 'not_estimated']);
+    return [
+        'correctness' => $correctness,
+        'correctness_used' => $correctness === 'all' ? 0 : 1,
+        'hesitation' => $hesitation,
+        'hesitation_used' => $hesitation === 'all' ? 0 : 1,
+    ];
+}
+
+function teacher_usage_log_wid_select(mysqli $conn, string $teacher_id, array $payload): void
+{
+    $method = teacher_usage_enum($payload, 'selection_method', ['checkbox', 'histogram']);
+    if (!is_array($payload['selected_wids'] ?? null)) {
+        throw new InvalidArgumentException('選択WIDが不正です。');
+    }
+    $wids = teacher_usage_same_ids(
+        $payload['selected_wids'],
+        teacher_usage_class_wids($conn, $teacher_id, $payload['selected_wids']),
+        '選択WID'
+    );
+    $histogram = teacher_usage_histogram(
+        $payload,
+        $method,
+        teacher_usage_allowed_features(true),
+        $wids,
+        $wids,
+        false
+    );
+    teacher_usage_insert(
+        $conn,
+        'INSERT INTO Home_WIDselect
+         (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed)
+         VALUES (?, ?, ?, ?, ?, ?)',
+        [
+            $teacher_id,
+            $method,
+            teacher_usage_json($wids),
+            $histogram['features'] === null ? null : teacher_usage_json($histogram['features']),
+            $histogram['conditions'] === null ? null : teacher_usage_json($histogram['conditions']),
+            $histogram['bin_width_changed'],
+        ]
+    );
+}
+
+function teacher_usage_log_uid_select(mysqli $conn, string $teacher_id, array $payload): void
+{
+    $method = teacher_usage_enum($payload, 'selection_method', ['checkbox', 'histogram']);
+    if (!is_array($payload['selected_uids'] ?? null) || !is_array($payload['selected_wids'] ?? null)) {
+        throw new InvalidArgumentException('選択UIDまたはWIDが不正です。');
+    }
+    $uids = teacher_usage_same_ids(
+        $payload['selected_uids'],
+        teacher_result_filter_students($conn, $teacher_id, $payload['selected_uids']),
+        '選択UID'
+    );
+    $wids = teacher_usage_same_ids(
+        $payload['selected_wids'],
+        teacher_usage_class_wids($conn, $teacher_id, $payload['selected_wids']),
+        '選択WID'
+    );
+    $all_students = teacher_usage_teacher_students($conn, $teacher_id);
+    $histogram = teacher_usage_histogram(
+        $payload,
+        $method,
+        teacher_usage_allowed_features(true),
+        $all_students,
+        $uids,
+        true
+    );
+
+    $group_used = null;
+    $group_expression = null;
+    $group_tokens = null;
+    if ($method === 'checkbox') {
+        $group_used = !empty($payload['group_condition_used']) ? 1 : 0;
+        if ($group_used) {
+            $group_expression = is_scalar($payload['group_expression'] ?? null)
+                ? trim((string)$payload['group_expression'])
+                : '';
+            if ($group_expression === '' || mb_strlen($group_expression) > 4000) {
+                throw new InvalidArgumentException('グループ条件式が不正です。');
+            }
+            $group_tokens = teacher_usage_group_tokens($conn, $teacher_id, $payload['group_expression_tokens'] ?? null);
+        }
+    }
+    $filters = teacher_usage_filters($payload);
+
+    teacher_usage_insert(
+        $conn,
+        'INSERT INTO Home_UIDselect
+         (teacher_id, selection_method, selected_uids, selected_wids, group_condition_used, group_expression,
+          group_expression_tokens, histogram_features, histogram_conditions, histogram_bin_width_changed,
+          correctness_filter, correctness_filter_used, hesitation_filter, hesitation_filter_used)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+            $teacher_id,
+            $method,
+            teacher_usage_json($uids),
+            teacher_usage_json($wids),
+            $group_used,
+            $group_expression,
+            $group_tokens === null ? null : teacher_usage_json($group_tokens),
+            $histogram['features'] === null ? null : teacher_usage_json($histogram['features']),
+            $histogram['conditions'] === null ? null : teacher_usage_json($histogram['conditions']),
+            $histogram['bin_width_changed'],
+            $filters['correctness'],
+            $filters['correctness_used'],
+            $filters['hesitation'],
+            $filters['hesitation_used'],
+        ]
+    );
+}
+
+function teacher_usage_log_person(mysqli $conn, string $teacher_id, array $payload): void
+{
+    $method = teacher_usage_enum($payload, 'selection_method', ['checkbox', 'histogram']);
+    $raw_uid = $payload['selected_uid'] ?? null;
+    if (!is_scalar($raw_uid) || !preg_match('/^\d+$/', trim((string)$raw_uid))) {
+        throw new InvalidArgumentException('選択UIDが不正です。');
+    }
+    $uid = teacher_usage_same_ids(
+        [$raw_uid],
+        teacher_result_filter_students($conn, $teacher_id, [$raw_uid]),
+        '選択UID'
+    )[0];
+    if (!is_array($payload['selected_wids'] ?? null)) {
+        throw new InvalidArgumentException('選択WIDが不正です。');
+    }
+    $wids = teacher_usage_same_ids(
+        $payload['selected_wids'],
+        teacher_result_student_wids($conn, (string)$uid, $payload['selected_wids']),
+        '選択WID'
+    );
+    $histogram = teacher_usage_histogram(
+        $payload,
+        $method,
+        teacher_usage_allowed_features(false),
+        $wids,
+        $wids,
+        false
+    );
+    $filters = teacher_usage_filters($payload);
+
+    teacher_usage_insert(
+        $conn,
+        'INSERT INTO Home_Person
+         (teacher_id, selected_uid, selection_method, selected_wids, histogram_features, histogram_conditions,
+          histogram_bin_width_changed, correctness_filter, correctness_filter_used, hesitation_filter, hesitation_filter_used)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+            $teacher_id,
+            $uid,
+            $method,
+            teacher_usage_json($wids),
+            $histogram['features'] === null ? null : teacher_usage_json($histogram['features']),
+            $histogram['conditions'] === null ? null : teacher_usage_json($histogram['conditions']),
+            $histogram['bin_width_changed'],
+            $filters['correctness'],
+            $filters['correctness_used'],
+            $filters['hesitation'],
+            $filters['hesitation_used'],
+        ]
+    );
+}
+
+function teacher_usage_log_mousemove(mysqli $conn, string $teacher_id, array $payload): void
+{
+    foreach (['uid', 'wid', 'attempt'] as $key) {
+        if (!is_scalar($payload[$key] ?? null) || !preg_match('/^\d+$/', trim((string)$payload[$key]))) {
+            throw new InvalidArgumentException('軌跡再現の対象が不正です。');
+        }
+    }
+    $uid = (int)$payload['uid'];
+    $wid = (int)$payload['wid'];
+    $attempt = (int)$payload['attempt'];
+    if ($uid <= 0 || $wid <= 0 || $attempt <= 0
+        || empty(teacher_result_filter_students($conn, $teacher_id, [$uid]))
+        || !teacher_analysis_wid_is_allowed($wid)) {
+        throw new InvalidArgumentException('担当外の軌跡再現対象です。');
+    }
+    $stmt = $conn->prepare('SELECT test_id FROM linedata WHERE UID = ? AND WID = ? AND attempt = ? LIMIT 1');
+    if (!$stmt) {
+        throw new RuntimeException('軌跡再現対象の確認に失敗しました。');
+    }
+    $stmt->bind_param('iii', $uid, $wid, $attempt);
+    $stmt->execute();
+    $attempt_row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$attempt_row) {
+        throw new InvalidArgumentException('存在しない軌跡再現対象です。');
+    }
+    $test_id = (int)$attempt_row['test_id'];
+    if (isset($payload['test_id']) && $payload['test_id'] !== ''
+        && (!is_scalar($payload['test_id']) || !preg_match('/^\d+$/', trim((string)$payload['test_id']))
+            || (int)$payload['test_id'] !== $test_id)) {
+        throw new InvalidArgumentException('テストIDが軌跡再現対象と一致しません。');
+    }
+
+    $source = teacher_usage_enum(
+        $payload,
+        'source',
+        [
+            'class_results',
+            'person_problem_results',
+            'grammar_correct_hesitated',
+            'grammar_incorrect_not_hesitated',
+            'grammar_incorrect_hesitated',
+        ]
+    );
+    $from_class_results = $source === 'class_results' ? 1 : null;
+    $from_person_problem_results = $source === 'person_problem_results' ? 1 : null;
+    $from_grammar_correct_hesitated = null;
+    $from_grammar_incorrect_not_hesitated = null;
+    $from_grammar_incorrect_hesitated = null;
+    $grammar_name = null;
+    if (str_starts_with($source, 'grammar_')) {
+        $grammar_name = is_scalar($payload['grammar_name'] ?? null) ? trim((string)$payload['grammar_name']) : '';
+        if ($grammar_name === '' || mb_strlen($grammar_name) > 255) {
+            throw new InvalidArgumentException('文法項目名が不正です。');
+        }
+        if ($source === 'grammar_correct_hesitated') {
+            $from_grammar_correct_hesitated = 1;
+        } elseif ($source === 'grammar_incorrect_not_hesitated') {
+            $from_grammar_incorrect_not_hesitated = 1;
+        } else {
+            $from_grammar_incorrect_hesitated = 1;
+        }
+    }
+
+    teacher_usage_insert(
+        $conn,
+        'INSERT INTO To_mousemove
+         (teacher_id, UID, WID, attempt, test_id, from_class_results, from_person_problem_results,
+          from_grammar_correct_hesitated, from_grammar_incorrect_not_hesitated, from_grammar_incorrect_hesitated,
+          grammar_name)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+            $teacher_id,
+            $uid,
+            $wid,
+            $attempt,
+            $test_id,
+            $from_class_results,
+            $from_person_problem_results,
+            $from_grammar_correct_hesitated,
+            $from_grammar_incorrect_not_hesitated,
+            $from_grammar_incorrect_hesitated,
+            $grammar_name,
+        ]
+    );
+}
+
 //不正侵入対策
 if (empty($_SESSION['MemberID'])) {
     http_response_code(401);
@@ -171,10 +694,31 @@ if ($teacher_id) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
     $response = [];
+    $action = (string)$_POST['action'];
+    $usage_log_actions = [
+        'log_home_wid_select',
+        'log_home_uid_select',
+        'log_home_person',
+        'log_to_mousemove',
+    ];
+    $is_usage_log_action = in_array($action, $usage_log_actions, true);
 
     try {
+        if ($is_usage_log_action) {
+            $payload = teacher_usage_payload();
+            if ($action === 'log_home_wid_select') {
+                teacher_usage_log_wid_select($conn, (string)$teacher_id, $payload);
+            } elseif ($action === 'log_home_uid_select') {
+                teacher_usage_log_uid_select($conn, (string)$teacher_id, $payload);
+            } elseif ($action === 'log_home_person') {
+                teacher_usage_log_person($conn, (string)$teacher_id, $payload);
+            } else {
+                teacher_usage_log_mousemove($conn, (string)$teacher_id, $payload);
+            }
+            $response = ['ok' => true];
+        }
         // 【新規追加】アクション: 担当クラスの全学習者の結果を取得
-        if ($_POST['action'] === 'get_class_results' && isset($_POST['student_ids'])) {
+        elseif ($action === 'get_class_results' && isset($_POST['student_ids'])) {
             $student_ids = json_decode($_POST['student_ids']);
             $student_ids = is_array($student_ids) ? teacher_result_filter_students($conn, (string)$teacher_id, $student_ids) : [];
             $wids = isset($_POST['wids']) && !empty($_POST['wids']) ? json_decode($_POST['wids']) : [];
@@ -631,9 +1175,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
             $response = ['summary' => $summary, 'attempts' => $attempts, 'grammar_stats' => $grammar_stats, 'all_questions' => $all_questions, 'student_levels' => $student_levels];
         }
-    } catch (Exception $e) {
-        http_response_code(500);
-        $response = ['error' => $e->getMessage()];
+    } catch (Throwable $e) {
+        if ($is_usage_log_action) {
+            error_log(sprintf('Teacher home usage log failed (%s): %s', $action, $e->getMessage()));
+            http_response_code($e instanceof InvalidArgumentException ? 422 : 500);
+            $response = [
+                'ok' => false,
+                'error' => $e instanceof InvalidArgumentException ? $e->getMessage() : 'ログを保存できませんでした。',
+            ];
+        } else {
+            http_response_code(500);
+            $response = ['error' => $e->getMessage()];
+        }
     }
 
     echo json_encode($response);
@@ -889,12 +1442,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 groupStudents: logicFilterStudentsByGroup
             };
 
+            function recordTeacherHomeUsage(action, payload, keepalive = false) {
+                const body = new URLSearchParams();
+                body.set('action', action);
+                body.set('payload', JSON.stringify(payload));
+                return fetch('teachertrue.php', {
+                    method: 'POST',
+                    body,
+                    credentials: 'same-origin',
+                    keepalive
+                }).then(async (response) => {
+                    const result = await response.json().catch(() => null);
+                    if (!response.ok || !result?.ok) {
+                        throw new Error(result?.error || `ログ保存に失敗しました (${response.status})`);
+                    }
+                    return result;
+                }).catch((error) => {
+                    console.warn('教師ホーム画面の操作ログを保存できませんでした。', error);
+                    return null;
+                });
+            }
+
             const classResultsHistogram = window.TeacherResultsHistogram?.create({
                 ...histogramBaseOptions,
                 root: '#class-results-histogram',
                 scope: 'class',
                 initialExpanded: false,
-                onSubmit: async ({ uids, wids, correctness, hesitation }) => {
+                onWidsApplied: (usageLog) => {
+                    void recordTeacherHomeUsage('log_home_wid_select', usageLog);
+                },
+                onSubmit: async ({ uids, wids, correctness, hesitation, usageLog }) => {
+                    void recordTeacherHomeUsage('log_home_uid_select', usageLog);
                     clearStudentDetailWorkspace();
                     classResultsContainer.innerHTML = '<p class="loading">選択条件の結果を読み込んでいます...</p>';
                     try {
@@ -1008,6 +1586,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     root: analysisRoot,
                     features: resultHistogramFeatures,
                     featureMeta: resultHistogramFeatureMeta,
+                    onUsage: (usageLog) => {
+                        void recordTeacherHomeUsage('log_home_person', usageLog);
+                    },
                     onResolve: ({ studentId, wids, correctness, hesitation }) => fetchData({
                         action: 'get_student_details',
                         student_id: studentId,
@@ -1052,6 +1633,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if (!response.ok) throw new Error(`Network response was not ok, status: ${response.status}`);
                 return await response.json();
             }
+
+            document.addEventListener('click', (event) => {
+                const link = event.target.closest('a[data-trajectory-source]');
+                if (!link) return;
+                void recordTeacherHomeUsage('log_to_mousemove', {
+                    source: link.dataset.trajectorySource || '',
+                    uid: link.dataset.trajectoryUid || '',
+                    wid: link.dataset.trajectoryWid || '',
+                    attempt: link.dataset.trajectoryAttempt || '',
+                    test_id: link.dataset.trajectoryTestId || '',
+                    grammar_name: link.dataset.trajectoryGrammarName || null
+                }, true);
+            });
 
             function sortData(data, column, direction) {
                 const sortedData = [...data].sort((a, b) => {
@@ -1133,7 +1727,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <td class="${row.correctness === '不正解' ? 'incorrect' : ''}">${row.correctness}</td>
                     <td class="${row.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${row.hesitation}</td>
                     <td>${row.date}</td>
-                    <td><a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button">表示</a></td>
+                    <td><a href="../mousemove/mousemove.php?UID=${row.student_id}&WID=${row.WID}&test_id=${row.test_id}&LogID=${row.attempt}" target="_blank" class="link-button" data-trajectory-source="class_results" data-trajectory-uid="${escapeHtml(row.student_id)}" data-trajectory-wid="${escapeHtml(row.WID)}" data-trajectory-attempt="${escapeHtml(row.attempt)}" data-trajectory-test-id="${escapeHtml(row.test_id)}">表示</a></td>
                 </tr>`;
                 });
                 container.innerHTML = tableHtml + '</tbody></table>';
@@ -1209,7 +1803,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             classResultsContainer.addEventListener('click', (e) => handleSort(e, currentClassSort, renderClassTable));
             testResultsContainer.addEventListener('click', (e) => handleSort(e, currentTestSort, renderTestTable));
 
-            function trajectoryLinks(attempts, studentId) {
+            function trajectoryLinks(attempts, studentId, grammarName, source) {
                 const rows = Array.isArray(attempts) ? attempts : [];
                 if (!rows.length) return '<span class="grammar-category-empty">0問</span>';
                 const questionCount = new Set(rows.map((attempt) => String(attempt.WID))).size;
@@ -1220,7 +1814,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         test_id: attempt.test_id ?? '',
                         LogID: attempt.attempt ?? ''
                     });
-                    return `<a href="../mousemove/mousemove.php?${escapeHtml(params.toString())}" target="_blank" rel="noopener noreferrer" class="link-button">問題(WID): ${escapeHtml(attempt.WID)}（${escapeHtml(attempt.attempt)}回目）</a>`;
+                    return `<a href="../mousemove/mousemove.php?${escapeHtml(params.toString())}" target="_blank" rel="noopener noreferrer" class="link-button" data-trajectory-source="${escapeHtml(source)}" data-trajectory-uid="${escapeHtml(studentId)}" data-trajectory-wid="${escapeHtml(attempt.WID)}" data-trajectory-attempt="${escapeHtml(attempt.attempt)}" data-trajectory-test-id="${escapeHtml(attempt.test_id)}" data-trajectory-grammar-name="${escapeHtml(grammarName)}">問題(WID): ${escapeHtml(attempt.WID)}（${escapeHtml(attempt.attempt)}回目）</a>`;
                 }).join('')}</div></div>`;
             }
 
@@ -1244,7 +1838,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 } else {
                     html += `<div class="student-detail-table-wrap"><table><thead><tr><th>問題(WID)</th><th>テスト名</th><th>正誤</th><th>迷い推定</th><th>解答日時</th><th>軌跡再現</th></tr></thead><tbody>${attempts.map((attempt) => {
                         const params = new URLSearchParams({ UID: studentId, WID: attempt.WID ?? '', test_id: attempt.test_id ?? '', LogID: attempt.attempt ?? '' });
-                        return `<tr><td>${escapeHtml(attempt.WID)}（${escapeHtml(attempt.attempt)}回目）</td><td>${escapeHtml(attempt.test_name || '（不明なテスト）')}</td><td class="${attempt.correctness === '不正解' ? 'incorrect' : ''}">${escapeHtml(attempt.correctness || '-')}</td><td class="${attempt.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${escapeHtml(attempt.hesitation || '-')}</td><td>${escapeHtml(attempt.date || '-')}</td><td><a href="../mousemove/mousemove.php?${escapeHtml(params.toString())}" target="_blank" rel="noopener noreferrer" class="link-button">表示</a></td></tr>`;
+                        return `<tr><td>${escapeHtml(attempt.WID)}（${escapeHtml(attempt.attempt)}回目）</td><td>${escapeHtml(attempt.test_name || '（不明なテスト）')}</td><td class="${attempt.correctness === '不正解' ? 'incorrect' : ''}">${escapeHtml(attempt.correctness || '-')}</td><td class="${attempt.hesitation === '迷い有り' ? 'hesitation-yes' : ''}">${escapeHtml(attempt.hesitation || '-')}</td><td>${escapeHtml(attempt.date || '-')}</td><td><a href="../mousemove/mousemove.php?${escapeHtml(params.toString())}" target="_blank" rel="noopener noreferrer" class="link-button" data-trajectory-source="person_problem_results" data-trajectory-uid="${escapeHtml(studentId)}" data-trajectory-wid="${escapeHtml(attempt.WID)}" data-trajectory-attempt="${escapeHtml(attempt.attempt)}" data-trajectory-test-id="${escapeHtml(attempt.test_id)}">表示</a></td></tr>`;
                     }).join('')}</tbody></table></div>`;
                 }
                 html += '</section><section class="student-grammar-results"><h4>文法項目ごとの分析</h4>';
@@ -1262,9 +1856,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <th>正解かつ迷い有り</th><th>不正解かつ迷い無し</th><th>不正解かつ迷い有り</th>
                     <th>正解率</th><th>迷い率</th></tr></thead><tbody>${grammarStats.map((stat) => `<tr>
                     <td>${escapeHtml(stat.grammar_name)}</td><td>${escapeHtml(stat.total_attempts)}</td><td>${escapeHtml(stat.correct_count)}</td><td>${escapeHtml(stat.hesitated_count)}</td>
-                    <td>${trajectoryLinks(stat.correct_hesitated_attempts, studentId)}</td>
-                    <td>${trajectoryLinks(stat.incorrect_not_hesitated_attempts, studentId)}</td>
-                    <td>${trajectoryLinks(stat.incorrect_hesitated_attempts, studentId)}</td>
+                    <td>${trajectoryLinks(stat.correct_hesitated_attempts, studentId, stat.grammar_name, 'grammar_correct_hesitated')}</td>
+                    <td>${trajectoryLinks(stat.incorrect_not_hesitated_attempts, studentId, stat.grammar_name, 'grammar_incorrect_not_hesitated')}</td>
+                    <td>${trajectoryLinks(stat.incorrect_hesitated_attempts, studentId, stat.grammar_name, 'grammar_incorrect_hesitated')}</td>
                     <td>${Number(stat.correct_rate || 0).toFixed(2)}%</td><td>${Number(stat.hesitation_rate || 0).toFixed(2)}%</td></tr>`).join('')}</tbody></table></div>
                     <div class="grammar-chart-container"><canvas data-role="grammar-chart"></canvas></div></div></section>`;
                 target.innerHTML = html;

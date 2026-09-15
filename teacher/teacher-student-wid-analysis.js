@@ -253,6 +253,7 @@
             this.featureMeta = options.featureMeta || {};
             this.onResolve = typeof options.onResolve === 'function' ? options.onResolve : async () => ({ attempts: [] });
             this.onRender = typeof options.onRender === 'function' ? options.onRender : null;
+            this.onUsage = typeof options.onUsage === 'function' ? options.onUsage : null;
             this.studentId = '';
             this.data = null;
             this.chart = null;
@@ -514,6 +515,10 @@
             const conditions = histogram.bins.map((bin, index) => ({
                 id: JSON.stringify([feature, bin.start, bin.end, histogram.step, index]),
                 feature,
+                binStart: bin.start,
+                binEnd: bin.end,
+                binWidthMode: setting.mode,
+                binWidth: histogram.step,
                 label: `${label}: ${histogram.labels[index]}${unit}`,
                 members: new Set(bin.members.map((member) => String(member.id))),
             }));
@@ -596,7 +601,33 @@
                 : `${count}件の問題(WID)をチェックボックスで選択しています。`;
         }
 
-        async requestResults() {
+        usageSnapshot(wids) {
+            const histogramMode = this.selectionMode === 'histogram';
+            const conditions = histogramMode ? [...this.conditions.values()].map((condition) => ({
+                feature: String(condition.feature || ''),
+                bin_start: Number.isFinite(Number(condition.binStart)) ? Number(condition.binStart) : null,
+                bin_end: Number.isFinite(Number(condition.binEnd)) ? Number(condition.binEnd) : null,
+                bin_width_mode: condition.binWidthMode === 'manual' ? 'manual' : 'auto',
+                bin_width: Number.isFinite(Number(condition.binWidth)) ? Number(condition.binWidth) : null,
+                selected_ids: [...condition.members].sort(compareIds),
+            })) : null;
+            const correctness = this.q('correctness')?.value || 'all';
+            const hesitation = this.q('hesitation')?.value || 'all';
+            return {
+                selected_uid: this.studentId,
+                selection_method: this.selectionMode,
+                selected_wids: [...wids].sort(compareIds),
+                histogram_features: histogramMode ? [...new Set(conditions.map((condition) => condition.feature))] : null,
+                histogram_conditions: conditions,
+                histogram_bin_width_changed: histogramMode ? conditions.some((condition) => condition.bin_width_mode === 'manual') : null,
+                correctness_filter: correctness,
+                correctness_filter_used: correctness !== 'all',
+                hesitation_filter: hesitation,
+                hesitation_filter_used: hesitation !== 'all',
+            };
+        }
+
+        async requestResults(recordUsage = false) {
             const target = this.q('results');
             const wids = this.currentWids();
             if (!target) return;
@@ -607,6 +638,13 @@
             const sequence = ++this.resultSequence;
             target.innerHTML = `<p class="loading">${wids.length}件の問題(WID)について学習者情報を読み込んでいます...</p>`;
             try {
+                if (recordUsage && this.onUsage) {
+                    try {
+                        this.onUsage(this.usageSnapshot(wids));
+                    } catch (error) {
+                        console.warn('学習者詳細ログを送信できませんでした。', error);
+                    }
+                }
                 const data = await this.onResolve({ studentId: this.studentId, wids, correctness: this.q('correctness')?.value || 'all', hesitation: this.q('hesitation')?.value || 'all' });
                 if (sequence !== this.resultSequence) return;
                 this.hasRenderedResults = true;
@@ -634,7 +672,7 @@
                 this.applyHistogramSelection();
                 this.renderChart();
             } else if (action === 'apply-bin-width') this.applyBinWidth();
-            else if (action === 'show-results') this.requestResults();
+            else if (action === 'show-results') this.requestResults(true);
         }
 
         handleChange(event) {
@@ -662,7 +700,7 @@
                 this.syncBinControls();
                 this.renderChart();
             } else if (role === 'bin-mode') this.changeBinMode(event.target.value);
-            else if ((role === 'correctness' || role === 'hesitation') && this.hasRenderedResults) this.requestResults();
+            else if ((role === 'correctness' || role === 'hesitation') && this.hasRenderedResults) this.requestResults(false);
         }
     }
 

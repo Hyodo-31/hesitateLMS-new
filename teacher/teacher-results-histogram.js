@@ -305,6 +305,7 @@
             this.scope = options.scope;
             this.getTestId = options.getTestId || (() => '');
             this.onSubmit = options.onSubmit;
+            this.onWidsApplied = typeof options.onWidsApplied === 'function' ? options.onWidsApplied : null;
             this.submitLabel = options.submitLabel || '選択条件で結果を表示';
             this.showResultFilters = options.showResultFilters !== false;
             this.onDetailStudentChange = options.onDetailStudentChange || (() => {});
@@ -319,6 +320,7 @@
             this.expanded = options.initialExpanded !== false;
             this.selectionModes = { wid: 'checkbox', uid: 'checkbox' };
             this.sourceTokens = [];
+            this.appliedSourceTokens = [];
             this.barConditions = { uid: new Map(), wid: new Map() };
             this.binSettings = { uid: new Map(), wid: new Map() };
             this.autoBinSteps = { uid: new Map(), wid: new Map() };
@@ -391,6 +393,7 @@
         resetState() {
             this.selectionModes = { wid: 'checkbox', uid: 'checkbox' };
             this.sourceTokens = [];
+            this.appliedSourceTokens = [];
             this.barConditions = { uid: new Map(), wid: new Map() };
             this.binSettings = { uid: new Map(), wid: new Map() };
             this.autoBinSteps = { uid: new Map(), wid: new Map() };
@@ -513,7 +516,7 @@
             if (!action || !this.loaded) return;
             if (action.startsWith('source-add-')) this.addSourceToken(action.replace('source-add-', ''));
             else if (action === 'source-apply') this.applySourceExpression();
-            else if (action === 'source-reset') { this.sourceTokens = []; this.sourceUids = new Set(this.data.students.map((item) => String(item.uid))); this.uidResult = new Set(this.sourceUids); this.renderSourceLogic(); this.renderUidList(); this.renderResultList(); this.renderCharts(); }
+            else if (action === 'source-reset') { this.sourceTokens = []; this.appliedSourceTokens = []; this.sourceUids = new Set(this.data.students.map((item) => String(item.uid))); this.uidResult = new Set(this.sourceUids); this.renderSourceLogic(); this.renderUidList(); this.renderResultList(); this.renderCharts(); }
             else if (action === 'source-trim') this.trimTokens('source');
             else if (action === 'source-clear') { this.sourceTokens = []; this.renderSourceLogic(); }
             else if (action.startsWith('bar-clear-saved-')) this.clearSavedBars(action.replace('bar-clear-saved-', ''));
@@ -750,6 +753,7 @@
                 }, universe, () => new Set(universe));
                 this.sourceUids = selected;
                 this.uidResult = new Set(selected);
+                this.appliedSourceTokens = this.sourceTokens.map((token) => ({ kind: token.kind, value: token.value || '' }));
                 this.renderSourceLogic(`${selected.size}名の学習者を対象にしています。`);
                 this.renderUidList();
                 this.renderResultList();
@@ -1022,6 +1026,13 @@
                 if (note) note.textContent = '手順1で確定した問題だけを対象に学習者を絞り込みます。';
                 uidStep.open = true;
             }
+            if (this.onWidsApplied) {
+                try {
+                    this.onWidsApplied(this.widUsageSnapshot());
+                } catch (error) {
+                    console.warn('WID選択ログを送信できませんでした。', error);
+                }
+            }
             this.renderCharts();
         }
 
@@ -1112,6 +1123,7 @@
                 return true;
             }
             this.setBinError(entity);
+            const setting = this.binSetting(entity, feature);
             if (this.binSetting(entity, feature).mode === 'auto' && histogram.step > 0) {
                 this.autoBinSteps[entity].set(feature, histogram.step);
             }
@@ -1126,6 +1138,10 @@
             if (typeof window.Chart === 'undefined') { summary.textContent += ' / グラフライブラリを読み込めませんでした。'; return true; }
             const conditions = histogram.bins.map((bin, index) => ({
                 id: JSON.stringify([key, signature, bin.start, bin.end, histogram.step]), entity, feature,
+                binStart: bin.start,
+                binEnd: bin.end,
+                binWidthMode: setting.mode,
+                binWidth: histogram.step,
                 members: new Set(bin.members.map((member) => String(member.id))), label: `${title} / ${histogram.labels[index]}${unitText}`,
             }));
             const saved = this.barConditions[entity];
@@ -1184,6 +1200,68 @@
 
         destroyCharts() { Object.keys(this.charts).forEach((key) => { this.charts[key]?.destroy(); this.charts[key] = null; }); }
 
+        histogramUsageSnapshot(entity, enabled) {
+            if (!enabled) {
+                return {
+                    histogram_features: null,
+                    histogram_conditions: null,
+                    histogram_bin_width_changed: null,
+                };
+            }
+            const conditions = [...this.barConditions[entity].values()].map((condition) => ({
+                feature: String(condition.feature || ''),
+                bin_start: Number.isFinite(Number(condition.binStart)) ? Number(condition.binStart) : null,
+                bin_end: Number.isFinite(Number(condition.binEnd)) ? Number(condition.binEnd) : null,
+                bin_width_mode: condition.binWidthMode === 'manual' ? 'manual' : 'auto',
+                bin_width: Number.isFinite(Number(condition.binWidth)) ? Number(condition.binWidth) : null,
+                selected_ids: [...condition.members].sort(compareIds),
+            }));
+            return {
+                histogram_features: [...new Set(conditions.map((condition) => condition.feature))],
+                histogram_conditions: conditions,
+                histogram_bin_width_changed: conditions.some((condition) => condition.bin_width_mode === 'manual'),
+            };
+        }
+
+        sourceExpressionText() {
+            const labels = new Map(this.sourceOptions().map((option) => [option.value, option.label]));
+            return this.appliedSourceTokens.map((token) => {
+                if (token.kind === 'condition') return labels.get(token.value) || token.value;
+                if (token.kind === 'open') return '(';
+                if (token.kind === 'close') return ')';
+                return String(token.kind || '').toUpperCase();
+            }).join(' ');
+        }
+
+        widUsageSnapshot() {
+            const histogram = this.histogramUsageSnapshot('wid', this.selectionModes.wid === 'histogram');
+            return {
+                selection_method: this.selectionModes.wid,
+                selected_wids: [...this.appliedWids].sort(compareIds),
+                ...histogram,
+            };
+        }
+
+        uidUsageSnapshot(uids) {
+            const histogramMode = this.selectionModes.uid === 'histogram';
+            const groupUsed = !histogramMode && this.appliedSourceTokens.length > 0;
+            const correctness = this.showResultFilters ? (this.q('result-correctness')?.value || 'all') : 'all';
+            const hesitation = this.showResultFilters ? (this.q('result-hesitation')?.value || 'all') : 'all';
+            return {
+                selection_method: this.selectionModes.uid,
+                selected_uids: [...uids].sort(compareIds),
+                selected_wids: [...this.appliedWids].sort(compareIds),
+                group_condition_used: histogramMode ? null : groupUsed,
+                group_expression: groupUsed ? this.sourceExpressionText() : null,
+                group_expression_tokens: groupUsed ? this.appliedSourceTokens.map((token) => ({ ...token })) : null,
+                ...this.histogramUsageSnapshot('uid', histogramMode),
+                correctness_filter: correctness,
+                correctness_filter_used: correctness !== 'all',
+                hesitation_filter: hesitation,
+                hesitation_filter_used: hesitation !== 'all',
+            };
+        }
+
         async submit() {
             if (this.widPending) { window.alert('問題(WID)の選択変更を学習者(UID)の絞り込みへ反映してください。'); return; }
             const uids = this.scope === 'student'
@@ -1200,6 +1278,7 @@
                     uids, studentId: this.scope === 'student' ? this.detailUid : '', wids: [...this.appliedWids],
                     correctness: this.showResultFilters ? this.q('result-correctness').value : 'all',
                     hesitation: this.showResultFilters ? this.q('result-hesitation').value : 'all',
+                    usageLog: this.uidUsageSnapshot(uids),
                 });
             } finally { button.disabled = false; }
         }
