@@ -8,6 +8,7 @@ require __DIR__ . '/../dbc.php';
 ob_start();
 require_once __DIR__ . '/student-feature-tooltip.php';
 ob_end_clean();
+require_once __DIR__ . '/teacher-analysis-wids.php';
 
 function result_histogram_response(array $payload, int $status = 200): void
 {
@@ -122,7 +123,7 @@ function result_histogram_test_context(mysqli $conn, string $teacherId, int $tes
         'i',
         [$testId]
     );
-    return [$students, $wids];
+    return [$students, teacher_analysis_filter_wid_rows($wids)];
 }
 
 function result_histogram_level_label($level): string
@@ -209,6 +210,7 @@ try {
         }
         $widSql .= ' ORDER BY l.WID';
         $widRows = result_histogram_rows($conn, $widSql, $widTypes, $widParams);
+        $widRows = teacher_analysis_filter_wid_rows($widRows);
     }
 
     $allowedUids = array_map(static fn(array $row): int => (int)$row['uid'], $studentRows);

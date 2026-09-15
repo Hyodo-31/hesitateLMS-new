@@ -16,6 +16,7 @@
         //session_start();
         require "../dbc.php";
         require_once __DIR__ . "/student-feature-tooltip.php";
+        require_once __DIR__ . "/teacher-analysis-wids.php";
         // 繧ｻ繝・す繝ｧ繝ｳ螟画焚繧偵け繝ｪ繧｢縺吶ｋ・亥ｿ・ｦ√↓蠢懊§縺ｦ・・
         unset($_SESSION['conditions']);
         $teacher_id = $_SESSION['MemberID'] ?? '';
@@ -72,6 +73,9 @@
                 $pair_feature_stmt->execute();
                 $pair_feature_result = $pair_feature_stmt->get_result();
                 while ($pair_feature_row = $pair_feature_result->fetch_assoc()) {
+                    if (!teacher_analysis_wid_is_allowed($pair_feature_row['WID'])) {
+                        continue;
+                    }
                     $feature_values = [];
                     $feature_counts = [];
                     foreach ($student_feature_columns_for_filter as $column => $_label) {
@@ -121,6 +125,9 @@
             $metric_attempt_stmt->execute();
             $metric_attempt_result = $metric_attempt_stmt->get_result();
             while ($metric_attempt_row = $metric_attempt_result->fetch_assoc()) {
+                if (!teacher_analysis_wid_is_allowed($metric_attempt_row['WID'])) {
+                    continue;
+                }
                 $student_histogram_metric_attempts[] = [
                     'uid' => (string)$metric_attempt_row['UID'],
                     'wid' => (string)$metric_attempt_row['WID'],
@@ -269,6 +276,9 @@
                             $stmt->execute();
                             $result = $stmt->get_result();
                             while ($row = $result->fetch_assoc()) {
+                                if (!teacher_analysis_wid_is_allowed($row['WID'])) {
+                                    continue;
+                                }
                                 $student_filter_wids[] = $row;
                                 $wid = htmlspecialchars($row['WID'], ENT_QUOTES, 'UTF-8');
                                 $sentence = htmlspecialchars($row['Sentence'] ?? '', ENT_QUOTES, 'UTF-8');

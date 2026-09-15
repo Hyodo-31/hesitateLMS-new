@@ -5,6 +5,7 @@ require "../dbc.php";
 ob_start();
 require_once __DIR__ . '/student-feature-tooltip.php';
 ob_end_clean();
+require_once __DIR__ . '/teacher-analysis-wids.php';
 
 // ログイン中の教師IDを取得します
 $teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
@@ -93,7 +94,9 @@ function teacher_result_test_wids(mysqli $conn, int $test_id, array $requested_w
     $result = $stmt->get_result();
     $allowed = [];
     while ($row = $result->fetch_assoc()) {
-        $allowed[] = (string)$row['WID'];
+        if (teacher_analysis_wid_is_allowed($row['WID'])) {
+            $allowed[] = (string)$row['WID'];
+        }
     }
     $stmt->close();
     if (empty($requested_wids)) {
@@ -117,7 +120,9 @@ function teacher_result_student_wids(mysqli $conn, string $student_id, array $re
     $result = $stmt->get_result();
     $allowed = [];
     while ($row = $result->fetch_assoc()) {
-        $allowed[(string)$row['WID']] = true;
+        if (teacher_analysis_wid_is_allowed($row['WID'])) {
+            $allowed[(string)$row['WID']] = true;
+        }
     }
     $stmt->close();
     return array_values(array_filter(teacher_result_normalize_ids($requested_wids), static fn(string $wid): bool => isset($allowed[$wid])));
@@ -173,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $student_ids = json_decode($_POST['student_ids']);
             $student_ids = is_array($student_ids) ? teacher_result_filter_students($conn, (string)$teacher_id, $student_ids) : [];
             $wids = isset($_POST['wids']) && !empty($_POST['wids']) ? json_decode($_POST['wids']) : [];
-            $wids = is_array($wids) ? teacher_result_normalize_ids($wids) : [];
+            $wids = is_array($wids) ? teacher_analysis_filter_wids($wids) : [];
             // ★★★ 新機能: 絞り込み条件を取得 ★★★
             $correctness_filter = $_POST['correctness'] ?? 'all';
             $hesitation_filter = $_POST['hesitation'] ?? 'all';
@@ -233,7 +238,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute();
                 $result = $stmt->get_result();
                 while ($row = $result->fetch_assoc()) {
-                    $response[] = $row;
+                    if (teacher_analysis_wid_is_allowed($row['WID'])) {
+                        $response[] = $row;
+                    }
                 }
                 $stmt->close();
             }
@@ -255,7 +262,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute();
                 $result = $stmt->get_result();
                 while ($row = $result->fetch_assoc()) {
-                    $response[] = $row;
+                    if (teacher_analysis_wid_is_allowed($row['WID'])) {
+                        $response[] = $row;
+                    }
                 }
                 $stmt->close();
             }
@@ -310,8 +319,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->bind_param("i", $test_id);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                while ($row = $result->fetch_assoc())
-                    $response[] = $row;
+                while ($row = $result->fetch_assoc()) {
+                    if (teacher_analysis_wid_is_allowed($row['WID'])) {
+                        $response[] = $row;
+                    }
+                }
                 $stmt->close();
             }
         }
@@ -329,8 +341,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->bind_param("s", $student_id);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                while ($row = $result->fetch_assoc())
-                    $response[] = $row;
+                while ($row = $result->fetch_assoc()) {
+                    if (teacher_analysis_wid_is_allowed($row['WID'])) {
+                        $response[] = $row;
+                    }
+                }
                 $stmt->close();
             }
         }
@@ -515,8 +530,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt_all_q->bind_param("s", $student_id);
                 $stmt_all_q->execute();
                 $result_all_q = $stmt_all_q->get_result();
-                while ($row = $result_all_q->fetch_assoc())
-                    $all_questions[] = $row;
+                while ($row = $result_all_q->fetch_assoc()) {
+                    if (teacher_analysis_wid_is_allowed($row['WID'])) {
+                        $all_questions[] = $row;
+                    }
+                }
                 $stmt_all_q->close();
             }
 

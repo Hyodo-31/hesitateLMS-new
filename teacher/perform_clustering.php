@@ -1,6 +1,7 @@
 <?php
 include '../lang.php';
 require '../dbc.php';
+require_once __DIR__ . '/teacher-analysis-wids.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -108,10 +109,10 @@ $studentIds = array_values(array_unique(array_filter(
     array_map('trim', explode(',', $_POST['studentIDs'] ?? '')),
     static fn(string $uid): bool => $uid !== ''
 )));
-$widIds = array_values(array_unique(array_map('intval', array_filter(
+$widIds = teacher_analysis_filter_wids(array_values(array_unique(array_map('intval', array_filter(
     array_map('trim', explode(',', $_POST['wids'] ?? '')),
     static fn(string $wid): bool => $wid !== '' && ctype_digit($wid)
-))));
+)))));
 $method = $_POST['method'] ?? 'kmeans';
 $allowedMethods = ['kmeans' => true, 'xmeans' => true, 'gmeans' => true];
 $clusterCount = $method === 'kmeans' ? max(2, min(10, (int)($_POST['clusterCount'] ?? 2))) : 1;

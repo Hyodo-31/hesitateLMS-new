@@ -2,6 +2,7 @@
 include '../lang.php';
 require '../dbc.php';
 require_once __DIR__ . '/feature_display.php';
+require_once __DIR__ . '/teacher-analysis-wids.php';
 
 if (empty($_SESSION['MemberID'])) {
     http_response_code(401);
@@ -124,6 +125,62 @@ function getSelectedStudentIdsFromPost(array $allowedStudentIds): array
     }));
 }
 
+function isAUniversity2019Scope(): bool
+{
+    return ($_POST['analysis_scope'] ?? '') === 'a_university_2019';
+}
+
+function getAUniversity2019StudentIds(mysqli $conn): array
+{
+    $stmt = $conn->prepare(
+        'SELECT DISTINCT uid
+         FROM students
+         WHERE ClassID IN (4, 9)
+         ORDER BY uid'
+    );
+    if (!$stmt) {
+        return [];
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $studentIds = [];
+    while ($row = $result->fetch_assoc()) {
+        $studentIds[] = (string)$row['uid'];
+    }
+    $result->close();
+    $stmt->close();
+
+    return $studentIds;
+}
+
+function getAUniversity2019Wids(): array
+{
+    return [
+        22, 68, 46, 191, 32, 54, 67, 184, 45, 89,
+        127, 129, 141, 143, 147, 160, 162, 176, 181, 186,
+        59, 60, 99, 61, 139, 76, 92, 58, 138, 161,
+    ];
+}
+
+function getCorrelationStudentIdsFromPost(mysqli $conn, array $allowedStudentIds): array
+{
+    if (isAUniversity2019Scope()) {
+        return getAUniversity2019StudentIds($conn);
+    }
+
+    return getSelectedStudentIdsFromPost($allowedStudentIds);
+}
+
+function getCorrelationWidsFromPost(): array
+{
+    if (isAUniversity2019Scope()) {
+        return getAUniversity2019Wids();
+    }
+
+    return getSelectedWidsFromPost();
+}
+
 function getSelectedWidsFromPost(): array
 {
     $selectedWids = json_decode($_POST['wids'] ?? '[]', true);
@@ -131,11 +188,12 @@ function getSelectedWidsFromPost(): array
         return [];
     }
 
-    $selectedWids = array_filter($selectedWids, function ($wid) {
-        return is_numeric($wid);
-    });
+    $selectedWids = teacher_analysis_filter_wids($selectedWids);
+    if (empty($selectedWids) && (($_POST['wid_filter_enabled'] ?? '') !== '1')) {
+        return teacher_analysis_target_wids();
+    }
 
-    return array_values(array_unique(array_map('intval', $selectedWids)));
+    return $selectedWids;
 }
 
 function appendWidFilter(string $sql, array $selectedWids, string &$types, array &$params, string $widColumn = 'WID'): string
@@ -358,7 +416,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = $stmt->get_result();
         $items = [];
         while ($row = $result->fetch_assoc()) {
-            $items[] = $row;
+            if (teacher_analysis_wid_is_allowed($row['WID'])) {
+                $items[] = $row;
+            }
         }
         $result->close();
         $stmt->close();
@@ -379,8 +439,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['error' => '無効な特徴量です。']);
         }
 
-        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
-        $selectedWids = getSelectedWidsFromPost();
+        $selectedStudents = getCorrelationStudentIdsFromPost($conn, $allowedStudentIds);
+        $selectedWids = getCorrelationWidsFromPost();
 
         if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             $emptyYLabel = '迷い推定結果';
@@ -518,8 +578,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
     if ($action === 'get_understand_correlation_list') {
-        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
-        $selectedWids = getSelectedWidsFromPost();
+        $selectedStudents = getCorrelationStudentIdsFromPost($conn, $allowedStudentIds);
+        $selectedWids = getCorrelationWidsFromPost();
         if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             jsonResponse(['items' => []]);
         }
@@ -611,8 +671,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'get_hesitation_degree_correlation_list') {
-        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
-        $selectedWids = getSelectedWidsFromPost();
+        $selectedStudents = getCorrelationStudentIdsFromPost($conn, $allowedStudentIds);
+        $selectedWids = getCorrelationWidsFromPost();
         if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             jsonResponse(['items' => []]);
         }
@@ -714,8 +774,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['error' => '無効な特徴量です。']);
         }
 
-        $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
-        $selectedWids = getSelectedWidsFromPost();
+        $selectedStudents = getCorrelationStudentIdsFromPost($conn, $allowedStudentIds);
+        $selectedWids = getCorrelationWidsFromPost();
         if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             jsonResponse(['feature_x' => $xFeature, 'prediction_filter' => $predictionFilter, 'items' => []]);
         }
@@ -875,6 +935,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: #ffffff;
             border: 1px solid #d8dee4;
             border-radius: 8px;
+        }
+
+        .a-university-preset-action {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin: 18px 0;
+        }
+
+        #apply-a-university-2019 {
+            min-height: 42px;
+            padding: 0 18px;
+            border: 0;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #apply-a-university-2019:hover {
+            background: #1d4ed8;
+        }
+
+        #apply-a-university-2019:disabled {
+            cursor: wait;
+            background: #94a3b8;
+        }
+
+        #apply-a-university-2019.is-active {
+            background: #0f766e;
+        }
+
+        .a-university-preset-status {
+            color: #0f766e;
+            font-weight: 700;
         }
 
         .control-group {
@@ -1205,6 +1303,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <main class="feature-correlation-page">
         <div id="correlation-target-selector" aria-label="相関分析対象の問題(WID)・学習者(UID)検索"></div>
 
+        <div class="a-university-preset-action">
+            <button id="apply-a-university-2019" type="button">2019年度のA大学全データで適用</button>
+            <span class="a-university-preset-status" id="a-university-preset-status" aria-live="polite" hidden></span>
+        </div>
+
         <section class="analysis-controls" aria-label="相関分析条件">
             <div class="control-group">
                 <span class="mode-label">表示対象</span>
@@ -1414,9 +1517,11 @@ const classStudentIdsByClass = <?= json_encode((object)$studentsByClassId, JSON_
 const groupStudentIdsByGroup = <?= json_encode((object)$studentsByGroup, JSON_UNESCAPED_UNICODE) ?>;
 const classFilterOptions = <?= json_encode($teacherClasses, JSON_UNESCAPED_UNICODE) ?>;
 const groupFilterOptions = <?= json_encode($teacherGroups, JSON_UNESCAPED_UNICODE) ?>;
+const A_UNIVERSITY_2019_SCOPE = 'a_university_2019';
 let scatterChart;
 let currentRanking = [];
 let unifiedCorrelationSelection = null;
+let correlationAnalysisScope = 'selection';
 
 const modeInputs = document.querySelectorAll('input[name="correlation-mode"]');
 const featureXSelect = document.getElementById('feature-x-select');
@@ -1429,6 +1534,8 @@ const featureXSelectDescription = document.getElementById('feature-x-select-desc
 const featureYDescription = document.getElementById('feature-y-description');
 const featureYSelectDescription = document.getElementById('feature-y-select-description');
 const loadButton = document.getElementById('load-btn');
+const aUniversity2019Button = document.getElementById('apply-a-university-2019');
+const aUniversity2019Status = document.getElementById('a-university-preset-status');
 const correlationValue = document.getElementById('correlation-value');
 const countValue = document.getElementById('count-value');
 const pairValue = document.getElementById('pair-value');
@@ -1477,6 +1584,32 @@ function getSelectedWids() {
         return [...unifiedCorrelationSelection.wids];
     }
     return Array.from(questionCheckboxList.querySelectorAll('.question-checkbox-item input:checked')).map((input) => input.value);
+}
+
+function isAUniversity2019Active() {
+    return correlationAnalysisScope === A_UNIVERSITY_2019_SCOPE;
+}
+
+function appendCorrelationTarget(body) {
+    if (isAUniversity2019Active()) {
+        body.set('analysis_scope', A_UNIVERSITY_2019_SCOPE);
+        return body;
+    }
+
+    body.set('student_ids', JSON.stringify(getSelectedStudentIds()));
+    body.set('wids', JSON.stringify(getSelectedWids()));
+    return body;
+}
+
+function setAUniversity2019Active(active) {
+    correlationAnalysisScope = active ? A_UNIVERSITY_2019_SCOPE : 'selection';
+    aUniversity2019Button?.classList.toggle('is-active', active);
+    if (aUniversity2019Status) {
+        aUniversity2019Status.hidden = !active;
+        aUniversity2019Status.textContent = active
+            ? '2019年度A大学全データ（クラス4・9／30問）を適用中'
+            : '';
+    }
 }
 
 function escapeHtml(value) {
@@ -2114,6 +2247,9 @@ function syncControls() {
 function setLoading(isLoading) {
     loadButton.disabled = isLoading;
     loadButton.textContent = isLoading ? '読み込み中' : '相関を表示';
+    if (aUniversity2019Button) {
+        aUniversity2019Button.disabled = isLoading;
+    }
 }
 
 function renderStats(data) {
@@ -2351,10 +2487,9 @@ async function loadRanking() {
         action: 'get_feature_correlation_list',
         feature_x: featureXSelect.value,
         prediction_filter: predictionFilterSelect.value,
-        student_ids: JSON.stringify(getSelectedStudentIds()),
-        wids: JSON.stringify(getSelectedWids()),
         wid_filter_enabled: '1',
     });
+    appendCorrelationTarget(body);
 
     const response = await fetch('feature_correlation.php', {
         method: 'POST',
@@ -2374,10 +2509,9 @@ async function loadRanking() {
 async function loadUnderstandRanking() {
     const body = new URLSearchParams({
         action: 'get_understand_correlation_list',
-        student_ids: JSON.stringify(getSelectedStudentIds()),
-        wids: JSON.stringify(getSelectedWids()),
         wid_filter_enabled: '1',
     });
+    appendCorrelationTarget(body);
 
     const response = await fetch('feature_correlation.php', {
         method: 'POST',
@@ -2397,10 +2531,9 @@ async function loadUnderstandRanking() {
 async function loadHesitationDegreeRanking() {
     const body = new URLSearchParams({
         action: 'get_hesitation_degree_correlation_list',
-        student_ids: JSON.stringify(getSelectedStudentIds()),
-        wids: JSON.stringify(getSelectedWids()),
         wid_filter_enabled: '1',
     });
+    appendCorrelationTarget(body);
 
     const response = await fetch('feature_correlation.php', {
         method: 'POST',
@@ -2418,7 +2551,7 @@ async function loadHesitationDegreeRanking() {
 }
 
 async function loadData(refreshRanking = true) {
-    if (correlationTargetSelector && !unifiedCorrelationSelection) {
+    if (!isAUniversity2019Active() && correlationTargetSelector && !unifiedCorrelationSelection) {
         pairValue.textContent = '対象未選択';
         return;
     }
@@ -2434,10 +2567,9 @@ async function loadData(refreshRanking = true) {
             feature_x: featureXSelect.value,
             feature_y: featureYSelect.value,
             prediction_filter: predictionFilterSelect.value,
-            student_ids: JSON.stringify(getSelectedStudentIds()),
-            wids: JSON.stringify(getSelectedWids()),
             wid_filter_enabled: '1',
         });
+        appendCorrelationTarget(body);
 
         const response = await fetch('feature_correlation.php', {
             method: 'POST',
@@ -2490,12 +2622,19 @@ const correlationTargetSelector = window.TeacherResultsHistogram?.create({
     showResultFilters: false,
     submitLabel: '選択条件で相関を表示',
     onSubmit: async ({ uids, wids }) => {
+        setAUniversity2019Active(false);
         unifiedCorrelationSelection = {
             uids: uids.map(String),
             wids: wids.map(String),
         };
         await loadData(true);
     },
+});
+
+aUniversity2019Button?.addEventListener('click', async () => {
+    unifiedCorrelationSelection = null;
+    setAUniversity2019Active(true);
+    await loadData(true);
 });
 
 modeInputs.forEach((input) => {
@@ -2513,7 +2652,7 @@ predictionFilterSelect.addEventListener('change', () => loadData(true));
 window.addEventListener('resize', hideRankingFeaturePopup);
 window.addEventListener('scroll', hideRankingFeaturePopup, { capture: true, passive: true });
 loadButton.addEventListener('click', () => {
-    if (correlationTargetSelector && !unifiedCorrelationSelection) {
+    if (!isAUniversity2019Active() && correlationTargetSelector && !unifiedCorrelationSelection) {
         alert('先に問題(WID)→学習者(UID)の絞り込みを行い、相関分析の対象を確定してください。');
         return;
     }
