@@ -5,6 +5,25 @@
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
     }[character]));
     const compareIds = (left, right) => String(left).localeCompare(String(right), 'ja', { numeric: true });
+    const recordGroupingUsage = (action, payload) => {
+        const body = new URLSearchParams();
+        body.set('action', action);
+        body.set('payload', JSON.stringify(payload));
+        return fetch('create-student-group.php', {
+            method: 'POST',
+            body,
+            credentials: 'same-origin',
+        }).then(async (response) => {
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.ok) {
+                throw new Error(result?.error || `ログ保存に失敗しました (${response.status})`);
+            }
+            return result;
+        }).catch((error) => {
+            console.warn('学習者グルーピング画面の操作ログを保存できませんでした。', error);
+            return null;
+        });
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('student-group-unified-selector');
@@ -48,13 +67,14 @@
             if (!filteredUids.length) {
                 studentList.innerHTML = '<li class="student-list-status">選択条件に該当する学習者はいません。</li>';
                 if (summary) summary.textContent = `対象問題(WID): ${wids.length}件 / グループ候補: 0人`;
-                return;
+                return [];
             }
             studentList.innerHTML = filteredUids.map((uid) => {
                 const student = studentDirectory.get(uid) || {};
                 return `<li class="student-item" data-uid="${escapeHtml(uid)}"><label class="student-choice student-result-choice"><input type="checkbox" name="students[]" value="${escapeHtml(uid)}" checked><span class="student-result-identity"><strong>学習者(UID): ${escapeHtml(uid)}</strong><span>名前: ${escapeHtml(student.name || '未登録')}</span><span>グループ(クラス): ${escapeHtml(student.className || '未登録')}</span></span></label></li>`;
             }).join('');
             if (summary) summary.textContent = `対象問題(WID): ${wids.length}件 / グループ候補: ${filteredUids.length}人（全員選択中）`;
+            return filteredUids;
         };
 
         window.TeacherResultsHistogram.create({
@@ -66,8 +86,15 @@
             groups: window.studentGroupLogicFilterGroups || [],
             groupStudents: window.studentGroupLogicFilterStudentsByGroup || {},
             submitLabel: '選択した学習者をグループ候補へ反映',
-            onSubmit: async ({ uids, wids, correctness, hesitation }) => {
-                renderCandidates(uids, wids, correctness, hesitation);
+            onWidsApplied: (usageLog) => {
+                void recordGroupingUsage('log_grouping_wid_select', usageLog);
+            },
+            onSubmit: async ({ uids, wids, correctness, hesitation, usageLog }) => {
+                const reflectedCandidateUids = renderCandidates(uids, wids, correctness, hesitation);
+                void recordGroupingUsage('log_grouping_uid_select', {
+                    ...usageLog,
+                    reflected_candidate_uids: reflectedCandidateUids,
+                });
                 studentList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             },
         });

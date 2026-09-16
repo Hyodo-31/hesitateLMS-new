@@ -41,8 +41,22 @@
         </aside>
         <main>
             <?php
-                // 削除対象のグループIDを取得
-                $group_id = $_POST['group_id'];
+                // 削除対象のグループIDと、削除ログに残す削除前の名称を取得
+                $group_id = isset($_POST['group_id']) ? (int)$_POST['group_id'] : 0;
+                $teacher_id = (string)($_SESSION['MemberID'] ?? '');
+                $deleted_group_name = null;
+                try {
+                    $group_name_stmt = $conn->prepare('SELECT group_name FROM `groups` WHERE group_id = ? LIMIT 1');
+                    if ($group_name_stmt) {
+                        $group_name_stmt->bind_param('i', $group_id);
+                        $group_name_stmt->execute();
+                        $group_name_row = $group_name_stmt->get_result()->fetch_assoc();
+                        $deleted_group_name = $group_name_row ? (string)$group_name_row['group_name'] : null;
+                        $group_name_stmt->close();
+                    }
+                } catch (Throwable $e) {
+                    error_log('[Grouping delete log] 削除前のグループ名を取得できませんでした: ' . $e->getMessage());
+                }
 
                 // `group_members`から該当するグループのメンバーを削除
                 $stmt = $conn->prepare("DELETE FROM group_members WHERE group_id = ?");
@@ -54,7 +68,27 @@
                 $stmt = $conn->prepare("DELETE FROM `groups` WHERE group_id = ?");
                 $stmt->bind_param("i", $group_id);
                 $stmt->execute();
+                $group_delete_succeeded = $stmt->affected_rows === 1;
                 $stmt->close();
+
+                // グループ本体の削除が成功した場合のみ記録する。ログ失敗は削除処理を妨げない。
+                if ($group_delete_succeeded && $teacher_id !== '' && $deleted_group_name !== null) {
+                    try {
+                        $log_stmt = $conn->prepare(
+                            'INSERT INTO delete_groups (teacher_id, group_id, group_name) VALUES (?, ?, ?)'
+                        );
+                        if (!$log_stmt) {
+                            throw new RuntimeException('削除ログ保存の準備に失敗しました。');
+                        }
+                        $log_stmt->bind_param('sis', $teacher_id, $group_id, $deleted_group_name);
+                        if (!$log_stmt->execute()) {
+                            throw new RuntimeException($log_stmt->error);
+                        }
+                        $log_stmt->close();
+                    } catch (Throwable $e) {
+                        error_log('[Grouping delete log] 削除ログを保存できませんでした: ' . $e->getMessage());
+                    }
+                }
 
                 $conn->close();
 

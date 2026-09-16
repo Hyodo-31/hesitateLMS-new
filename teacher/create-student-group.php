@@ -1,4 +1,44 @@
-﻿<?php include '../lang.php'; ?>
+<?php
+include '../lang.php';
+require '../dbc.php';
+ob_start();
+require_once __DIR__ . '/student-feature-tooltip.php';
+ob_end_clean();
+require_once __DIR__ . '/teacher-analysis-wids.php';
+require_once __DIR__ . '/grouping-usage-log.php';
+
+$teacher_id = (string)($_SESSION['MemberID'] ?? '');
+$grouping_usage_actions = ['log_grouping_wid_select', 'log_grouping_uid_select'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST'
+    && isset($_POST['action'])
+    && in_array((string)$_POST['action'], $grouping_usage_actions, true)) {
+    header('Content-Type: application/json; charset=UTF-8');
+    $action = (string)$_POST['action'];
+    try {
+        if ($teacher_id === '') {
+            http_response_code(401);
+            throw new InvalidArgumentException('教師のログイン情報がありません。');
+        }
+        $payload = grouping_usage_payload();
+        if ($action === 'log_grouping_wid_select') {
+            grouping_usage_log_wid_select($conn, $teacher_id, $payload);
+        } else {
+            grouping_usage_log_uid_select($conn, $teacher_id, $payload);
+        }
+        echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        if (http_response_code() < 400) {
+            http_response_code($e instanceof InvalidArgumentException ? 400 : 500);
+        }
+        error_log('[Grouping usage log] ' . $action . ': ' . $e->getMessage());
+        echo json_encode(
+            ['ok' => false, 'error' => $e instanceof InvalidArgumentException ? $e->getMessage() : 'ログ保存に失敗しました。'],
+            JSON_UNESCAPED_UNICODE
+        );
+    }
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
 <head>
@@ -14,12 +54,8 @@
 <body>
     <?php
         //session_start();
-        require "../dbc.php";
-        require_once __DIR__ . "/student-feature-tooltip.php";
-        require_once __DIR__ . "/teacher-analysis-wids.php";
         // 繧ｻ繝・す繝ｧ繝ｳ螟画焚繧偵け繝ｪ繧｢縺吶ｋ・亥ｿ・ｦ√↓蠢懊§縺ｦ・・
         unset($_SESSION['conditions']);
-        $teacher_id = $_SESSION['MemberID'] ?? '';
         $student_feature_columns_for_filter = student_feature_columns();
         $student_filter_rows = [];
         $student_filter_wids = [];
