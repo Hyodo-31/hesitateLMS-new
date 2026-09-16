@@ -2,6 +2,8 @@
 include '../lang.php';
 require '../dbc.php';
 require_once __DIR__ . '/teacher-analysis-wids.php';
+require_once __DIR__ . '/feature_display.php';
+require_once __DIR__ . '/clustering-usage-log.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -115,7 +117,11 @@ $widIds = teacher_analysis_filter_wids(array_values(array_unique(array_map('intv
 )))));
 $method = $_POST['method'] ?? 'kmeans';
 $allowedMethods = ['kmeans' => true, 'xmeans' => true, 'gmeans' => true];
-$clusterCount = $method === 'kmeans' ? max(2, min(10, (int)($_POST['clusterCount'] ?? 2))) : 1;
+$requestedClusterCount = $method === 'kmeans'
+    ? max(2, min(10, (int)($_POST['clusterCount'] ?? 2)))
+    : null;
+$clusterCount = $requestedClusterCount ?? 1;
+$rawCorrelationTransitionCount = $_POST['featureCorrelationTransitionCount'] ?? '0';
 
 if (empty($features) || empty($studentIds) || empty($widIds)) {
     clusteringJsonResponse(['error' => '特徴量、問題(WID)、または学習者(UID)が不足しています。'], 400);
@@ -253,11 +259,33 @@ if (!is_array($clustersJson) || !isset($clustersJson['clusters']) || !is_array($
     clusteringJsonResponse(['error' => 'クラスタリング結果を読み込めませんでした。'], 500);
 }
 
+$actualClusterCount = count($clustersJson['clusters']);
+$usageLogOk = true;
+try {
+    $correlationTransitionCount = clustering_usage_transition_count($rawCorrelationTransitionCount);
+    clustering_usage_log_result(
+        $conn,
+        $teacherId,
+        $features,
+        $method,
+        $requestedClusterCount,
+        $actualClusterCount,
+        array_keys($studentsWithData),
+        $widIds,
+        count($studentsWithData),
+        $correlationTransitionCount
+    );
+} catch (Throwable $usageLogError) {
+    $usageLogOk = false;
+    error_log('[Clustering result usage log] ' . $usageLogError->getMessage());
+}
+
 clusteringJsonResponse([
     'clusters' => $clustersJson['clusters'],
-    'cluster_count' => count($clustersJson['clusters']),
+    'cluster_count' => $actualClusterCount,
     'student_count' => count($studentsWithData),
     'features' => $features,
     'wids' => $widIds,
     'method' => $method,
+    'usage_log_ok' => $usageLogOk,
 ]);

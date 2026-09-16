@@ -2,6 +2,8 @@
 include '../lang.php';
 require '../dbc.php';
 require_once __DIR__ . '/feature_display.php';
+require_once __DIR__ . '/teacher-analysis-wids.php';
+require_once __DIR__ . '/clustering-usage-log.php';
 
 if (empty($_SESSION['MemberID']) && empty($_SESSION['TID'])) {
     http_response_code(401);
@@ -10,6 +12,31 @@ if (empty($_SESSION['MemberID']) && empty($_SESSION['TID'])) {
 }
 
 $teacherId = $_SESSION['TID'] ?? $_SESSION['MemberID'];
+
+$clusteringUsageActions = ['log_clustering_wid_select', 'log_clustering_uid_select'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST'
+    && isset($_POST['action'])
+    && in_array((string)$_POST['action'], $clusteringUsageActions, true)) {
+    header('Content-Type: application/json; charset=UTF-8');
+    $action = (string)$_POST['action'];
+    try {
+        $payload = clustering_usage_payload();
+        if ($action === 'log_clustering_wid_select') {
+            clustering_usage_log_wid_select($conn, (string)$teacherId, $payload);
+        } else {
+            clustering_usage_log_uid_select($conn, (string)$teacherId, $payload);
+        }
+        echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        http_response_code($e instanceof InvalidArgumentException ? 400 : 500);
+        error_log('[Clustering usage log] ' . $action . ': ' . $e->getMessage());
+        echo json_encode(
+            ['ok' => false, 'error' => $e instanceof InvalidArgumentException ? $e->getMessage() : 'ログ保存に失敗しました。'],
+            JSON_UNESCAPED_UNICODE
+        );
+    }
+    exit;
+}
 
 $fallbackFeatureColumns = [
     'Time', 'distance', 'averageSpeed', 'maxSpeed', 'thinkingTime', 'answeringTime',
@@ -682,6 +709,26 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
         const classFilterOptions = <?= json_encode($teacherClasses, JSON_UNESCAPED_UNICODE) ?>;
         const groupFilterOptions = <?= json_encode($teacherGroups, JSON_UNESCAPED_UNICODE) ?>;
 
+        function recordClusteringUsage(action, payload) {
+            const body = new URLSearchParams();
+            body.set('action', action);
+            body.set('payload', JSON.stringify(payload));
+            return fetch('clustering.php', {
+                method: 'POST',
+                body,
+                credentials: 'same-origin',
+            }).then(async (response) => {
+                const result = await response.json().catch(() => null);
+                if (!response.ok || !result?.ok) {
+                    throw new Error(result?.error || `ログ保存に失敗しました (${response.status})`);
+                }
+                return result;
+            }).catch((error) => {
+                console.warn('クラスタリング画面の操作ログを保存できませんでした。', error);
+                return null;
+            });
+        }
+
         const clusteringTargetSelector = window.TeacherResultsHistogram?.create({
             root: '#clustering-target-selector',
             scope: 'class',
@@ -692,7 +739,11 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             groupStudents: studentIdsByGroup,
             showResultFilters: false,
             submitLabel: '選択した学習者をクラスタリング対象へ反映',
-            onSubmit: async ({ uids, wids }) => {
+            onWidsApplied: (usageLog) => {
+                void recordClusteringUsage('log_clustering_wid_select', usageLog);
+            },
+            onSubmit: async ({ uids, wids, usageLog }) => {
+                void recordClusteringUsage('log_clustering_uid_select', usageLog);
                 selectedClusteringStudentIds = uids.map(String);
                 selectedClusteringWids = wids.map(String);
                 clusteringSelectionApplied = true;
@@ -1004,6 +1055,10 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             const features = selectedValues('.feature-checkbox');
             const method = clusterMethodSelect?.value || 'kmeans';
             const clusterCount = method === 'kmeans' ? (clusterCountInput?.value || '2') : '';
+            const correlationTransitionCount = Math.max(
+                0,
+                Number(window.TeacherTabTransition?.getCorrelationToClusteringCount?.() || 0)
+            );
 
             if (!clusteringSelectionApplied) {
                 setStatus('問題(WID)→学習者(UID)の絞り込みで、クラスタリング対象を反映してください。', true);
@@ -1034,7 +1089,8 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                         studentIDs: studentIDs.join(','),
                         wids: selectedClusteringWids.join(','),
                         clusterCount,
-                        method
+                        method,
+                        featureCorrelationTransitionCount: String(correlationTransitionCount)
                     }).toString()
                 });
                 const text = await response.text();
@@ -1047,6 +1103,13 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
 
                 if (!response.ok || data.error) {
                     throw new Error(data.error || 'クラスタリングに失敗しました。');
+                }
+
+                window.TeacherTabTransition?.acknowledgeCorrelationToClusteringCount?.(
+                    correlationTransitionCount
+                );
+                if (data.usage_log_ok === false) {
+                    console.warn('クラスタリング成功ログを保存できませんでした。');
                 }
 
                 latestClusters = data.clusters || {};

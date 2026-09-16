@@ -139,6 +139,99 @@ if (!function_exists('teacher_menu_group_class')) {
 
 <script>
     (function () {
+        const transitionTeacherId = <?= json_encode((string)($teacher_menu_teacher_id ?? ''), JSON_UNESCAPED_UNICODE) ?>;
+        const transitionPage = <?= json_encode(basename(parse_url($_SERVER['SCRIPT_NAME'] ?? '', PHP_URL_PATH) ?: ''), JSON_UNESCAPED_UNICODE) ?>;
+        const transitionMarkerKey = `hesitateLms:correlationToClustering:${transitionTeacherId}`;
+        const transitionCountKey = `hesitateLms:correlationToClusteringCount:${transitionTeacherId}`;
+        const transitionMarkerLifetimeMs = 10000;
+
+        function readTransitionCount() {
+            if (!transitionTeacherId) return 0;
+            try {
+                const count = Number(sessionStorage.getItem(transitionCountKey) || 0);
+                return Number.isInteger(count) && count > 0 ? Math.min(count, 10000) : 0;
+            } catch (error) {
+                return 0;
+            }
+        }
+
+        function writeTransitionCount(count) {
+            if (!transitionTeacherId) return;
+            try {
+                sessionStorage.setItem(
+                    transitionCountKey,
+                    String(Math.max(0, Math.min(10000, Number(count) || 0)))
+                );
+            } catch (error) {
+                // ブラウザー保存が利用できない場合も画面操作は継続する。
+            }
+        }
+
+        window.TeacherTabTransition = {
+            getCorrelationToClusteringCount() {
+                return readTransitionCount();
+            },
+            acknowledgeCorrelationToClusteringCount(usedCount) {
+                const used = Math.max(0, Number(usedCount) || 0);
+                writeTransitionCount(Math.max(0, readTransitionCount() - used));
+            },
+        };
+
+        function markCorrelationTabHidden() {
+            if (!transitionTeacherId || transitionPage !== 'feature_correlation.php') return;
+            try {
+                localStorage.setItem(transitionMarkerKey, JSON.stringify({
+                    teacher_id: transitionTeacherId,
+                    source: 'feature_correlation.php',
+                    marker_id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    hidden_at: Date.now(),
+                }));
+            } catch (error) {
+                // ブラウザー保存が利用できない場合は移動回数0として扱う。
+            }
+        }
+
+        function consumeCorrelationTransition() {
+            if (!transitionTeacherId || transitionPage !== 'clustering.php' || document.hidden) return;
+            try {
+                const rawMarker = localStorage.getItem(transitionMarkerKey);
+                if (!rawMarker) return;
+                localStorage.removeItem(transitionMarkerKey);
+                const marker = JSON.parse(rawMarker);
+                const age = Date.now() - Number(marker?.hidden_at || 0);
+                if (marker?.teacher_id !== transitionTeacherId
+                    || marker?.source !== 'feature_correlation.php'
+                    || age < 0
+                    || age > transitionMarkerLifetimeMs) {
+                    return;
+                }
+                writeTransitionCount(readTransitionCount() + 1);
+            } catch (error) {
+                try {
+                    localStorage.removeItem(transitionMarkerKey);
+                } catch (storageError) {
+                    // 保存領域へアクセスできなくても画面操作は継続する。
+                }
+            }
+        }
+
+        function initTeacherTabTransition() {
+            if (!transitionTeacherId) return;
+            if (transitionPage === 'feature_correlation.php') {
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) markCorrelationTabHidden();
+                });
+                return;
+            }
+            if (transitionPage === 'clustering.php') {
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden) consumeCorrelationTransition();
+                });
+                window.addEventListener('focus', consumeCorrelationTransition);
+                consumeCorrelationTransition();
+            }
+        }
+
         function initTeacherMenu() {
             const menuToggle = document.getElementById('menu-toggle');
             const sidebarClose = document.getElementById('sidebar-close');
@@ -174,9 +267,13 @@ if (!function_exists('teacher_menu_group_class')) {
         }
 
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initTeacherMenu);
+            document.addEventListener('DOMContentLoaded', () => {
+                initTeacherMenu();
+                initTeacherTabTransition();
+            });
         } else {
             initTeacherMenu();
+            initTeacherTabTransition();
         }
     })();
 </script>
