@@ -2,6 +2,329 @@
 // lang.phpでセッションが開始されるため、個別のsession_startは不要
 require "../lang.php";
 $show_word_level_ml_ui = false;
+
+if (empty($_SESSION['mousemove_usage_csrf']) || !is_string($_SESSION['mousemove_usage_csrf'])) {
+    $_SESSION['mousemove_usage_csrf'] = bin2hex(random_bytes(32));
+}
+
+function mousemove_usage_teacher_id(mysqli $conn): ?string
+{
+    $candidate = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
+    if (!is_scalar($candidate)) {
+        return null;
+    }
+    $candidate = trim((string)$candidate);
+    if ($candidate === '') {
+        return null;
+    }
+
+    $stmt = $conn->prepare('SELECT TID FROM teachers WHERE TID = ? LIMIT 1');
+    if (!$stmt) {
+        throw new RuntimeException('教師情報の確認に失敗しました。');
+    }
+    $stmt->execute([$candidate]);
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return $row ? (string)$row['TID'] : null;
+}
+
+function mousemove_usage_attempt_context(
+    mysqli $conn,
+    string $teacher_id,
+    int $uid,
+    int $wid,
+    int $attempt
+): ?array {
+    $stmt = $conn->prepare(
+        'SELECT l.test_id, l.TF, l.Understand
+         FROM linedata l
+         JOIN students s ON s.uid = l.UID
+         JOIN classteacher ct ON ct.ClassID = s.ClassID
+         WHERE ct.TID = ? AND l.UID = ? AND l.WID = ? AND l.attempt = ?
+         LIMIT 1'
+    );
+    if (!$stmt) {
+        throw new RuntimeException('軌跡再現対象の確認に失敗しました。');
+    }
+    $stmt->execute([$teacher_id, $uid, $wid, $attempt]);
+    $row = $stmt->get_result()->fetch_assoc() ?: null;
+    $stmt->close();
+    return $row;
+}
+
+function mousemove_usage_estimated_understand(
+    mysqli $conn,
+    string $teacher_id,
+    int $uid,
+    int $wid,
+    int $attempt
+): ?int {
+    $stmt = $conn->prepare(
+        'SELECT Understand
+         FROM temporary_results
+         WHERE teacher_id = ? AND UID = ? AND WID = ? AND attempt = ?
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1'
+    );
+    if (!$stmt) {
+        throw new RuntimeException('迷い推定結果の確認に失敗しました。');
+    }
+    $stmt->execute([$teacher_id, $uid, $wid, $attempt]);
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return $row && $row['Understand'] !== null ? (int)$row['Understand'] : null;
+}
+
+function mousemove_usage_integer(array $payload, string $key, int $min, int $max, bool $nullable = false): ?int
+{
+    $value = $payload[$key] ?? null;
+    if ($nullable && ($value === null || $value === '')) {
+        return null;
+    }
+    if (!(is_int($value) || (is_string($value) && preg_match('/^-?\d+$/', $value)))) {
+        throw new InvalidArgumentException($key . 'が不正です。');
+    }
+    $value = (int)$value;
+    if ($value < $min || $value > $max) {
+        throw new InvalidArgumentException($key . 'が範囲外です。');
+    }
+    return $value;
+}
+
+function mousemove_usage_boolean(array $payload, string $key): ?int
+{
+    $value = $payload[$key] ?? null;
+    if ($value === null || $value === '') {
+        return null;
+    }
+    if ($value === true || $value === 1 || $value === '1') {
+        return 1;
+    }
+    if ($value === false || $value === 0 || $value === '0') {
+        return 0;
+    }
+    throw new InvalidArgumentException($key . 'が不正です。');
+}
+
+function mousemove_usage_words($value): ?string
+{
+    if ($value === null) {
+        return null;
+    }
+    if (!is_array($value) || count($value) > 100) {
+        throw new InvalidArgumentException('selected_wordsが不正です。');
+    }
+    $words = [];
+    foreach ($value as $word) {
+        if (!is_scalar($word)) {
+            throw new InvalidArgumentException('selected_wordsが不正です。');
+        }
+        $word = trim((string)$word);
+        if ($word === '' || mb_strlen($word) > 255) {
+            throw new InvalidArgumentException('selected_wordsが不正です。');
+        }
+        $words[] = $word;
+    }
+    return json_encode($words, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+}
+
+function mousemove_usage_colored_intervals($value): ?string
+{
+    if ($value === null) {
+        return null;
+    }
+    if (!is_array($value) || count($value) > 250) {
+        throw new InvalidArgumentException('seek_colored_intervalsが不正です。');
+    }
+    $normalized = [];
+    foreach ($value as $interval) {
+        if (!is_array($interval) || !is_array($interval['words'] ?? null)) {
+            throw new InvalidArgumentException('seek_colored_intervalsが不正です。');
+        }
+        $words_json = mousemove_usage_words($interval['words']);
+        $color = $interval['color'] ?? null;
+        if (!in_array($color, ['red', 'orange'], true)) {
+            throw new InvalidArgumentException('着色区間の色が不正です。');
+        }
+        $start = mousemove_usage_integer($interval, 'start_ms', 0, 31536000000);
+        $end = mousemove_usage_integer($interval, 'end_ms', 0, 31536000000);
+        $occurrence = mousemove_usage_integer($interval, 'occurrence', 1, 1000000);
+        if ($end < $start) {
+            throw new InvalidArgumentException('着色区間の時刻が不正です。');
+        }
+        $normalized[] = [
+            'words' => json_decode((string)$words_json, true, 512, JSON_THROW_ON_ERROR),
+            'color' => $color,
+            'start_ms' => $start,
+            'end_ms' => $end,
+            'occurrence' => $occurrence,
+        ];
+    }
+    return json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+}
+
+function mousemove_usage_insert(mysqli $conn, string $teacher_id, array $payload): void
+{
+    $allowed_events = [
+        'page_open', 'page_hidden', 'page_visible', 'page_exit', 'play', 'pause', 'reset',
+        'replay', 'seek', 'speed_change', 'word_selection_change', 'occurrence_change',
+        'duration_change', 'play_to_end_change', 'playback_end',
+    ];
+    $event_type = $payload['event_type'] ?? null;
+    if (!is_string($event_type) || !in_array($event_type, $allowed_events, true)) {
+        throw new InvalidArgumentException('event_typeが不正です。');
+    }
+
+    $view_session_id = $payload['view_session_id'] ?? null;
+    if (!is_string($view_session_id)
+        || !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $view_session_id)) {
+        throw new InvalidArgumentException('view_session_idが不正です。');
+    }
+
+    $uid = mousemove_usage_integer($payload, 'uid', 1, 2147483647);
+    $wid = mousemove_usage_integer($payload, 'wid', 1, 2147483647);
+    $attempt = mousemove_usage_integer($payload, 'attempt', 1, 2147483647);
+    $event_sequence = mousemove_usage_integer($payload, 'event_sequence', 1, 2147483647);
+    $context = mousemove_usage_attempt_context($conn, $teacher_id, $uid, $wid, $attempt);
+    if (!$context) {
+        throw new InvalidArgumentException('担当外または存在しない軌跡再現対象です。');
+    }
+
+    $event_elapsed_ms = mousemove_usage_integer($payload, 'event_elapsed_ms', 0, 31536000000);
+    $visible_delta_ms = mousemove_usage_integer($payload, 'visible_delta_ms', 0, 31536000000);
+    $total_visible_ms = mousemove_usage_integer($payload, 'total_visible_ms', 0, 31536000000);
+    $play_count = mousemove_usage_integer($payload, 'play_count_since_reset', 0, 10000000);
+    $pause_count = mousemove_usage_integer($payload, 'pause_count_since_reset', 0, 10000000);
+    $replay_count = mousemove_usage_integer($payload, 'replay_count_since_reset', 0, 10000000);
+    $reset_count = mousemove_usage_integer($payload, 'reset_count', 0, 10000000);
+    $playback_position_ms = mousemove_usage_integer($payload, 'playback_position_ms', 0, 31536000000, true);
+    $playback_run_no = mousemove_usage_integer($payload, 'playback_run_no', 0, 10000000);
+
+    $speed = $payload['speed_multiplier'] ?? null;
+    if (!is_int($speed) && !is_float($speed) && !is_string($speed)) {
+        throw new InvalidArgumentException('speed_multiplierが不正です。');
+    }
+    $speed = (float)$speed;
+    if (!in_array($speed, [0.5, 1.0, 2.0, 3.0, 5.0], true)) {
+        throw new InvalidArgumentException('speed_multiplierが不正です。');
+    }
+
+    $target_type = $payload['selected_target_type'] ?? null;
+    if ($target_type !== null && !in_array($target_type, ['all', 'word', 'group'], true)) {
+        throw new InvalidArgumentException('selected_target_typeが不正です。');
+    }
+    $selected_words = mousemove_usage_words($payload['selected_words'] ?? null);
+    $selected_occurrence = mousemove_usage_integer($payload, 'selected_occurrence', 1, 1000000, true);
+    $skip_target_ms = mousemove_usage_integer($payload, 'skip_target_ms', 0, 31536000000, true);
+    $requested_play_ms = mousemove_usage_integer($payload, 'requested_play_ms', 0, 31536000000, true);
+    $play_to_end = mousemove_usage_boolean($payload, 'play_to_end');
+    $played_timeline_ms = mousemove_usage_integer($payload, 'played_timeline_ms', 0, 31536000000, true);
+    $played_visible_wall_ms = mousemove_usage_integer($payload, 'played_visible_wall_ms', 0, 31536000000, true);
+
+    $end_reason = $payload['playback_end_reason'] ?? null;
+    $allowed_reasons = ['pause', 'reset', 'automatic_segment_end', 'automatic_full_end', 'page_exit', 'seek'];
+    if ($end_reason !== null && (!is_string($end_reason) || !in_array($end_reason, $allowed_reasons, true))) {
+        throw new InvalidArgumentException('playback_end_reasonが不正です。');
+    }
+
+    $seek_from_ms = mousemove_usage_integer($payload, 'seek_from_ms', 0, 31536000000, true);
+    $seek_to_ms = mousemove_usage_integer($payload, 'seek_to_ms', 0, 31536000000, true);
+    $seek_delta_ms = mousemove_usage_integer($payload, 'seek_delta_ms', -31536000000, 31536000000, true);
+    $seek_colored_intervals = mousemove_usage_colored_intervals($payload['seek_colored_intervals'] ?? null);
+    if ($event_type === 'seek'
+        && ($seek_from_ms === null || $seek_to_ms === null || $seek_delta_ms === null || $seek_colored_intervals === null)) {
+        throw new InvalidArgumentException('シーク情報が不足しています。');
+    }
+
+    $correctness = $context['TF'] !== null ? (int)$context['TF'] : null;
+    $self_reported = $context['Understand'] !== null ? (int)$context['Understand'] : null;
+    $estimated = mousemove_usage_estimated_understand($conn, $teacher_id, $uid, $wid, $attempt);
+    $test_id = (int)$context['test_id'];
+
+    $stmt = $conn->prepare(
+        'INSERT INTO mousemove
+         (teacher_id, view_session_id, event_sequence, event_type, UID, WID, attempt, test_id,
+          correctness, self_reported_understand, estimated_understand,
+          event_elapsed_ms, visible_delta_ms, total_visible_ms,
+          play_count_since_reset, pause_count_since_reset, replay_count_since_reset, reset_count,
+          playback_position_ms, speed_multiplier, playback_run_no,
+          selected_target_type, selected_words, selected_occurrence, skip_target_ms, requested_play_ms,
+          play_to_end, played_timeline_ms, played_visible_wall_ms, playback_end_reason,
+          seek_from_ms, seek_to_ms, seek_delta_ms, seek_colored_intervals)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    if (!$stmt) {
+        throw new RuntimeException('操作ログの保存準備に失敗しました。');
+    }
+    try {
+        $ok = $stmt->execute([
+            $teacher_id, $view_session_id, $event_sequence, $event_type, $uid, $wid, $attempt, $test_id,
+            $correctness, $self_reported, $estimated,
+            $event_elapsed_ms, $visible_delta_ms, $total_visible_ms,
+            $play_count, $pause_count, $replay_count, $reset_count,
+            $playback_position_ms, $speed, $playback_run_no,
+            $target_type, $selected_words, $selected_occurrence, $skip_target_ms, $requested_play_ms,
+            $play_to_end, $played_timeline_ms, $played_visible_wall_ms, $end_reason,
+            $seek_from_ms, $seek_to_ms, $seek_delta_ms, $seek_colored_intervals,
+        ]);
+        $errno = $stmt->errno;
+        $error = $stmt->error;
+    } catch (mysqli_sql_exception $e) {
+        $stmt->close();
+        if ((int)$e->getCode() === 1062) {
+            return;
+        }
+        throw $e;
+    }
+    $stmt->close();
+    if (!$ok && $errno !== 1062) {
+        throw new RuntimeException('操作ログの保存に失敗しました: ' . $error);
+    }
+}
+
+function mousemove_usage_json_response(int $status, array $body): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($body, JSON_UNESCAPED_UNICODE);
+}
+
+$mousemove_usage_content_type = (string)($_SERVER['CONTENT_TYPE'] ?? '');
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && stripos($mousemove_usage_content_type, 'application/json') === 0) {
+    ini_set('display_errors', '0');
+    try {
+        $request = json_decode((string)file_get_contents('php://input'), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($request) || ($request['action'] ?? null) !== 'log_mousemove_usage') {
+            throw new InvalidArgumentException('actionが不正です。');
+        }
+        $csrf = $request['csrf_token'] ?? null;
+        if (!is_string($csrf) || !hash_equals($_SESSION['mousemove_usage_csrf'], $csrf)) {
+            error_log('[mousemove usage] rejected: invalid CSRF token.');
+            mousemove_usage_json_response(403, ['ok' => false, 'error' => 'CSRF token is invalid.']);
+            exit;
+        }
+        if (!is_array($request['payload'] ?? null)) {
+            throw new InvalidArgumentException('payloadが不正です。');
+        }
+        require_once "../dbc.php";
+        $teacher_id = mousemove_usage_teacher_id($conn);
+        if ($teacher_id === null) {
+            error_log('[mousemove usage] rejected: teacher session is required.');
+            mousemove_usage_json_response(403, ['ok' => false, 'error' => 'Teacher session is required.']);
+            exit;
+        }
+        mousemove_usage_insert($conn, $teacher_id, $request['payload']);
+        mousemove_usage_json_response(200, ['ok' => true]);
+    } catch (InvalidArgumentException | JsonException $e) {
+        error_log('[mousemove usage] rejected: ' . $e->getMessage());
+        mousemove_usage_json_response(422, ['ok' => false, 'error' => 'Invalid log payload.']);
+    } catch (Throwable $e) {
+        error_log('[mousemove usage] failed: ' . $e->getMessage());
+        mousemove_usage_json_response(500, ['ok' => false, 'error' => 'Failed to save log.']);
+    }
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
@@ -387,6 +710,29 @@ $show_word_level_ml_ui = false;
         $uid = $_GET["UID"];
         $wid = $_GET["WID"];
         $attempt_num = $_GET["LogID"];
+    }
+
+    $mousemove_usage_enabled = false;
+    $mousemove_usage_teacher_id = null;
+    if (isset($uid, $wid, $attempt_num)
+        && preg_match('/^\d+$/', (string)$uid)
+        && preg_match('/^\d+$/', (string)$wid)
+        && preg_match('/^\d+$/', (string)$attempt_num)
+        && (int)$uid > 0 && (int)$wid > 0 && (int)$attempt_num > 0) {
+        try {
+            $mousemove_usage_teacher_id = mousemove_usage_teacher_id($conn);
+            if ($mousemove_usage_teacher_id !== null) {
+                $mousemove_usage_enabled = mousemove_usage_attempt_context(
+                    $conn,
+                    $mousemove_usage_teacher_id,
+                    (int)$uid,
+                    (int)$wid,
+                    (int)$attempt_num
+                ) !== null;
+            }
+        } catch (Throwable $e) {
+            error_log('[mousemove usage] initialization failed: ' . $e->getMessage());
+        }
     }
 
 
@@ -2066,6 +2412,9 @@ $show_word_level_ml_ui = false;
                 t = t + 1;
 
                 if (playbackStopTime != -1 && t >= playbackStopTime) {
+                    if (window.mousemoveUsageLogger) {
+                        window.mousemoveUsageLogger.handlePlaybackEnd('automatic_segment_end');
+                    }
                     alert("指定時間の再生が終了しました。");
                     stop_interval(); // 再生を停止
                     return; // 関数を抜ける
@@ -2134,6 +2483,9 @@ $show_word_level_ml_ui = false;
                 }
             }
             if (m + 1 >= t_point.length) {
+                if (window.mousemoveUsageLogger) {
+                    window.mousemoveUsageLogger.handlePlaybackEnd('automatic_full_end');
+                }
                 alert("再現終了");
                 UTurnCount = 0;
                 reset_c();
@@ -2490,6 +2842,74 @@ $show_word_level_ml_ui = false;
             jQuery('#jquery-ui-slider').slider('value', t);
             document.getElementById("start_b").style.visibility = "visible";
         }
+
+        function buildMousemoveIntervalMetadata() {
+            var sliderTargetRed = window.slider_target_red || [];
+            var sliderTargetOrange = window.slider_target_orange || [];
+            var extraDdIntervalTargets = window.extra_dd_interval_targets || [];
+            var mlIntervalTargets = window.ml_interval_targets || [];
+            var redTargetSet = new Set();
+            var orangeTargetSet = new Set();
+
+            sliderTargetRed.forEach(function (item) {
+                if (item && item.key !== undefined && item.occurrence !== undefined) {
+                    redTargetSet.add(String(item.key) + '|' + String(item.occurrence));
+                }
+            });
+            sliderTargetOrange.forEach(function (item) {
+                if (item && item.key !== undefined && item.occurrence !== undefined) {
+                    orangeTargetSet.add(String(item.key) + '|' + String(item.occurrence));
+                }
+            });
+            extraDdIntervalTargets.forEach(function (item) {
+                if (!(item && item.key !== undefined && item.occurrence !== undefined)) {
+                    return;
+                }
+                var targetId = String(item.key) + '|' + String(item.occurrence);
+                if (item.level === 'red') {
+                    redTargetSet.add(targetId);
+                } else if (item.level === 'orange') {
+                    orangeTargetSet.add(targetId);
+                }
+            });
+            mlIntervalTargets.forEach(function (item) {
+                if (item && item.key !== undefined && item.occurrence !== undefined) {
+                    redTargetSet.add(String(item.key) + '|' + String(item.occurrence));
+                }
+            });
+
+            var intervalOccurrenceCounts = {};
+            return dd_intervals.map(function (interval) {
+                var intervalKey = (interval.labelGroup && interval.labelGroup.includes('#'))
+                    ? String(interval.labelGroup)
+                    : String(parseInt(interval.hLabel, 10));
+                if (!intervalOccurrenceCounts[intervalKey]) {
+                    intervalOccurrenceCounts[intervalKey] = 0;
+                }
+                intervalOccurrenceCounts[intervalKey]++;
+                var occurrence = intervalOccurrenceCounts[intervalKey];
+                var targetId = intervalKey + '|' + String(occurrence);
+                var words = [];
+                if (interval.labelGroup && interval.labelGroup.includes('#')) {
+                    words = interval.labelGroup.split('#').filter(Boolean).map(function (labelId) {
+                        var id = parseInt(labelId, 10);
+                        return (start_point[id] !== undefined) ? start_point[id] : '';
+                    }).filter(Boolean);
+                } else {
+                    var wordName = start_point[parseInt(interval.hLabel, 10)];
+                    if (wordName) {
+                        words = [wordName];
+                    }
+                }
+                return {
+                    start_ms: parseInt(interval.startTime, 10),
+                    end_ms: parseInt(interval.endTime, 10),
+                    occurrence: occurrence,
+                    words: words,
+                    color: redTargetSet.has(targetId) ? 'red' : (orangeTargetSet.has(targetId) ? 'orange' : null)
+                };
+            });
+        }
         // ▲▲▲▲▲ ここまで追加 ▲▲▲▲▲
 
         jQuery(function ($) {
@@ -2520,11 +2940,17 @@ $show_word_level_ml_ui = false;
                 min: 0,
                 max: maxTime,
                 step: 1, // より滑らかに動かすためにstepを1に
+                start: function (event, ui) {
+                    window.mousemoveUsageSeekStart = ui.value;
+                },
                 slide: function (event, ui) {
                     $('#jquery-ui-slider-value').val(formatPlaybackTime(ui.value));
                 },
                 stop: function (event, ui) {
                     $('#jquery-ui-slider-value').val(formatPlaybackTime(ui.value));
+                    if (window.mousemoveUsageLogger) {
+                        window.mousemoveUsageLogger.handleSeek(window.mousemoveUsageSeekStart, ui.value);
+                    }
                     renderStateAtTime(ui.value);
                 }
             });
@@ -2539,59 +2965,19 @@ $show_word_level_ml_ui = false;
                 // スライダーの幅が0、または最大時間が未定義の場合は処理を中断
                 if (sliderWidth === 0 || !maxTime) return;
 
-                // カテゴリ別の対象セット（単語単位ではなく「ラベル + 何回目」）
-                var sliderTargetRed = window.slider_target_red || [];
-                var sliderTargetOrange = window.slider_target_orange || [];
-                var extraDdIntervalTargets = window.extra_dd_interval_targets || [];
-                var mlIntervalTargets = window.ml_interval_targets || [];
-                var redTargetSet = new Set();
-                var orangeTargetSet = new Set();
-
-                sliderTargetRed.forEach(function (item) {
-                    if (item && item.key !== undefined && item.occurrence !== undefined) {
-                        redTargetSet.add(String(item.key) + '|' + String(item.occurrence));
-                    }
+                var intervalMetadata = buildMousemoveIntervalMetadata();
+                window.mousemoveUsageColoredIntervals = intervalMetadata.filter(function (interval) {
+                    return interval.color === 'red' || interval.color === 'orange';
                 });
-                sliderTargetOrange.forEach(function (item) {
-                    if (item && item.key !== undefined && item.occurrence !== undefined) {
-                        orangeTargetSet.add(String(item.key) + '|' + String(item.occurrence));
-                    }
-                });
-                extraDdIntervalTargets.forEach(function (item) {
-                    if (!(item && item.key !== undefined && item.occurrence !== undefined)) {
-                        return;
-                    }
-                    var targetId = String(item.key) + '|' + String(item.occurrence);
-                    if (item.level === 'red') {
-                        redTargetSet.add(targetId);
-                    } else if (item.level === 'orange') {
-                        orangeTargetSet.add(targetId);
-                    }
-                });
-                mlIntervalTargets.forEach(function (item) {
-                    if (item && item.key !== undefined && item.occurrence !== undefined) {
-                        redTargetSet.add(String(item.key) + '|' + String(item.occurrence));
-                    }
-                });
-
-                var intervalOccurrenceCounts = {};
                 var textRowTopPositions = ['15px', '28px', '41px', '54px'];
                 var textRowLastRightPercents = new Array(textRowTopPositions.length).fill(-Infinity);
                 var textRowGapPercent = 0.6;
 
-                dd_intervals.forEach(function (interval) {
-                    var startPercent = (interval.startTime / maxTime) * 100;
-                    var endPercent = (interval.endTime / maxTime) * 100;
+                dd_intervals.forEach(function (interval, intervalIndex) {
+                    var metadata = intervalMetadata[intervalIndex];
+                    var startPercent = (metadata.start_ms / maxTime) * 100;
+                    var endPercent = (metadata.end_ms / maxTime) * 100;
                     var widthPercent = endPercent - startPercent;
-                    var intervalKey = (interval.labelGroup && interval.labelGroup.includes('#'))
-                        ? String(interval.labelGroup)
-                        : String(parseInt(interval.hLabel, 10));
-                    if (!intervalOccurrenceCounts[intervalKey]) {
-                        intervalOccurrenceCounts[intervalKey] = 0;
-                    }
-                    intervalOccurrenceCounts[intervalKey]++;
-                    var intervalOccurrence = intervalOccurrenceCounts[intervalKey];
-                    var intervalTargetId = intervalKey + '|' + String(intervalOccurrence);
 
                     if (startPercent >= 0 && endPercent <= 100) {
                         // ドラッグ開始位置とドロップ位置の黒線
@@ -2599,26 +2985,13 @@ $show_word_level_ml_ui = false;
                         $('<div>', { class: 'tick' }).css('left', endPercent + '%').appendTo($ticksContainer);
 
                         // 対象単語のテキスト生成
-                        var intervalWords = [];
-                        if (interval.labelGroup && interval.labelGroup.includes('#')) {
-                            var groupLabels = interval.labelGroup.split('#').filter(Boolean);
-                            intervalWords = groupLabels.map(function (labelId) {
-                                var id = parseInt(labelId, 10);
-                                return (start_point[id] !== undefined) ? start_point[id] : '';
-                            }).filter(Boolean);
-                        } else {
-                            var singleWord = start_point[parseInt(interval.hLabel, 10)];
-                            if (singleWord) {
-                                intervalWords = [singleWord];
-                            }
-                        }
-                        var wordText = intervalWords.join(', ');
+                        var wordText = metadata.words.join(', ');
 
                         // スライダー上の単語と対応する着色区間を、「ラベル+何回目」に応じて色分けする
                         var textColor = '#333';
                         var barColor = 'rgba(74, 144, 226, 0.5)';
-                        var isRedTarget = redTargetSet.has(intervalTargetId);
-                        var isOrangeTarget = orangeTargetSet.has(intervalTargetId);
+                        var isRedTarget = metadata.color === 'red';
+                        var isOrangeTarget = metadata.color === 'orange';
 
                         if (isRedTarget) {
                             textColor = '#ef2929'; // 赤: 「特に長い」または「複数回検出」
@@ -2748,6 +3121,431 @@ $show_word_level_ml_ui = false;
                 $tooltip.hide(); // マウスが外れたらツールチップを隠す
             });
         });
+
+
+
+        (function () {
+            var config = {
+                enabled: <?= json_encode((bool)($mousemove_usage_enabled ?? false)) ?>,
+                endpoint: window.location.pathname,
+                csrfToken: <?= json_encode((string)($_SESSION['mousemove_usage_csrf'] ?? '')) ?>,
+                uid: <?= json_encode(isset($uid) ? (int)$uid : null) ?>,
+                wid: <?= json_encode(isset($wid) ? (int)$wid : null) ?>,
+                attempt: <?= json_encode(isset($attempt_num) ? (int)$attempt_num : null) ?>
+            };
+
+            if (!config.enabled) {
+                window.mousemoveUsageLogger = null;
+                return;
+            }
+
+            function nowMilliseconds() {
+                return (window.performance && typeof window.performance.now === 'function')
+                    ? window.performance.now()
+                    : Date.now();
+            }
+
+            function createUuid() {
+                if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                    return window.crypto.randomUUID();
+                }
+                var bytes = new Uint8Array(16);
+                if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+                    window.crypto.getRandomValues(bytes);
+                } else {
+                    for (var i = 0; i < bytes.length; i++) {
+                        bytes[i] = Math.floor(Math.random() * 256);
+                    }
+                }
+                bytes[6] = (bytes[6] & 0x0f) | 0x40;
+                bytes[8] = (bytes[8] & 0x3f) | 0x80;
+                var hex = Array.prototype.map.call(bytes, function (byte) {
+                    return byte.toString(16).padStart(2, '0');
+                }).join('');
+                return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16)
+                    + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+            }
+
+            function nonNegativeInteger(value, fallback) {
+                var number = Number(value);
+                return Number.isFinite(number) && number >= 0 ? Math.round(number) : fallback;
+            }
+
+            var startedAt = nowMilliseconds();
+            var visibleStartedAt = document.visibilityState === 'hidden' ? null : startedAt;
+            var visibleTotalMs = 0;
+            var lastLoggedVisibleMs = 0;
+            var eventSequence = 0;
+            var playCount = 0;
+            var pauseCount = 0;
+            var replayCount = 0;
+            var resetCount = 0;
+            var playbackRunNo = 0;
+            var playbackRun = null;
+            var exited = false;
+            var sendQueue = Promise.resolve();
+
+            function currentVisibleTotal(now) {
+                return visibleTotalMs + (visibleStartedAt === null ? 0 : Math.max(0, now - visibleStartedAt));
+            }
+
+            function freezeVisibility(now) {
+                if (visibleStartedAt !== null) {
+                    visibleTotalMs += Math.max(0, now - visibleStartedAt);
+                    visibleStartedAt = null;
+                }
+            }
+
+            function resumeVisibility(now) {
+                if (visibleStartedAt === null) {
+                    visibleStartedAt = now;
+                }
+            }
+
+            function speedMultiplier() {
+                var speed = document.myForm && document.myForm.speed
+                    ? Number(document.myForm.speed.value)
+                    : 5;
+                var speedMap = { '2.5': 0.5, '5': 1, '10': 2, '15': 3, '25': 5 };
+                return speedMap[String(speed)] || 1;
+            }
+
+            function selectedPlaybackTarget() {
+                var select = document.myForm && document.myForm.labelDD;
+                var value = select ? String(select.value) : '100';
+                if (value === '100') {
+                    return {
+                        selected_target_type: 'all',
+                        selected_words: [],
+                        selected_occurrence: null,
+                        skip_target_ms: null,
+                        requested_play_ms: null,
+                        play_to_end: null
+                    };
+                }
+
+                var isGroup = value.indexOf('#') !== -1;
+                var ids = isGroup ? value.split('#').filter(Boolean) : [value];
+                var words = ids.map(function (id) {
+                    return start_point[parseInt(id, 10)];
+                }).filter(function (wordName) {
+                    return typeof wordName === 'string' && wordName.length > 0;
+                });
+                var occurrenceSelect = document.getElementById('dd_instance_select');
+                var occurrence = 1;
+                var targetTime = null;
+                if (occurrenceSelect && occurrenceSelect.options.length > 0) {
+                    occurrence = occurrenceSelect.selectedIndex + 1;
+                    targetTime = nonNegativeInteger(occurrenceSelect.value, null);
+                } else {
+                    var firstMatch = all_dd_events.find(function (event) {
+                        return isGroup ? event.labelGroup === value : String(event.hLabel) === value;
+                    });
+                    targetTime = firstMatch ? nonNegativeInteger(firstMatch.time, null) : null;
+                }
+
+                var playToEndElement = document.getElementById('playToEndCheckbox');
+                var playToEnd = !!(playToEndElement && playToEndElement.checked);
+                var durationElement = document.getElementById('playbackDurationInput');
+                var durationSeconds = durationElement ? Number(durationElement.value) : NaN;
+                return {
+                    selected_target_type: isGroup ? 'group' : 'word',
+                    selected_words: words,
+                    selected_occurrence: occurrence,
+                    skip_target_ms: targetTime,
+                    requested_play_ms: playToEnd || !Number.isFinite(durationSeconds) || durationSeconds <= 0
+                        ? null
+                        : Math.round(durationSeconds * 1000),
+                    play_to_end: playToEnd
+                };
+            }
+
+            function playbackMetrics(now) {
+                if (!playbackRun) {
+                    return {
+                        played_timeline_ms: null,
+                        played_visible_wall_ms: null
+                    };
+                }
+                return {
+                    played_timeline_ms: Math.max(0, nonNegativeInteger(t, 0) - playbackRun.startPositionMs),
+                    played_visible_wall_ms: Math.max(
+                        0,
+                        Math.round(currentVisibleTotal(now) - playbackRun.visibleTotalAtStart)
+                    )
+                };
+            }
+
+            function makePayload(eventType, details, now) {
+                var totalVisible = Math.max(0, Math.round(currentVisibleTotal(now)));
+                var base = {
+                    view_session_id: viewSessionId,
+                    event_sequence: ++eventSequence,
+                    event_type: eventType,
+                    uid: config.uid,
+                    wid: config.wid,
+                    attempt: config.attempt,
+                    event_elapsed_ms: Math.max(0, Math.round(now - startedAt)),
+                    visible_delta_ms: Math.max(0, totalVisible - lastLoggedVisibleMs),
+                    total_visible_ms: totalVisible,
+                    play_count_since_reset: playCount,
+                    pause_count_since_reset: pauseCount,
+                    replay_count_since_reset: replayCount,
+                    reset_count: resetCount,
+                    playback_position_ms: nonNegativeInteger(t, 0),
+                    speed_multiplier: speedMultiplier(),
+                    playback_run_no: playbackRunNo,
+                    selected_target_type: null,
+                    selected_words: null,
+                    selected_occurrence: null,
+                    skip_target_ms: null,
+                    requested_play_ms: null,
+                    play_to_end: null,
+                    played_timeline_ms: null,
+                    played_visible_wall_ms: null,
+                    playback_end_reason: null,
+                    seek_from_ms: null,
+                    seek_to_ms: null,
+                    seek_delta_ms: null,
+                    seek_colored_intervals: null
+                };
+                lastLoggedVisibleMs = totalVisible;
+                Object.assign(base, selectedPlaybackTarget(), playbackMetrics(now), details || {});
+                return base;
+            }
+
+            function warnSendFailure(error) {
+                if (window.console && typeof window.console.warn === 'function') {
+                    window.console.warn('軌跡再現の操作ログを保存できませんでした。', error);
+                }
+            }
+
+            function sendPayload(payload, urgent) {
+                var request = JSON.stringify({
+                    action: 'log_mousemove_usage',
+                    csrf_token: config.csrfToken,
+                    payload: payload
+                });
+                if (urgent && navigator.sendBeacon) {
+                    try {
+                        var blob = new Blob([request], { type: 'application/json' });
+                        if (navigator.sendBeacon(config.endpoint, blob)) {
+                            return;
+                        }
+                    } catch (error) {
+                        warnSendFailure(error);
+                    }
+                }
+
+                sendQueue = sendQueue.catch(function () { }).then(function () {
+                    return fetch(config.endpoint, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        keepalive: true,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: request
+                    }).then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status);
+                        }
+                    });
+                }).catch(warnSendFailure);
+            }
+
+            function record(eventType, details, urgent, fixedNow) {
+                try {
+                    var now = fixedNow === undefined ? nowMilliseconds() : fixedNow;
+                    sendPayload(makePayload(eventType, details, now), !!urgent);
+                } catch (error) {
+                    warnSendFailure(error);
+                }
+            }
+
+            function beginPlayback(eventType) {
+                try {
+                    var now = nowMilliseconds();
+                    playbackRunNo++;
+                    playbackRun = {
+                        startPositionMs: nonNegativeInteger(t, 0),
+                        visibleTotalAtStart: currentVisibleTotal(now),
+                        target: selectedPlaybackTarget()
+                    };
+                    if (eventType === 'play') {
+                        playCount++;
+                    } else {
+                        replayCount++;
+                    }
+                    record(eventType, Object.assign({}, playbackRun.target, {
+                        played_timeline_ms: 0,
+                        played_visible_wall_ms: 0
+                    }), false, now);
+                } catch (error) {
+                    warnSendFailure(error);
+                }
+            }
+
+            function finishPlayback(eventType, reason, extra, fixedNow) {
+                var now = fixedNow === undefined ? nowMilliseconds() : fixedNow;
+                var run = playbackRun;
+                var details = Object.assign({}, run ? run.target : {}, playbackMetrics(now), extra || {}, {
+                    playback_end_reason: reason
+                });
+                record(eventType, details, false, now);
+                playbackRun = null;
+            }
+
+            function handlePause() {
+                try {
+                    pauseCount++;
+                    finishPlayback('pause', 'pause');
+                } catch (error) {
+                    warnSendFailure(error);
+                }
+            }
+
+            function handleReset() {
+                try {
+                    resetCount++;
+                    finishPlayback('reset', playbackRun ? 'reset' : null);
+                    playCount = 0;
+                    pauseCount = 0;
+                    replayCount = 0;
+                } catch (error) {
+                    warnSendFailure(error);
+                }
+            }
+
+            function handlePlaybackEnd(reason) {
+                try {
+                    if (!playbackRun) {
+                        return;
+                    }
+                    finishPlayback('playback_end', reason);
+                } catch (error) {
+                    warnSendFailure(error);
+                }
+            }
+
+            function handleSeek(fromValue, toValue) {
+                try {
+                    var from = nonNegativeInteger(fromValue, nonNegativeInteger(t, 0));
+                    var to = nonNegativeInteger(toValue, from);
+                    var low = Math.min(from, to);
+                    var high = Math.max(from, to);
+                    var coloredIntervals = (window.mousemoveUsageColoredIntervals || []).filter(function (interval) {
+                        return interval.end_ms >= low && interval.start_ms <= high;
+                    }).map(function (interval) {
+                        return {
+                            words: interval.words.slice(0),
+                            color: interval.color,
+                            start_ms: interval.start_ms,
+                            end_ms: interval.end_ms,
+                            occurrence: interval.occurrence
+                        };
+                    });
+                    var metrics = playbackMetrics(nowMilliseconds());
+                    var details = Object.assign({}, metrics, {
+                        playback_position_ms: to,
+                        playback_end_reason: playbackRun ? 'seek' : null,
+                        seek_from_ms: from,
+                        seek_to_ms: to,
+                        seek_delta_ms: to - from,
+                        seek_colored_intervals: coloredIntervals
+                    });
+                    record('seek', details);
+                    playbackRun = null;
+                } catch (error) {
+                    warnSendFailure(error);
+                }
+            }
+
+            var viewSessionId = createUuid();
+            window.mousemoveUsageLogger = {
+                handleSeek: handleSeek,
+                handlePlaybackEnd: handlePlaybackEnd
+            };
+
+            function initialize() {
+                try {
+                    window.mousemoveUsageColoredIntervals = buildMousemoveIntervalMetadata().filter(function (interval) {
+                        return interval.color === 'red' || interval.color === 'orange';
+                    });
+
+                    var playButton = document.getElementById('start_b');
+                    var pauseButton = document.querySelector('input[name="stop"]');
+                    var resetButton = document.querySelector('input[name="reset"]');
+                    var replayButton = document.getElementById('replay_b');
+                    var speedSelect = document.querySelector('select[name="speed"]');
+                    var wordSelect = document.querySelector('select[name="labelDD"]');
+                    var occurrenceSelect = document.getElementById('dd_instance_select');
+                    var durationInput = document.getElementById('playbackDurationInput');
+                    var playToEnd = document.getElementById('playToEndCheckbox');
+
+                    if (playButton) {
+                        playButton.addEventListener('click', function () { beginPlayback('play'); });
+                    }
+                    if (pauseButton) {
+                        pauseButton.addEventListener('click', handlePause);
+                    }
+                    if (resetButton) {
+                        resetButton.addEventListener('click', handleReset, true);
+                    }
+                    if (replayButton) {
+                        replayButton.addEventListener('click', function () { beginPlayback('replay'); });
+                    }
+                    if (speedSelect) {
+                        speedSelect.addEventListener('change', function () { record('speed_change'); });
+                    }
+                    if (wordSelect) {
+                        wordSelect.addEventListener('change', function () { record('word_selection_change'); });
+                    }
+                    if (occurrenceSelect) {
+                        occurrenceSelect.addEventListener('change', function () { record('occurrence_change'); });
+                    }
+                    if (durationInput) {
+                        durationInput.addEventListener('change', function () { record('duration_change'); });
+                    }
+                    if (playToEnd) {
+                        playToEnd.addEventListener('change', function () { record('play_to_end_change'); });
+                    }
+
+                    record('page_open');
+                } catch (error) {
+                    warnSendFailure(error);
+                }
+            }
+
+            document.addEventListener('visibilitychange', function () {
+                var now = nowMilliseconds();
+                if (document.visibilityState === 'hidden') {
+                    freezeVisibility(now);
+                    record('page_hidden', null, true, now);
+                } else {
+                    resumeVisibility(now);
+                    record('page_visible', null, false, now);
+                }
+            });
+
+            window.addEventListener('pagehide', function () {
+                if (exited) {
+                    return;
+                }
+                exited = true;
+                var now = nowMilliseconds();
+                freezeVisibility(now);
+                var details = playbackRun
+                    ? Object.assign({}, playbackRun.target, playbackMetrics(now), { playback_end_reason: 'page_exit' })
+                    : null;
+                record('page_exit', details, true, now);
+                playbackRun = null;
+            });
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initialize);
+            } else {
+                initialize();
+            }
+        })();
 
 
 
