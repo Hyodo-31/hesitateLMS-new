@@ -1,0 +1,619 @@
+<?php
+
+function correlation_usage_payload(): array
+{
+    $raw = $_POST['payload'] ?? '';
+    if (!is_string($raw) || $raw === '') {
+        throw new InvalidArgumentException('ログ内容がありません。');
+    }
+    try {
+        $payload = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+    } catch (JsonException $e) {
+        throw new InvalidArgumentException('ログ内容のJSONが不正です。', 0, $e);
+    }
+    if (!is_array($payload)) {
+        throw new InvalidArgumentException('ログ内容が不正です。');
+    }
+    return $payload;
+}
+
+function correlation_usage_json(array $value): string
+{
+    try {
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    } catch (JsonException $e) {
+        throw new InvalidArgumentException('ログ内容をJSONへ変換できません。', 0, $e);
+    }
+}
+
+function correlation_usage_insert(mysqli $conn, string $sql, array $params): void
+{
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new RuntimeException('ログ保存の準備に失敗しました。');
+    }
+    $types = str_repeat('s', count($params));
+    $stmt->bind_param($types, ...$params);
+    if (!$stmt->execute()) {
+        $message = $stmt->error;
+        $stmt->close();
+        throw new RuntimeException('ログ保存に失敗しました: ' . $message);
+    }
+    $stmt->close();
+}
+
+function correlation_usage_enum(array $payload, string $key, array $allowed): string
+{
+    $value = is_scalar($payload[$key] ?? null) ? (string)$payload[$key] : '';
+    if (!in_array($value, $allowed, true)) {
+        throw new InvalidArgumentException($key . ' が不正です。');
+    }
+    return $value;
+}
+
+function correlation_usage_normalize_ids($values, string $label, bool $allow_empty = false): array
+{
+    if (!is_array($values) || count($values) > 10000) {
+        throw new InvalidArgumentException($label . ' が不正です。');
+    }
+    $normalized = [];
+    foreach ($values as $value) {
+        if (!is_scalar($value) || !preg_match('/^\d+$/', trim((string)$value))) {
+            throw new InvalidArgumentException($label . ' が不正です。');
+        }
+        $normalized[(string)((int)$value)] = true;
+    }
+    $ids = array_keys($normalized);
+    sort($ids, SORT_NUMERIC);
+    if (!$allow_empty && empty($ids)) {
+        throw new InvalidArgumentException($label . ' が空です。');
+    }
+    return $ids;
+}
+
+function correlation_usage_same_ids(array $requested, array $allowed, string $label, bool $allow_empty = false): array
+{
+    $requested = correlation_usage_normalize_ids($requested, $label, $allow_empty);
+    $allowed = correlation_usage_normalize_ids($allowed, $label, true);
+    if ($requested !== $allowed) {
+        throw new InvalidArgumentException($label . ' に担当外または存在しない値が含まれています。');
+    }
+    return array_map('intval', $requested);
+}
+
+function correlation_usage_validate_teacher(mysqli $conn, string $teacher_id): void
+{
+    if ($teacher_id === '') {
+        throw new InvalidArgumentException('教師のログイン情報がありません。');
+    }
+    $stmt = $conn->prepare('SELECT 1 FROM teachers WHERE TID = ? LIMIT 1');
+    if (!$stmt) {
+        throw new RuntimeException('教師情報の確認に失敗しました。');
+    }
+    $stmt->bind_param('s', $teacher_id);
+    $stmt->execute();
+    $exists = (bool)$stmt->get_result()->fetch_row();
+    $stmt->close();
+    if (!$exists) {
+        throw new InvalidArgumentException('教師のログイン情報が不正です。');
+    }
+}
+
+function correlation_usage_teacher_students(mysqli $conn, string $teacher_id): array
+{
+    $stmt = $conn->prepare(
+        'SELECT DISTINCT s.uid FROM students s JOIN classteacher ct ON s.ClassID = ct.ClassID WHERE ct.TID = ?'
+    );
+    if (!$stmt) {
+        throw new RuntimeException('学習者(UID)の確認に失敗しました。');
+    }
+    $stmt->bind_param('s', $teacher_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $students = [];
+    while ($row = $result->fetch_assoc()) {
+        $raw_uid = $row['uid'] ?? null;
+        if (is_scalar($raw_uid) && preg_match('/^\d+$/', trim((string)$raw_uid))) {
+            $students[(string)((int)$raw_uid)] = true;
+        }
+    }
+    $stmt->close();
+    $student_ids = array_keys($students);
+    sort($student_ids, SORT_NUMERIC);
+    return $student_ids;
+}
+
+function correlation_usage_class_wids(mysqli $conn, string $teacher_id, array $requested_wids): array
+{
+    if (empty($requested_wids)) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($requested_wids), '?'));
+    $params = array_merge([$teacher_id], array_map('intval', $requested_wids));
+    $types = 's' . str_repeat('i', count($requested_wids));
+    $stmt = $conn->prepare(
+        "SELECT DISTINCT l.WID
+         FROM linedata l
+         JOIN students s ON l.UID = s.uid
+         JOIN classteacher ct ON s.ClassID = ct.ClassID
+         WHERE ct.TID = ? AND l.WID IN ($placeholders)"
+    );
+    if (!$stmt) {
+        throw new RuntimeException('問題(WID)の確認に失敗しました。');
+    }
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $allowed = [];
+    while ($row = $result->fetch_assoc()) {
+        if (teacher_analysis_wid_is_allowed($row['WID'])) {
+            $allowed[] = (string)$row['WID'];
+        }
+    }
+    $stmt->close();
+    return correlation_usage_normalize_ids($allowed, '選択WID', true);
+}
+
+function correlation_usage_allowed_histogram_features(): array
+{
+    $allowed = array_fill_keys(array_keys(feature_display_histogram_feature_labels()), true);
+    $allowed['__accuracy'] = true;
+    $allowed['__hesitation'] = true;
+    return $allowed;
+}
+
+function correlation_usage_histogram(
+    array $payload,
+    string $selection_method,
+    array $allowed_features,
+    array $allowed_member_ids,
+    array $selected_ids,
+    bool $selected_may_be_subset
+): array {
+    if ($selection_method !== 'histogram') {
+        return ['features' => null, 'conditions' => null, 'bin_width_changed' => null];
+    }
+
+    $raw_conditions = $payload['histogram_conditions'] ?? null;
+    if (!is_array($raw_conditions) || empty($raw_conditions) || count($raw_conditions) > 1000) {
+        throw new InvalidArgumentException('ヒストグラム条件が不正です。');
+    }
+    $allowed_members = array_fill_keys(array_map('strval', $allowed_member_ids), true);
+    $selected_lookup = array_fill_keys(array_map('strval', $selected_ids), true);
+    $union_members = [];
+    $features = [];
+    $conditions = [];
+    $changed = false;
+
+    foreach ($raw_conditions as $raw_condition) {
+        if (!is_array($raw_condition)) {
+            throw new InvalidArgumentException('ヒストグラム条件が不正です。');
+        }
+        $feature = is_scalar($raw_condition['feature'] ?? null) ? (string)$raw_condition['feature'] : '';
+        if (!isset($allowed_features[$feature])) {
+            throw new InvalidArgumentException('許可されていない特徴量です。');
+        }
+        $mode = is_scalar($raw_condition['bin_width_mode'] ?? null) ? (string)$raw_condition['bin_width_mode'] : '';
+        if (!in_array($mode, ['auto', 'manual'], true)) {
+            throw new InvalidArgumentException('階級幅の指定方法が不正です。');
+        }
+        foreach (['bin_start', 'bin_end', 'bin_width'] as $number_key) {
+            if (!array_key_exists($number_key, $raw_condition) || !is_numeric($raw_condition[$number_key])) {
+                throw new InvalidArgumentException('ヒストグラムの階級値が不正です。');
+            }
+        }
+        $bin_start = (float)$raw_condition['bin_start'];
+        $bin_end = (float)$raw_condition['bin_end'];
+        $bin_width = (float)$raw_condition['bin_width'];
+        if (!is_finite($bin_start) || !is_finite($bin_end) || !is_finite($bin_width)
+            || $bin_end < $bin_start || $bin_width < 0 || ($mode === 'manual' && $bin_width <= 0)) {
+            throw new InvalidArgumentException('ヒストグラムの階級値が不正です。');
+        }
+        $members = correlation_usage_normalize_ids(
+            $raw_condition['selected_ids'] ?? null,
+            'ヒストグラムの選択対象'
+        );
+        foreach ($members as $member) {
+            if (!isset($allowed_members[$member])) {
+                throw new InvalidArgumentException('ヒストグラム条件に担当外の対象が含まれています。');
+            }
+            $union_members[$member] = true;
+        }
+        $features[$feature] = true;
+        $changed = $changed || $mode === 'manual';
+        $conditions[] = [
+            'feature' => $feature,
+            'bin_start' => $bin_start,
+            'bin_end' => $bin_end,
+            'bin_width_mode' => $mode,
+            'bin_width' => $bin_width,
+            'selected_ids' => array_map('intval', $members),
+        ];
+    }
+
+    if ($selected_may_be_subset) {
+        foreach ($selected_lookup as $selected => $_) {
+            if (!isset($union_members[$selected])) {
+                throw new InvalidArgumentException('選択UIDとヒストグラム条件が一致しません。');
+            }
+        }
+    } else {
+        ksort($selected_lookup, SORT_NUMERIC);
+        ksort($union_members, SORT_NUMERIC);
+        if (array_keys($selected_lookup) !== array_keys($union_members)) {
+            throw new InvalidArgumentException('選択対象とヒストグラム条件が一致しません。');
+        }
+    }
+
+    return [
+        'features' => array_keys($features),
+        'conditions' => $conditions,
+        'bin_width_changed' => $changed ? 1 : 0,
+    ];
+}
+
+function correlation_usage_group_sources(mysqli $conn, string $teacher_id): array
+{
+    $stmt = $conn->prepare(
+        "SELECT CONCAT('class:', ClassID) AS source_value FROM classteacher WHERE TID = ?
+         UNION
+         SELECT CONCAT('group:', group_id) AS source_value FROM `groups` WHERE TID = ?"
+    );
+    if (!$stmt) {
+        throw new RuntimeException('グループ条件の確認に失敗しました。');
+    }
+    $stmt->bind_param('ss', $teacher_id, $teacher_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $sources = [];
+    while ($row = $result->fetch_assoc()) {
+        $sources[(string)$row['source_value']] = true;
+    }
+    $stmt->close();
+    return $sources;
+}
+
+function correlation_usage_group_tokens(mysqli $conn, string $teacher_id, $raw_tokens): array
+{
+    if (!is_array($raw_tokens) || empty($raw_tokens) || count($raw_tokens) > 200) {
+        throw new InvalidArgumentException('グループ条件式が不正です。');
+    }
+    $allowed_kinds = ['condition', 'and', 'or', 'not', 'open', 'close'];
+    $allowed_sources = correlation_usage_group_sources($conn, $teacher_id);
+    $tokens = [];
+    foreach ($raw_tokens as $raw_token) {
+        if (!is_array($raw_token)) {
+            throw new InvalidArgumentException('グループ条件式が不正です。');
+        }
+        $kind = is_scalar($raw_token['kind'] ?? null) ? (string)$raw_token['kind'] : '';
+        if (!in_array($kind, $allowed_kinds, true)) {
+            throw new InvalidArgumentException('グループ条件式が不正です。');
+        }
+        $value = '';
+        if ($kind === 'condition') {
+            $value = is_scalar($raw_token['value'] ?? null) ? (string)$raw_token['value'] : '';
+            if (!preg_match('/^(class|group):\d+$/', $value) || !isset($allowed_sources[$value])) {
+                throw new InvalidArgumentException('グループ条件の対象が不正です。');
+            }
+        }
+        $tokens[] = ['kind' => $kind, 'value' => $value];
+    }
+    return $tokens;
+}
+
+function correlation_usage_log_wid_select(mysqli $conn, string $teacher_id, array $payload): void
+{
+    correlation_usage_validate_teacher($conn, $teacher_id);
+    $method = correlation_usage_enum($payload, 'selection_method', ['checkbox', 'histogram']);
+    $requested_wids = correlation_usage_normalize_ids($payload['selected_wids'] ?? null, '選択WID');
+    $wids = correlation_usage_same_ids(
+        $requested_wids,
+        correlation_usage_class_wids($conn, $teacher_id, $requested_wids),
+        '選択WID'
+    );
+    $histogram = correlation_usage_histogram(
+        $payload,
+        $method,
+        correlation_usage_allowed_histogram_features(),
+        $wids,
+        $wids,
+        false
+    );
+    correlation_usage_insert(
+        $conn,
+        'INSERT INTO Correlation_WIDselect
+         (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed)
+         VALUES (?, ?, ?, ?, ?, ?)',
+        [
+            $teacher_id,
+            $method,
+            correlation_usage_json($wids),
+            $histogram['features'] === null ? null : correlation_usage_json($histogram['features']),
+            $histogram['conditions'] === null ? null : correlation_usage_json($histogram['conditions']),
+            $histogram['bin_width_changed'],
+        ]
+    );
+}
+
+function correlation_usage_log_uid_select(mysqli $conn, string $teacher_id, array $payload): void
+{
+    correlation_usage_validate_teacher($conn, $teacher_id);
+    $method = correlation_usage_enum($payload, 'selection_method', ['checkbox', 'histogram']);
+    $teacher_students = correlation_usage_teacher_students($conn, $teacher_id);
+    $requested_uids = correlation_usage_normalize_ids($payload['selected_uids'] ?? null, '選択UID');
+    $uids = correlation_usage_same_ids(
+        $requested_uids,
+        array_values(array_intersect($teacher_students, $requested_uids)),
+        '選択UID'
+    );
+    $requested_wids = correlation_usage_normalize_ids($payload['selected_wids'] ?? null, '選択WID');
+    $wids = correlation_usage_same_ids(
+        $requested_wids,
+        correlation_usage_class_wids($conn, $teacher_id, $requested_wids),
+        '選択WID'
+    );
+    $histogram = correlation_usage_histogram(
+        $payload,
+        $method,
+        correlation_usage_allowed_histogram_features(),
+        $teacher_students,
+        $uids,
+        true
+    );
+
+    $group_used = null;
+    $group_expression = null;
+    $group_tokens = null;
+    if ($method === 'checkbox') {
+        $group_used = !empty($payload['group_condition_used']) ? 1 : 0;
+        if ($group_used) {
+            $group_expression = is_scalar($payload['group_expression'] ?? null)
+                ? trim((string)$payload['group_expression'])
+                : '';
+            if ($group_expression === '' || mb_strlen($group_expression) > 4000) {
+                throw new InvalidArgumentException('グループ条件式が不正です。');
+            }
+            $group_tokens = correlation_usage_group_tokens(
+                $conn,
+                $teacher_id,
+                $payload['group_expression_tokens'] ?? null
+            );
+        }
+    }
+
+    correlation_usage_insert(
+        $conn,
+        'INSERT INTO Correlation_UIDselect
+         (teacher_id, selection_method, selected_uids, selected_wids, group_condition_used, group_expression,
+          group_expression_tokens, histogram_features, histogram_conditions, histogram_bin_width_changed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+            $teacher_id,
+            $method,
+            correlation_usage_json($uids),
+            correlation_usage_json($wids),
+            $group_used,
+            $group_expression,
+            $group_tokens === null ? null : correlation_usage_json($group_tokens),
+            $histogram['features'] === null ? null : correlation_usage_json($histogram['features']),
+            $histogram['conditions'] === null ? null : correlation_usage_json($histogram['conditions']),
+            $histogram['bin_width_changed'],
+        ]
+    );
+}
+
+function correlation_usage_log_2019_select(mysqli $conn, string $teacher_id): void
+{
+    correlation_usage_validate_teacher($conn, $teacher_id);
+    correlation_usage_insert(
+        $conn,
+        'INSERT INTO Correlation_2019select (teacher_id) VALUES (?)',
+        [$teacher_id]
+    );
+}
+
+function correlation_usage_a_university_students(mysqli $conn): array
+{
+    $result = $conn->query('SELECT DISTINCT uid FROM students WHERE ClassID IN (4, 9) ORDER BY uid');
+    if (!$result) {
+        throw new RuntimeException('2019年度A大学の学習者確認に失敗しました。');
+    }
+    $uids = [];
+    while ($row = $result->fetch_assoc()) {
+        $uids[] = $row['uid'];
+    }
+    $result->close();
+    return correlation_usage_normalize_ids($uids, '2019年度A大学UID', true);
+}
+
+function correlation_usage_a_university_wids(): array
+{
+    return [
+        22, 68, 46, 191, 32, 54, 67, 184, 45, 89,
+        127, 129, 141, 143, 147, 160, 162, 176, 181, 186,
+        59, 60, 99, 61, 139, 76, 92, 58, 138, 161,
+    ];
+}
+
+function correlation_usage_nullable_correlation($value, string $label): ?float
+{
+    if ($value === null || $value === '') {
+        return null;
+    }
+    if (!is_numeric($value)) {
+        throw new InvalidArgumentException($label . ' が不正です。');
+    }
+    $number = (float)$value;
+    if (!is_finite($number) || $number < -1.000001 || $number > 1.000001) {
+        throw new InvalidArgumentException($label . ' が不正です。');
+    }
+    return max(-1.0, min(1.0, $number));
+}
+
+function correlation_usage_nonnegative_int($value, string $label): int
+{
+    if (!is_scalar($value) || !preg_match('/^\d+$/', trim((string)$value))) {
+        throw new InvalidArgumentException($label . ' が不正です。');
+    }
+    return (int)$value;
+}
+
+function correlation_usage_log_result(
+    mysqli $conn,
+    string $teacher_id,
+    array $allowed_features,
+    array $event
+): void {
+    correlation_usage_validate_teacher($conn, $teacher_id);
+    $mode = correlation_usage_enum($event, 'analysis_mode', ['understand', 'hesitation_degree', 'feature_pair']);
+    $trigger = correlation_usage_enum(
+        $event,
+        'display_trigger',
+        [
+            'uid_selection',
+            'a_university_2019',
+            'display_button',
+            'mode_change',
+            'feature_x_change',
+            'feature_y_change',
+            'prediction_filter_change',
+            'ranking_click',
+            'legacy_filter_change',
+            'initial_load',
+        ]
+    );
+    $scope = correlation_usage_enum($event, 'analysis_scope', ['selection', 'a_university_2019']);
+    $target_uids = correlation_usage_normalize_ids($event['target_uids'] ?? null, '相関対象UID', true);
+    $target_wids = correlation_usage_normalize_ids($event['target_wids'] ?? null, '相関対象WID', true);
+    if ($scope === 'selection') {
+        $teacher_students = correlation_usage_teacher_students($conn, $teacher_id);
+        $target_uids = correlation_usage_same_ids(
+            $target_uids,
+            array_values(array_intersect($teacher_students, $target_uids)),
+            '相関対象UID',
+            true
+        );
+        $target_wids = correlation_usage_same_ids(
+            $target_wids,
+            correlation_usage_class_wids($conn, $teacher_id, $target_wids),
+            '相関対象WID',
+            true
+        );
+    } else {
+        $target_uids = correlation_usage_same_ids(
+            $target_uids,
+            correlation_usage_a_university_students($conn),
+            '2019年度A大学UID',
+            true
+        );
+        $target_wids = correlation_usage_same_ids(
+            $target_wids,
+            correlation_usage_a_university_wids(),
+            '2019年度A大学WID',
+            true
+        );
+    }
+
+    $feature_x = is_scalar($event['feature_x'] ?? null) ? (string)$event['feature_x'] : '';
+    if (!isset($allowed_features[$feature_x])) {
+        throw new InvalidArgumentException('特徴量Xが不正です。');
+    }
+    $feature_y = null;
+    if ($mode === 'feature_pair') {
+        $feature_y = is_scalar($event['feature_y'] ?? null) ? (string)$event['feature_y'] : '';
+        if (!isset($allowed_features[$feature_y])) {
+            throw new InvalidArgumentException('特徴量Yが不正です。');
+        }
+    }
+    $prediction_filter = correlation_usage_enum(
+        $event,
+        'prediction_filter',
+        ['all', 'hesitated', 'not_hesitated']
+    );
+    if ($mode !== 'feature_pair') {
+        $prediction_filter = 'all';
+    }
+    $prediction_filter_used = $prediction_filter === 'all' ? 0 : 1;
+    $correlation_value = correlation_usage_nullable_correlation(
+        $event['correlation_value'] ?? null,
+        '相関係数'
+    );
+    $data_count = correlation_usage_nonnegative_int($event['data_count'] ?? null, 'データ件数');
+
+    $ranking_clicked = $trigger === 'ranking_click' ? 1 : 0;
+    $ranking_position = null;
+    $ranking_feature = null;
+    $ranking_correlation = null;
+    $ranking_data_count = null;
+    if ($ranking_clicked) {
+        $ranking_position = correlation_usage_nonnegative_int(
+            $event['ranking_position'] ?? null,
+            'ランキング順位'
+        );
+        if ($ranking_position < 1) {
+            throw new InvalidArgumentException('ランキング順位が不正です。');
+        }
+        $ranking_feature = is_scalar($event['ranking_feature'] ?? null)
+            ? (string)$event['ranking_feature']
+            : '';
+        $expected_ranking_feature = $mode === 'feature_pair' ? $feature_y : $feature_x;
+        if (!isset($allowed_features[$ranking_feature]) || $ranking_feature !== $expected_ranking_feature) {
+            throw new InvalidArgumentException('ランキング特徴量が不正です。');
+        }
+        $ranking_correlation = correlation_usage_nullable_correlation(
+            $event['ranking_correlation'] ?? null,
+            'ランキング相関係数'
+        );
+        $ranking_data_count = correlation_usage_nonnegative_int(
+            $event['ranking_data_count'] ?? null,
+            'ランキングデータ件数'
+        );
+    }
+
+    correlation_usage_insert(
+        $conn,
+        'INSERT INTO Correlation_result
+         (teacher_id, analysis_mode, display_trigger, analysis_scope, target_uids, target_wids,
+          feature_x, feature_y, prediction_filter, prediction_filter_used, correlation_value, data_count,
+          ranking_clicked, ranking_position, ranking_feature, ranking_correlation, ranking_data_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+            $teacher_id,
+            $mode,
+            $trigger,
+            $scope,
+            correlation_usage_json($target_uids),
+            correlation_usage_json($target_wids),
+            $feature_x,
+            $feature_y,
+            $prediction_filter,
+            $prediction_filter_used,
+            $correlation_value,
+            $data_count,
+            $ranking_clicked,
+            $ranking_position,
+            $ranking_feature,
+            $ranking_correlation,
+            $ranking_data_count,
+        ]
+    );
+}
+
+function correlation_usage_try_log_result(
+    mysqli $conn,
+    string $teacher_id,
+    array $allowed_features,
+    array $event
+): bool {
+    if (($event['display_trigger'] ?? '') === '') {
+        return true;
+    }
+    try {
+        correlation_usage_log_result($conn, $teacher_id, $allowed_features, $event);
+        return true;
+    } catch (Throwable $e) {
+        error_log('[Correlation usage log] result: ' . $e->getMessage());
+        return false;
+    }
+}
+

@@ -3,6 +3,7 @@ include '../lang.php';
 require '../dbc.php';
 require_once __DIR__ . '/feature_display.php';
 require_once __DIR__ . '/teacher-analysis-wids.php';
+require_once __DIR__ . '/correlation-usage-log.php';
 
 if (empty($_SESSION['MemberID'])) {
     http_response_code(401);
@@ -156,11 +157,7 @@ function getAUniversity2019StudentIds(mysqli $conn): array
 
 function getAUniversity2019Wids(): array
 {
-    return [
-        22, 68, 46, 191, 32, 54, 67, 184, 45, 89,
-        127, 129, 141, 143, 147, 160, 162, 176, 181, 186,
-        59, 60, 99, 61, 139, 76, 92, 58, 138, 161,
-    ];
+    return correlation_usage_a_university_wids();
 }
 
 function getCorrelationStudentIdsFromPost(mysqli $conn, array $allowedStudentIds): array
@@ -261,6 +258,37 @@ function predictionLabelFromCode(?int $predictionCode): string
     }
 
     return '未推定';
+}
+
+function correlationUsageResultEvent(
+    string $mode,
+    string $scope,
+    array $targetUids,
+    array $targetWids,
+    string $featureX,
+    ?string $featureY,
+    string $predictionFilter,
+    ?float $correlationValue,
+    int $dataCount
+): array {
+    return [
+        'analysis_mode' => $mode,
+        'display_trigger' => is_scalar($_POST['usage_trigger'] ?? null)
+            ? (string)$_POST['usage_trigger']
+            : '',
+        'analysis_scope' => $scope,
+        'target_uids' => $targetUids,
+        'target_wids' => $targetWids,
+        'feature_x' => $featureX,
+        'feature_y' => $featureY,
+        'prediction_filter' => $predictionFilter,
+        'correlation_value' => $correlationValue,
+        'data_count' => $dataCount,
+        'ranking_position' => $_POST['usage_ranking_position'] ?? null,
+        'ranking_feature' => $_POST['usage_ranking_feature'] ?? null,
+        'ranking_correlation' => $_POST['usage_ranking_correlation'] ?? null,
+        'ranking_data_count' => $_POST['usage_ranking_data_count'] ?? null,
+    ];
 }
 
 $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
@@ -393,6 +421,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $featureMap = array_fill_keys($featureColumns, true);
 
+    $usageLogActions = [
+        'log_correlation_wid_select',
+        'log_correlation_uid_select',
+        'log_correlation_2019_select',
+    ];
+    if (in_array($action, $usageLogActions, true)) {
+        try {
+            if ($action === 'log_correlation_wid_select') {
+                correlation_usage_log_wid_select($conn, (string)$teacherId, correlation_usage_payload());
+            } elseif ($action === 'log_correlation_uid_select') {
+                correlation_usage_log_uid_select($conn, (string)$teacherId, correlation_usage_payload());
+            } else {
+                correlation_usage_log_2019_select($conn, (string)$teacherId);
+            }
+            jsonResponse(['ok' => true]);
+        } catch (Throwable $e) {
+            http_response_code($e instanceof InvalidArgumentException ? 400 : 500);
+            error_log('[Correlation usage log] ' . $action . ': ' . $e->getMessage());
+            jsonResponse([
+                'ok' => false,
+                'error' => $e instanceof InvalidArgumentException
+                    ? $e->getMessage()
+                    : 'ログ保存に失敗しました。',
+            ]);
+        }
+    }
+
     if ($action === 'get_wids_for_students') {
         $selectedStudents = getSelectedStudentIdsFromPost($allowedStudentIds);
         if (empty($selectedStudents)) {
@@ -441,6 +496,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $selectedStudents = getCorrelationStudentIdsFromPost($conn, $allowedStudentIds);
         $selectedWids = getCorrelationWidsFromPost();
+        $analysisScope = isAUniversity2019Scope() ? 'a_university_2019' : 'selection';
 
         if (empty($selectedStudents) || (($_POST['wid_filter_enabled'] ?? '') === '1' && empty($selectedWids))) {
             $emptyYLabel = '迷い推定結果';
@@ -449,16 +505,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($mode === 'hesitation_degree') {
                 $emptyYLabel = '迷い度';
             }
+            $effectivePredictionFilter = $mode === 'feature_pair' ? $predictionFilter : 'all';
+            $usageLogOk = correlation_usage_try_log_result(
+                $conn,
+                (string)$teacherId,
+                $featureMap,
+                correlationUsageResultEvent(
+                    $mode,
+                    $analysisScope,
+                    $selectedStudents,
+                    $selectedWids,
+                    $xFeature,
+                    $mode === 'feature_pair' ? $yFeature : null,
+                    $effectivePredictionFilter,
+                    null,
+                    0
+                )
+            );
             jsonResponse([
                 'mode' => $mode,
                 'feature_x' => $xFeature,
                 'feature_y' => $mode === 'feature_pair' ? $yFeature : null,
-                'prediction_filter' => $mode === 'feature_pair' ? $predictionFilter : 'all',
+                'prediction_filter' => $effectivePredictionFilter,
                 'x_label' => $featureLabels[$xFeature] ?? feature_display_label($xFeature, $xFeature),
                 'y_label' => $emptyYLabel,
                 'count' => 0,
                 'correlation' => null,
                 'points' => [],
+                'usage_log_ok' => $usageLogOk,
             ]);
         }
 
@@ -563,6 +637,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result->close();
         $stmt->close();
 
+        $correlationValue = pearsonCorrelationFromValues($xValues, $yValues);
+        $usageLogOk = correlation_usage_try_log_result(
+            $conn,
+            (string)$teacherId,
+            $featureMap,
+            correlationUsageResultEvent(
+                $mode,
+                $analysisScope,
+                $selectedStudents,
+                $selectedWids,
+                $xFeature,
+                $mode === 'feature_pair' ? $yFeature : null,
+                $predictionFilter,
+                $correlationValue,
+                count($points)
+            )
+        );
         jsonResponse([
             'mode' => $mode,
             'feature_x' => $xFeature,
@@ -571,8 +662,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'x_label' => $xLabel,
             'y_label' => $yLabel,
             'count' => count($points),
-            'correlation' => pearsonCorrelationFromValues($xValues, $yValues),
+            'correlation' => $correlationValue,
             'points' => $points,
+            'usage_log_ok' => $usageLogOk,
         ]);
     }
 
@@ -1523,6 +1615,26 @@ let currentRanking = [];
 let unifiedCorrelationSelection = null;
 let correlationAnalysisScope = 'selection';
 
+function recordCorrelationUsage(action, payload = {}) {
+    const body = new URLSearchParams();
+    body.set('action', action);
+    body.set('payload', JSON.stringify(payload));
+    return fetch('feature_correlation.php', {
+        method: 'POST',
+        body,
+        credentials: 'same-origin',
+    }).then(async (response) => {
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result?.ok) {
+            throw new Error(result?.error || `ログ保存に失敗しました (${response.status})`);
+        }
+        return result;
+    }).catch((error) => {
+        console.warn('特徴量相関画面の操作ログを保存できませんでした。', error);
+        return null;
+    });
+}
+
 const modeInputs = document.querySelectorAll('input[name="correlation-mode"]');
 const featureXSelect = document.getElementById('feature-x-select');
 const featureYSelect = document.getElementById('feature-y-select');
@@ -2010,7 +2122,7 @@ async function applyFilterConditions() {
     filterSummary.textContent = `${selectedSet.size}名の学習者を選択しています。`;
     filterSummary.classList.remove('is-error');
     await refreshQuestionFilters();
-    loadData(true);
+    loadData(true, 'legacy_filter_change');
 }
 
 function resetFilterConditions() {
@@ -2468,7 +2580,12 @@ function renderRanking(items) {
             } else {
                 featureYSelect.value = feature;
             }
-            loadData(false);
+            loadData(false, 'ranking_click', {
+                position: index + 1,
+                feature,
+                correlation: item.correlation,
+                dataCount: item.count,
+            });
         });
         rankingBody.appendChild(row);
     });
@@ -2550,7 +2667,7 @@ async function loadHesitationDegreeRanking() {
     renderRanking(currentRanking);
 }
 
-async function loadData(refreshRanking = true) {
+async function loadData(refreshRanking = true, usageTrigger = 'initial_load', rankingUsage = null) {
     if (!isAUniversity2019Active() && correlationTargetSelector && !unifiedCorrelationSelection) {
         pairValue.textContent = '対象未選択';
         return;
@@ -2568,7 +2685,19 @@ async function loadData(refreshRanking = true) {
             feature_y: featureYSelect.value,
             prediction_filter: predictionFilterSelect.value,
             wid_filter_enabled: '1',
+            usage_trigger: usageTrigger,
         });
+        if (rankingUsage) {
+            body.set('usage_ranking_position', String(rankingUsage.position));
+            body.set('usage_ranking_feature', String(rankingUsage.feature));
+            body.set(
+                'usage_ranking_correlation',
+                rankingUsage.correlation === null || rankingUsage.correlation === undefined
+                    ? ''
+                    : String(rankingUsage.correlation)
+            );
+            body.set('usage_ranking_data_count', String(rankingUsage.dataCount));
+        }
         appendCorrelationTarget(body);
 
         const response = await fetch('feature_correlation.php', {
@@ -2580,6 +2709,9 @@ async function loadData(refreshRanking = true) {
 
         if (data.error) {
             throw new Error(data.error);
+        }
+        if (data.usage_log_ok === false) {
+            console.warn('特徴量相関の表示ログを保存できませんでした。');
         }
 
         renderStats(data);
@@ -2621,34 +2753,39 @@ const correlationTargetSelector = window.TeacherResultsHistogram?.create({
     groupStudents: groupStudentIdsByGroup,
     showResultFilters: false,
     submitLabel: '選択条件で相関を表示',
-    onSubmit: async ({ uids, wids }) => {
+    onWidsApplied: (usageLog) => {
+        void recordCorrelationUsage('log_correlation_wid_select', usageLog);
+    },
+    onSubmit: async ({ uids, wids, usageLog }) => {
+        void recordCorrelationUsage('log_correlation_uid_select', usageLog);
         setAUniversity2019Active(false);
         unifiedCorrelationSelection = {
             uids: uids.map(String),
             wids: wids.map(String),
         };
-        await loadData(true);
+        await loadData(true, 'uid_selection');
     },
 });
 
 aUniversity2019Button?.addEventListener('click', async () => {
+    void recordCorrelationUsage('log_correlation_2019_select');
     unifiedCorrelationSelection = null;
     setAUniversity2019Active(true);
-    await loadData(true);
+    await loadData(true, 'a_university_2019');
 });
 
 modeInputs.forEach((input) => {
-    input.addEventListener('change', () => loadData(true));
+    input.addEventListener('change', () => loadData(true, 'mode_change'));
 });
 featureXSelect.addEventListener('change', () => {
     updateFeatureSelectDescriptions();
-    loadData(true);
+    loadData(true, 'feature_x_change');
 });
 featureYSelect.addEventListener('change', () => {
     updateFeatureSelectDescriptions();
-    loadData(false);
+    loadData(false, 'feature_y_change');
 });
-predictionFilterSelect.addEventListener('change', () => loadData(true));
+predictionFilterSelect.addEventListener('change', () => loadData(true, 'prediction_filter_change'));
 window.addEventListener('resize', hideRankingFeaturePopup);
 window.addEventListener('scroll', hideRankingFeaturePopup, { capture: true, passive: true });
 loadButton.addEventListener('click', () => {
@@ -2656,7 +2793,7 @@ loadButton.addEventListener('click', () => {
         alert('先に問題(WID)→学習者(UID)の絞り込みを行い、相関分析の対象を確定してください。');
         return;
     }
-    loadData(true);
+    loadData(true, 'display_button');
 });
 addFilterConditionButton.addEventListener('click', () => {
     createFilterToken('condition');
@@ -2670,7 +2807,7 @@ applyFilterConditionsButton.addEventListener('click', applyFilterConditions);
 resetFilterConditionsButton.addEventListener('click', async () => {
     resetFilterConditions();
     await refreshQuestionFilters();
-    loadData(true);
+    loadData(true, 'legacy_filter_change');
 });
 trimFilterExpressionButton.addEventListener('click', trimFilterExpressionFromPosition);
 clearFilterExpressionButton.addEventListener('click', clearFilterExpression);
@@ -2697,7 +2834,7 @@ selectAllVisible.addEventListener('change', async (event) => {
         .forEach((item) => { item.querySelector('input').checked = event.target.checked; });
     syncStudentControlStates();
     await refreshQuestionFilters();
-    loadData(true);
+    loadData(true, 'legacy_filter_change');
 });
 studentCheckboxList.addEventListener('change', async (event) => {
     if (event.target.classList.contains('select-all-class')) {
@@ -2709,16 +2846,16 @@ studentCheckboxList.addEventListener('change', async (event) => {
     }
     syncStudentControlStates();
     await refreshQuestionFilters();
-    loadData(true);
+    loadData(true, 'legacy_filter_change');
 });
 selectAllQuestions.addEventListener('change', (event) => {
     questionCheckboxList.querySelectorAll('.question-checkbox-item input')
         .forEach((input) => { input.checked = event.target.checked; });
-    loadData(true);
+    loadData(true, 'legacy_filter_change');
 });
 questionCheckboxList.addEventListener('change', (event) => {
     if (event.target.matches('.question-checkbox-item input')) {
-        loadData(true);
+        loadData(true, 'legacy_filter_change');
     }
 });
 
@@ -2731,7 +2868,7 @@ if (correlationTargetSelector) {
     pairValue.textContent = '対象未選択';
 } else {
     refreshQuestionFilters()
-        .then(() => loadData(true))
+        .then(() => loadData(true, 'initial_load'))
         .catch((error) => alert(error.message || '問題リストの読み込みに失敗しました。'));
 }
 </script>

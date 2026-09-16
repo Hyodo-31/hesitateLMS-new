@@ -690,6 +690,21 @@ $featureDisplayFeatureKeys = [
                     }
                     fclose($fp_test);
                     $machineLearningRunReady = true;
+
+                    // 機械学習が実行可能になった時点の設定を、実行結果とは分けて記録する。
+                    // ログ失敗は既存の機械学習処理を妨げない。
+                    try {
+                        require_once __DIR__ . '/machine-learning-usage-log.php';
+                        machine_learning_usage_log_execution(
+                            $conn,
+                            (string)($_SESSION['MemberID'] ?? ''),
+                            $_POST,
+                            $selectedClassificationStudentUids,
+                            $selectedClassificationGroupIds
+                        );
+                    } catch (Throwable $usageLogError) {
+                        error_log('[machineLearning_sample usage log] ' . $usageLogError->getMessage());
+                    }
                 }
 
                 if ($machineLearningInputError !== '') {
@@ -2018,6 +2033,8 @@ $featureDisplayFeatureKeys = [
                                 </td> -->
                             </tr>
                         </table>
+                        <input type="hidden" id="classifier-preset" name="classifierPreset" value="">
+                        <input type="hidden" id="classifier-preset-modified" name="classifierPresetModified" value="0">
                         <input type="submit" id="machineLearningcons"
                             value="<?= translate('machineLearning_sample.php_1054行目_機械学習') ?>">
                         <button type="button" id="reset-button"
@@ -2026,15 +2043,36 @@ $featureDisplayFeatureKeys = [
                 </div>
             </div>
             <script>
+                let classifierFeatureChangeIsProgrammatic = false;
+
+                function setClassifierUsageState(preset, modified) {
+                    const presetInput = document.getElementById('classifier-preset');
+                    const modifiedInput = document.getElementById('classifier-preset-modified');
+                    if (presetInput) {
+                        presetInput.value = preset;
+                    }
+                    if (modifiedInput) {
+                        modifiedInput.value = modified ? '1' : '0';
+                    }
+                }
+
                 // 機械学習に使用する特徴量の選択をリセット
-                function resetCheckboxes() {
+                function resetCheckboxes(clearClassifierUsage = true) {
                     const checkboxes = document.querySelectorAll('#feature-modal input[name="featureLabel[]"]');
                     checkboxes.forEach(checkbox => checkbox.checked = false);
+                    if (clearClassifierUsage) {
+                        setClassifierUsageState('', false);
+                    }
                 }
 
                 // 分類器を選択した時に該当する特徴量をチェックする関数
                 function selectClassifier(classifier) {
-                    resetCheckboxes(); // 特徴量のチェックボックスをリセット
+                    if (!['A', 'B', 'C'].includes(classifier)) {
+                        return;
+                    }
+
+                    classifierFeatureChangeIsProgrammatic = true;
+                    resetCheckboxes(false); // 特徴量だけをリセット
 
                     // feature-modal内のチェックボックスを特定
                     const modalCheckboxes = document.querySelectorAll("#feature-modal .feature-modal-checkbox");
@@ -2047,39 +2085,41 @@ $featureDisplayFeatureKeys = [
                         });
                     }
 
-                    // 分類器Aの特徴量
-                    if (classifier === 'A') {
-                        checkFeature('time'); // 解答時間
-                        checkFeature('distance'); // 移動距離
-                        checkFeature('averageSpeed'); // 平均速度
-                        checkFeature('maxSpeed'); // 最大速度
-                        checkFeature('thinkingTime'); // 第一ドラッグ前時間
-                        checkFeature('answeringTime'); // 第一ドロップ後から解答終了までの時間
-                        checkFeature('maxStopTime'); // 最大静止時間
-                        checkFeature('xUTurnCount'); // X軸Uターン回数
-                        checkFeature('yUTurnCount'); // Y軸Uターン回数
-                        checkFeature('DDCount'); // D&D回数
-                        checkFeature('maxDDTime'); // 最大D&D時間
-                        checkFeature('maxDDIntervalTime'); // 最大D&D前時間
-                        checkFeature('totalDDIntervalTime'); // 合計D&D間時間
-                    }
+                    // 分類器Aの特徴量（B/Cもこの組み合わせを基礎とする）
+                    [
+                        'time', 'distance', 'averageSpeed', 'maxSpeed', 'thinkingTime',
+                        'answeringTime', 'maxStopTime', 'xUTurnCount', 'yUTurnCount',
+                        'DDCount', 'maxDDTime', 'maxDDIntervalTime', 'totalDDIntervalTime'
+                    ].forEach(checkFeature);
 
                     // 分類器Bの特徴量（分類器Aに追加する特徴量）
                     if (classifier === 'B') {
-                        selectClassifier('A'); // 分類器Aを選択
                         checkFeature('groupingDDCount'); // グループ化中にDDした回数
                         checkFeature('groupingCountbool'); // グループ化の有無
                     }
 
                     // 分類器Cの特徴量（分類器Aに追加する特徴量）
                     if (classifier === 'C') {
-                        selectClassifier('A'); // 分類器Aを選択
                         checkFeature('register_move_count1'); // レジスタ移動回数1
                         checkFeature('register01count1'); // レジスタ使用回数1
                         checkFeature('register_move_count2'); // レジスタ移動回数2
                         checkFeature('register01count2'); // レジスタ使用回数2
                     }
+
+                    setClassifierUsageState(classifier, false);
+                    classifierFeatureChangeIsProgrammatic = false;
                 }
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.querySelectorAll('#feature-modal input[name="featureLabel[]"]').forEach(checkbox => {
+                        checkbox.addEventListener('change', () => {
+                            const presetInput = document.getElementById('classifier-preset');
+                            if (!classifierFeatureChangeIsProgrammatic && presetInput?.value) {
+                                setClassifierUsageState(presetInput.value, true);
+                            }
+                        });
+                    });
+                });
             </script>
 
             <section class="individual-details">
