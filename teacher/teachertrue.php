@@ -6,6 +6,9 @@ ob_start();
 require_once __DIR__ . '/student-feature-tooltip.php';
 ob_end_clean();
 require_once __DIR__ . '/teacher-analysis-wids.php';
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
+$teacher_hesitation_results_source = teacher_hesitation_results_source('tr');
 
 // ログイン中の教師IDを取得します
 $teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
@@ -427,11 +430,12 @@ function teacher_usage_log_wid_select(mysqli $conn, string $teacher_id, array $p
         $wids,
         false
     );
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     teacher_usage_insert(
         $conn,
         'INSERT INTO Home_WIDselect
-         (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed)
-         VALUES (?, ?, ?, ?, ?, ?)',
+         (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $method,
@@ -439,6 +443,7 @@ function teacher_usage_log_wid_select(mysqli $conn, string $teacher_id, array $p
             $histogram['features'] === null ? null : teacher_usage_json($histogram['features']),
             $histogram['conditions'] === null ? null : teacher_usage_json($histogram['conditions']),
             $histogram['bin_width_changed'],
+            $ml,
         ]
     );
 }
@@ -485,14 +490,15 @@ function teacher_usage_log_uid_select(mysqli $conn, string $teacher_id, array $p
         }
     }
     $filters = teacher_usage_filters($payload);
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
 
     teacher_usage_insert(
         $conn,
         'INSERT INTO Home_UIDselect
          (teacher_id, selection_method, selected_uids, selected_wids, group_condition_used, group_expression,
           group_expression_tokens, histogram_features, histogram_conditions, histogram_bin_width_changed,
-          correctness_filter, correctness_filter_used, hesitation_filter, hesitation_filter_used)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          correctness_filter, correctness_filter_used, hesitation_filter, hesitation_filter_used, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $method,
@@ -508,6 +514,7 @@ function teacher_usage_log_uid_select(mysqli $conn, string $teacher_id, array $p
             $filters['correctness_used'],
             $filters['hesitation'],
             $filters['hesitation_used'],
+            $ml,
         ]
     );
 }
@@ -541,13 +548,14 @@ function teacher_usage_log_person(mysqli $conn, string $teacher_id, array $paylo
         false
     );
     $filters = teacher_usage_filters($payload);
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
 
     teacher_usage_insert(
         $conn,
         'INSERT INTO Home_Person
          (teacher_id, selected_uid, selection_method, selected_wids, histogram_features, histogram_conditions,
-          histogram_bin_width_changed, correctness_filter, correctness_filter_used, hesitation_filter, hesitation_filter_used)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          histogram_bin_width_changed, correctness_filter, correctness_filter_used, hesitation_filter, hesitation_filter_used, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $uid,
@@ -560,6 +568,7 @@ function teacher_usage_log_person(mysqli $conn, string $teacher_id, array $paylo
             $filters['correctness_used'],
             $filters['hesitation'],
             $filters['hesitation_used'],
+            $ml,
         ]
     );
 }
@@ -628,13 +637,14 @@ function teacher_usage_log_mousemove(mysqli $conn, string $teacher_id, array $pa
         }
     }
 
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     teacher_usage_insert(
         $conn,
         'INSERT INTO To_mousemove
          (teacher_id, UID, WID, attempt, test_id, from_class_results, from_person_problem_results,
           from_grammar_correct_hesitated, from_grammar_incorrect_not_hesitated, from_grammar_incorrect_hesitated,
-          grammar_name)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          grammar_name, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $uid,
@@ -647,6 +657,7 @@ function teacher_usage_log_mousemove(mysqli $conn, string $teacher_id, array $pa
             $from_grammar_incorrect_not_hesitated,
             $from_grammar_incorrect_hesitated,
             $grammar_name,
+            $ml,
         ]
     );
 }
@@ -741,7 +752,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                  JOIN students s ON l.UID = s.uid
                  JOIN classes c ON s.ClassID = c.ClassID
                  LEFT JOIN tests t ON l.test_id = t.id
-                 LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
+                 LEFT JOIN {$teacher_hesitation_results_source} ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
                  WHERE ";
 
                 $conditions = [];
@@ -924,7 +935,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation
                      FROM linedata l
                      JOIN students s ON l.UID = s.uid
-                     LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
+                     LEFT JOIN {$teacher_hesitation_results_source} ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
                      WHERE l.test_id = ? AND l.UID IN ($placeholders_students) AND l.WID IN ($placeholders_wids)
                      ORDER BY l.UID, l.WID, l.attempt"
                 );
@@ -1029,7 +1040,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $summary_params = array_merge($base_params, $wids);
                 $summary_types = $base_types . str_repeat('i', count($wids));
 
-                $stmt_stats = $conn->prepare("SELECT COUNT(l.WID) as selected_total, SUM(CASE WHEN l.TF = 1 THEN 1 ELSE 0 END) as selected_correct, SUM(CASE WHEN tr.Understand = 2 THEN 1 ELSE 0 END) as hesitated_count, SUM(CASE WHEN tr.Understand IN (2, 4) THEN 1 ELSE 0 END) as estimated_count FROM linedata l LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? WHERE l.UID = ? AND l.WID IN ($placeholders)");
+                $stmt_stats = $conn->prepare("SELECT COUNT(l.WID) as selected_total, SUM(CASE WHEN l.TF = 1 THEN 1 ELSE 0 END) as selected_correct, SUM(CASE WHEN tr.Understand = 2 THEN 1 ELSE 0 END) as hesitated_count, SUM(CASE WHEN tr.Understand IN (2, 4) THEN 1 ELSE 0 END) as estimated_count FROM linedata l LEFT JOIN {$teacher_hesitation_results_source} ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? WHERE l.UID = ? AND l.WID IN ($placeholders)");
                 $stmt_stats->bind_param($summary_types, ...$summary_params);
                 $stmt_stats->execute();
                 $stats_result = $stmt_stats->get_result()->fetch_assoc();
@@ -1043,7 +1054,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt_stats->close();
                 
                 // ★★★ 新機能: SQLに絞り込み条件を追加 ★★★
-                $sql_attempts = "SELECT l.WID, l.Date as date, l.attempt, l.test_id, t.test_name, CASE WHEN l.TF = 1 THEN '正解' ELSE '不正解' END as correctness, CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation FROM linedata l LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? LEFT JOIN tests t ON l.test_id = t.id WHERE l.UID = ? AND l.WID IN ($placeholders)";
+                $sql_attempts = "SELECT l.WID, l.Date as date, l.attempt, l.test_id, t.test_name, CASE WHEN l.TF = 1 THEN '正解' ELSE '不正解' END as correctness, CASE tr.Understand WHEN 2 THEN '迷い有り' WHEN 4 THEN '迷い無し' ELSE '未推定' END as hesitation FROM linedata l LEFT JOIN {$teacher_hesitation_results_source} ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ? LEFT JOIN tests t ON l.test_id = t.id WHERE l.UID = ? AND l.WID IN ($placeholders)";
                 $attempt_params = array_merge($base_params, $wids);
                 $attempt_types = $base_types . str_repeat('i', count($wids));
                 
@@ -1095,7 +1106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $grammar_sql = "SELECT l.WID, l.TF, l.attempt, l.test_id, qi.grammar, tr.Understand
                     FROM linedata l
                     JOIN question_info qi ON l.WID = qi.WID
-                    LEFT JOIN temporary_results tr ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
+                    LEFT JOIN {$teacher_hesitation_results_source} ON l.UID = tr.UID AND l.WID = tr.WID AND l.attempt = tr.attempt AND tr.teacher_id = ?
                     WHERE l.UID = ? AND l.WID IN ($grammar_placeholders)";
                 $grammar_params = array_merge([$teacher_id, $student_id], $wids);
                 $grammar_types = 'ss' . str_repeat('i', count($wids));

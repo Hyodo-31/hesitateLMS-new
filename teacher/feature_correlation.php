@@ -4,6 +4,7 @@ require '../dbc.php';
 require_once __DIR__ . '/feature_display.php';
 require_once __DIR__ . '/teacher-analysis-wids.php';
 require_once __DIR__ . '/correlation-usage-log.php';
+require_once __DIR__ . '/hesitation-estimation-state.php';
 
 if (empty($_SESSION['MemberID'])) {
     http_response_code(401);
@@ -208,13 +209,15 @@ function appendWidFilter(string $sql, array $selectedWids, string &$types, array
 
 function latestPredictionJoinSql(): string
 {
+    $resultsSource = teacher_hesitation_results_source('tr');
+    $latestSource = teacher_hesitation_results_source('tr_latest');
     return "
         LEFT JOIN (
             SELECT tr.UID, tr.WID, tr.attempt, tr.Understand
-            FROM temporary_results tr
+            FROM {$resultsSource}
             INNER JOIN (
                 SELECT UID, WID, attempt, MAX(id) AS latest_id
-                FROM temporary_results
+                FROM {$latestSource}
                 WHERE teacher_id = ?
                 GROUP BY UID, WID, attempt
             ) latest_prediction ON latest_prediction.latest_id = tr.id

@@ -1,10 +1,11 @@
 <?php
     include '../lang.php';
     require "../dbc.php";
+    require_once __DIR__ . '/hesitation-estimation-state.php';
     //GET受け取り
     $uid = $_GET['uid'] ? $_GET['uid'] : null;
     //WIDを取得
-    $getWIDQuery = "SELECT DISTINCT tr.WID,qi.Sentence,qi.level,qi.grammar,tr.Understand FROM temporary_results tr
+    $getWIDQuery = "SELECT DISTINCT tr.WID,qi.Sentence,qi.level,qi.grammar,tr.Understand FROM " . teacher_hesitation_results_source('tr') . "
                         JOIN question_info qi ON qi.WID = tr.WID
                         WHERE UID = ?";
     $stmt = $conn->prepare($getWIDQuery);

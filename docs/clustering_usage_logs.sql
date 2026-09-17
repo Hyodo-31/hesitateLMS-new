@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `clustering_WIDselect` (
   `histogram_features` JSON DEFAULT NULL,
   `histogram_conditions` JSON DEFAULT NULL,
   `histogram_bin_width_changed` TINYINT(1) DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_clustering_widselect_teacher_created` (`teacher_id`, `created_at`)
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `clustering_UIDselect` (
   `histogram_features` JSON DEFAULT NULL,
   `histogram_conditions` JSON DEFAULT NULL,
   `histogram_bin_width_changed` TINYINT(1) DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_clustering_uidselect_teacher_created` (`teacher_id`, `created_at`)
@@ -42,6 +44,7 @@ CREATE TABLE IF NOT EXISTS `clustering_result` (
   `student_count` INT UNSIGNED NOT NULL,
   `from_feature_correlation` TINYINT(1) NOT NULL DEFAULT 0,
   `feature_correlation_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_clustering_result_teacher_created` (`teacher_id`, `created_at`),
@@ -56,6 +59,15 @@ CREATE TABLE IF NOT EXISTS `clustering_result` (
     OR (`from_feature_correlation` = 1 AND `feature_correlation_transition_count` > 0)
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `clustering_WIDselect`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `clustering_UIDselect`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `clustering_result`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
 
 CREATE OR REPLACE VIEW `Clustering_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,

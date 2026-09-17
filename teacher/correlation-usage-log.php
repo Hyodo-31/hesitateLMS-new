@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
 function correlation_usage_payload(): array
 {
     $raw = $_POST['payload'] ?? '';
@@ -319,11 +321,12 @@ function correlation_usage_log_wid_select(mysqli $conn, string $teacher_id, arra
         $wids,
         false
     );
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     correlation_usage_insert(
         $conn,
         'INSERT INTO Correlation_WIDselect
-         (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed)
-         VALUES (?, ?, ?, ?, ?, ?)',
+         (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $method,
@@ -331,6 +334,7 @@ function correlation_usage_log_wid_select(mysqli $conn, string $teacher_id, arra
             $histogram['features'] === null ? null : correlation_usage_json($histogram['features']),
             $histogram['conditions'] === null ? null : correlation_usage_json($histogram['conditions']),
             $histogram['bin_width_changed'],
+            $ml,
         ]
     );
 }
@@ -381,12 +385,13 @@ function correlation_usage_log_uid_select(mysqli $conn, string $teacher_id, arra
         }
     }
 
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     correlation_usage_insert(
         $conn,
         'INSERT INTO Correlation_UIDselect
          (teacher_id, selection_method, selected_uids, selected_wids, group_condition_used, group_expression,
-          group_expression_tokens, histogram_features, histogram_conditions, histogram_bin_width_changed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          group_expression_tokens, histogram_features, histogram_conditions, histogram_bin_width_changed, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $method,
@@ -398,6 +403,7 @@ function correlation_usage_log_uid_select(mysqli $conn, string $teacher_id, arra
             $histogram['features'] === null ? null : correlation_usage_json($histogram['features']),
             $histogram['conditions'] === null ? null : correlation_usage_json($histogram['conditions']),
             $histogram['bin_width_changed'],
+            $ml,
         ]
     );
 }
@@ -405,10 +411,11 @@ function correlation_usage_log_uid_select(mysqli $conn, string $teacher_id, arra
 function correlation_usage_log_2019_select(mysqli $conn, string $teacher_id): void
 {
     correlation_usage_validate_teacher($conn, $teacher_id);
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     correlation_usage_insert(
         $conn,
-        'INSERT INTO Correlation_2019select (teacher_id) VALUES (?)',
-        [$teacher_id]
+        'INSERT INTO Correlation_2019select (teacher_id, ML) VALUES (?, ?)',
+        [$teacher_id, $ml]
     );
 }
 
@@ -570,13 +577,14 @@ function correlation_usage_log_result(
         );
     }
 
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     correlation_usage_insert(
         $conn,
         'INSERT INTO Correlation_result
          (teacher_id, analysis_mode, display_trigger, analysis_scope, target_uids, target_wids,
           feature_x, feature_y, prediction_filter, prediction_filter_used, correlation_value, data_count,
-          ranking_clicked, ranking_position, ranking_feature, ranking_correlation, ranking_data_count)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          ranking_clicked, ranking_position, ranking_feature, ranking_correlation, ranking_data_count, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $mode,
@@ -595,6 +603,7 @@ function correlation_usage_log_result(
             $ranking_feature,
             $ranking_correlation,
             $ranking_data_count,
+            $ml,
         ]
     );
 }
@@ -616,4 +625,3 @@ function correlation_usage_try_log_result(
         return false;
     }
 }
-

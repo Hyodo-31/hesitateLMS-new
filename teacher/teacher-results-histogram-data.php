@@ -9,6 +9,7 @@ ob_start();
 require_once __DIR__ . '/student-feature-tooltip.php';
 ob_end_clean();
 require_once __DIR__ . '/teacher-analysis-wids.php';
+require_once __DIR__ . '/hesitation-estimation-state.php';
 
 function result_histogram_response(array $payload, int $status = 200): void
 {
@@ -280,16 +281,18 @@ try {
 
     $metricAttempts = [];
     if (!empty($allowedUids) && !empty($allowedWids)) {
+        $metricResultsSource = teacher_hesitation_results_source('tr');
+        $metricLatestSource = teacher_hesitation_results_source('tr_latest');
         $metricSql = 'SELECT l.UID, l.WID, l.attempt, l.TF, latest_hesitation.Understand
                       FROM linedata l
                       JOIN students s ON l.UID = s.uid
                       JOIN classteacher ct ON s.ClassID = ct.ClassID
                       LEFT JOIN (
                           SELECT tr.UID, tr.WID, tr.attempt, tr.Understand
-                          FROM temporary_results tr
+                          FROM ' . $metricResultsSource . '
                           JOIN (
                               SELECT UID, WID, attempt, MAX(id) AS latest_id
-                              FROM temporary_results
+                              FROM ' . $metricLatestSource . '
                               WHERE teacher_id = ?
                               GROUP BY UID, WID, attempt
                           ) latest ON tr.id = latest.latest_id

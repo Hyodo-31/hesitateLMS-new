@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS `hesitate_estimate_pre` (
   `classifier_preset_used` TINYINT(1) NOT NULL DEFAULT 0,
   `classifier_preset` ENUM('A', 'B', 'C') DEFAULT NULL,
   `classifier_preset_modified` TINYINT(1) NOT NULL DEFAULT 0,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_hesitate_estimate_pre_teacher_created` (`teacher_id`, `created_at`),
@@ -38,6 +39,9 @@ CREATE TABLE IF NOT EXISTS `hesitate_estimate_pre` (
       AND `classifier_preset_modified` IN (0, 1))
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `hesitate_estimate_pre`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
 
 CREATE OR REPLACE VIEW `Hesitate_estimate_usage_counts` AS
 SELECT `teacher_id`, 'machine_learning_execute' AS `function_name`, COUNT(*) AS `use_count`,

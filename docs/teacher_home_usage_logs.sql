@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `Home_WIDselect` (
   `histogram_features` JSON DEFAULT NULL,
   `histogram_conditions` JSON DEFAULT NULL,
   `histogram_bin_width_changed` TINYINT(1) DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_home_widselect_teacher_created` (`teacher_id`, `created_at`)
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS `Home_UIDselect` (
   `correctness_filter_used` TINYINT(1) NOT NULL DEFAULT 0,
   `hesitation_filter` VARCHAR(32) NOT NULL,
   `hesitation_filter_used` TINYINT(1) NOT NULL DEFAULT 0,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_home_uidselect_teacher_created` (`teacher_id`, `created_at`)
@@ -47,6 +49,7 @@ CREATE TABLE IF NOT EXISTS `Home_Person` (
   `correctness_filter_used` TINYINT(1) NOT NULL DEFAULT 0,
   `hesitation_filter` VARCHAR(32) NOT NULL,
   `hesitation_filter_used` TINYINT(1) NOT NULL DEFAULT 0,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_home_person_teacher_created` (`teacher_id`, `created_at`),
@@ -66,6 +69,7 @@ CREATE TABLE IF NOT EXISTS `To_mousemove` (
   `from_grammar_incorrect_not_hesitated` TINYINT(1) DEFAULT NULL,
   `from_grammar_incorrect_hesitated` TINYINT(1) DEFAULT NULL,
   `grammar_name` VARCHAR(255) DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_to_mousemove_teacher_created` (`teacher_id`, `created_at`),
@@ -115,6 +119,18 @@ ALTER TABLE `To_mousemove`
   MODIFY COLUMN `from_grammar_correct_hesitated` TINYINT(1) DEFAULT NULL,
   MODIFY COLUMN `from_grammar_incorrect_not_hesitated` TINYINT(1) DEFAULT NULL,
   MODIFY COLUMN `from_grammar_incorrect_hesitated` TINYINT(1) DEFAULT NULL;
+
+ALTER TABLE `Home_WIDselect`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `Home_UIDselect`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `Home_Person`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `To_mousemove`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
 
 CREATE OR REPLACE VIEW `Home_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,

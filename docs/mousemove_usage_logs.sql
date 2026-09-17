@@ -36,9 +36,13 @@ CREATE TABLE IF NOT EXISTS `mousemove` (
   `seek_to_ms` BIGINT UNSIGNED DEFAULT NULL,
   `seek_delta_ms` BIGINT DEFAULT NULL,
   `seek_colored_intervals` JSON DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_mousemove_view_event` (`view_session_id`, `event_sequence`),
   KEY `idx_mousemove_teacher_created` (`teacher_id`, `created_at`),
   KEY `idx_mousemove_attempt_created` (`UID`, `WID`, `attempt`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `mousemove`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));

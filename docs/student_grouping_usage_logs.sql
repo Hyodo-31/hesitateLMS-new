@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `Grouping_WIDselect` (
   `histogram_features` JSON DEFAULT NULL,
   `histogram_conditions` JSON DEFAULT NULL,
   `histogram_bin_width_changed` TINYINT(1) DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_grouping_widselect_teacher_created` (`teacher_id`, `created_at`)
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS `Grouping_UIDselect` (
   `correctness_filter_used` TINYINT(1) NOT NULL DEFAULT 0,
   `hesitation_filter` VARCHAR(32) NOT NULL,
   `hesitation_filter_used` TINYINT(1) NOT NULL DEFAULT 0,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_grouping_uidselect_teacher_created` (`teacher_id`, `created_at`)
@@ -40,11 +42,21 @@ CREATE TABLE IF NOT EXISTS `delete_groups` (
   `teacher_id` CHAR(8) NOT NULL,
   `group_id` INT NOT NULL,
   `group_name` VARCHAR(255) NOT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_delete_groups_teacher_created` (`teacher_id`, `created_at`),
   KEY `idx_delete_groups_teacher_group_created` (`teacher_id`, `group_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `Grouping_WIDselect`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `Grouping_UIDselect`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `delete_groups`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
 
 CREATE OR REPLACE VIEW `Grouping_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,

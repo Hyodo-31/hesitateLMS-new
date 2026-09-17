@@ -2,6 +2,10 @@
 include '../lang.php';
 require "../dbc.php";
 require_once __DIR__ . "/student-feature-tooltip.php";
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
+$search_hesitation_rate_source = teacher_hesitation_results_source('hes_source');
+$search_hesitation_results_source = teacher_hesitation_results_source('tr');
 
 function student_feature_avg_column_sql(string $column): string
 {
@@ -242,7 +246,7 @@ $sql = "SELECT DISTINCT s.uid, s.Name
         LEFT JOIN (
             SELECT uid,
                    (SUM(CASE WHEN Understand = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS hesitation_rate
-            FROM temporary_results
+            FROM {$search_hesitation_rate_source}
             GROUP BY uid
         ) hes ON s.uid = hes.uid
         {$feature_join_sql}
@@ -250,7 +254,7 @@ $sql = "SELECT DISTINCT s.uid, s.Name
             ON s.uid = ld.UID
             AND feat.WID = ld.WID
             AND feat.attempt = ld.attempt
-        LEFT JOIN temporary_results tr
+        LEFT JOIN {$search_hesitation_results_source}
             ON s.uid = tr.UID
             AND feat.WID = tr.WID
             AND feat.attempt = tr.attempt

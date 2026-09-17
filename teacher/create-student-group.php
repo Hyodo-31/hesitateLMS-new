@@ -6,6 +6,11 @@ require_once __DIR__ . '/student-feature-tooltip.php';
 ob_end_clean();
 require_once __DIR__ . '/teacher-analysis-wids.php';
 require_once __DIR__ . '/grouping-usage-log.php';
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
+$grouping_hesitation_results_source = teacher_hesitation_results_source('tr');
+$grouping_hesitation_latest_source = teacher_hesitation_results_source('tr_latest');
+$grouping_hesitation_rate_source = teacher_hesitation_results_source('hes_source');
 
 $teacher_id = (string)($_SESSION['MemberID'] ?? '');
 $grouping_usage_actions = ['log_grouping_wid_select', 'log_grouping_uid_select'];
@@ -141,10 +146,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
             JOIN classteacher ct ON s.ClassID = ct.ClassID
             LEFT JOIN (
                 SELECT tr.UID, tr.WID, tr.attempt, tr.teacher_id, tr.Understand
-                FROM temporary_results tr
+                FROM {$grouping_hesitation_results_source}
                 JOIN (
                     SELECT UID, WID, attempt, teacher_id, MAX(id) AS latest_id
-                    FROM temporary_results
+                    FROM {$grouping_hesitation_latest_source}
                     WHERE teacher_id = ?
                     GROUP BY UID, WID, attempt, teacher_id
                 ) latest ON tr.id = latest.latest_id
@@ -242,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
                                         SELECT
                                             uid,
                                             (SUM(CASE WHEN Understand = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS hesitation_rate
-                                        FROM temporary_results
+                                        FROM {$grouping_hesitation_rate_source}
                                         GROUP BY uid
                                     ) hes ON s.uid = hes.uid
                                     {$feature_join_sql}

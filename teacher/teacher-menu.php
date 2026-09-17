@@ -6,6 +6,12 @@ $teacher_menu_teacher_name = '先生';
 $teacher_menu_teacher_id = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
 $teacher_menu_has_assigned_class = false;
 $teacher_menu_show_word_ml = false;
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
+if (empty($_SESSION['teacher_hesitation_toggle_csrf']) || !is_string($_SESSION['teacher_hesitation_toggle_csrf'])) {
+    $_SESSION['teacher_hesitation_toggle_csrf'] = bin2hex(random_bytes(32));
+}
+$teacher_menu_hesitation_suppressed = teacher_hesitation_is_suppressed();
 
 if ($teacher_menu_teacher_id && isset($conn) && $conn instanceof mysqli) {
     $stmt_teacher_menu = $conn->prepare("SELECT TName FROM teachers WHERE TID = ?");
@@ -40,6 +46,7 @@ if (!function_exists('teacher_menu_path')) {
         $has_assigned_class = $GLOBALS['teacher_menu_has_assigned_class'] ?? true;
         $allowed_before_class_registration = [
             'register-classteacher.php' => true,
+            'toggle-hesitation-estimation.php' => true,
         ];
         $path_page = basename(parse_url($path, PHP_URL_PATH) ?: $path);
         if (!$has_assigned_class && !isset($allowed_before_class_registration[$path_page])) {
@@ -92,6 +99,16 @@ if (!function_exists('teacher_menu_group_class')) {
                 <?php endif; ?>
                 <li><a href="<?= teacher_menu_path('feature_correlation.php') ?>" target="_blank" rel="noopener noreferrer"<?= teacher_menu_link_attrs(['feature_correlation.php']) ?>>特徴量相関表示</a></li>
                 <li><a href="<?= teacher_menu_path('clustering.php') ?>" target="_blank" rel="noopener noreferrer"<?= teacher_menu_link_attrs(['clustering.php']) ?>>クラスタリング</a></li>
+                <li>
+                    <button
+                        type="button"
+                        id="hesitation-estimation-toggle"
+                        class="hesitation-estimation-toggle<?= $teacher_menu_hesitation_suppressed ? ' is-suppressed' : '' ?>"
+                        data-endpoint="<?= teacher_menu_path('toggle-hesitation-estimation.php') ?>"
+                        data-csrf-token="<?= htmlspecialchars($_SESSION['teacher_hesitation_toggle_csrf'], ENT_QUOTES, 'UTF-8') ?>"
+                        aria-pressed="<?= $teacher_menu_hesitation_suppressed ? 'true' : 'false' ?>"
+                    ><?= $teacher_menu_hesitation_suppressed ? '未推定状態を解除' : '未推定状態にする' ?></button>
+                </li>
             </ul>
         </li>
         <li class="<?= teacher_menu_group_class(['create-notification.php', 'register-student.php', 'register-classteacher.php']) ?>">
@@ -143,6 +160,7 @@ if (!function_exists('teacher_menu_group_class')) {
         const transitionPage = <?= json_encode(basename(parse_url($_SERVER['SCRIPT_NAME'] ?? '', PHP_URL_PATH) ?: ''), JSON_UNESCAPED_UNICODE) ?>;
         const transitionMarkerKey = `hesitateLms:correlationToClustering:${transitionTeacherId}`;
         const transitionCountKey = `hesitateLms:correlationToClusteringCount:${transitionTeacherId}`;
+        const hesitationStateChangedKey = `hesitateLms:hesitationStateChanged:${transitionTeacherId}`;
         const transitionMarkerLifetimeMs = 10000;
 
         function readTransitionCount() {
@@ -263,6 +281,43 @@ if (!function_exists('teacher_menu_group_class')) {
 
                 e.preventDefault();
                 toggle.parentElement.classList.toggle('open');
+            });
+
+            const hesitationToggle = document.getElementById('hesitation-estimation-toggle');
+            hesitationToggle?.addEventListener('click', async function () {
+                if (hesitationToggle.disabled) return;
+                hesitationToggle.disabled = true;
+                try {
+                    const body = new URLSearchParams({
+                        csrf_token: hesitationToggle.dataset.csrfToken || '',
+                    });
+                    const response = await fetch(hesitationToggle.dataset.endpoint || 'toggle-hesitation-estimation.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+                        body: body.toString(),
+                        credentials: 'same-origin',
+                    });
+                    const result = await response.json();
+                    if (!response.ok || result.ok !== true) {
+                        throw new Error(result.error || '未推定状態を切り替えられませんでした。');
+                    }
+                    try {
+                        localStorage.setItem(hesitationStateChangedKey, String(Date.now()));
+                    } catch (storageError) {
+                        // 他タブへの通知ができなくても、このタブの切替は有効。
+                    }
+                    window.location.reload();
+                } catch (error) {
+                    console.warn('未推定状態の切替に失敗しました。', error);
+                    window.alert(error instanceof Error ? error.message : '未推定状態を切り替えられませんでした。');
+                    hesitationToggle.disabled = false;
+                }
+            });
+
+            window.addEventListener('storage', function (event) {
+                if (transitionTeacherId && event.key === hesitationStateChangedKey && event.newValue) {
+                    window.location.reload();
+                }
             });
         }
 

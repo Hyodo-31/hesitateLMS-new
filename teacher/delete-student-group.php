@@ -13,6 +13,7 @@
     <?php
         // session_start(); // lang.phpでセッションは開始済み
         require "../dbc.php";
+        require_once __DIR__ . '/hesitation-estimation-state.php';
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
     ?>
@@ -74,13 +75,14 @@
                 // グループ本体の削除が成功した場合のみ記録する。ログ失敗は削除処理を妨げない。
                 if ($group_delete_succeeded && $teacher_id !== '' && $deleted_group_name !== null) {
                     try {
+                        $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
                         $log_stmt = $conn->prepare(
-                            'INSERT INTO delete_groups (teacher_id, group_id, group_name) VALUES (?, ?, ?)'
+                            'INSERT INTO delete_groups (teacher_id, group_id, group_name, ML) VALUES (?, ?, ?, ?)'
                         );
                         if (!$log_stmt) {
                             throw new RuntimeException('削除ログ保存の準備に失敗しました。');
                         }
-                        $log_stmt->bind_param('sis', $teacher_id, $group_id, $deleted_group_name);
+                        $log_stmt->bind_param('sisi', $teacher_id, $group_id, $deleted_group_name, $ml);
                         if (!$log_stmt->execute()) {
                             throw new RuntimeException($log_stmt->error);
                         }

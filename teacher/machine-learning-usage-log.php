@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
 function machine_learning_usage_json(array $value): string
 {
     try {
@@ -367,19 +369,20 @@ function machine_learning_usage_log_execution(
     $classificationGroupsJson = machine_learning_usage_json($classificationGroups);
     $featuresJson = machine_learning_usage_json($features);
     $presetName = $preset['preset'];
+    $ml = teacher_hesitation_ml_flag($conn, $teacherId);
 
     $stmt = $conn->prepare(
         'INSERT INTO hesitate_estimate_pre (
              teacher_id, training_data_source, training_group_id, training_group_name,
              training_uids, classification_uids, classification_groups, selected_features,
-             classifier_preset_used, classifier_preset, classifier_preset_modified
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             classifier_preset_used, classifier_preset, classifier_preset_modified, ML
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     if (!$stmt) {
         throw new RuntimeException('機械学習ログ保存の準備に失敗しました。');
     }
     $stmt->bind_param(
-        'ssisssssisi',
+        'ssisssssisii',
         $teacherId,
         $training['source'],
         $trainingGroupId,
@@ -390,7 +393,8 @@ function machine_learning_usage_log_execution(
         $featuresJson,
         $preset['used'],
         $presetName,
-        $preset['modified']
+        $preset['modified'],
+        $ml
     );
     if (!$stmt->execute()) {
         $message = $stmt->error;
@@ -399,4 +403,3 @@ function machine_learning_usage_log_execution(
     }
     $stmt->close();
 }
-

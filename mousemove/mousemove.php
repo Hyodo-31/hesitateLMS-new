@@ -1,6 +1,7 @@
 <?php
 // lang.phpでセッションが開始されるため、個別のsession_startは不要
 require "../lang.php";
+require_once __DIR__ . '/../teacher/hesitation-estimation-state.php';
 $show_word_level_ml_ui = false;
 
 if (empty($_SESSION['mousemove_usage_csrf']) || !is_string($_SESSION['mousemove_usage_csrf'])) {
@@ -59,10 +60,11 @@ function mousemove_usage_estimated_understand(
     int $wid,
     int $attempt
 ): ?int {
+    $resultsSource = teacher_hesitation_results_source('tr');
     $stmt = $conn->prepare(
         'SELECT Understand
-         FROM temporary_results
-         WHERE teacher_id = ? AND UID = ? AND WID = ? AND attempt = ?
+         FROM ' . $resultsSource . '
+         WHERE tr.teacher_id = ? AND tr.UID = ? AND tr.WID = ? AND tr.attempt = ?
          ORDER BY created_at DESC, id DESC
          LIMIT 1'
     );
@@ -240,6 +242,7 @@ function mousemove_usage_insert(mysqli $conn, string $teacher_id, array $payload
     $self_reported = $context['Understand'] !== null ? (int)$context['Understand'] : null;
     $estimated = mousemove_usage_estimated_understand($conn, $teacher_id, $uid, $wid, $attempt);
     $test_id = (int)$context['test_id'];
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
 
     $stmt = $conn->prepare(
         'INSERT INTO mousemove
@@ -250,8 +253,8 @@ function mousemove_usage_insert(mysqli $conn, string $teacher_id, array $payload
           playback_position_ms, speed_multiplier, playback_run_no,
           selected_target_type, selected_words, selected_occurrence, skip_target_ms, requested_play_ms,
           play_to_end, played_timeline_ms, played_visible_wall_ms, playback_end_reason,
-          seek_from_ms, seek_to_ms, seek_delta_ms, seek_colored_intervals)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          seek_from_ms, seek_to_ms, seek_delta_ms, seek_colored_intervals, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     if (!$stmt) {
         throw new RuntimeException('操作ログの保存準備に失敗しました。');
@@ -265,7 +268,7 @@ function mousemove_usage_insert(mysqli $conn, string $teacher_id, array $payload
             $playback_position_ms, $speed, $playback_run_no,
             $target_type, $selected_words, $selected_occurrence, $skip_target_ms, $requested_play_ms,
             $play_to_end, $played_timeline_ms, $played_visible_wall_ms, $end_reason,
-            $seek_from_ms, $seek_to_ms, $seek_delta_ms, $seek_colored_intervals,
+            $seek_from_ms, $seek_to_ms, $seek_delta_ms, $seek_colored_intervals, $ml,
         ]);
         $errno = $stmt->errno;
         $error = $stmt->error;
@@ -751,7 +754,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
     $query5 = "select Time from linedata where uid = $uid and WID = $wid and attempt = $attempt_num";
     $res5 = mysqli_query($conn, $query5) or die("Error:query5");
     // temporary_resultsから迷い推定結果を取得するクエリ
-    $query_est = "SELECT Understand FROM temporary_results WHERE UID = " . $uid . " AND WID = " . $wid . " AND attempt = " . $attempt_num;
+    $query_est = "SELECT Understand FROM " . teacher_hesitation_results_source('tr') . " WHERE tr.UID = " . $uid . " AND tr.WID = " . $wid . " AND tr.attempt = " . $attempt_num;
     $res_est = mysqli_query($conn, $query_est) or die("Error:query_est");
 
     $row = mysqli_fetch_array($res2);
@@ -1567,9 +1570,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
                             $hesitation_words_ml = [];
                             $ml_hesitation_word_ids = [];
                             $ml_interval_targets = [];
-                            $sql_word_est = "SELECT WWID, Understand, attempt FROM temporary_results_word "
-                                . "WHERE UID = " . $uid . " AND WID = " . $wid . " AND attempt = " . $attempt_num . " "
-                                . "AND Understand = 2 ORDER BY WWID ASC";
+                            $sql_word_est = "SELECT WWID, Understand, attempt FROM " . teacher_hesitation_word_results_source('trw') . " "
+                                . "WHERE trw.UID = " . $uid . " AND trw.WID = " . $wid . " AND trw.attempt = " . $attempt_num . " "
+                                . "AND trw.Understand = 2 ORDER BY trw.WWID ASC";
                             $res_word_est = mysqli_query($conn, $sql_word_est);
                             if ($res_word_est !== false) {
                                 while ($row_word_est = mysqli_fetch_array($res_word_est)) {

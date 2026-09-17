@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `Correlation_WIDselect` (
   `histogram_features` JSON DEFAULT NULL,
   `histogram_conditions` JSON DEFAULT NULL,
   `histogram_bin_width_changed` TINYINT(1) DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_correlation_widselect_teacher_created` (`teacher_id`, `created_at`)
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `Correlation_UIDselect` (
   `histogram_features` JSON DEFAULT NULL,
   `histogram_conditions` JSON DEFAULT NULL,
   `histogram_bin_width_changed` TINYINT(1) DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_correlation_uidselect_teacher_created` (`teacher_id`, `created_at`)
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS `Correlation_UIDselect` (
 CREATE TABLE IF NOT EXISTS `Correlation_2019select` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_correlation_2019select_teacher_created` (`teacher_id`, `created_at`)
@@ -57,6 +60,7 @@ CREATE TABLE IF NOT EXISTS `Correlation_result` (
   `ranking_feature` VARCHAR(128) DEFAULT NULL,
   `ranking_correlation` DOUBLE DEFAULT NULL,
   `ranking_data_count` INT UNSIGNED DEFAULT NULL,
+  `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_correlation_result_teacher_created` (`teacher_id`, `created_at`),
@@ -75,6 +79,18 @@ CREATE TABLE IF NOT EXISTS `Correlation_result` (
       AND `ranking_data_count` IS NOT NULL)
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `Correlation_WIDselect`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `Correlation_UIDselect`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `Correlation_2019select`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `Correlation_result`
+  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
 
 CREATE OR REPLACE VIEW `Correlation_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,

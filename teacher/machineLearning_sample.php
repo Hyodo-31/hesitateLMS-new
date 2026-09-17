@@ -137,6 +137,7 @@ $featureDisplayFeatureKeys = [
 
     <?php
     require "../dbc.php";
+    require_once __DIR__ . '/hesitation-estimation-state.php';
     require "log_write.php";
     // セッション変数をクリアする（必要に応じて）
     unset($_SESSION['conditions']);
@@ -2657,7 +2658,7 @@ $featureDisplayFeatureKeys = [
                     <option value=""><?= translate('machineLearning_sample.php_1468行目_選択してください') ?></option>
                     <?php
 
-                    $getUsersQuery = "SELECT DISTINCT tr.uid,s.Name FROM temporary_results tr 
+                    $getUsersQuery = "SELECT DISTINCT tr.uid,s.Name FROM " . teacher_hesitation_results_source('tr') . "
                                             LEFT JOIN students s ON tr.uid = s.uid 
                                             WHERE teacher_id = ?";
                     $stmt = $conn->prepare($getUsersQuery);

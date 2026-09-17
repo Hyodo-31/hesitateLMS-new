@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
 function clustering_usage_payload(): array
 {
     $raw = $_POST['payload'] ?? '';
@@ -324,12 +326,13 @@ function clustering_usage_log_wid_select(mysqli $conn, string $teacherId, array 
         $wids,
         false
     );
+    $ml = teacher_hesitation_ml_flag($conn, $teacherId);
     clustering_usage_insert(
         $conn,
         'INSERT INTO clustering_WIDselect
          (teacher_id, selection_method, selected_wids, histogram_features,
-          histogram_conditions, histogram_bin_width_changed)
-         VALUES (?, ?, ?, ?, ?, ?)',
+          histogram_conditions, histogram_bin_width_changed, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
             $teacherId,
             $method,
@@ -337,6 +340,7 @@ function clustering_usage_log_wid_select(mysqli $conn, string $teacherId, array 
             $histogram['features'] === null ? null : clustering_usage_json($histogram['features']),
             $histogram['conditions'] === null ? null : clustering_usage_json($histogram['conditions']),
             $histogram['bin_width_changed'],
+            $ml,
         ]
     );
 }
@@ -387,13 +391,14 @@ function clustering_usage_log_uid_select(mysqli $conn, string $teacherId, array 
         }
     }
 
+    $ml = teacher_hesitation_ml_flag($conn, $teacherId);
     clustering_usage_insert(
         $conn,
         'INSERT INTO clustering_UIDselect
          (teacher_id, selection_method, selected_uids, selected_wids, group_condition_used,
           group_expression, group_expression_tokens, histogram_features,
-          histogram_conditions, histogram_bin_width_changed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          histogram_conditions, histogram_bin_width_changed, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacherId,
             $method,
@@ -405,6 +410,7 @@ function clustering_usage_log_uid_select(mysqli $conn, string $teacherId, array 
             $histogram['features'] === null ? null : clustering_usage_json($histogram['features']),
             $histogram['conditions'] === null ? null : clustering_usage_json($histogram['conditions']),
             $histogram['bin_width_changed'],
+            $ml,
         ]
     );
 }
@@ -512,14 +518,15 @@ function clustering_usage_log_result(
         throw new InvalidArgumentException('相関画面からの移動回数が不正です。');
     }
     $fromCorrelation = $transitionCount > 0 ? 1 : 0;
+    $ml = teacher_hesitation_ml_flag($conn, $teacherId);
 
     clustering_usage_insert(
         $conn,
         'INSERT INTO clustering_result
          (teacher_id, selected_features, clustering_method, requested_cluster_count,
           actual_cluster_count, target_uids, target_wids, student_count,
-          from_feature_correlation, feature_correlation_transition_count)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          from_feature_correlation, feature_correlation_transition_count, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacherId,
             clustering_usage_json($features),
@@ -531,7 +538,7 @@ function clustering_usage_log_result(
             $studentCount,
             $fromCorrelation,
             $transitionCount,
+            $ml,
         ]
     );
 }
-

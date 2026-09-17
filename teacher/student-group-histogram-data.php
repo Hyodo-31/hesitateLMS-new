@@ -7,6 +7,7 @@ require '../dbc.php';
 ob_start();
 require_once __DIR__ . '/student-feature-tooltip.php';
 ob_end_clean();
+require_once __DIR__ . '/hesitation-estimation-state.php';
 
 ini_set('display_errors', '0');
 $lang = $_SESSION['lang'] ?? $_COOKIE['lang'] ?? 'ja';
@@ -339,7 +340,7 @@ try {
         $sql = "SELECT 'all' AS series_key,
                        tr.UID AS sample_key,
                        (SUM(CASE WHEN tr.Understand = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS value
-                FROM temporary_results tr
+                FROM " . teacher_hesitation_results_source('tr') . "
                 JOIN students s ON tr.UID = s.uid
                 JOIN ClassTeacher ct ON s.ClassID = ct.ClassID
                 WHERE ct.TID = ?";

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
 function grouping_usage_payload(): array
 {
     $raw = $_POST['payload'] ?? '';
@@ -361,11 +363,12 @@ function grouping_usage_log_wid_select(mysqli $conn, string $teacher_id, array $
         $wids,
         false
     );
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     grouping_usage_insert(
         $conn,
         'INSERT INTO Grouping_WIDselect
-         (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed)
-         VALUES (?, ?, ?, ?, ?, ?)',
+         (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $method,
@@ -373,6 +376,7 @@ function grouping_usage_log_wid_select(mysqli $conn, string $teacher_id, array $
             $histogram['features'] === null ? null : grouping_usage_json($histogram['features']),
             $histogram['conditions'] === null ? null : grouping_usage_json($histogram['conditions']),
             $histogram['bin_width_changed'],
+            $ml,
         ]
     );
 }
@@ -426,14 +430,15 @@ function grouping_usage_log_uid_select(mysqli $conn, string $teacher_id, array $
         }
     }
 
+    $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     grouping_usage_insert(
         $conn,
         'INSERT INTO Grouping_UIDselect
          (teacher_id, selection_method, selected_uids, reflected_candidate_uids, selected_wids,
           group_condition_used, group_expression, group_expression_tokens, histogram_features,
           histogram_conditions, histogram_bin_width_changed, correctness_filter, correctness_filter_used,
-          hesitation_filter, hesitation_filter_used)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          hesitation_filter, hesitation_filter_used, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacher_id,
             $method,
@@ -450,6 +455,7 @@ function grouping_usage_log_uid_select(mysqli $conn, string $teacher_id, array $
             $filters['correctness_used'],
             $filters['hesitation'],
             $filters['hesitation_used'],
+            $ml,
         ]
     );
 }

@@ -1,6 +1,9 @@
 <?php
 include '../lang.php';
 require "../dbc.php";
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
+$student_info_hesitation_source = teacher_hesitation_results_source('tr');
 //GET受け取り
 $lang = $_SESSION['lang'] ?? 'ja';
 
@@ -31,7 +34,7 @@ $result->free();
 $getUIDinfoQuery = "SELECT COUNT(tr.WID) AS total_answers,
                         SUM(CASE WHEN l.TF = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(l.WID) AS accuracy,
                         SUM(CASE WHEN tr.Understand = 2 THEN 1 ELSE 0 END) *100.0 / COUNT(tr.WID)AS hesitation_rate
-                        FROM temporary_results tr
+                        FROM {$student_info_hesitation_source}
                         LEFT JOIN linedata l ON tr.uid = l.uid AND tr.WID = l.WID
                         WHERE tr.uid = ? AND tr.teacher_id = ?
                         GROUP BY tr.uid;";
@@ -83,7 +86,7 @@ while ($row = $resultCache->fetch_assoc()) {
 $stmtCache->close();
 // ★★★★★★★★★★★★★★★★★★★ 修正はここまで ★★★★★★★★★★★★★★★★★★
 $getGrammarStatsQuery = "SELECT tr.UID, tr.WID,qi.grammar, l.TF, tr.Understand
-                            FROM temporary_results tr
+                            FROM {$student_info_hesitation_source}
                             LEFT JOIN linedata l ON tr.uid = l.uid AND tr.WID = l.WID
                             JOIN question_info qi ON tr.WID = qi.WID
                             WHERE tr.uid = ? AND tr.teacher_id = ?;";

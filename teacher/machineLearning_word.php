@@ -1,6 +1,7 @@
 <?php
 include '../lang.php';
 require '../dbc.php';
+require_once __DIR__ . '/hesitation-estimation-state.php';
 
 if (empty($_SESSION['MemberID'])) {
     http_response_code(401);
@@ -80,14 +81,15 @@ if ($stmt = $conn->prepare('SELECT COUNT(*) AS cnt FROM test_featurevalue_word')
     $featureCount = (int)($res['cnt'] ?? 0);
     $stmt->close();
 }
-if ($stmt = $conn->prepare('SELECT COUNT(*) AS cnt FROM temporary_results_word WHERE teacher_id = ?')) {
+$wordResultsSource = teacher_hesitation_word_results_source('tr');
+if ($stmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM {$wordResultsSource} WHERE tr.teacher_id = ?")) {
     $stmt->bind_param('s', $teacherId);
     $stmt->execute();
     $res = $stmt->get_result()->fetch_assoc();
     $resultCount = (int)($res['cnt'] ?? 0);
     $stmt->close();
 }
-if ($stmt = $conn->prepare('SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Understand, tfw.word_text FROM temporary_results_word tr LEFT JOIN test_featurevalue_word tfw ON tfw.UID = tr.UID AND tfw.WID = tr.WID AND tfw.WWID = tr.WWID AND tfw.attempt = tr.attempt WHERE tr.teacher_id = ? ORDER BY tr.created_at DESC')) {
+if ($stmt = $conn->prepare("SELECT tr.UID, tr.WID, tr.WWID, tr.attempt, tr.Understand, tfw.word_text FROM {$wordResultsSource} LEFT JOIN test_featurevalue_word tfw ON tfw.UID = tr.UID AND tfw.WID = tr.WID AND tfw.WWID = tr.WWID AND tfw.attempt = tr.attempt WHERE tr.teacher_id = ? ORDER BY tr.created_at DESC")) {
     $stmt->bind_param('s', $teacherId);
     $stmt->execute();
     $result = $stmt->get_result();

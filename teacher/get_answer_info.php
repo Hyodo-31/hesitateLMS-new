@@ -1,6 +1,10 @@
 <?php
 include '../lang.php';
 require "../dbc.php";
+require_once __DIR__ . '/hesitation-estimation-state.php';
+
+$answer_hesitation_results_source = teacher_hesitation_results_source('tr');
+$answer_hesitation_rate_source = teacher_hesitation_results_source('tr_rate');
 //GET受け取り
 $uid = $_GET['uid'] ? $_GET['uid'] : null;
 $wid = $_GET['wid'] ? $_GET['wid'] : null;
@@ -69,7 +73,7 @@ $getwidinfoQuery = "SELECT
         GROUP_CONCAT(DISTINCT lm.Label ORDER BY lm.Label SEPARATOR '|') AS label_group
 
     FROM linedata l
-    LEFT JOIN temporary_results tr
+    LEFT JOIN {$answer_hesitation_results_source}
         ON l.UID = tr.UID
        AND l.WID = tr.WID
        AND l.attempt = tr.attempt
@@ -198,11 +202,11 @@ $result->free();
 //その問題の正解率と迷い率を取得
 $getAnswerRateQuery = "SELECT 
                         SUM(CASE WHEN linedata.TF = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(linedata.WID) AS quesaccuracy,
-                        SUM(CASE WHEN temporary_results.Understand = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(linedata.WID) AS queshesitation_rate
+                        SUM(CASE WHEN tr_rate.Understand = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(linedata.WID) AS queshesitation_rate
                     FROM linedata
-                    LEFT JOIN temporary_results 
-                        ON linedata.WID = temporary_results.WID 
-                        AND linedata.attempt = temporary_results.attempt
+                    LEFT JOIN {$answer_hesitation_rate_source}
+                        ON linedata.WID = tr_rate.WID
+                        AND linedata.attempt = tr_rate.attempt
                     WHERE linedata.WID = ?";
 $getAnswerRate = $conn->prepare($getAnswerRateQuery);
 $getAnswerRate->bind_param('i',$wid);
@@ -237,7 +241,7 @@ $getLabelQuery = "SELECT
                         ON lm.UID = l.UID 
                         AND lm.WID = l.WID 
                         AND lm.attempt = l.attempt
-                    LEFT JOIN temporary_results tr
+                    LEFT JOIN {$answer_hesitation_results_source}
                         ON lm.UID = tr.UID 
                         AND lm.WID = tr.WID 
                         AND lm.attempt = tr.attempt
