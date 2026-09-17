@@ -2719,6 +2719,7 @@ async function loadData(refreshRanking = true, usageTrigger = 'initial_load', ra
 
         renderStats(data);
         renderChart(data.points || [], data.x_label, data.y_label, data.mode);
+        window.TeacherTabTransition?.recordCorrelationActivity?.(data.mode, usageTrigger);
 
         if (mode === 'understand') {
             if (refreshRanking) {

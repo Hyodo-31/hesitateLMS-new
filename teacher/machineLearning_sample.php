@@ -399,6 +399,7 @@ $featureDisplayFeatureKeys = [
 
             $machineLearningRunReady = false;
             $machineLearningInputError = '';
+            $machineLearningTransitionAcknowledgement = null;
 
             // フォームからの入力を受け取る
             $UIDrange = isset($_POST['UIDrange']) ? $_POST['UIDrange'] : null;
@@ -696,7 +697,7 @@ $featureDisplayFeatureKeys = [
                     // ログ失敗は既存の機械学習処理を妨げない。
                     try {
                         require_once __DIR__ . '/machine-learning-usage-log.php';
-                        machine_learning_usage_log_execution(
+                        $machineLearningTransitionAcknowledgement = machine_learning_usage_log_execution(
                             $conn,
                             (string)($_SESSION['MemberID'] ?? ''),
                             $_POST,
@@ -1170,13 +1171,240 @@ $featureDisplayFeatureKeys = [
 
 
             <script>
+                const machineLearningTransitionTeacherId = <?= json_encode((string)($_SESSION['TID'] ?? $_SESSION['MemberID'] ?? ''), JSON_UNESCAPED_UNICODE) ?>;
+                const machineLearningTransitionMarkerKey = `hesitateLms:correlationToClustering:${machineLearningTransitionTeacherId}`;
+                const machineLearningTransitionCountKey = `hesitateLms:correlationToMachineLearningCounts:${machineLearningTransitionTeacherId}`;
+                const machineLearningTransitionStateVersionKey = `${machineLearningTransitionCountKey}:version`;
+                const machineLearningTransitionStateVersion = '2';
+                const machineLearningTransitionModes = ['understand', 'hesitation_degree', 'feature_pair'];
+                const machineLearningTransitionMarkerLifetimeMs = 10000;
+                let pendingMachineLearningCorrelationTransition = null;
+
+                function emptyMachineLearningTransitionSnapshot() {
+                    return {
+                        total: 0,
+                        understand: 0,
+                        hesitation_degree: 0,
+                        feature_pair: 0,
+                    };
+                }
+
+                function normalizeMachineLearningTransitionCount(value) {
+                    const count = Number(value);
+                    return Number.isInteger(count) && count > 0 ? Math.min(count, 10000) : 0;
+                }
+
+                function ensureMachineLearningTransitionStateVersion() {
+                    if (!machineLearningTransitionTeacherId) return;
+                    try {
+                        if (localStorage.getItem(machineLearningTransitionStateVersionKey)
+                            === machineLearningTransitionStateVersion) {
+                            return;
+                        }
+                        localStorage.removeItem(machineLearningTransitionCountKey);
+                        localStorage.setItem(
+                            machineLearningTransitionStateVersionKey,
+                            machineLearningTransitionStateVersion
+                        );
+                    } catch (error) {
+                        // ブラウザー保存が利用できない場合は移動回数0として継続する。
+                    }
+                }
+
+                function normalizeMachineLearningTransitionSnapshot(rawSnapshot) {
+                    const snapshot = emptyMachineLearningTransitionSnapshot();
+                    let remaining = 10000;
+                    machineLearningTransitionModes.forEach((mode) => {
+                        snapshot[mode] = Math.min(
+                            remaining,
+                            normalizeMachineLearningTransitionCount(rawSnapshot?.[mode] || 0)
+                        );
+                        remaining -= snapshot[mode];
+                    });
+                    snapshot.total = 10000 - remaining;
+                    return snapshot;
+                }
+
+                function machineLearningMarkerSnapshot(marker) {
+                    if (marker?.correlation_counts && typeof marker.correlation_counts === 'object') {
+                        return normalizeMachineLearningTransitionSnapshot(marker.correlation_counts);
+                    }
+                    const legacySnapshot = emptyMachineLearningTransitionSnapshot();
+                    if (machineLearningTransitionModes.includes(marker?.analysis_mode)) {
+                        legacySnapshot[marker.analysis_mode] = 1;
+                        legacySnapshot.total = 1;
+                    }
+                    return legacySnapshot;
+                }
+
+                function addMachineLearningTransitionSnapshots(currentSnapshot, addedSnapshot) {
+                    const combined = normalizeMachineLearningTransitionSnapshot(currentSnapshot);
+                    let remaining = Math.max(0, 10000 - combined.total);
+                    machineLearningTransitionModes.forEach((mode) => {
+                        if (remaining <= 0) return;
+                        const added = Math.min(
+                            remaining,
+                            normalizeMachineLearningTransitionCount(addedSnapshot?.[mode] || 0)
+                        );
+                        combined[mode] += added;
+                        remaining -= added;
+                    });
+                    combined.total = combined.understand
+                        + combined.hesitation_degree
+                        + combined.feature_pair;
+                    return combined;
+                }
+
+                function readMachineLearningTransitionSnapshot() {
+                    if (!machineLearningTransitionTeacherId) return emptyMachineLearningTransitionSnapshot();
+                    try {
+                        const parsed = JSON.parse(localStorage.getItem(machineLearningTransitionCountKey) || '{}');
+                        const snapshot = emptyMachineLearningTransitionSnapshot();
+                        let remaining = 10000;
+                        machineLearningTransitionModes.forEach((mode) => {
+                            snapshot[mode] = Math.min(
+                                remaining,
+                                normalizeMachineLearningTransitionCount(parsed?.[mode] || 0)
+                            );
+                            remaining -= snapshot[mode];
+                        });
+                        snapshot.total = 10000 - remaining;
+                        return snapshot;
+                    } catch (error) {
+                        return emptyMachineLearningTransitionSnapshot();
+                    }
+                }
+
+                function writeMachineLearningTransitionSnapshot(snapshot) {
+                    if (!machineLearningTransitionTeacherId) return;
+                    try {
+                        const normalized = emptyMachineLearningTransitionSnapshot();
+                        let remaining = 10000;
+                        machineLearningTransitionModes.forEach((mode) => {
+                            normalized[mode] = Math.min(
+                                remaining,
+                                normalizeMachineLearningTransitionCount(snapshot?.[mode] || 0)
+                            );
+                            remaining -= normalized[mode];
+                        });
+                        normalized.total = 10000 - remaining;
+                        localStorage.setItem(machineLearningTransitionCountKey, JSON.stringify(normalized));
+                    } catch (error) {
+                        // ブラウザー保存が利用できない場合は移動回数0として継続する。
+                    }
+                }
+
+                function syncMachineLearningTransitionInputs() {
+                    const snapshot = readMachineLearningTransitionSnapshot();
+                    const values = {
+                        'ml-correlation-transition-total': snapshot.total,
+                        'ml-correlation-transition-understand': snapshot.understand,
+                        'ml-correlation-transition-hesitation-degree': snapshot.hesitation_degree,
+                        'ml-correlation-transition-feature-pair': snapshot.feature_pair,
+                    };
+                    Object.entries(values).forEach(([id, value]) => {
+                        const input = document.getElementById(id);
+                        if (input) input.value = String(value);
+                    });
+                    return snapshot;
+                }
+
+                function consumeMachineLearningCorrelationMarker() {
+                    if (!machineLearningTransitionTeacherId || document.hidden) return;
+                    try {
+                        const rawMarker = localStorage.getItem(machineLearningTransitionMarkerKey);
+                        if (!rawMarker) return;
+                        localStorage.removeItem(machineLearningTransitionMarkerKey);
+                        const marker = JSON.parse(rawMarker);
+                        const age = Date.now() - Number(marker?.hidden_at || 0);
+                        const markerSnapshot = machineLearningMarkerSnapshot(marker);
+                        if (marker?.teacher_id !== machineLearningTransitionTeacherId
+                            || marker?.source !== 'feature_correlation.php'
+                            || markerSnapshot.total === 0
+                            || age < 0
+                            || age > machineLearningTransitionMarkerLifetimeMs) {
+                            return;
+                        }
+                        pendingMachineLearningCorrelationTransition = markerSnapshot;
+                    } catch (error) {
+                        pendingMachineLearningCorrelationTransition = null;
+                        try {
+                            localStorage.removeItem(machineLearningTransitionMarkerKey);
+                        } catch (storageError) {
+                            // 保存領域へアクセスできなくても画面操作は継続する。
+                        }
+                    }
+                }
+
+                function commitMachineLearningCorrelationTransition() {
+                    const markerSnapshot = pendingMachineLearningCorrelationTransition;
+                    pendingMachineLearningCorrelationTransition = null;
+                    if (!markerSnapshot || markerSnapshot.total === 0) {
+                        syncMachineLearningTransitionInputs();
+                        return;
+                    }
+                    writeMachineLearningTransitionSnapshot(addMachineLearningTransitionSnapshots(
+                        readMachineLearningTransitionSnapshot(),
+                        markerSnapshot
+                    ));
+                    syncMachineLearningTransitionInputs();
+                }
+
+                function acknowledgeMachineLearningCorrelationTransition(usedSnapshot) {
+                    const current = readMachineLearningTransitionSnapshot();
+                    machineLearningTransitionModes.forEach((mode) => {
+                        current[mode] = Math.max(
+                            0,
+                            current[mode] - normalizeMachineLearningTransitionCount(usedSnapshot?.[mode] || 0)
+                        );
+                    });
+                    writeMachineLearningTransitionSnapshot(current);
+                    syncMachineLearningTransitionInputs();
+                }
+
+                window.MachineLearningCorrelationTransition = {
+                    getSnapshot: syncMachineLearningTransitionInputs,
+                    acknowledge: acknowledgeMachineLearningCorrelationTransition,
+                };
+
                 function openFeatureModal() {
                     document.getElementById("feature-modal").style.display = "block";
+                    consumeMachineLearningCorrelationMarker();
+                    commitMachineLearningCorrelationTransition();
                 }
 
                 function closeFeatureModal() {
                     document.getElementById("feature-modal").style.display = "none";
                 }
+
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        pendingMachineLearningCorrelationTransition = null;
+                        return;
+                    }
+                    consumeMachineLearningCorrelationMarker();
+                    if (document.getElementById('feature-modal')?.style.display === 'block') {
+                        commitMachineLearningCorrelationTransition();
+                    }
+                });
+                window.addEventListener('focus', () => {
+                    consumeMachineLearningCorrelationMarker();
+                    if (document.getElementById('feature-modal')?.style.display === 'block') {
+                        commitMachineLearningCorrelationTransition();
+                    }
+                });
+                document.addEventListener('DOMContentLoaded', () => {
+                    ensureMachineLearningTransitionStateVersion();
+                    consumeMachineLearningCorrelationMarker();
+                    syncMachineLearningTransitionInputs();
+                    const form = document.getElementById('machineLearningForm');
+                    form?.addEventListener('submit', syncMachineLearningTransitionInputs);
+
+                    const acknowledgedSnapshot = <?= json_encode($machineLearningTransitionAcknowledgement, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+                    if (acknowledgedSnapshot) {
+                        acknowledgeMachineLearningCorrelationTransition(acknowledgedSnapshot);
+                    }
+                });
             </script>
 
             <div id="feature-modal-graph" class="modal">
@@ -2036,6 +2264,10 @@ $featureDisplayFeatureKeys = [
                         </table>
                         <input type="hidden" id="classifier-preset" name="classifierPreset" value="">
                         <input type="hidden" id="classifier-preset-modified" name="classifierPresetModified" value="0">
+                        <input type="hidden" id="ml-correlation-transition-total" name="featureCorrelationTransitionCount" value="0">
+                        <input type="hidden" id="ml-correlation-transition-understand" name="featureCorrelationUnderstandTransitionCount" value="0">
+                        <input type="hidden" id="ml-correlation-transition-hesitation-degree" name="featureCorrelationHesitationDegreeTransitionCount" value="0">
+                        <input type="hidden" id="ml-correlation-transition-feature-pair" name="featureCorrelationFeaturePairTransitionCount" value="0">
                         <input type="submit" id="machineLearningcons"
                             value="<?= translate('machineLearning_sample.php_1054行目_機械学習') ?>">
                         <button type="button" id="reset-button"

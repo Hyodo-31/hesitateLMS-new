@@ -28,13 +28,66 @@ function machine_learning_usage_normalize_ids($values, string $label, bool $allo
         $normalized[(string)((int)$value)] = true;
     }
 
-    $ids = array_keys($normalized);
+    // PHP converts numeric-string array keys to integers. Convert them back to
+    // strings so strict comparisons with IDs fetched from mysqli stay stable.
+    $ids = array_map('strval', array_keys($normalized));
     sort($ids, SORT_NUMERIC);
     if (!$allowEmpty && empty($ids)) {
         throw new InvalidArgumentException($label . 'が空です。');
     }
 
     return $ids;
+}
+
+function machine_learning_usage_transition_count($rawCount): int
+{
+    if (!is_scalar($rawCount) || !preg_match('/^\d+$/', trim((string)$rawCount))) {
+        throw new InvalidArgumentException('相関画面からの移動回数が不正です。');
+    }
+    $count = (int)$rawCount;
+    if ($count < 0 || $count > 10000) {
+        throw new InvalidArgumentException('相関画面からの移動回数が不正です。');
+    }
+    return $count;
+}
+
+function machine_learning_usage_transition_snapshot(array $post): array
+{
+    $modePostKeys = [
+        'understand' => 'featureCorrelationUnderstandTransitionCount',
+        'hesitation_degree' => 'featureCorrelationHesitationDegreeTransitionCount',
+        'feature_pair' => 'featureCorrelationFeaturePairTransitionCount',
+    ];
+    $providedModeKeys = array_filter(
+        $modePostKeys,
+        static fn(string $postKey): bool => array_key_exists($postKey, $post)
+    );
+    if (!empty($providedModeKeys) && count($providedModeKeys) !== count($modePostKeys)) {
+        throw new InvalidArgumentException('相関モード別の移動回数が不足しています。');
+    }
+
+    $snapshot = [
+        'total' => machine_learning_usage_transition_count(
+            $post['featureCorrelationTransitionCount'] ?? '0'
+        ),
+        'understand' => 0,
+        'hesitation_degree' => 0,
+        'feature_pair' => 0,
+    ];
+    if (empty($providedModeKeys)) {
+        return $snapshot;
+    }
+
+    foreach ($modePostKeys as $mode => $postKey) {
+        $snapshot[$mode] = machine_learning_usage_transition_count($post[$postKey]);
+    }
+    if ($snapshot['total'] !== $snapshot['understand']
+        + $snapshot['hesitation_degree']
+        + $snapshot['feature_pair']) {
+        throw new InvalidArgumentException('相関画面からの総移動回数とモード別回数が一致しません。');
+    }
+
+    return $snapshot;
 }
 
 function machine_learning_usage_validate_teacher(mysqli $conn, string $teacherId): void
@@ -344,7 +397,7 @@ function machine_learning_usage_log_execution(
     array $post,
     array $selectedClassificationUids,
     array $selectedClassificationGroupIds
-): void {
+): array {
     machine_learning_usage_validate_teacher($conn, $teacherId);
     $training = machine_learning_usage_training_data($conn, $teacherId, $post);
     $classificationUids = machine_learning_usage_validate_classification_uids(
@@ -369,20 +422,26 @@ function machine_learning_usage_log_execution(
     $classificationGroupsJson = machine_learning_usage_json($classificationGroups);
     $featuresJson = machine_learning_usage_json($features);
     $presetName = $preset['preset'];
+    $transitionSnapshot = machine_learning_usage_transition_snapshot($post);
+    $fromFeatureCorrelation = $transitionSnapshot['total'] > 0 ? 1 : 0;
     $ml = teacher_hesitation_ml_flag($conn, $teacherId);
 
     $stmt = $conn->prepare(
         'INSERT INTO hesitate_estimate_pre (
              teacher_id, training_data_source, training_group_id, training_group_name,
              training_uids, classification_uids, classification_groups, selected_features,
-             classifier_preset_used, classifier_preset, classifier_preset_modified, ML
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             classifier_preset_used, classifier_preset, classifier_preset_modified,
+             from_feature_correlation, feature_correlation_transition_count,
+             feature_correlation_understand_transition_count,
+             feature_correlation_hesitation_degree_transition_count,
+             feature_correlation_feature_pair_transition_count, ML
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     if (!$stmt) {
         throw new RuntimeException('機械学習ログ保存の準備に失敗しました。');
     }
     $stmt->bind_param(
-        'ssisssssisii',
+        'ssisssssisiiiiiii',
         $teacherId,
         $training['source'],
         $trainingGroupId,
@@ -394,6 +453,11 @@ function machine_learning_usage_log_execution(
         $preset['used'],
         $presetName,
         $preset['modified'],
+        $fromFeatureCorrelation,
+        $transitionSnapshot['total'],
+        $transitionSnapshot['understand'],
+        $transitionSnapshot['hesitation_degree'],
+        $transitionSnapshot['feature_pair'],
         $ml
     );
     if (!$stmt->execute()) {
@@ -402,4 +466,6 @@ function machine_learning_usage_log_execution(
         throw new RuntimeException('機械学習ログの保存に失敗しました: ' . $message);
     }
     $stmt->close();
+
+    return $transitionSnapshot;
 }

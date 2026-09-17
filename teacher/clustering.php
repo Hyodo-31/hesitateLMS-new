@@ -1055,10 +1055,16 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
             const features = selectedValues('.feature-checkbox');
             const method = clusterMethodSelect?.value || 'kmeans';
             const clusterCount = method === 'kmeans' ? (clusterCountInput?.value || '2') : '';
-            const correlationTransitionCount = Math.max(
-                0,
-                Number(window.TeacherTabTransition?.getCorrelationToClusteringCount?.() || 0)
-            );
+            const transitionSnapshot = window.TeacherTabTransition?.getCorrelationToClusteringSnapshot?.() || {
+                total: Math.max(
+                    0,
+                    Number(window.TeacherTabTransition?.getCorrelationToClusteringCount?.() || 0)
+                ),
+                understand: 0,
+                hesitation_degree: 0,
+                feature_pair: 0,
+            };
+            const correlationTransitionCount = Math.max(0, Number(transitionSnapshot.total || 0));
 
             if (!clusteringSelectionApplied) {
                 setStatus('問題(WID)→学習者(UID)の絞り込みで、クラスタリング対象を反映してください。', true);
@@ -1090,7 +1096,10 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                         wids: selectedClusteringWids.join(','),
                         clusterCount,
                         method,
-                        featureCorrelationTransitionCount: String(correlationTransitionCount)
+                        featureCorrelationTransitionCount: String(correlationTransitionCount),
+                        featureCorrelationUnderstandTransitionCount: String(transitionSnapshot.understand || 0),
+                        featureCorrelationHesitationDegreeTransitionCount: String(transitionSnapshot.hesitation_degree || 0),
+                        featureCorrelationFeaturePairTransitionCount: String(transitionSnapshot.feature_pair || 0)
                     }).toString()
                 });
                 const text = await response.text();
@@ -1105,11 +1114,12 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
                     throw new Error(data.error || 'クラスタリングに失敗しました。');
                 }
 
-                window.TeacherTabTransition?.acknowledgeCorrelationToClusteringCount?.(
-                    correlationTransitionCount
-                );
                 if (data.usage_log_ok === false) {
                     console.warn('クラスタリング成功ログを保存できませんでした。');
+                } else {
+                    window.TeacherTabTransition?.acknowledgeCorrelationToClusteringSnapshot?.(
+                        transitionSnapshot
+                    );
                 }
 
                 latestClusters = data.clusters || {};

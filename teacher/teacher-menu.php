@@ -160,47 +160,197 @@ if (!function_exists('teacher_menu_group_class')) {
         const transitionPage = <?= json_encode(basename(parse_url($_SERVER['SCRIPT_NAME'] ?? '', PHP_URL_PATH) ?: ''), JSON_UNESCAPED_UNICODE) ?>;
         const transitionMarkerKey = `hesitateLms:correlationToClustering:${transitionTeacherId}`;
         const transitionCountKey = `hesitateLms:correlationToClusteringCount:${transitionTeacherId}`;
+        const transitionStateVersionKey = `${transitionCountKey}:version`;
+        const transitionStateVersion = '3';
+        const correlationModes = ['understand', 'hesitation_degree', 'feature_pair'];
+        const countedCorrelationTriggers = new Set([
+            'uid_selection',
+            'a_university_2019',
+            'mode_change',
+            'feature_x_change',
+            'feature_y_change',
+            'prediction_filter_change',
+            'display_button',
+            'ranking_click',
+            'legacy_filter_change',
+        ]);
         const hesitationStateChangedKey = `hesitateLms:hesitationStateChanged:${transitionTeacherId}`;
         const transitionMarkerLifetimeMs = 10000;
+        let correlationActivitySnapshot = null;
 
-        function readTransitionCount() {
-            if (!transitionTeacherId) return 0;
-            try {
-                const count = Number(sessionStorage.getItem(transitionCountKey) || 0);
-                return Number.isInteger(count) && count > 0 ? Math.min(count, 10000) : 0;
-            } catch (error) {
-                return 0;
-            }
+        function normalizeTransitionCount(value) {
+            const count = Number(value);
+            return Number.isInteger(count) && count > 0 ? Math.min(count, 10000) : 0;
         }
 
-        function writeTransitionCount(count) {
+        function transitionModeKey(mode) {
+            return `${transitionCountKey}:${mode}`;
+        }
+
+        function ensureTransitionStateVersion() {
             if (!transitionTeacherId) return;
             try {
-                sessionStorage.setItem(
-                    transitionCountKey,
-                    String(Math.max(0, Math.min(10000, Number(count) || 0)))
-                );
+                if (sessionStorage.getItem(transitionStateVersionKey) === transitionStateVersion) return;
+                sessionStorage.removeItem(transitionCountKey);
+                correlationModes.forEach((mode) => sessionStorage.removeItem(transitionModeKey(mode)));
+                sessionStorage.setItem(transitionStateVersionKey, transitionStateVersion);
             } catch (error) {
                 // ブラウザー保存が利用できない場合も画面操作は継続する。
             }
         }
 
+        function emptyTransitionSnapshot() {
+            return {
+                total: 0,
+                understand: 0,
+                hesitation_degree: 0,
+                feature_pair: 0,
+            };
+        }
+
+        correlationActivitySnapshot = emptyTransitionSnapshot();
+
+        function normalizedSnapshot(rawSnapshot) {
+            const snapshot = emptyTransitionSnapshot();
+            let remaining = 10000;
+            correlationModes.forEach((mode) => {
+                snapshot[mode] = Math.min(
+                    remaining,
+                    normalizeTransitionCount(rawSnapshot?.[mode] || 0)
+                );
+                remaining -= snapshot[mode];
+            });
+            snapshot.total = 10000 - remaining;
+            return snapshot;
+        }
+
+        function markerTransitionSnapshot(marker) {
+            if (marker?.correlation_counts && typeof marker.correlation_counts === 'object') {
+                return normalizedSnapshot(marker.correlation_counts);
+            }
+            const legacySnapshot = emptyTransitionSnapshot();
+            if (correlationModes.includes(marker?.analysis_mode)) {
+                legacySnapshot[marker.analysis_mode] = 1;
+                legacySnapshot.total = 1;
+            }
+            return legacySnapshot;
+        }
+
+        function addTransitionSnapshots(currentSnapshot, addedSnapshot) {
+            const combined = normalizedSnapshot(currentSnapshot);
+            let remaining = Math.max(0, 10000 - combined.total);
+            correlationModes.forEach((mode) => {
+                if (remaining <= 0) return;
+                const added = Math.min(
+                    remaining,
+                    normalizeTransitionCount(addedSnapshot?.[mode] || 0)
+                );
+                combined[mode] += added;
+                remaining -= added;
+            });
+            combined.total = combined.understand
+                + combined.hesitation_degree
+                + combined.feature_pair;
+            return combined;
+        }
+
+        function readTransitionSnapshot() {
+            const snapshot = emptyTransitionSnapshot();
+            if (!transitionTeacherId) return snapshot;
+            try {
+                let remaining = 10000;
+                correlationModes.forEach((mode) => {
+                    snapshot[mode] = Math.min(
+                        remaining,
+                        normalizeTransitionCount(sessionStorage.getItem(transitionModeKey(mode)) || 0)
+                    );
+                    remaining -= snapshot[mode];
+                });
+                snapshot.total = 10000 - remaining;
+            } catch (error) {
+                return emptyTransitionSnapshot();
+            }
+            return snapshot;
+        }
+
+        function writeTransitionSnapshot(snapshot) {
+            if (!transitionTeacherId) return;
+            try {
+                const normalized = emptyTransitionSnapshot();
+                let remaining = 10000;
+                correlationModes.forEach((mode) => {
+                    normalized[mode] = Math.min(
+                        remaining,
+                        normalizeTransitionCount(snapshot?.[mode] || 0)
+                    );
+                    remaining -= normalized[mode];
+                    sessionStorage.setItem(transitionModeKey(mode), String(normalized[mode]));
+                });
+                normalized.total = 10000 - remaining;
+                sessionStorage.setItem(transitionCountKey, String(normalized.total));
+            } catch (error) {
+                // ブラウザー保存が利用できない場合も画面操作は継続する。
+            }
+        }
+
+        function readTransitionCount() {
+            return readTransitionSnapshot().total;
+        }
+
+        function writeTransitionCount(count) {
+            if (normalizeTransitionCount(count) === 0) {
+                writeTransitionSnapshot(emptyTransitionSnapshot());
+            }
+        }
+
         window.TeacherTabTransition = {
+            recordCorrelationActivity(mode, trigger) {
+                if (transitionPage !== 'feature_correlation.php'
+                    || !correlationModes.includes(mode)
+                    || !countedCorrelationTriggers.has(trigger)
+                    || correlationActivitySnapshot.total >= 10000) {
+                    return;
+                }
+                correlationActivitySnapshot[mode] += 1;
+                correlationActivitySnapshot.total += 1;
+            },
             getCorrelationToClusteringCount() {
                 return readTransitionCount();
             },
+            getCorrelationToClusteringSnapshot() {
+                return readTransitionSnapshot();
+            },
             acknowledgeCorrelationToClusteringCount(usedCount) {
                 const used = Math.max(0, Number(usedCount) || 0);
-                writeTransitionCount(Math.max(0, readTransitionCount() - used));
+                if (used >= readTransitionCount()) {
+                    writeTransitionCount(0);
+                }
+            },
+            acknowledgeCorrelationToClusteringSnapshot(usedSnapshot) {
+                const current = readTransitionSnapshot();
+                correlationModes.forEach((mode) => {
+                    current[mode] = Math.max(
+                        0,
+                        current[mode] - normalizeTransitionCount(usedSnapshot?.[mode] || 0)
+                    );
+                });
+                writeTransitionSnapshot(current);
             },
         };
 
         function markCorrelationTabHidden() {
             if (!transitionTeacherId || transitionPage !== 'feature_correlation.php') return;
+            const snapshot = normalizedSnapshot(correlationActivitySnapshot);
+            correlationActivitySnapshot = emptyTransitionSnapshot();
             try {
+                // A marker represents only the correlation operations performed
+                // during the visibility period that has just ended.
+                localStorage.removeItem(transitionMarkerKey);
+                if (snapshot.total === 0) return;
                 localStorage.setItem(transitionMarkerKey, JSON.stringify({
                     teacher_id: transitionTeacherId,
                     source: 'feature_correlation.php',
+                    correlation_counts: snapshot,
                     marker_id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
                     hidden_at: Date.now(),
                 }));
@@ -217,13 +367,18 @@ if (!function_exists('teacher_menu_group_class')) {
                 localStorage.removeItem(transitionMarkerKey);
                 const marker = JSON.parse(rawMarker);
                 const age = Date.now() - Number(marker?.hidden_at || 0);
+                const markerSnapshot = markerTransitionSnapshot(marker);
                 if (marker?.teacher_id !== transitionTeacherId
                     || marker?.source !== 'feature_correlation.php'
+                    || markerSnapshot.total === 0
                     || age < 0
                     || age > transitionMarkerLifetimeMs) {
                     return;
                 }
-                writeTransitionCount(readTransitionCount() + 1);
+                writeTransitionSnapshot(addTransitionSnapshots(
+                    readTransitionSnapshot(),
+                    markerSnapshot
+                ));
             } catch (error) {
                 try {
                     localStorage.removeItem(transitionMarkerKey);
@@ -235,6 +390,7 @@ if (!function_exists('teacher_menu_group_class')) {
 
         function initTeacherTabTransition() {
             if (!transitionTeacherId) return;
+            ensureTransitionStateVersion();
             if (transitionPage === 'feature_correlation.php') {
                 document.addEventListener('visibilitychange', () => {
                     if (document.hidden) markCorrelationTabHidden();

@@ -471,6 +471,33 @@ function clustering_usage_transition_count($rawCount): int
     return $count;
 }
 
+function clustering_usage_transition_snapshot(
+    $rawTotal,
+    array $rawModeCounts,
+    bool $modeCountsProvided
+): array {
+    $snapshot = [
+        'total' => clustering_usage_transition_count($rawTotal),
+        'understand' => 0,
+        'hesitation_degree' => 0,
+        'feature_pair' => 0,
+    ];
+    if (!$modeCountsProvided) {
+        return $snapshot;
+    }
+
+    foreach (['understand', 'hesitation_degree', 'feature_pair'] as $mode) {
+        $snapshot[$mode] = clustering_usage_transition_count($rawModeCounts[$mode] ?? null);
+    }
+    if ($snapshot['total'] !== $snapshot['understand']
+        + $snapshot['hesitation_degree']
+        + $snapshot['feature_pair']) {
+        throw new InvalidArgumentException('相関画面からの総移動回数とモード別回数が一致しません。');
+    }
+
+    return $snapshot;
+}
+
 function clustering_usage_log_result(
     mysqli $conn,
     string $teacherId,
@@ -481,7 +508,7 @@ function clustering_usage_log_result(
     array $rawTargetUids,
     array $rawTargetWids,
     int $studentCount,
-    int $transitionCount
+    array $transitionSnapshot
 ): void {
     clustering_usage_validate_teacher($conn, $teacherId);
     $features = clustering_usage_result_features($conn, $rawFeatures);
@@ -514,9 +541,15 @@ function clustering_usage_log_result(
         clustering_usage_class_wids($conn, $teacherId, $requestedWids),
         '処理対象WID'
     );
-    if ($transitionCount < 0 || $transitionCount > 10000) {
-        throw new InvalidArgumentException('相関画面からの移動回数が不正です。');
+    foreach (['total', 'understand', 'hesitation_degree', 'feature_pair'] as $transitionKey) {
+        if (!isset($transitionSnapshot[$transitionKey])
+            || !is_int($transitionSnapshot[$transitionKey])
+            || $transitionSnapshot[$transitionKey] < 0
+            || $transitionSnapshot[$transitionKey] > 10000) {
+            throw new InvalidArgumentException('相関画面からの移動回数が不正です。');
+        }
     }
+    $transitionCount = $transitionSnapshot['total'];
     $fromCorrelation = $transitionCount > 0 ? 1 : 0;
     $ml = teacher_hesitation_ml_flag($conn, $teacherId);
 
@@ -525,8 +558,11 @@ function clustering_usage_log_result(
         'INSERT INTO clustering_result
          (teacher_id, selected_features, clustering_method, requested_cluster_count,
           actual_cluster_count, target_uids, target_wids, student_count,
-          from_feature_correlation, feature_correlation_transition_count, ML)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          from_feature_correlation, feature_correlation_transition_count,
+          feature_correlation_understand_transition_count,
+          feature_correlation_hesitation_degree_transition_count,
+          feature_correlation_feature_pair_transition_count, ML)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             $teacherId,
             clustering_usage_json($features),
@@ -538,6 +574,9 @@ function clustering_usage_log_result(
             $studentCount,
             $fromCorrelation,
             $transitionCount,
+            $transitionSnapshot['understand'],
+            $transitionSnapshot['hesitation_degree'],
+            $transitionSnapshot['feature_pair'],
             $ml,
         ]
     );

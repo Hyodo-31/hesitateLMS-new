@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS `clustering_result` (
   `student_count` INT UNSIGNED NOT NULL,
   `from_feature_correlation` TINYINT(1) NOT NULL DEFAULT 0,
   `feature_correlation_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `feature_correlation_understand_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `feature_correlation_hesitation_degree_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `feature_correlation_feature_pair_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
   `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
@@ -57,6 +60,12 @@ CREATE TABLE IF NOT EXISTS `clustering_result` (
   CONSTRAINT `chk_clustering_result_transition` CHECK (
     (`from_feature_correlation` = 0 AND `feature_correlation_transition_count` = 0)
     OR (`from_feature_correlation` = 1 AND `feature_correlation_transition_count` > 0)
+  ),
+  CONSTRAINT `chk_clustering_result_transition_modes` CHECK (
+    `feature_correlation_understand_transition_count`
+      + `feature_correlation_hesitation_degree_transition_count`
+      + `feature_correlation_feature_pair_transition_count`
+    <= `feature_correlation_transition_count`
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -68,6 +77,11 @@ ALTER TABLE `clustering_UIDselect`
 
 ALTER TABLE `clustering_result`
   ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
+
+ALTER TABLE `clustering_result`
+  ADD COLUMN IF NOT EXISTS `feature_correlation_understand_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS `feature_correlation_hesitation_degree_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS `feature_correlation_feature_pair_transition_count` INT UNSIGNED NOT NULL DEFAULT 0;
 
 CREATE OR REPLACE VIEW `Clustering_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,
@@ -90,4 +104,25 @@ SELECT `teacher_id`, 'correlation_to_clustering_transition' AS `function_name`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
 FROM `clustering_result`
 WHERE `feature_correlation_transition_count` > 0
+GROUP BY `teacher_id`
+UNION ALL
+SELECT `teacher_id`, 'correlation_understand_to_clustering_transition' AS `function_name`,
+       SUM(`feature_correlation_understand_transition_count`) AS `use_count`,
+       MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
+FROM `clustering_result`
+WHERE `feature_correlation_understand_transition_count` > 0
+GROUP BY `teacher_id`
+UNION ALL
+SELECT `teacher_id`, 'correlation_hesitation_degree_to_clustering_transition' AS `function_name`,
+       SUM(`feature_correlation_hesitation_degree_transition_count`) AS `use_count`,
+       MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
+FROM `clustering_result`
+WHERE `feature_correlation_hesitation_degree_transition_count` > 0
+GROUP BY `teacher_id`
+UNION ALL
+SELECT `teacher_id`, 'correlation_feature_pair_to_clustering_transition' AS `function_name`,
+       SUM(`feature_correlation_feature_pair_transition_count`) AS `use_count`,
+       MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
+FROM `clustering_result`
+WHERE `feature_correlation_feature_pair_transition_count` > 0
 GROUP BY `teacher_id`;

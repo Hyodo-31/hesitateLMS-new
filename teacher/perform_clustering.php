@@ -122,6 +122,20 @@ $requestedClusterCount = $method === 'kmeans'
     : null;
 $clusterCount = $requestedClusterCount ?? 1;
 $rawCorrelationTransitionCount = $_POST['featureCorrelationTransitionCount'] ?? '0';
+$correlationModeCountPostKeys = [
+    'understand' => 'featureCorrelationUnderstandTransitionCount',
+    'hesitation_degree' => 'featureCorrelationHesitationDegreeTransitionCount',
+    'feature_pair' => 'featureCorrelationFeaturePairTransitionCount',
+];
+$providedCorrelationModeCountKeys = array_filter(
+    $correlationModeCountPostKeys,
+    static fn(string $postKey): bool => array_key_exists($postKey, $_POST)
+);
+$correlationModeCountsProvided = count($providedCorrelationModeCountKeys) === count($correlationModeCountPostKeys);
+$rawCorrelationModeCounts = [];
+foreach ($correlationModeCountPostKeys as $mode => $postKey) {
+    $rawCorrelationModeCounts[$mode] = $_POST[$postKey] ?? '0';
+}
 
 if (empty($features) || empty($studentIds) || empty($widIds)) {
     clusteringJsonResponse(['error' => '特徴量、問題(WID)、または学習者(UID)が不足しています。'], 400);
@@ -262,7 +276,14 @@ if (!is_array($clustersJson) || !isset($clustersJson['clusters']) || !is_array($
 $actualClusterCount = count($clustersJson['clusters']);
 $usageLogOk = true;
 try {
-    $correlationTransitionCount = clustering_usage_transition_count($rawCorrelationTransitionCount);
+    if (!empty($providedCorrelationModeCountKeys) && !$correlationModeCountsProvided) {
+        throw new InvalidArgumentException('相関モード別の移動回数が不足しています。');
+    }
+    $correlationTransitionSnapshot = clustering_usage_transition_snapshot(
+        $rawCorrelationTransitionCount,
+        $rawCorrelationModeCounts,
+        $correlationModeCountsProvided
+    );
     clustering_usage_log_result(
         $conn,
         $teacherId,
@@ -273,7 +294,7 @@ try {
         array_keys($studentsWithData),
         $widIds,
         count($studentsWithData),
-        $correlationTransitionCount
+        $correlationTransitionSnapshot
     );
 } catch (Throwable $usageLogError) {
     $usageLogOk = false;
