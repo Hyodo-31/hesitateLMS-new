@@ -456,14 +456,9 @@ main .individual-details .student-details {
     line-height: 1.2;
 }
 
-.ml-accuracy-method,
-.ml-accuracy-variation,
 .ml-accuracy-unavailable {
     margin: 6px 0 0;
     color: #334155;
-}
-
-.ml-accuracy-unavailable {
     font-weight: 600;
 }
 

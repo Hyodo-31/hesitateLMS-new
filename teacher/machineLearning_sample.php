@@ -2397,24 +2397,7 @@ $featureDisplayFeatureKeys = [
                                     . '</h3>';
                                 if ($accuracyAvailable) {
                                     $accuracyPercent = number_format((float)$metrics['mean_accuracy'] * 100, 2);
-                                    $foldCount = max(0, (int)($metrics['fold_count'] ?? 0));
-                                    $sampleCount = max(0, (int)($metrics['sample_count'] ?? 0));
                                     echo '<p class="ml-accuracy-value">' . $accuracyPercent . '%</p>';
-                                    echo '<p class="ml-accuracy-method">'
-                                        . htmlspecialchars(sprintf(
-                                            translate('machineLearning_sample.php_層化分割交差検証'),
-                                            $foldCount,
-                                            $sampleCount
-                                        ), ENT_QUOTES, 'UTF-8')
-                                        . '</p>';
-                                    if (isset($metrics['accuracy_std']) && is_numeric($metrics['accuracy_std'])) {
-                                        echo '<p class="ml-accuracy-variation">'
-                                            . htmlspecialchars(sprintf(
-                                                translate('machineLearning_sample.php_精度の標準偏差'),
-                                                number_format((float)$metrics['accuracy_std'] * 100, 2)
-                                            ), ENT_QUOTES, 'UTF-8')
-                                            . '</p>';
-                                    }
                                 } else {
                                     $accuracyMessageKey = (($metrics['unavailable_reason'] ?? '') === 'insufficient_class_samples')
                                         ? 'machineLearning_sample.php_精度算出データ不足'
