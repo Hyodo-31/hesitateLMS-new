@@ -814,7 +814,7 @@ if (!$valid_request_ids) {
     try {
         $row = mousemove_fetch_one(
             $conn,
-            'SELECT `EndSentence`, `Understand`, `TF`, `Time` FROM `linedata`
+            'SELECT `EndSentence`, `TF`, `Time` FROM `linedata`
              WHERE `UID` = ? AND `WID` = ? AND `attempt` = ? LIMIT 1',
             [$uid, $wid, $attempt_num]
         ) ?? [];
@@ -840,9 +840,6 @@ if (!$valid_request_ids) {
 
     if (isset($row['EndSentence'])) {
         $es = $row['EndSentence'];
-    }
-    if (isset($row['Understand'])) {
-        $us = $row['Understand'];
     }
     // ▼▼▼▼▼ ここから追加 ▼▼▼▼▼
     if (isset($row['TF'])) {
@@ -1249,21 +1246,6 @@ if (!$valid_request_ids) {
                                         <b><u><?= translate('mousemove.php_539行目_日本語文') ?></u>：<?php echo isset($js) ? htmlspecialchars($js, ENT_QUOTES, 'UTF-8') : ''; ?></b><br>
                                         <b><u><?= translate('mousemove.php_540行目_正解文') ?></u>：<?php echo isset($se) ? htmlspecialchars($se, ENT_QUOTES, 'UTF-8') : ''; ?></b><br>
                                         <br>
-                                        <b><u><?= translate('学習者の申告迷い度') ?></u>：
-                                            <?php
-                                            if (isset($us)) {
-                                                if ($us == 1) {
-                                                    print (translate('mousemove.php_544行目_間違って終了ボタン'));
-                                                } elseif ($us == 4) {
-                                                    print (translate('mousemove.php_545行目_ほとんど迷わなかった'));
-                                                } elseif ($us == 3) {
-                                                    print (translate('mousemove.php_546行目_少し迷った'));
-                                                } elseif ($us == 2) {
-                                                    print (translate('mousemove.php_547行目_かなり迷った'));
-                                                }
-                                            }
-                                            ?>
-                                        </b><br>
                                         <b><u><?= translate('迷い推定結果') ?></u>：
                                             <?php
                                             if ($estimated_us === null) {
