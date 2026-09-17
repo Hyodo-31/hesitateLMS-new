@@ -241,7 +241,7 @@ $defaultSelectedFeatures = array_flip(['Time', 'distance']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>クラスタリング</title>
-    <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teachertrue_styles.css?v=<?= filemtime(__DIR__ . '/../style/teachertrue_styles.css') ?>">
     <link rel="stylesheet" href="../style/teacher_results_histogram.css?v=<?= filemtime(__DIR__ . '/../style/teacher_results_histogram.css') ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>

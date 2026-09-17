@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>教師用ダッシュボード</title>
-    <link rel="stylesheet" href="../style/teachertrue_styles.css">
+    <link rel="stylesheet" href="../style/teachertrue_styles.css?v=<?= filemtime(__DIR__ . '/../style/teachertrue_styles.css') ?>">
     <link rel="stylesheet" href="../style/teacher_form_styles.css?v=<?= filemtime(__DIR__ . '/../style/teacher_form_styles.css') ?>">
     <link rel="stylesheet" href="../style/teacher_results_histogram.css?v=<?= filemtime(__DIR__ . '/../style/teacher_results_histogram.css') ?>">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>

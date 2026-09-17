@@ -78,6 +78,22 @@ function mousemove_usage_estimated_understand(
     return $row && $row['Understand'] !== null ? (int)$row['Understand'] : null;
 }
 
+function mousemove_fetch_one(mysqli $conn, string $sql, array $params): ?array
+{
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new RuntimeException('軌跡再現データの取得準備に失敗しました。');
+    }
+    if (!$stmt->execute($params)) {
+        $message = $stmt->error;
+        $stmt->close();
+        throw new RuntimeException('軌跡再現データの取得に失敗しました: ' . $message);
+    }
+    $row = $stmt->get_result()->fetch_assoc() ?: null;
+    $stmt->close();
+    return $row;
+}
+
 function mousemove_usage_integer(array $payload, string $key, int $min, int $max, bool $nullable = false): ?int
 {
     $value = $payload[$key] ?? null;
@@ -346,6 +362,35 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
     }
     exit;
 }
+
+// GET表示または従来のdatalist POSTを、HTMLを出力する前に検証する。
+$data_list = "";
+$request_ids = null;
+if (isset($_POST["datalist"]) && is_scalar($_POST["datalist"])) {
+    $data_list = (string)$_POST["datalist"];
+    $request_ids = explode(",", $data_list);
+} elseif (isset($_GET["UID"], $_GET["WID"], $_GET["LogID"])) {
+    $request_ids = [$_GET["UID"], $_GET["WID"], $_GET["LogID"]];
+}
+
+$valid_request_ids = is_array($request_ids) && count($request_ids) === 3;
+if ($valid_request_ids) {
+    foreach ($request_ids as $request_id) {
+        if (!is_scalar($request_id)
+            || !preg_match('/^\d+$/', (string)$request_id)
+            || (int)$request_id < 1
+            || (int)$request_id > 2147483647) {
+            $valid_request_ids = false;
+            break;
+        }
+    }
+}
+if (!$valid_request_ids) {
+    http_response_code(400);
+    exit('軌跡再現対象が不正です。');
+}
+
+[$uid, $wid, $attempt_num] = array_map('intval', $request_ids);
 ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
@@ -710,72 +755,89 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
     ?>
 
     <?php
-    //print_r($_POST["datalist"]);    
-    //uid,widを受け取る
-    $data_list = "";
-
-    // POSTで受け取ったデータの処理
-    if (isset($_POST["datalist"])) {
-        $data_list = $_POST["datalist"];
+    if ($data_list !== '') {
         echo htmlspecialchars($data_list, ENT_QUOTES, 'UTF-8') . "<br>";
-
-        // 受け取ったものをコンマで区切る
-        $ID = explode(",", $data_list);
-
-        // 各データを変数に格納
-        $uid = $ID[0];
-        $wid = $ID[1];
-        $attempt_num = $ID[2];
-    } elseif (isset($_GET["UID"]) && isset($_GET["WID"]) && isset($_GET["LogID"])) {
-        // GETで受け取ったデータの処理（デフォルトのケース）
-        $uid = $_GET["UID"];
-        $wid = $_GET["WID"];
-        $attempt_num = $_GET["LogID"];
     }
 
     $mousemove_usage_enabled = false;
     $mousemove_usage_teacher_id = null;
-    if (isset($uid, $wid, $attempt_num)
-        && preg_match('/^\d+$/', (string)$uid)
-        && preg_match('/^\d+$/', (string)$wid)
-        && preg_match('/^\d+$/', (string)$attempt_num)
-        && (int)$uid > 0 && (int)$wid > 0 && (int)$attempt_num > 0) {
-        try {
-            $mousemove_usage_teacher_id = mousemove_usage_teacher_id($conn);
-            if ($mousemove_usage_teacher_id !== null) {
-                $mousemove_usage_enabled = mousemove_usage_attempt_context(
-                    $conn,
-                    $mousemove_usage_teacher_id,
-                    (int)$uid,
-                    (int)$wid,
-                    (int)$attempt_num
-                ) !== null;
-            }
-        } catch (Throwable $e) {
-            error_log('[mousemove usage] initialization failed: ' . $e->getMessage());
+    try {
+        $mousemove_usage_teacher_id = mousemove_usage_teacher_id($conn);
+        if ($mousemove_usage_teacher_id !== null) {
+            $mousemove_usage_enabled = mousemove_usage_attempt_context(
+                $conn,
+                $mousemove_usage_teacher_id,
+                $uid,
+                $wid,
+                $attempt_num
+            ) !== null;
+        }
+    } catch (Throwable $e) {
+        error_log('[mousemove usage] initialization failed: ' . $e->getMessage());
+    }
+
+    // 軌跡は一度だけ取得し、再生用データと全ての分析処理で再利用する。
+    $trajectory_stmt = $conn->prepare(
+        'SELECT `Time`, `X`, `Y`, `DD`, `DPos`, `hLabel`, `Label`, `UTurnX`, `UTurnY`
+         FROM `linedatamouse`
+         WHERE `UID` = ? AND `WID` = ? AND `attempt` = ?
+         ORDER BY `Time`'
+    );
+    if (!$trajectory_stmt || !$trajectory_stmt->execute([$uid, $wid, $attempt_num])) {
+        error_log('[mousemove] trajectory query failed: ' . ($trajectory_stmt ? $trajectory_stmt->error : $conn->error));
+        exit('軌跡再現データを取得できませんでした。');
+    }
+    $trajectory_result = $trajectory_stmt->get_result();
+    $trajectory_rows = [];
+    while ($trajectory_row = $trajectory_result->fetch_assoc()) {
+        $trajectory_row['WID'] = (string)$wid;
+        $trajectory_rows[] = $trajectory_row;
+    }
+    $trajectory_stmt->close();
+
+    // 従来の SELECT DISTINCT と同じく、再生データだけは重複行を除外する。
+    $replay_rows = [];
+    $replay_row_keys = [];
+    foreach ($trajectory_rows as $trajectory_row) {
+        $distinct_values = [
+            $trajectory_row['Time'], $trajectory_row['X'], $trajectory_row['Y'],
+            $trajectory_row['DD'], $trajectory_row['DPos'], $trajectory_row['hLabel'],
+            $trajectory_row['Label'], $trajectory_row['UTurnX'], $trajectory_row['UTurnY'],
+        ];
+        $distinct_key = serialize($distinct_values);
+        if (!isset($replay_row_keys[$distinct_key])) {
+            $replay_row_keys[$distinct_key] = true;
+            $replay_rows[] = $trajectory_row;
         }
     }
 
+    try {
+        $row = mousemove_fetch_one(
+            $conn,
+            'SELECT `EndSentence`, `Understand`, `TF`, `Time` FROM `linedata`
+             WHERE `UID` = ? AND `WID` = ? AND `attempt` = ? LIMIT 1',
+            [$uid, $wid, $attempt_num]
+        ) ?? [];
+        $row2 = mousemove_fetch_one(
+            $conn,
+            'SELECT `Japanese`, `Sentence`, `grammar`, `level`, `start`, `divide`
+             FROM `question_info` WHERE `WID` = ? LIMIT 1',
+            [$wid]
+        ) ?? [];
+        $row3 = mousemove_fetch_one(
+            $conn,
+            'SELECT `maxStopTime`, `DDCount`, `xUTurnCount`, `yUTurnCount`,
+                    `xUTurnCountDD`, `yUTurnCountDD`, `groupingDDCount`, `answeringTime`,
+                    `maxDDTime`, `totalStopTime`, `thinkingTime`
+             FROM `test_featurevalue`
+             WHERE `UID` = ? AND `WID` = ? AND `attempt` = ? LIMIT 1',
+            [$uid, $wid, $attempt_num]
+        ) ?? [];
+    } catch (Throwable $e) {
+        error_log('[mousemove] related data query failed: ' . $e->getMessage());
+        exit('軌跡再現の関連データを取得できませんでした。');
+    }
 
-    // データベースから値を取り出す
-    $query = "select distinct(Time),X,Y,DD,DPos,hLabel,Label,UTurnX,UTurnY from linedatamouse where uid = $uid and WID = $wid and attempt = $attempt_num order by Time";
-    $res = mysqli_query($conn, $query) or die("Error:query1");
-    $query2 = "select EndSentence,Understand,TF from linedata where uid = $uid and WID = $wid and attempt = $attempt_num";
-    $res2 = mysqli_query($conn, $query2) or die("Error:query2");
-    $query3 = "select Japanese,Sentence,grammar,level,start,divide from question_info where WID = $wid";
-    $res3 = mysqli_query($conn, $query3) or die("Error:query3");
-    // ▼▼▼▼▼ trackdataへのクエリを削除し、test_featurevalueへのクエリに変更 ▼▼▼▼▼
-    // attemptカラムで絞り込むことで、正しい試行回数のデータを取得
-    //$query4 = "select distance, averageSpeed, maxStopTime, DDCount, xUTurnCount, yUTurnCount, xUTurnCountDD, yUTurnCountDD, groupingDDCount from test_featurevalue where uid = $uid and WID = $wid and attempt = $attempt_num";
-    $query4 = "select maxStopTime, DDCount, xUTurnCount, yUTurnCount, xUTurnCountDD, yUTurnCountDD, groupingDDCount, answeringTime, maxDDTime, totalStopTime, thinkingTime from test_featurevalue where uid = $uid and WID = $wid and attempt = $attempt_num";
-    $res4 = mysqli_query($conn, $query4) or die("Error:query4");
-    $query5 = "select Time from linedata where uid = $uid and WID = $wid and attempt = $attempt_num";
-    $res5 = mysqli_query($conn, $query5) or die("Error:query5");
-    // temporary_resultsから迷い推定結果を取得するクエリ
-    $query_est = "SELECT Understand FROM " . teacher_hesitation_results_source('tr') . " WHERE tr.UID = " . $uid . " AND tr.WID = " . $wid . " AND tr.attempt = " . $attempt_num;
-    $res_est = mysqli_query($conn, $query_est) or die("Error:query_est");
-
-    $row = mysqli_fetch_array($res2);
     if (isset($row['EndSentence'])) {
         $es = $row['EndSentence'];
     }
@@ -787,7 +849,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
         $tf_result = $row['TF']; // 正誤情報を新しい変数に格納
     }
     // ▲▲▲▲▲ ここまで追加 ▲▲▲▲▲
-    $row2 = mysqli_fetch_array($res3);
     if (isset($row2['Japanese'])) {
         $js = $row2['Japanese'];
     }
@@ -803,8 +864,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
     if (isset($row2['start'])) {
         $start = $row2['start'];
     }
-    $row3 = mysqli_fetch_array($res4);
-
     if (isset($row3['groupingDDCount'])) {
         $groupcount = $row3['groupingDDCount'];
     }
@@ -833,15 +892,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
     if (isset($row3['answeringTime'])) {
         $answeringTime = $row3['answeringTime'] / 1000;
     }
-    $row4 = mysqli_fetch_array($res5);
-    if (isset($row4['Time'])) {
-        $a_time = $row4['Time'] / 1000;
+    if (isset($row['Time'])) {
+        $a_time = $row['Time'] / 1000;
     }
 
-    $estimated_us = null; // デフォルト値を設定
-    if ($row_est = mysqli_fetch_array($res_est)) {
-        if (isset($row_est['Understand'])) {
-            $estimated_us = $row_est['Understand'];
+    $estimated_us = null;
+    if ($mousemove_usage_teacher_id !== null) {
+        try {
+            $estimated_us = mousemove_usage_estimated_understand(
+                $conn,
+                $mousemove_usage_teacher_id,
+                $uid,
+                $wid,
+                $attempt_num
+            );
+        } catch (Throwable $e) {
+            error_log('[mousemove] estimated result query failed: ' . $e->getMessage());
         }
     }
     $grammar_split = array();
@@ -898,11 +964,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
     $UTurnY = array();
 
 
-    //echo $uid."<br>";
-    //echo $wid."<br>";
-    // 切り取って配列へ
-    if ($res && $res->num_rows > 0) {
-        while ($Column = $res->fetch_assoc()) {
+    // 再生用には従来どおり重複を除いた配列を渡す。
+    if ($replay_rows) {
+        foreach ($replay_rows as $Column) {
             $time[] = $Column['Time'];
             $x[] = $Column['X'];
             $y[] = $Column['Y'];
@@ -918,16 +982,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
         echo translate('mousemove.php_400行目_結果セットが空です');
     }
 
-    $timestring = "";
-    $xstring = "";
-    $ystring = "";
-    $DDstring = "";
-    $DPosstring = "";
-    $hLabelstring = "";
-    $Labelstring = "";
-    $addkstring = "";
-    $UTurnXstring = "";
-    $UTurnYstring = "";
+    $trajectory_json_flags = JSON_UNESCAPED_UNICODE
+        | JSON_UNESCAPED_SLASHES
+        | JSON_INVALID_UTF8_SUBSTITUTE
+        | JSON_HEX_TAG
+        | JSON_HEX_AMP
+        | JSON_HEX_APOS
+        | JSON_HEX_QUOT;
+    $replay_data = [
+        'time' => $time,
+        'x' => $x,
+        'y' => $y,
+        'dd' => $DD,
+        'dPos' => $DPos,
+        'hLabel' => $hLabel,
+        'label' => $Label,
+        'uTurnX' => $UTurnX,
+        'uTurnY' => $UTurnY,
+    ];
     // --- 修正後 ---
     $DDdragTime = array();
     $all_dd_events = array(); // 全てのD&Dイベントを格納する配列
@@ -935,30 +1007,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
     $dd_intervals = array();  // ★追加: ドラッグからドロップまでの区間を格納
     $current_drag = null;     // ★追加: 現在ドラッグ中のデータ
 
-    // 繋げて配列へ格納(Javascriptへ値を渡すため)
+    // D&D関連データを再生配列から一度だけ生成する。
     for ($i = 0; $i < count($time); $i++) {
-        if ($i > 0) {
-            $timestring .= "###";
-            $xstring .= "###";
-            $ystring .= "###";
-            $DDstring .= "###";
-            $DPosstring .= "###";
-            $hLabelstring .= "###";
-            $Labelstring .= "###";
-            $addkstring .= "###";
-            $UTurnXstring .= "###";
-            $UTurnYstring .= "###";
-        }
-        $timestring .= $time[$i];
-        $xstring .= $x[$i];
-        $ystring .= $y[$i];
-        $DDstring .= $DD[$i];
-        $DPosstring .= $DPos[$i];
-        $hLabelstring .= $hLabel[$i];
-        $Labelstring .= $Label[$i];
-        $UTurnXstring .= $UTurnX[$i];
-        $UTurnYstring .= $UTurnY[$i];
-        
         if ($DD[$i] == '2' && !isset($DDdragTime[$hLabel[$i]])) {
             $DDdragTime[$hLabel[$i]] = $time[$i];
         }
@@ -990,9 +1040,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
             $current_drag = null;
         }
     }
-    $DDdragTime_json = json_encode($DDdragTime);
-    $all_dd_events_json = json_encode($all_dd_events);
-    $dd_intervals_json = json_encode($dd_intervals); // ★追加
+    $DDdragTime_json = json_encode($DDdragTime, $trajectory_json_flags);
+    $all_dd_events_json = json_encode($all_dd_events, $trajectory_json_flags);
+    $dd_intervals_json = json_encode($dd_intervals, $trajectory_json_flags);
 
     // D&Dイベントログからユニークなグループを抽出
     $unique_groups = array();
@@ -1005,49 +1055,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
         }
     }
     ?>
-    <script type="text/javascript" src="wz_jsgraphics.js"></script>
+    <script type="text/javascript" src="wz_jsgraphics.js?v=<?= filemtime(__DIR__ . '/wz_jsgraphics.js') ?>"></script>
     <script type="text/javascript">
         var t = 0;
         var x = 0;
         var y = 0;
 
         // linedatamouse内の各情報
-        var t_point = new Array();
-        var x_point = new Array();
-        var y_point = new Array();
-        var DD_point = new Array();
-        var DPos_point = new Array();
-        var hLabel_point = new Array();
-        var Label_point = new Array();
+        var replayData = <?= json_encode($replay_data, $trajectory_json_flags) ?>;
+        var t_point = replayData.time;
+        var x_point = replayData.x;
+        var y_point = replayData.y;
+        var DD_point = replayData.dd;
+        var DPos_point = replayData.dPos;
+        var hLabel_point = replayData.hLabel;
+        var Label_point = replayData.label;
         var addk_point = new Array();
-        var UTurnX_point = new Array();
-        var UTurnY_point = new Array();
+        var UTurnX_point = replayData.uTurnX;
+        var UTurnY_point = replayData.uTurnY;
 
 
         // 初期の英単語の並び情報
         var start_point = new Array();
-        var tstring = "<?php echo $timestring; ?>";
-        var xstring = "<?php echo $xstring; ?>";
-        var ystring = "<?php echo $ystring; ?>";
-        var DDstring = "<?php echo $DDstring; ?>";
-        var DPosstring = "<?php echo $DPosstring; ?>";
-        var hLabelstring = "<?php echo $hLabelstring; ?>";
-        var Labelstring = "<?php echo $Labelstring; ?>";
-        var UTurnXstring = "<?php echo $UTurnXstring; ?>";
-        var UTurnYstring = "<?php echo $UTurnYstring; ?>";
-        var startstring = "<?php echo isset($start) ? $start : ''; ?>";
-
-
-
-        t_point = tstring.split("###");
-        x_point = xstring.split("###");
-        y_point = ystring.split("###");
-        DD_point = DDstring.split("###");
-        DPos_point = DPosstring.split("###");
-        hLabel_point = hLabelstring.split("###");
-        Label_point = Labelstring.split("###");
-        UTurnX_point = UTurnXstring.split("###");
-        UTurnY_point = UTurnYstring.split("###");
+        var startstring = <?= json_encode(isset($start) ? (string)$start : '', $trajectory_json_flags) ?>;
         var DDdragTime = <?php echo $DDdragTime_json; ?>;
         var all_dd_events = <?php echo $all_dd_events_json; ?>;
         var dd_intervals = <?php echo $dd_intervals_json; ?>;
@@ -1068,12 +1098,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
         UTurnCount = 0;
         console.log(DDdragTime);
     </script>
-    <link rel="stylesheet" href="themes/base/jquery.ui.all.css" />
-    <script type="text/javascript" src="jquery-1.8.3.js"></script>
-    <script type="text/javascript" src="ui/jquery.ui.core.js"></script>
-    <script type="text/javascript" src="ui/jquery.ui.widget.js"></script>
-    <script type="text/javascript" src="ui/jquery.ui.mouse.js"></script>
-    <script type="text/javascript" src="ui/jquery.ui.slider.js"></script>
+    <link rel="stylesheet" href="themes/base/minified/jquery-ui.min.css?v=<?= filemtime(__DIR__ . '/themes/base/minified/jquery-ui.min.css') ?>" />
+    <script type="text/javascript" src="jquery-1.8.3.min.js?v=<?= filemtime(__DIR__ . '/jquery-1.8.3.min.js') ?>"></script>
+    <script type="text/javascript" src="ui/minified/jquery.ui.core.min.js?v=<?= filemtime(__DIR__ . '/ui/minified/jquery.ui.core.min.js') ?>"></script>
+    <script type="text/javascript" src="ui/minified/jquery.ui.widget.min.js?v=<?= filemtime(__DIR__ . '/ui/minified/jquery.ui.widget.min.js') ?>"></script>
+    <script type="text/javascript" src="ui/minified/jquery.ui.mouse.min.js?v=<?= filemtime(__DIR__ . '/ui/minified/jquery.ui.mouse.min.js') ?>"></script>
+    <script type="text/javascript" src="ui/minified/jquery.ui.slider.min.js?v=<?= filemtime(__DIR__ . '/ui/minified/jquery.ui.slider.min.js') ?>"></script>
 </head>
 
 <body>
@@ -1183,7 +1213,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
     </div>
     <br>
 
-    <script type="text/javascript" src="excanvas.js"></script>
+    <script type="text/javascript" src="excanvas.js?v=<?= filemtime(__DIR__ . '/excanvas.js') ?>"></script>
     <canvas id="canvas" width="0" height="0" style="visibility:hidden;position:absolute;"></canvas>
 
     <table border="1" cellspacing="1" width="1000" height="500">
@@ -1351,12 +1381,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
                             $word_count = array();
 
                             // 「余分なDD動作」のカウントロジックを修正
-                            $sql_DD = "select * from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num . " order by Time;";
-                            $res_DD = mysqli_query($conn, $sql_DD) or die("接続エラー");
                             $Array_Flag = 0; // Drag開始時のエリアを保持するフラグ
                             $Label_div_for_wc = array();
                             $Label_for_wc = "";
-                            while ($row_DD = mysqli_fetch_array($res_DD)) {
+                            foreach ($trajectory_rows as $row_DD) {
                                 if ($row_DD["DD"] == 2) { //Drag時
                                     $Label_for_wc = $row_DD["Label"];
                                     $Label_div_for_wc = explode("#", $Label_for_wc);
@@ -1407,8 +1435,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
                             arsort($word_count);
 
                             // 「入れ替え間時間」の計算ロジック
-                            $sql_DD2 = "select * from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num . " order by Time;";
-                            $res_DD2 = mysqli_query($conn, $sql_DD2) or die("接続エラー");
                             $DC_Flag = 0;
                             $DC_array = array();
                             $Time_array = array();
@@ -1420,7 +1446,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
                             $label_drag_counts = array();
                             $before_Label = "";
                             $j = 0;
-                            while ($row_DD2 = mysqli_fetch_array($res_DD2)) {
+                            foreach ($trajectory_rows as $row_DD2) {
                                 if ($row_DD2["DD"] == 2) { // Drag時
                                     $current_raw_label = (string) $row_DD2["Label"];
                                     if (!isset($label_drag_counts[$current_raw_label])) {
@@ -1588,33 +1614,46 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
                             $hesitation_words_ml = [];
                             $ml_hesitation_word_ids = [];
                             $ml_interval_targets = [];
-                            $sql_word_est = "SELECT WWID, Understand, attempt FROM " . teacher_hesitation_word_results_source('trw') . " "
-                                . "WHERE trw.UID = " . $uid . " AND trw.WID = " . $wid . " AND trw.attempt = " . $attempt_num . " "
-                                . "AND trw.Understand = 2 ORDER BY trw.WWID ASC";
-                            $res_word_est = mysqli_query($conn, $sql_word_est);
-                            if ($res_word_est !== false) {
-                                while ($row_word_est = mysqli_fetch_array($res_word_est)) {
-                                    $word_id = (int) $row_word_est["WWID"];
-                                    $word_name = isset($diarray[$word_id]) && trim((string) $diarray[$word_id]) !== ''
-                                        ? $diarray[$word_id]
-                                        : ("ID:" . $word_id);
-                                    $hesitation_words_ml[] = array(
-                                        "word_id" => $word_id,
-                                        "word_name" => $word_name,
-                                        "understand_text" => "迷い有り",
-                                        "attempt" => isset($row_word_est["attempt"]) ? (int) $row_word_est["attempt"] : (int) $attempt_num,
-                                    );
-                                    $ml_hesitation_word_ids[(string) $word_id] = true;
+                            if ($show_word_level_ml_ui && $mousemove_usage_teacher_id !== null) {
+                                $word_results_source = teacher_hesitation_word_results_source('trw');
+                                $word_est_stmt = $conn->prepare(
+                                    "SELECT trw.WWID, trw.Understand, trw.attempt FROM {$word_results_source}
+                                     WHERE trw.teacher_id = ? AND trw.UID = ? AND trw.WID = ?
+                                       AND trw.attempt = ? AND trw.Understand = 2
+                                     ORDER BY trw.WWID ASC"
+                                );
+                                if ($word_est_stmt && $word_est_stmt->execute([
+                                    $mousemove_usage_teacher_id,
+                                    $uid,
+                                    $wid,
+                                    $attempt_num,
+                                ])) {
+                                    $word_est_result = $word_est_stmt->get_result();
+                                    while ($row_word_est = $word_est_result->fetch_assoc()) {
+                                        $word_id = (int) $row_word_est["WWID"];
+                                        $word_name = isset($diarray[$word_id]) && trim((string) $diarray[$word_id]) !== ''
+                                            ? $diarray[$word_id]
+                                            : ("ID:" . $word_id);
+                                        $hesitation_words_ml[] = array(
+                                            "word_id" => $word_id,
+                                            "word_name" => $word_name,
+                                            "understand_text" => "迷い有り",
+                                            "attempt" => isset($row_word_est["attempt"]) ? (int) $row_word_est["attempt"] : $attempt_num,
+                                        );
+                                        $ml_hesitation_word_ids[(string) $word_id] = true;
+                                    }
+                                    $word_est_stmt->close();
+                                } elseif ($word_est_stmt) {
+                                    error_log('[mousemove] word estimate query failed: ' . $word_est_stmt->error);
+                                    $word_est_stmt->close();
                                 }
                             }
 
                             // 単語単位機械学習結果に表示される単語を、スライダー上でも赤色表示するための対象を計算
                             if ($show_word_level_ml_ui && !empty($ml_hesitation_word_ids)) {
-                                $sql_DD_ml_occ = "select DD, Label from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num . " order by Time;";
-                                $res_DD_ml_occ = mysqli_query($conn, $sql_DD_ml_occ) or die("接続エラー");
                                 $ml_drag_label_parts = array();
                                 $ml_word_occurrences = [];
-                                while ($row_DD_ml_occ = mysqli_fetch_array($res_DD_ml_occ)) {
+                                foreach ($trajectory_rows as $row_DD_ml_occ) {
                                     if ($row_DD_ml_occ["DD"] == 2) {
                                         $ml_drag_label_parts = explode("#", (string) $row_DD_ml_occ["Label"]);
                                     } else if ($row_DD_ml_occ["DD"] == 1) {
@@ -1739,11 +1778,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
                                 $single_hit_words = array_values(array_unique($single_hit_words));
 
                                 // 余分なDD動作の「何回目」情報を計算（単語ごと）
-                                $sql_DD_occ = "select DD, Label, Y from linedatamouse where UID = " . $uid . " and WID = " . $wid . " and attempt = " . $attempt_num . " order by Time;";
-                                $res_DD_occ = mysqli_query($conn, $sql_DD_occ) or die("接続エラー");
                                 $drag_start_area = 0;
                                 $drag_label_parts = array();
-                                while ($row_DD_occ = mysqli_fetch_array($res_DD_occ)) {
+                                foreach ($trajectory_rows as $row_DD_occ) {
                                     if ($row_DD_occ["DD"] == 2) {
                                         $label_raw_occ = (string) $row_DD_occ["Label"];
                                         $drag_label_parts = explode("#", $label_raw_occ);
