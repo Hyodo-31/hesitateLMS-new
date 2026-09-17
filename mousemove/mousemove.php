@@ -2,6 +2,7 @@
 // lang.phpでセッションが開始されるため、個別のsession_startは不要
 require "../lang.php";
 require_once __DIR__ . '/../teacher/hesitation-estimation-state.php';
+require_once __DIR__ . '/../teacher/usage-log-diagnostics.php';
 $show_word_level_ml_ui = false;
 
 if (empty($_SESSION['mousemove_usage_csrf']) || !is_string($_SESSION['mousemove_usage_csrf'])) {
@@ -244,20 +245,30 @@ function mousemove_usage_insert(mysqli $conn, string $teacher_id, array $payload
     $test_id = (int)$context['test_id'];
     $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
 
-    $stmt = $conn->prepare(
-        'INSERT INTO mousemove
-         (teacher_id, view_session_id, event_sequence, event_type, UID, WID, attempt, test_id,
-          correctness, self_reported_understand, estimated_understand,
-          event_elapsed_ms, visible_delta_ms, total_visible_ms,
-          play_count_since_reset, pause_count_since_reset, replay_count_since_reset, reset_count,
-          playback_position_ms, speed_multiplier, playback_run_no,
-          selected_target_type, selected_words, selected_occurrence, skip_target_ms, requested_play_ms,
-          play_to_end, played_timeline_ms, played_visible_wall_ms, playback_end_reason,
-          seek_from_ms, seek_to_ms, seek_delta_ms, seek_colored_intervals, ML)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    );
+    try {
+        $stmt = $conn->prepare(
+            'INSERT INTO mousemove
+             (teacher_id, view_session_id, event_sequence, event_type, UID, WID, attempt, test_id,
+              correctness, self_reported_understand, estimated_understand,
+              event_elapsed_ms, visible_delta_ms, total_visible_ms,
+              play_count_since_reset, pause_count_since_reset, replay_count_since_reset, reset_count,
+              playback_position_ms, speed_multiplier, playback_run_no,
+              selected_target_type, selected_words, selected_occurrence, skip_target_ms, requested_play_ms,
+              play_to_end, played_timeline_ms, played_visible_wall_ms, playback_end_reason,
+              seek_from_ms, seek_to_ms, seek_delta_ms, seek_colored_intervals, ML)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+    } catch (mysqli_sql_exception $e) {
+        usage_log_throw_database_error('trajectory_replay', 'mousemove', $e, $conn);
+    }
     if (!$stmt) {
-        throw new RuntimeException('操作ログの保存準備に失敗しました。');
+        usage_log_throw_statement_error(
+            'trajectory_replay',
+            'mousemove',
+            $conn->errno,
+            $conn->sqlstate,
+            $conn->error
+        );
     }
     try {
         $ok = $stmt->execute([
@@ -271,17 +282,24 @@ function mousemove_usage_insert(mysqli $conn, string $teacher_id, array $payload
             $seek_from_ms, $seek_to_ms, $seek_delta_ms, $seek_colored_intervals, $ml,
         ]);
         $errno = $stmt->errno;
+        $sqlState = $stmt->sqlstate;
         $error = $stmt->error;
     } catch (mysqli_sql_exception $e) {
         $stmt->close();
         if ((int)$e->getCode() === 1062) {
             return;
         }
-        throw $e;
+        usage_log_throw_database_error('trajectory_replay', 'mousemove', $e, $conn);
     }
     $stmt->close();
     if (!$ok && $errno !== 1062) {
-        throw new RuntimeException('操作ログの保存に失敗しました: ' . $error);
+        usage_log_throw_statement_error(
+            'trajectory_replay',
+            'mousemove',
+            $errno,
+            $sqlState,
+            $error
+        );
     }
 }
 

@@ -43,6 +43,3 @@ CREATE TABLE IF NOT EXISTS `mousemove` (
   KEY `idx_mousemove_teacher_created` (`teacher_id`, `created_at`),
   KEY `idx_mousemove_attempt_created` (`UID`, `WID`, `attempt`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-ALTER TABLE `mousemove`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));

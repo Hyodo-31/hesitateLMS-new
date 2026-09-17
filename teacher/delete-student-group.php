@@ -14,6 +14,7 @@
         // session_start(); // lang.phpでセッションは開始済み
         require "../dbc.php";
         require_once __DIR__ . '/hesitation-estimation-state.php';
+        require_once __DIR__ . '/usage-log-diagnostics.php';
         // セッション変数をクリアする（必要に応じて）
         unset($_SESSION['conditions']);
     ?>
@@ -80,13 +81,31 @@
                             'INSERT INTO delete_groups (teacher_id, group_id, group_name, ML) VALUES (?, ?, ?, ?)'
                         );
                         if (!$log_stmt) {
-                            throw new RuntimeException('削除ログ保存の準備に失敗しました。');
+                            usage_log_throw_statement_error(
+                                'student_grouping_delete',
+                                'delete_groups',
+                                $conn->errno,
+                                $conn->sqlstate,
+                                $conn->error
+                            );
                         }
                         $log_stmt->bind_param('sisi', $teacher_id, $group_id, $deleted_group_name, $ml);
                         if (!$log_stmt->execute()) {
-                            throw new RuntimeException($log_stmt->error);
+                            $errno = $log_stmt->errno;
+                            $sqlState = $log_stmt->sqlstate;
+                            $message = $log_stmt->error;
+                            $log_stmt->close();
+                            usage_log_throw_statement_error(
+                                'student_grouping_delete',
+                                'delete_groups',
+                                $errno,
+                                $sqlState,
+                                $message
+                            );
                         }
                         $log_stmt->close();
+                    } catch (mysqli_sql_exception $e) {
+                        usage_log_report_database_error('student_grouping_delete', 'delete_groups', $e, $conn);
                     } catch (Throwable $e) {
                         error_log('[Grouping delete log] 削除ログを保存できませんでした: ' . $e->getMessage());
                     }

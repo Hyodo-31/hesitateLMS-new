@@ -1,6 +1,6 @@
 SET NAMES utf8mb4;
 
-CREATE TABLE IF NOT EXISTS `clustering_WIDselect` (
+CREATE TABLE IF NOT EXISTS `clustering_widselect` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selection_method` ENUM('checkbox', 'histogram') NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS `clustering_WIDselect` (
   KEY `idx_clustering_widselect_teacher_created` (`teacher_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `clustering_UIDselect` (
+CREATE TABLE IF NOT EXISTS `clustering_uidselect` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selection_method` ENUM('checkbox', 'histogram') NOT NULL,
@@ -69,29 +69,15 @@ CREATE TABLE IF NOT EXISTS `clustering_result` (
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `clustering_WIDselect`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `clustering_UIDselect`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `clustering_result`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `clustering_result`
-  ADD COLUMN IF NOT EXISTS `feature_correlation_understand_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS `feature_correlation_hesitation_degree_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS `feature_correlation_feature_pair_transition_count` INT UNSIGNED NOT NULL DEFAULT 0;
-
-CREATE OR REPLACE VIEW `Clustering_usage_counts` AS
+CREATE OR REPLACE VIEW `clustering_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `clustering_WIDselect`
+FROM `clustering_widselect`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, 'uid_target_apply' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `clustering_UIDselect`
+FROM `clustering_uidselect`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, 'clustering_execute' AS `function_name`, COUNT(*) AS `use_count`,

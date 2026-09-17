@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/hesitation-estimation-state.php';
+require_once __DIR__ . '/usage-log-diagnostics.php';
 
 function clustering_usage_payload(): array
 {
@@ -33,18 +34,31 @@ function clustering_usage_json(array $value): string
 
 function clustering_usage_insert(mysqli $conn, string $sql, array $params): void
 {
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
-        throw new RuntimeException('ログ保存の準備に失敗しました。');
-    }
-    $types = str_repeat('s', count($params));
-    $stmt->bind_param($types, ...$params);
-    if (!$stmt->execute()) {
-        $message = $stmt->error;
+    $table = usage_log_insert_table($sql);
+    try {
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            usage_log_throw_statement_error(
+                'clustering',
+                $table,
+                $conn->errno,
+                $conn->sqlstate,
+                $conn->error
+            );
+        }
+        $types = str_repeat('s', count($params));
+        $stmt->bind_param($types, ...$params);
+        if (!$stmt->execute()) {
+            $errno = $stmt->errno;
+            $sqlState = $stmt->sqlstate;
+            $message = $stmt->error;
+            $stmt->close();
+            usage_log_throw_statement_error('clustering', $table, $errno, $sqlState, $message);
+        }
         $stmt->close();
-        throw new RuntimeException('ログ保存に失敗しました: ' . $message);
+    } catch (mysqli_sql_exception $e) {
+        usage_log_throw_database_error('clustering', $table, $e, $conn);
     }
-    $stmt->close();
 }
 
 function clustering_usage_enum(array $payload, string $key, array $allowed): string
@@ -329,7 +343,7 @@ function clustering_usage_log_wid_select(mysqli $conn, string $teacherId, array 
     $ml = teacher_hesitation_ml_flag($conn, $teacherId);
     clustering_usage_insert(
         $conn,
-        'INSERT INTO clustering_WIDselect
+        'INSERT INTO clustering_widselect
          (teacher_id, selection_method, selected_wids, histogram_features,
           histogram_conditions, histogram_bin_width_changed, ML)
          VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -394,7 +408,7 @@ function clustering_usage_log_uid_select(mysqli $conn, string $teacherId, array 
     $ml = teacher_hesitation_ml_flag($conn, $teacherId);
     clustering_usage_insert(
         $conn,
-        'INSERT INTO clustering_UIDselect
+        'INSERT INTO clustering_uidselect
          (teacher_id, selection_method, selected_uids, selected_wids, group_condition_used,
           group_expression, group_expression_tokens, histogram_features,
           histogram_conditions, histogram_bin_width_changed, ML)

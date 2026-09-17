@@ -56,20 +56,7 @@ CREATE TABLE IF NOT EXISTS `hesitate_estimate_pre` (
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `hesitate_estimate_pre`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `hesitate_estimate_pre`
-  ADD COLUMN IF NOT EXISTS `from_feature_correlation` TINYINT(1) NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS `feature_correlation_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS `feature_correlation_understand_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS `feature_correlation_hesitation_degree_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS `feature_correlation_feature_pair_transition_count` INT UNSIGNED NOT NULL DEFAULT 0;
-
-CREATE INDEX IF NOT EXISTS `idx_hesitate_estimate_pre_teacher_correlation_created`
-  ON `hesitate_estimate_pre` (`teacher_id`, `from_feature_correlation`, `created_at`);
-
-CREATE OR REPLACE VIEW `Hesitate_estimate_usage_counts` AS
+CREATE OR REPLACE VIEW `hesitate_estimate_usage_counts` AS
 SELECT `teacher_id`, 'machine_learning_execute' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
 FROM `hesitate_estimate_pre`

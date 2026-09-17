@@ -7,6 +7,7 @@ require_once __DIR__ . '/student-feature-tooltip.php';
 ob_end_clean();
 require_once __DIR__ . '/teacher-analysis-wids.php';
 require_once __DIR__ . '/hesitation-estimation-state.php';
+require_once __DIR__ . '/usage-log-diagnostics.php';
 
 $teacher_hesitation_results_source = teacher_hesitation_results_source('tr');
 
@@ -159,18 +160,31 @@ function teacher_usage_json(array $value): string
 
 function teacher_usage_insert(mysqli $conn, string $sql, array $params): void
 {
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
-        throw new RuntimeException('ログ保存の準備に失敗しました。');
-    }
-    $types = str_repeat('s', count($params));
-    $stmt->bind_param($types, ...$params);
-    if (!$stmt->execute()) {
-        $message = $stmt->error;
+    $table = usage_log_insert_table($sql);
+    try {
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            usage_log_throw_statement_error(
+                'teacher_home',
+                $table,
+                $conn->errno,
+                $conn->sqlstate,
+                $conn->error
+            );
+        }
+        $types = str_repeat('s', count($params));
+        $stmt->bind_param($types, ...$params);
+        if (!$stmt->execute()) {
+            $errno = $stmt->errno;
+            $sqlState = $stmt->sqlstate;
+            $message = $stmt->error;
+            $stmt->close();
+            usage_log_throw_statement_error('teacher_home', $table, $errno, $sqlState, $message);
+        }
         $stmt->close();
-        throw new RuntimeException('ログ保存に失敗しました: ' . $message);
+    } catch (mysqli_sql_exception $e) {
+        usage_log_throw_database_error('teacher_home', $table, $e, $conn);
     }
-    $stmt->close();
 }
 
 function teacher_usage_enum(array $payload, string $key, array $allowed): string
@@ -433,7 +447,7 @@ function teacher_usage_log_wid_select(mysqli $conn, string $teacher_id, array $p
     $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     teacher_usage_insert(
         $conn,
-        'INSERT INTO Home_WIDselect
+        'INSERT INTO home_widselect
          (teacher_id, selection_method, selected_wids, histogram_features, histogram_conditions, histogram_bin_width_changed, ML)
          VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
@@ -494,7 +508,7 @@ function teacher_usage_log_uid_select(mysqli $conn, string $teacher_id, array $p
 
     teacher_usage_insert(
         $conn,
-        'INSERT INTO Home_UIDselect
+        'INSERT INTO home_uidselect
          (teacher_id, selection_method, selected_uids, selected_wids, group_condition_used, group_expression,
           group_expression_tokens, histogram_features, histogram_conditions, histogram_bin_width_changed,
           correctness_filter, correctness_filter_used, hesitation_filter, hesitation_filter_used, ML)
@@ -552,7 +566,7 @@ function teacher_usage_log_person(mysqli $conn, string $teacher_id, array $paylo
 
     teacher_usage_insert(
         $conn,
-        'INSERT INTO Home_Person
+        'INSERT INTO home_person
          (teacher_id, selected_uid, selection_method, selected_wids, histogram_features, histogram_conditions,
           histogram_bin_width_changed, correctness_filter, correctness_filter_used, hesitation_filter, hesitation_filter_used, ML)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -640,7 +654,7 @@ function teacher_usage_log_mousemove(mysqli $conn, string $teacher_id, array $pa
     $ml = teacher_hesitation_ml_flag($conn, $teacher_id);
     teacher_usage_insert(
         $conn,
-        'INSERT INTO To_mousemove
+        'INSERT INTO to_mousemove
          (teacher_id, UID, WID, attempt, test_id, from_class_results, from_person_problem_results,
           from_grammar_correct_hesitated, from_grammar_incorrect_not_hesitated, from_grammar_incorrect_hesitated,
           grammar_name, ML)
@@ -1811,8 +1825,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 renderFunc();
             }
 
-            classResultsContainer.addEventListener('click', (e) => handleSort(e, currentClassSort, renderClassTable));
-            testResultsContainer.addEventListener('click', (e) => handleSort(e, currentTestSort, renderTestTable));
+            classResultsContainer?.addEventListener('click', (e) => handleSort(e, currentClassSort, renderClassTable));
+            testResultsContainer?.addEventListener('click', (e) => handleSort(e, currentTestSort, renderTestTable));
 
             function trajectoryLinks(attempts, studentId, grammarName, source) {
                 const rows = Array.isArray(attempts) ? attempts : [];

@@ -1,6 +1,6 @@
 SET NAMES utf8mb4;
 
-CREATE TABLE IF NOT EXISTS `Home_WIDselect` (
+CREATE TABLE IF NOT EXISTS `home_widselect` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selection_method` ENUM('checkbox', 'histogram') NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS `Home_WIDselect` (
   KEY `idx_home_widselect_teacher_created` (`teacher_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `Home_UIDselect` (
+CREATE TABLE IF NOT EXISTS `home_uidselect` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selection_method` ENUM('checkbox', 'histogram') NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `Home_UIDselect` (
   KEY `idx_home_uidselect_teacher_created` (`teacher_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `Home_Person` (
+CREATE TABLE IF NOT EXISTS `home_person` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selected_uid` INT NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS `Home_Person` (
   KEY `idx_home_person_teacher_uid_created` (`teacher_id`, `selected_uid`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `To_mousemove` (
+CREATE TABLE IF NOT EXISTS `to_mousemove` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `UID` INT NOT NULL,
@@ -83,69 +83,20 @@ CREATE TABLE IF NOT EXISTS `To_mousemove` (
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Older revisions stored the grammar name directly in the three source columns.
--- Preserve that value in grammar_name before converting those columns to flags.
-ALTER TABLE `To_mousemove`
-  ADD COLUMN IF NOT EXISTS `grammar_name` VARCHAR(255) DEFAULT NULL
-  AFTER `from_grammar_incorrect_hesitated`;
-
-UPDATE `To_mousemove`
-SET `grammar_name` = COALESCE(
-  `grammar_name`,
-  NULLIF(CAST(`from_grammar_correct_hesitated` AS CHAR), '1'),
-  NULLIF(CAST(`from_grammar_incorrect_not_hesitated` AS CHAR), '1'),
-  NULLIF(CAST(`from_grammar_incorrect_hesitated` AS CHAR), '1')
-)
-WHERE `grammar_name` IS NULL
-  AND (
-    `from_grammar_correct_hesitated` IS NOT NULL
-    OR `from_grammar_incorrect_not_hesitated` IS NOT NULL
-    OR `from_grammar_incorrect_hesitated` IS NOT NULL
-  );
-
-UPDATE `To_mousemove`
-SET `from_grammar_correct_hesitated` = 1
-WHERE `from_grammar_correct_hesitated` IS NOT NULL;
-
-UPDATE `To_mousemove`
-SET `from_grammar_incorrect_not_hesitated` = 1
-WHERE `from_grammar_incorrect_not_hesitated` IS NOT NULL;
-
-UPDATE `To_mousemove`
-SET `from_grammar_incorrect_hesitated` = 1
-WHERE `from_grammar_incorrect_hesitated` IS NOT NULL;
-
-ALTER TABLE `To_mousemove`
-  MODIFY COLUMN `from_grammar_correct_hesitated` TINYINT(1) DEFAULT NULL,
-  MODIFY COLUMN `from_grammar_incorrect_not_hesitated` TINYINT(1) DEFAULT NULL,
-  MODIFY COLUMN `from_grammar_incorrect_hesitated` TINYINT(1) DEFAULT NULL;
-
-ALTER TABLE `Home_WIDselect`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `Home_UIDselect`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `Home_Person`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `To_mousemove`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-CREATE OR REPLACE VIEW `Home_usage_counts` AS
+CREATE OR REPLACE VIEW `home_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Home_WIDselect`
+FROM `home_widselect`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, 'uid_result_display' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Home_UIDselect`
+FROM `home_uidselect`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, 'person_detail_display' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Home_Person`
+FROM `home_person`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`,
@@ -157,5 +108,5 @@ SELECT `teacher_id`,
          ELSE 'trajectory_grammar_incorrect_hesitated'
        END AS `function_name`,
        COUNT(*) AS `use_count`, MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `To_mousemove`
+FROM `to_mousemove`
 GROUP BY `teacher_id`, `function_name`;

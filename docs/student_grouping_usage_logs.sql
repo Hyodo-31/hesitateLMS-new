@@ -1,6 +1,6 @@
 SET NAMES utf8mb4;
 
-CREATE TABLE IF NOT EXISTS `Grouping_WIDselect` (
+CREATE TABLE IF NOT EXISTS `grouping_widselect` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selection_method` ENUM('checkbox', 'histogram') NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS `Grouping_WIDselect` (
   KEY `idx_grouping_widselect_teacher_created` (`teacher_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `Grouping_UIDselect` (
+CREATE TABLE IF NOT EXISTS `grouping_uidselect` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selection_method` ENUM('checkbox', 'histogram') NOT NULL,
@@ -49,24 +49,15 @@ CREATE TABLE IF NOT EXISTS `delete_groups` (
   KEY `idx_delete_groups_teacher_group_created` (`teacher_id`, `group_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `Grouping_WIDselect`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `Grouping_UIDselect`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `delete_groups`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-CREATE OR REPLACE VIEW `Grouping_usage_counts` AS
+CREATE OR REPLACE VIEW `grouping_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Grouping_WIDselect`
+FROM `grouping_widselect`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, 'uid_candidate_apply' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Grouping_UIDselect`
+FROM `grouping_uidselect`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, 'group_delete' AS `function_name`, COUNT(*) AS `use_count`,

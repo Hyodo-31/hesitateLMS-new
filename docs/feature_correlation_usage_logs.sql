@@ -1,6 +1,6 @@
 SET NAMES utf8mb4;
 
-CREATE TABLE IF NOT EXISTS `Correlation_WIDselect` (
+CREATE TABLE IF NOT EXISTS `correlation_widselect` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selection_method` ENUM('checkbox', 'histogram') NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS `Correlation_WIDselect` (
   KEY `idx_correlation_widselect_teacher_created` (`teacher_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `Correlation_UIDselect` (
+CREATE TABLE IF NOT EXISTS `correlation_uidselect` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `selection_method` ENUM('checkbox', 'histogram') NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS `Correlation_UIDselect` (
   KEY `idx_correlation_uidselect_teacher_created` (`teacher_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `Correlation_2019select` (
+CREATE TABLE IF NOT EXISTS `correlation_2019select` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS `Correlation_2019select` (
   KEY `idx_correlation_2019select_teacher_created` (`teacher_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `Correlation_result` (
+CREATE TABLE IF NOT EXISTS `correlation_result` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `teacher_id` CHAR(8) NOT NULL,
   `analysis_mode` ENUM('understand', 'hesitation_degree', 'feature_pair') NOT NULL,
@@ -80,41 +80,29 @@ CREATE TABLE IF NOT EXISTS `Correlation_result` (
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `Correlation_WIDselect`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `Correlation_UIDselect`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `Correlation_2019select`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-ALTER TABLE `Correlation_result`
-  ADD COLUMN IF NOT EXISTS `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1));
-
-CREATE OR REPLACE VIEW `Correlation_usage_counts` AS
+CREATE OR REPLACE VIEW `correlation_usage_counts` AS
 SELECT `teacher_id`, 'wid_apply' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Correlation_WIDselect`
+FROM `correlation_widselect`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, 'uid_correlation_display' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Correlation_UIDselect`
+FROM `correlation_uidselect`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, 'a_university_2019_apply' AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Correlation_2019select`
+FROM `correlation_2019select`
 GROUP BY `teacher_id`
 UNION ALL
 SELECT `teacher_id`, CONCAT('correlation_', `analysis_mode`, '_display') AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Correlation_result`
+FROM `correlation_result`
 GROUP BY `teacher_id`, `analysis_mode`
 UNION ALL
 SELECT `teacher_id`, CONCAT('ranking_', `analysis_mode`, '_click') AS `function_name`, COUNT(*) AS `use_count`,
        MIN(`created_at`) AS `first_used_at`, MAX(`created_at`) AS `last_used_at`
-FROM `Correlation_result`
+FROM `correlation_result`
 WHERE `ranking_clicked` = 1
 GROUP BY `teacher_id`, `analysis_mode`;

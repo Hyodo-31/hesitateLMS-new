@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/hesitation-estimation-state.php';
+require_once __DIR__ . '/usage-log-diagnostics.php';
 
 function machine_learning_usage_json(array $value): string
 {
@@ -426,46 +427,64 @@ function machine_learning_usage_log_execution(
     $fromFeatureCorrelation = $transitionSnapshot['total'] > 0 ? 1 : 0;
     $ml = teacher_hesitation_ml_flag($conn, $teacherId);
 
-    $stmt = $conn->prepare(
-        'INSERT INTO hesitate_estimate_pre (
-             teacher_id, training_data_source, training_group_id, training_group_name,
-             training_uids, classification_uids, classification_groups, selected_features,
-             classifier_preset_used, classifier_preset, classifier_preset_modified,
-             from_feature_correlation, feature_correlation_transition_count,
-             feature_correlation_understand_transition_count,
-             feature_correlation_hesitation_degree_transition_count,
-             feature_correlation_feature_pair_transition_count, ML
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    );
-    if (!$stmt) {
-        throw new RuntimeException('機械学習ログ保存の準備に失敗しました。');
-    }
-    $stmt->bind_param(
-        'ssisssssisiiiiiii',
-        $teacherId,
-        $training['source'],
-        $trainingGroupId,
-        $trainingGroupName,
-        $trainingUidsJson,
-        $classificationUidsJson,
-        $classificationGroupsJson,
-        $featuresJson,
-        $preset['used'],
-        $presetName,
-        $preset['modified'],
-        $fromFeatureCorrelation,
-        $transitionSnapshot['total'],
-        $transitionSnapshot['understand'],
-        $transitionSnapshot['hesitation_degree'],
-        $transitionSnapshot['feature_pair'],
-        $ml
-    );
-    if (!$stmt->execute()) {
-        $message = $stmt->error;
+    try {
+        $stmt = $conn->prepare(
+            'INSERT INTO hesitate_estimate_pre (
+                 teacher_id, training_data_source, training_group_id, training_group_name,
+                 training_uids, classification_uids, classification_groups, selected_features,
+                 classifier_preset_used, classifier_preset, classifier_preset_modified,
+                 from_feature_correlation, feature_correlation_transition_count,
+                 feature_correlation_understand_transition_count,
+                 feature_correlation_hesitation_degree_transition_count,
+                 feature_correlation_feature_pair_transition_count, ML
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        if (!$stmt) {
+            usage_log_throw_statement_error(
+                'hesitation_estimation',
+                'hesitate_estimate_pre',
+                $conn->errno,
+                $conn->sqlstate,
+                $conn->error
+            );
+        }
+        $stmt->bind_param(
+            'ssisssssisiiiiiii',
+            $teacherId,
+            $training['source'],
+            $trainingGroupId,
+            $trainingGroupName,
+            $trainingUidsJson,
+            $classificationUidsJson,
+            $classificationGroupsJson,
+            $featuresJson,
+            $preset['used'],
+            $presetName,
+            $preset['modified'],
+            $fromFeatureCorrelation,
+            $transitionSnapshot['total'],
+            $transitionSnapshot['understand'],
+            $transitionSnapshot['hesitation_degree'],
+            $transitionSnapshot['feature_pair'],
+            $ml
+        );
+        if (!$stmt->execute()) {
+            $errno = $stmt->errno;
+            $sqlState = $stmt->sqlstate;
+            $message = $stmt->error;
+            $stmt->close();
+            usage_log_throw_statement_error(
+                'hesitation_estimation',
+                'hesitate_estimate_pre',
+                $errno,
+                $sqlState,
+                $message
+            );
+        }
         $stmt->close();
-        throw new RuntimeException('機械学習ログの保存に失敗しました: ' . $message);
+    } catch (mysqli_sql_exception $e) {
+        usage_log_throw_database_error('hesitation_estimation', 'hesitate_estimate_pre', $e, $conn);
     }
-    $stmt->close();
 
     return $transitionSnapshot;
 }
