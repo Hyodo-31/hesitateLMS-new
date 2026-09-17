@@ -2144,9 +2144,54 @@ $featureDisplayFeatureKeys = [
                             } else {
                                 // (...既存のCSV読み込みとtemporary_resultsテーブルへの保存処理...)
                                 // この部分も変更しないでください
+                                $metrics = null;
                                 if (file_exists($metricsFile)) {
-                                    $metrics = json_decode(file_get_contents($metricsFile), true);
+                                    $decodedMetrics = json_decode(file_get_contents($metricsFile), true);
+                                    if (is_array($decodedMetrics)) {
+                                        $metrics = $decodedMetrics;
+                                    }
                                 }
+
+                                $accuracyAvailable = is_array($metrics)
+                                    && ($metrics['available'] ?? false) === true
+                                    && isset($metrics['mean_accuracy'])
+                                    && is_numeric($metrics['mean_accuracy'])
+                                    && (float)$metrics['mean_accuracy'] >= 0
+                                    && (float)$metrics['mean_accuracy'] <= 1;
+
+                                echo '<section class="ml-accuracy-summary" aria-labelledby="ml-accuracy-title">';
+                                echo '<h3 id="ml-accuracy-title">'
+                                    . htmlspecialchars(translate('machineLearning_sample.php_迷い推定精度'), ENT_QUOTES, 'UTF-8')
+                                    . '</h3>';
+                                if ($accuracyAvailable) {
+                                    $accuracyPercent = number_format((float)$metrics['mean_accuracy'] * 100, 2);
+                                    $foldCount = max(0, (int)($metrics['fold_count'] ?? 0));
+                                    $sampleCount = max(0, (int)($metrics['sample_count'] ?? 0));
+                                    echo '<p class="ml-accuracy-value">' . $accuracyPercent . '%</p>';
+                                    echo '<p class="ml-accuracy-method">'
+                                        . htmlspecialchars(sprintf(
+                                            translate('machineLearning_sample.php_層化分割交差検証'),
+                                            $foldCount,
+                                            $sampleCount
+                                        ), ENT_QUOTES, 'UTF-8')
+                                        . '</p>';
+                                    if (isset($metrics['accuracy_std']) && is_numeric($metrics['accuracy_std'])) {
+                                        echo '<p class="ml-accuracy-variation">'
+                                            . htmlspecialchars(sprintf(
+                                                translate('machineLearning_sample.php_精度の標準偏差'),
+                                                number_format((float)$metrics['accuracy_std'] * 100, 2)
+                                            ), ENT_QUOTES, 'UTF-8')
+                                            . '</p>';
+                                    }
+                                } else {
+                                    $accuracyMessageKey = (($metrics['unavailable_reason'] ?? '') === 'insufficient_class_samples')
+                                        ? 'machineLearning_sample.php_精度算出データ不足'
+                                        : 'machineLearning_sample.php_精度算出不可';
+                                    echo '<p class="ml-accuracy-unavailable">'
+                                        . htmlspecialchars(translate($accuracyMessageKey), ENT_QUOTES, 'UTF-8')
+                                        . '</p>';
+                                }
+                                echo '</section>';
                                 if (($handle = fopen($csvFile, "r")) !== FALSE) {
                                     $header = fgetcsv($handle, 1000, ",");
                                     $deleteQuery = "DELETE FROM temporary_results WHERE teacher_id = ?";

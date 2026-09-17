@@ -6,10 +6,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 #import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import cross_val_score,KFold,cross_validate
-from sklearn.metrics import precision_score, recall_score, f1_score, classification_report
+from sklearn.model_selection import StratifiedKFold, cross_val_score
 import numpy as np
 import json
 import mysql.connector
@@ -229,6 +226,68 @@ class Classify:
         self.model = RandomForestClassifier(n_estimators=100, random_state=0)
         self.model.fit(X_data, Y_data)
         print("モデル学習完了")
+
+    def evaluate_model(self):
+        """学習データに対する層化交差検証で、迷い推定精度を算出する。
+
+        評価に失敗しても本来の推定処理は続行し、表示側が「算出不可」と
+        判定できるJSONを可能な限り出力する。
+        """
+        metrics = {
+            "available": False,
+            "evaluation_method": "stratified_cross_validation",
+            "mean_accuracy": None,
+            "accuracy_std": None,
+            "fold_count": 0,
+            "sample_count": int(self.classifydf.shape[0]),
+            "hesitated_count": int((self.classifydf["Understand"] == 2).sum()),
+            "not_hesitated_count": int((self.classifydf["Understand"] == 4).sum()),
+        }
+
+        try:
+            y_data = self.classifydf["Understand"].to_numpy().ravel()
+            class_counts = self.classifydf["Understand"].value_counts()
+            if len(class_counts) < 2 or int(class_counts.min()) < 2:
+                metrics["unavailable_reason"] = "insufficient_class_samples"
+            else:
+                # 各foldに両クラスが入るよう、少ない側のデータ数を上限にする。
+                fold_count = min(10, int(class_counts.min()))
+                cross_validation = StratifiedKFold(
+                    n_splits=fold_count,
+                    shuffle=True,
+                    random_state=0,
+                )
+                evaluation_model = RandomForestClassifier(
+                    n_estimators=100,
+                    random_state=0,
+                )
+                scores = cross_val_score(
+                    evaluation_model,
+                    self.classifydf[self.features],
+                    y_data,
+                    cv=cross_validation,
+                    scoring="accuracy",
+                )
+                if scores.size == 0 or not np.all(np.isfinite(scores)):
+                    raise ValueError("交差検証で有効な精度が得られませんでした。")
+                self.mean_accuracy = float(np.mean(scores))
+                metrics.update({
+                    "available": True,
+                    "mean_accuracy": self.mean_accuracy,
+                    "accuracy_std": float(np.std(scores)),
+                    "fold_count": fold_count,
+                })
+        except Exception as error:
+            metrics["unavailable_reason"] = "evaluation_failed"
+            print(f"迷い推定精度の算出に失敗しました: {error}")
+
+        try:
+            with open(self.metrics_json, "w", encoding="utf-8") as metrics_file:
+                json.dump(metrics, metrics_file, ensure_ascii=False)
+        except Exception as error:
+            # 評価結果の出力失敗で、推定結果CSVの作成を止めない。
+            print(f"迷い推定精度ファイルの保存に失敗しました: {error}")
+
     def predict_new_data(self):
         """
         新しいデータを予測する関数
@@ -328,6 +387,7 @@ def main():
 
     datamarge.makingclassifydf()        #ここで迷い無しとありが1:1のデータセットができている．
     datamarge.train_model()             #モデル学習
+    datamarge.evaluate_model()          #学習データに対する迷い推定精度を算出
     datamarge.predict_new_data()
 
     

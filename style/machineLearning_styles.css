@@ -434,6 +434,39 @@ main .individual-details .student-details {
     padding: 5px;
 }
 
+.ml-accuracy-summary {
+    margin: 12px 0 18px;
+    padding: 18px 20px;
+    border: 1px solid #9fc4e7;
+    border-left: 6px solid #2478b8;
+    border-radius: 8px;
+    background: #f3f8fd;
+}
+
+.ml-accuracy-summary h3 {
+    margin: 0 0 8px;
+    color: #174f7b;
+}
+
+.ml-accuracy-value {
+    margin: 0;
+    color: #145f91;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.ml-accuracy-method,
+.ml-accuracy-variation,
+.ml-accuracy-unavailable {
+    margin: 6px 0 0;
+    color: #334155;
+}
+
+.ml-accuracy-unavailable {
+    font-weight: 600;
+}
+
 canvas {
     width: 100% !important; /* グラフの幅を100%に固定 */
     height: 450px !important; /* 高さを自動調整 */
