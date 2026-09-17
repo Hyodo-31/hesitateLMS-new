@@ -1,0 +1,1 @@
+{"available": true, "evaluation_method": "stratified_cross_validation", "mean_accuracy": 0.832608695652174, "accuracy_std": 0.0687795305198103, "fold_count": 10, "sample_count": 460, "hesitated_count": 230, "not_hesitated_count": 230}

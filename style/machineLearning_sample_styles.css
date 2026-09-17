@@ -1,0 +1,263 @@
+body.machine-learning-sample-page .fixed-header {
+    background-color: var(--card-background-color);
+    padding: 0 20px;
+    border-bottom: 1px solid #e0e0e0;
+    box-sizing: border-box;
+}
+
+body.machine-learning-sample-page .main-content {
+    min-width: 0;
+}
+
+.machine-learning-page {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+.machine-learning-page .ml-card {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 25px;
+    margin-bottom: 20px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--card-background-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.machine-learning-page .ml-card h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--primary-color);
+    color: #2c3e50;
+    font-size: 1.5rem;
+}
+
+.machine-learning-page .class-card,
+.machine-learning-page .contents,
+.machine-learning-page .classification-group-selector,
+.machine-learning-page .classification-target-list {
+    box-sizing: border-box;
+}
+
+.machine-learning-page .class-card {
+    padding: 18px;
+    border: 1px solid #d8dee4;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: none;
+}
+
+.machine-learning-page .class-card h3 {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.machine-learning-page .graph-feature-button {
+    padding: 8px 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.machine-learning-page .chart-row {
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.machine-learning-page canvas {
+    max-width: 100%;
+}
+
+.machine-learning-page #feature-modal-area {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.machine-learning-page button,
+.machine-learning-page input[type="submit"] {
+    box-sizing: border-box;
+    padding: 9px 16px;
+    border: 1px solid #1f6fb2;
+    border-radius: 5px;
+    background: #2478b8;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.machine-learning-page button:hover,
+.machine-learning-page input[type="submit"]:hover {
+    background: #1f6498;
+}
+
+.machine-learning-page button:focus-visible,
+.machine-learning-page input[type="submit"]:focus-visible,
+.machine-learning-page select:focus-visible,
+.machine-learning-page input:focus-visible {
+    outline: 3px solid rgba(0, 123, 255, 0.25);
+    outline-offset: 2px;
+}
+
+.machine-learning-page .modal {
+    z-index: 1100;
+    box-sizing: border-box;
+}
+
+body.machine-learning-sample-page .feature-detail-modal {
+    z-index: 1200;
+}
+
+.machine-learning-page .modal-content,
+.machine-learning-page .moda-content-machineLearning {
+    box-sizing: border-box;
+    width: min(1000px, calc(100vw - 32px));
+}
+
+.machine-learning-page .moda-content-machineLearning {
+    overflow-x: auto;
+}
+
+.machine-learning-page #feature-modal .table2 {
+    min-width: 0;
+    table-layout: fixed;
+}
+
+.machine-learning-page #feature-modal .table2 th {
+    width: 24%;
+    vertical-align: top;
+}
+
+.machine-learning-page #feature-modal .table2 td {
+    min-width: 0;
+    vertical-align: top;
+}
+
+.machine-learning-page #feature-modal .itemgroup {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 20px;
+    margin: 8px 0;
+    padding: 0;
+}
+
+.machine-learning-page #feature-modal .itemgroup li {
+    width: auto;
+    min-width: 0;
+}
+
+.machine-learning-page #feature-modal .itemgroup label {
+    position: relative;
+    display: block;
+    min-height: 24px;
+    padding: 2px 4px 2px 26px;
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.machine-learning-page #feature-modal .itemgroup input[type="checkbox"] {
+    position: absolute;
+    top: 0.35em;
+    left: 0;
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.machine-learning-page #feature-modal .itemgroup .info-icon {
+    margin-left: 6px;
+    flex: 0 0 auto;
+}
+
+.machine-learning-page .table-responsive,
+.machine-learning-page #table-container {
+    width: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+}
+
+.machine-learning-page #results-table {
+    width: 100%;
+    margin-right: 0;
+    margin-left: 0;
+}
+
+.machine-learning-page .ml-accuracy-summary {
+    box-sizing: border-box;
+}
+
+.machine-learning-page .ml-empty-state {
+    margin: 0;
+    padding: 16px;
+    border: 1px solid #d8dee4;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #64748b;
+}
+
+@media (max-width: 768px) {
+    body.machine-learning-sample-page .fixed-header h1 {
+        max-width: calc(100vw - 150px);
+        overflow: hidden;
+        font-size: 1rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .machine-learning-page {
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+
+    .machine-learning-page .ml-card {
+        padding: 18px 14px;
+    }
+
+    .machine-learning-page .chart-row {
+        min-height: 320px;
+    }
+
+    .machine-learning-page .itemgroup {
+        flex-wrap: wrap;
+        padding-left: 0;
+    }
+
+    .machine-learning-page .itemgroup li {
+        width: 100%;
+    }
+
+    .machine-learning-page .table2 {
+        min-width: 720px;
+    }
+
+    .machine-learning-page #feature-modal .table2,
+    .machine-learning-page #feature-modal .table2 tbody,
+    .machine-learning-page #feature-modal .table2 tr,
+    .machine-learning-page #feature-modal .table2 th,
+    .machine-learning-page #feature-modal .table2 td {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .machine-learning-page #feature-modal .table2 tr {
+        margin-bottom: 12px;
+    }
+
+    .machine-learning-page #feature-modal .itemgroup {
+        grid-template-columns: 1fr;
+    }
+}

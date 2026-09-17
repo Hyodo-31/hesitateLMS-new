@@ -25,8 +25,10 @@ $featureDisplayFeatureKeys = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= translate('machineLearning_sample.php_5行目_教師用ダッシュボード') ?></title>
-    <link rel="stylesheet" href="../style/machineLearning_styles.css">
+    <title>迷い推定・機械学習（問題単位）</title>
+    <link rel="stylesheet" href="../style/machineLearning_styles.css?v=<?= filemtime(__DIR__ . '/../style/machineLearning_styles.css') ?>">
+    <link rel="stylesheet" href="../style/teachertrue_styles.css?v=<?= filemtime(__DIR__ . '/../style/teachertrue_styles.css') ?>">
+    <link rel="stylesheet" href="../style/machineLearning_sample_styles.css?v=<?= filemtime(__DIR__ . '/../style/machineLearning_sample_styles.css') ?>">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script>
@@ -34,7 +36,7 @@ $featureDisplayFeatureKeys = [
     </script>
 </head>
 
-<body>
+<body class="machine-learning-sample-page">
     <style>
         /* テーブルのスクロール表示設定 */
         #table-container {
@@ -58,16 +60,6 @@ $featureDisplayFeatureKeys = [
             padding: 8px;
             border: 1px solid #ddd;
             /* セルの境界線 */
-        }
-
-        #cluster-data {
-            max-width: 800px;
-            width: 100%;
-            /* 親要素の幅に合わせる */
-            height: auto;
-            /* 高さを自動調整 */
-            margin: 0 auto;
-            /* 左右のマージンを自動で中央揃え */
         }
 
         .classification-target-controls {
@@ -144,39 +136,15 @@ $featureDisplayFeatureKeys = [
     // GET パラメータが指定されている場合のみセッションに保存または上書き
     if (isset($_GET['students']) && !empty($_GET['students'])) {
         $_SESSION['group_students'] = $_GET['students'];
-        echo $_SESSION['group_students'];
     }
     // ユニークなIDを生成
     $uniqueId = uniqid(bin2hex(random_bytes(4)));
     $timestamp = date('YmdHis');
+    $teacher_page_title = '迷い推定・機械学習（問題単位）';
+    include __DIR__ . '/teacher-menu.php';
     ?>
-    <header>
-        <div class="logo"><?= translate('machineLearning_sample.php_58行目_データ分析ページ') ?></div>
-        <nav>
-            <ul>
-                <!-- <li><a href="teachertrue.php"><?= translate('machineLearning_sample.php_61行目_ホーム') ?></a></li> -->
-                <!-- <li><a href="machineLearning_sample.php"><?= translate('machineLearning_sample.php_62行目_迷い推定・機械学習') ?></a></li> -->
-                <!-- <li><a href="register-student.php"><?= translate('machineLearning_sample.php_63行目_新規学生登録') ?></a></li> -->
-            </ul>
-        </nav>
-    </header>
-    <div class="container">
-        <aside>
-            <ul>
-                <li><a href="teachertrue.php"><?= translate('machineLearning_sample.php_61行目_ホーム') ?></a></li>
-                <!-- <li><a href="machineLearning_sample.php"><?= translate('machineLearning_sample.php_70行目_迷い推定・機械学習') ?></a></li> -->
-                <!-- <li><a href="register-student.php"><?= translate('machineLearning_sample.php_71行目_新規学生登録') ?></a></li> -->
-            </ul>
-        </aside>
-        <main>
-            <p id="loadTime"></p>
-            <script>
-                window.addEventListener('load', function() {
-                    var loadTime = performance.now();
-                    console.log('ページの表示時間: ' + loadTime.toFixed(2) + 'ミリ秒');
-                    document.getElementById('loadTime').textContent = <?= json_encode(translate('machineLearning_sample.php_77行目_ページの表示時間')) ?> + ': ' + loadTime.toFixed(2) + <?= json_encode(translate('machineLearning_sample.php_77行目_ミリ秒')) ?>;
-                });
-            </script>
+    <div class="main-content">
+        <main class="page-content machine-learning-page">
             <?php
             require "../dbc.php";
             $teacher_id = $_SESSION['MemberID'];
@@ -256,7 +224,7 @@ $featureDisplayFeatureKeys = [
                 }
             } else {
                 // 学習者グループがない場合
-                echo "<p>" . translate('machineLearning_sample.php_196行目_学習者グループがありません') . "</p>";
+                $groups = [];
             }
 
             $stmt->close();
@@ -781,8 +749,11 @@ $featureDisplayFeatureKeys = [
                 </font>
             </section>
                                 -->
-            <section class="group-chart">
+            <section class="group-chart card ml-card">
                 <h2><?= translate('machineLearning_sample.php_569行目_作成したグループの成績') ?></h2>
+                <?php if (empty($groups)): ?>
+                    <p class="ml-empty-state"><?= htmlspecialchars(translate('machineLearning_sample.php_196行目_学習者グループがありません'), ENT_QUOTES, 'UTF-8') ?></p>
+                <?php endif; ?>
                 <div id="group-chart-container"></div>
             </section>
 
@@ -794,7 +765,7 @@ $featureDisplayFeatureKeys = [
 
                     // 特徴量選択後の適用ボタンに対して適切な配列とインデックスを設定
                     document.getElementById('apply-features-btn').onclick = function() {
-                        applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
+                        void applySelectedFeatures(isOverall ? existingOverallCharts : existingClassCharts, index, isOverall);
                     };
                 }
                 //モーダルを閉じる
@@ -883,7 +854,7 @@ $featureDisplayFeatureKeys = [
                         groupContainer.classList.add('class-card');
                         groupContainer.innerHTML = `
                 <h3>${group.group_name}
-                    <button onclick="openFeatureModalgraph(${index}, false)"><?= translate('machineLearning_sample.php_584行目_グラフ描画特徴量') ?></button>
+                    <button type="button" class="graph-feature-button" onclick="openFeatureModalgraph(${index}, false)"><?= translate('machineLearning_sample.php_584行目_グラフ描画特徴量') ?></button>
                 </h3>
                 <div class="chart-row">
                     <canvas id="dual-axis-chart-${index}"></canvas>
@@ -1011,156 +982,169 @@ $featureDisplayFeatureKeys = [
                             }
                         }
                     });
+
+                    return chartArray[chartIndex];
                 }
 
-                function applySelectedFeatures(chartArray, chartIndex, isOverall) {
+                async function fetchGraphFeatureData(params) {
+                    const response = await fetch('fetch_feature_data.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: params.toString()
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !Array.isArray(data) || data.error) {
+                        throw new Error(data?.error || '特徴量データを取得できませんでした。');
+                    }
+                    if (data.length === 0) {
+                        throw new Error('表示できる特徴量データがありません。');
+                    }
+                    return data;
+                }
+
+                function graphFeatureRenderSucceeded(chart, canvas, labels, data1, data2) {
+                    return Boolean(
+                        chart &&
+                        canvas &&
+                        canvas.isConnected &&
+                        canvas.clientWidth > 0 &&
+                        canvas.clientHeight > 0 &&
+                        chart.canvas === canvas &&
+                        Array.isArray(labels) &&
+                        labels.length > 0 &&
+                        Array.isArray(data1) &&
+                        Array.isArray(data2) &&
+                        data1.length === labels.length &&
+                        data2.length === labels.length &&
+                        data1.every(value => value !== null && value !== undefined && Number.isFinite(Number(value))) &&
+                        data2.every(value => value !== null && value !== undefined && Number.isFinite(Number(value))) &&
+                        chart.data?.labels?.length === labels.length &&
+                        chart.data?.datasets?.length === 2 &&
+                        chart.data.datasets.every(dataset => dataset.data.length === labels.length)
+                    );
+                }
+
+                async function recordGraphFeatureUsage(group, selectedFeatures, displayedStudentCount) {
+                    const response = await fetch('save_graph_feature_log.php', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            group_id: group.group_id,
+                            selected_features: selectedFeatures,
+                            displayed_student_count: displayedStudentCount
+                        })
+                    });
+                    const result = await response.json();
+                    if (!response.ok || result.status !== 'success') {
+                        throw new Error(result.message || 'グラフ描画特徴量の利用ログを保存できませんでした。');
+                    }
+                }
+
+                async function applySelectedFeatures(chartArray, chartIndex, isOverall) {
                     const selectedFeatures = Array.from(document.querySelectorAll('#feature-form input[type="checkbox"]:checked'))
                         .map(input => input.value);
-                    //console.log("applySelectedFeatures:", selectedFeatures);
-                    //console.log("ChartArray:", chartArray);
-                    //console.log("ChartIndex:", chartIndex);
+                    if (selectedFeatures.length !== 2) {
+                        alert(<?= json_encode(translate('machineLearning_sample.php_752行目_2つの特徴量を選択してください')) ?>);
+                        return;
+                    }
 
-                    // `notaccuracy`が選択されているか確認
-                    if (selectedFeatures.includes('notaccuracy')) {
-                        if (selectedFeatures.length !== 2) {
-                            alert(<?= json_encode(translate('machineLearning_sample.php_699行目_2つの特徴量を選択してください')) ?>);
-                            return;
+                    const group = isOverall && typeof classData !== 'undefined' ?
+                        classData[chartIndex] : groupData[chartIndex];
+                    const students = isOverall ? group?.class_students : group?.students;
+                    if (!group || !Array.isArray(students) || students.length === 0) {
+                        console.error('グラフ表示対象の学習者が見つかりません。');
+                        return;
+                    }
+
+                    const applyButton = document.getElementById('apply-features-btn');
+                    if (!applyButton || applyButton.disabled) {
+                        return;
+                    }
+                    applyButton.disabled = true;
+
+                    try {
+                        const studentIDs = students.map(student => student.student_id).join(',');
+                        const includesNotAccuracy = selectedFeatures.includes('notaccuracy');
+                        const requestedFeatures = includesNotAccuracy ?
+                            [selectedFeatures.find(feature => feature !== 'notaccuracy')] : selectedFeatures;
+                        if (!requestedFeatures[0]) {
+                            throw new Error(<?= json_encode(translate('machineLearning_sample.php_710行目_不正解率と一緒にもう1つの特徴量を選択してください')) ?>);
                         }
-                        const otherFeature = selectedFeatures.find(feature => feature !== 'notaccuracy');
-
-                        // クライアント側のデータから不正解率データを取得
-                        let group = isOverall ? classData[chartIndex] : groupData[chartIndex];
-                        console.log('group:', group);
-                        const labels = group.students.map(student => student.name);
-                        const notaccuracyData = group.students.map(student => student.notaccuracy);
-
-                        if (!otherFeature) {
-                            alert(<?= json_encode(translate('machineLearning_sample.php_710行目_不正解率と一緒にもう1つの特徴量を選択してください')) ?>);
-                            return;
-                        }
-
-                        // サーバーにリクエストするパラメータを設定（`notaccuracy`は含めない）
-                        const studentIDs = isOverall ?
-                            group.class_students.map(student => student.student_id).join(',') :
-                            group.students.map(student => student.student_id).join(',');
 
                         const params = new URLSearchParams({
-                            features: otherFeature,
+                            features: requestedFeatures.join(','),
                             studentIDs: studentIDs
                         });
+                        const data = await fetchGraphFeatureData(params);
+                        const labels = data.map(item => item.name);
+                        let data1;
+                        let data2;
+                        let label1;
+                        let label2;
 
-                        // もう1つの特徴量のデータをfetchで取得
-                        fetch('fetch_feature_data.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: params.toString()
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.error) {
-                                    console.error('サーバーエラー:', data.error);
-                                    alert(data.error);
-                                    return;
-                                }
-
-                                const otherFeatureData = data.map(item => item.featureA_avg);
-                                const otherFeatureLabel = getFeatureLabelFromInput(otherFeature);
-
-                                const canvasId = isOverall ?
-                                    `class-dual-axis-chart-${chartIndex}` :
-                                    `dual-axis-chart-${chartIndex}`;
-
-                                createDualAxisChart(
-                                    document.getElementById(canvasId).getContext('2d'),
-                                    labels,
-                                    notaccuracyData,
-                                    otherFeatureData,
-                                    <?= json_encode(translate('machineLearning_sample.php_734行目_不正解率(%)')) ?>,
-                                    `${otherFeatureLabel} ` + <?= json_encode(translate('machineLearning_sample.php_735行目_平均')) ?>,
-                                    'rgba(54, 162, 235, 0.6)',
-                                    'rgba(255, 99, 132, 0.6)',
-                                    <?= json_encode(translate('machineLearning_sample.php_739行目_不正解率(%)')) ?>,
-                                    `${otherFeatureLabel} ` + <?= json_encode(translate('machineLearning_sample.php_740行目_平均')) ?>,
-                                    chartArray,
-                                    chartIndex
-                                );
-
-                                closeFeatureModalgraph();
-                            })
-                            .catch(error => {
-                                console.error('エラー:', error);
-                            });
-                    } else {
-                        // 通常の2つの特徴量での処理
-                        if (selectedFeatures.length !== 2) {
-                            alert(<?= json_encode(translate('machineLearning_sample.php_752行目_2つの特徴量を選択してください')) ?>);
-                            return;
+                        if (includesNotAccuracy) {
+                            const notAccuracyByStudent = new Map(
+                                students.map(student => [String(student.student_id), student.notaccuracy])
+                            );
+                            data1 = data.map(item => notAccuracyByStudent.get(String(item.student_id)));
+                            data2 = data.map(item => item.featureA_avg);
+                            label1 = <?= json_encode(translate('machineLearning_sample.php_734行目_不正解率(%)')) ?>;
+                            label2 = `${getFeatureLabelFromInput(requestedFeatures[0])} ` + <?= json_encode(translate('machineLearning_sample.php_735行目_平均')) ?>;
+                        } else {
+                            data1 = data.map(item => item.featureA_avg);
+                            data2 = data.map(item => item.featureB_avg);
+                            label1 = `${getFeatureLabelFromInput(selectedFeatures[0])} ` + <?= json_encode(translate('machineLearning_sample.php_777行目_平均')) ?>;
+                            label2 = `${getFeatureLabelFromInput(selectedFeatures[1])} ` + <?= json_encode(translate('machineLearning_sample.php_778行目_平均')) ?>;
                         }
 
-                        let group = isOverall ? classData[chartIndex] : groupData[chartIndex];
+                        const canvasId = isOverall ?
+                            `class-dual-axis-chart-${chartIndex}` :
+                            `dual-axis-chart-${chartIndex}`;
+                        const canvas = document.getElementById(canvasId);
+                        if (!canvas) {
+                            throw new Error('グラフ描画領域が見つかりません。');
+                        }
 
-                        const studentIDs = isOverall ?
-                            group.class_students.map(student => student.student_id).join(',') :
-                            group.students.map(student => student.student_id).join(',');
+                        const chart = createDualAxisChart(
+                            canvas.getContext('2d'),
+                            labels,
+                            data1,
+                            data2,
+                            label1,
+                            label2,
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 99, 132, 0.6)',
+                            label1,
+                            label2,
+                            chartArray,
+                            chartIndex
+                        );
 
-                        const params = new URLSearchParams({
-                            features: selectedFeatures.join(','),
-                            studentIDs: studentIDs
-                        });
+                        await new Promise(resolve => window.requestAnimationFrame(resolve));
+                        if (!graphFeatureRenderSucceeded(chart, canvas, labels, data1, data2)) {
+                            throw new Error('グラフを正しく描画できませんでした。');
+                        }
 
-                        fetch('fetch_feature_data.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: params.toString()
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.error) {
-                                    console.error('サーバーエラー:', data.error);
-                                    alert(data.error);
-                                    return;
-                                }
-
-                                const labels = data.map(item => item.name);
-                                const featureAData = data.map(item => item.featureA_avg);
-                                const featureBData = data.map(item => item.featureB_avg);
-                                const featureALabel = getFeatureLabelFromInput(selectedFeatures[0]);
-                                const featureBLabel = getFeatureLabelFromInput(selectedFeatures[1]);
-
-                                const canvasId = isOverall ?
-                                    `class-dual-axis-chart-${chartIndex}` :
-                                    `dual-axis-chart-${chartIndex}`;
-
-                                createDualAxisChart(
-                                    document.getElementById(canvasId).getContext('2d'),
-                                    labels,
-                                    featureAData,
-                                    featureBData,
-                                    `${featureALabel} ` + <?= json_encode(translate('machineLearning_sample.php_777行目_平均')) ?>,
-                                    `${featureBLabel} ` + <?= json_encode(translate('machineLearning_sample.php_778行目_平均')) ?>,
-                                    'rgba(54, 162, 235, 0.6)',
-                                    'rgba(255, 99, 132, 0.6)',
-                                    `${featureALabel} ` + <?= json_encode(translate('machineLearning_sample.php_782行目_平均')) ?>,
-                                    `${featureBLabel} ` + <?= json_encode(translate('machineLearning_sample.php_783行目_平均')) ?>,
-                                    chartArray,
-                                    chartIndex
-                                );
-
-                                closeFeatureModalgraph();
-                            })
-                            .catch(error => {
-                                console.error('エラー:', error);
-                            });
+                        closeFeatureModalgraph();
+                        if (!isOverall && group.group_id) {
+                            void recordGraphFeatureUsage(group, selectedFeatures, labels.length)
+                                .catch(error => console.warn('グラフ描画特徴量の利用ログを保存できませんでした。', error));
+                        }
+                    } catch (error) {
+                        console.error('グラフ描画特徴量の適用に失敗しました。', error);
+                    } finally {
+                        applyButton.disabled = false;
                     }
                 }
             </script>
 
 
-            <section class="progress-chart">
+            <section class="progress-chart card ml-card">
                 <h2><?= translate('machineLearning_sample.php_794行目_特徴量選択') ?></h2>
                 <div id="feature-modal-area">
                     <button class="feature-button" onclick="openFeatureModal()">
@@ -2355,7 +2339,7 @@ $featureDisplayFeatureKeys = [
                 });
             </script>
 
-            <section class="individual-details">
+            <section class="individual-details card ml-card">
                 <div class="machinelearning-result">
                     <h2><?= translate('machineLearning_sample.php_1110行目_機械学習結果') ?></h2>
                     <div class="contents">
@@ -2426,54 +2410,6 @@ $featureDisplayFeatureKeys = [
                                     $stmt->close();
                                     $topData = $csvData;
 
-                                    // (グラフ描画用の$studentStats計算処理はそのまま残します)
-                                    $studentStats = [];
-                                    $uidData = [];
-                                    foreach ($csvData as $data) {
-                                        $uid = $data[0];
-                                        $understand = $data[2];
-                                        if (!isset($uidData[$uid])) {
-                                            $uidData[$uid] = ['total' => 0, 'hesitate' => 0];
-                                        }
-                                        $uidData[$uid]['total']++;
-                                        if ($understand == 2) {
-                                            $uidData[$uid]['hesitate']++;
-                                        }
-                                    }
-                                    foreach ($uidData as $uid => $counts) {
-                                        $getNameQuery = "SELECT Name FROM students WHERE UID = ?";
-                                        $stmt = $conn->prepare($getNameQuery);
-                                        $stmt->bind_param("i", $uid);
-                                        $stmt->execute();
-                                        $nameResult = $stmt->get_result();
-                                        $nameRow = $nameResult->fetch_assoc();
-                                        $name = $nameRow ? $nameRow['Name'] : 'Unknown';
-
-                                        $getAccuracyQuery = "SELECT COUNT(*) AS total_answers, SUM(CASE WHEN TF = 1 THEN 1 ELSE 0 END) AS correct_answers FROM linedata WHERE UID = ?";
-                                        $stmt = $conn->prepare($getAccuracyQuery);
-                                        $stmt->bind_param("i", $uid);
-                                        $stmt->execute();
-                                        $accuracyresult = $stmt->get_result();
-                                        $scoreData = $accuracyresult->fetch_assoc();
-                                        $totalAnswers = $scoreData['total_answers'];
-                                        $correctAnswers = $scoreData['correct_answers'];
-                                        $accuracyRate = $totalAnswers > 0 ? ($correctAnswers / $totalAnswers) * 100 : 0;
-                                        $notAccuracyRate = 100 - $accuracyRate;
-
-                                        $total = $counts['total'];
-                                        $hesitate = $counts['hesitate'];
-                                        $hesitationRate = ($total > 0) ? ($hesitate / $total) * 100 : 0;
-
-                                        $studentStats[$uid] = [
-                                            'uid' => $uid,
-                                            'name' => $name,
-                                            'accuracy' => number_format($accuracyRate, 2),
-                                            'notAccuracy' => number_format($notAccuracyRate, 2),
-                                            'hesitation' => number_format($hesitationRate, 2),
-                                        ];
-                                    }
-                                    $stmt->close();
-
                                     // ===== ここからが修正箇所です =====
 
                                     // ---------------------------------------------------------------------
@@ -2526,7 +2462,6 @@ $featureDisplayFeatureKeys = [
                                                     <th><?= translate('machineLearning_sample.php_1188行目_迷いの有無') ?></th>
                                                     <th><?= translate('machineLearning_sample.php_1195行目_正誤') ?></th>
                                                     <th><?= translate('teachertrue.php_解答日時') ?></th>
-                                                    <th><?= translate('teachertrue.php_軌跡再現') ?></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -2569,11 +2504,6 @@ $featureDisplayFeatureKeys = [
                                                             ?>
                                                         </td>
                                                         <td><?= htmlspecialchars($answer_date) ?></td>
-                                                        <td>
-                                                            <a href="./mousemove/mousemove.php?UID=<?= urlencode($uid) ?>&WID=<?= urlencode($wid) ?>&LogID=<?= urlencode($attempt) ?>" target="_blank" rel="noopener noreferrer">
-                                                                <?= translate('machineLearning_sample.php_1228行目_軌跡再現') ?>
-                                                            </a>
-                                                        </td>
                                                     </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
@@ -2589,981 +2519,13 @@ $featureDisplayFeatureKeys = [
                         ?>
                     </div>
                 </div>
-                <div id="clustering-modal" class="modal">
-                    <div class="modal-content">
-                        <span class="close" onclick="closeClusteringModal()">&times;</span>
-                        <form id="clustering-feature-form">
-                            <h3><?= translate('machineLearning_sample.php_1239行目_クラスタ数を入力してください') ?></h3>
-                            <input type="number" id="clustering-input" min="1" max="10" value="2">
-                            <h3><?= translate('machineLearning_sample.php_1241行目_クラスタリング特徴量を選択してください') ?></h3>
-                            <label><input type="checkbox" name="feature" value="notAccuracy">
-                                <?= translate('machineLearning_sample.php_1242行目_不正解率(%)') ?><span class="info-icon"
-                                    data-feature-name="notAccuracy">ⓘ</span></label><br>
-                            <label><input type="checkbox" name="feature" value="hesitation">
-                                <?= translate('machineLearning_sample.php_1243行目_迷い率') ?><span class="info-icon"
-                                    data-feature-name="hesitation">ⓘ</span></label><br>
-                            <button type="button"
-                                id="apply-clustering-btn"><?= translate('machineLearning_sample.php_1244行目_適用') ?></button>
-                        </form>
-                    </div>
-                </div>
-                <!-- <div id="clustering-modal" class="modal"> 
-                    <div class="modal-content">
-                        <span class="close" onclick="closeClusteringModal()">&times;</span>
-                        <form id="clustering-feature-form">
-                            <h3><?= translate('machineLearning_sample.php_1239行目_クラスタ数を入力してください') ?></h3>
-                            <input type="number" id="clustering-input" min="1" max="10" value="2">
-                            <h3><?= translate('machineLearning_sample.php_1241行目_クラスタリング特徴量を選択してください') ?></h3>
-                            <label><input type="checkbox" name="feature" value="notAccuracy">
-                                <?= translate('machineLearning_sample.php_1242行目_不正解率(%)') ?></label><br>
-                            <label><input type="checkbox" name="feature" value="hesitation">
-                                <?= translate('machineLearning_sample.php_1243行目_迷い率') ?></label><br>
-                            <button type="button"
-                                id="apply-clustering-btn"><?= translate('machineLearning_sample.php_1244行目_適用') ?></button>
-                        </form>
-                    </div>
-                </div> -->
-                <script>
-                    // クラスタリングモーダルを開く
-                    function openClusteringModal(index) {
-                        document.getElementById('clustering-modal').style.display = 'block';
-                    }
-
-                    // クラスタリングモーダルを閉じる
-                    function closeClusteringModal() {
-                        document.getElementById('clustering-modal').style.display = 'none';
-                        document.getElementById('clustering-feature-form').reset();
-                    }
-                    // 特徴量を送信してクラスタリングを実行
-                    document.getElementById('apply-clustering-btn').onclick = function() {
-                        const selectedFeatures = Array.from(document.querySelectorAll('#clustering-feature-form input[type="checkbox"]:checked'))
-                            .map(input => input.value);
-                        if (selectedFeatures.length !== 2) {
-                            alert(<?= json_encode(translate('machineLearning_sample.php_1257行目_2つの特徴量を選択してください')) ?>);
-                            return;
-                        }
-                        // クラスタ数を取得
-                        const clusterCount = document.getElementById('clustering-input').value;
-
-                        // studentStatsから必要なデータを収集
-                        const studentData = <?php echo json_encode(array_values($studentStats ?? [])); ?>;
-
-                        const params = new URLSearchParams({
-                            features: selectedFeatures.join(','),
-                            clusterCount: clusterCount, // クラスタ数を追加
-                            studentData: JSON.stringify(studentData)
-                        });
-
-                        fetch('perform_clustering_hesitate_accuracy.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: params.toString()
-                            })
-                            .then(response => response.text()) // JSON の代わりにテキストとして受け取る
-                            .then(data => {
-                                //console.log("サーバーからのレスポンス:", data); // レスポンスを確認
-                                try {
-                                    jsonData = JSON.parse(data); // JSON に変換
-                                    if (jsonData.error) {
-                                        alert(jsonData.error);
-                                        return;
-                                    }
-                                    closeClusteringModal();
-                                    displayClusteringResultsFromJSON(jsonData, selectedFeatures);
-                                    displayClusteringResults_groupFromJSON(jsonData); // 追加
-                                } catch (e) {
-                                    console.error('JSON 解析エラー:', e);
-                                    console.error('レスポンス内容:', data);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('エラー:', error);
-                                alert(<?= json_encode(translate('machineLearning_sample.php_1281行目_クラスタリング中にエラーが発生しました')) ?>);
-                            });
-
-                    };
-
-                    function displayClusteringResults_groupFromJSON(jsonData) {
-                        const container = document.getElementById('cluster-data');
-                        //console.log(jsonData);
-                        if (!container) {
-                            console.error('cluster-data コンテナが見つかりません。');
-                            return;
-                        }
-
-                        // クラスタごとのデータを格納
-                        const clusters = {};
-                        jsonData.forEach(student => {
-                            const cluster = student.cluster;
-                            if (!clusters[cluster]) {
-                                clusters[cluster] = [];
-                            }
-                            clusters[cluster].push(student);
-                        });
-
-                        // クラスタごとに表示
-                        Object.keys(clusters).forEach(clusterKey => {
-                            const students = clusters[clusterKey];
-
-                            // クラスタ情報のコンテナを作成
-                            const clusterDiv = document.createElement('div');
-                            clusterDiv.className = 'cluster-group';
-                            clusterDiv.style.marginBottom = '5px';
-                            clusterDiv.style.padding = '10px';
-                            clusterDiv.style.borderRadius = '5px';
-
-                            // チェックボックスとクラスタタイトル
-                            const clusterHeader = document.createElement('h3');
-                            const checkbox = document.createElement('input');
-                            checkbox.type = 'checkbox';
-                            checkbox.value = clusterKey;
-                            checkbox.className = 'cluster-checkbox';
-
-                            clusterHeader.textContent = `${<?= json_encode(translate('machineLearning_sample.php_1311行目_クラスタ')) ?>} ${clusterKey}`;
-                            clusterHeader.prepend(checkbox);
-                            clusterDiv.appendChild(clusterHeader);
-
-                            // 学生リストを表示
-                            const studentList = document.createElement('ul');
-                            studentList.style.listStyleType = 'none';
-                            studentList.style.paddingLeft = '0';
-
-                            students.forEach(student => {
-                                const listItem = document.createElement('li');
-                                listItem.textContent = `UID: ${student.uid}`;
-                                studentList.appendChild(listItem);
-                            });
-
-                            clusterDiv.appendChild(studentList);
-                            container.appendChild(clusterDiv);
-                        });
-
-                        // グループ化ボタンを作成
-                        const groupButton = document.createElement('button');
-                        groupButton.textContent = <?= json_encode(translate('machineLearning_sample.php_1330行目_グループ化')) ?>;
-                        groupButton.style.marginTop = '10px';
-                        groupButton.onclick = () => {
-                            groupSelectedClusters(clusters);
-                        };
-                        container.appendChild(groupButton);
-                    }
-
-                    // グループ化する関数
-                    function groupSelectedClusters(clusters) {
-                        const selectedCheckboxes = document.querySelectorAll('.cluster-checkbox:checked');
-
-                        if (selectedCheckboxes.length === 0) {
-                            alert(<?= json_encode(translate('machineLearning_sample.php_1340行目_少なくとも1つのクラスタを選択してください')) ?>);
-                            return;
-                        }
-
-                        // 選択されたクラスタごとのデータを収集
-                        const clustersData = [];
-                        selectedCheckboxes.forEach(checkbox => {
-                            const clusterKey = checkbox.value;
-                            const clusterName = `${<?= json_encode(translate('machineLearning_sample.php_1347行目_クラスタ')) ?>} ${clusterKey}`; // クラスタ名をそのままグループ名に使用
-                            const clusterData = clusters[clusterKey];
-                            const studentIds = clusterData.map(student => student.uid);
-
-                            clustersData.push({
-                                group_name: clusterName,
-                                students: studentIds
-                            });
-                        });
-
-                        // サーバーにリクエストを送信
-                        fetch('group_students.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(clustersData) // JSON形式で送信
-                            })
-                            .then(response => response.text())
-                            .then(data => {
-                                alert(<?= json_encode(translate('machineLearning_sample.php_1363行目_選択されたクラスタのグループ化が完了しました')) ?>);
-                                //console.log(data);
-                                // ページ再読み込み
-                                window.location.reload();
-                            })
-                            .catch(error => {
-                                console.error('エラー:', error);
-                                alert(<?= json_encode(translate('machineLearning_sample.php_1369行目_グループ登録中にエラーが発生しました')) ?>);
-                            });
-                    }
-
-                    function displayClusteringResultsFromJSON(jsonData, selectedFeatures) {
-                        const container = document.getElementById('cluster-data');
-                        if (!container) {
-                            console.error('cluster-data コンテナが見つかりません。');
-                            return;
-                        }
-                        container.innerHTML = ''; // 前の内容をクリア
-
-                        // 新しい Canvas を作成
-                        const canvas = document.createElement('canvas');
-                        canvas.id = 'cluster-visualization';
-                        canvas.style.maxwidth = 800;
-                        canvas.style.maxheight = 400;
-                        container.appendChild(canvas);
-
-                        const ctx = canvas.getContext('2d');
-
-                        // クラスタごとの色を定義（不足分はランダムで生成）
-                        const clusterColors = [
-                            'rgba(255, 0, 0, 0.7)', // クラスタ0の色(赤)
-                            'rgba(0, 255, 0, 0.7)', // クラスタ1の色（青）
-                            'rgba(0, 0, 255, 0.7)', // クラスタ2の色（緑）
-                            'rgba(255, 255, 0, 0.7)', // クラスタ3の色（黄）
-                            'rgba(113, 0, 255, 0.7)', // クラスタ4の色（紫）
-                        ];
-
-                        // クラスタ数が色の数を超えた場合、自動で色を追加
-                        function getClusterColor(index) {
-                            if (index < clusterColors.length) {
-                                return clusterColors[index];
-                            }
-                            // ランダムで色を生成
-                            return `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`;
-                        }
-
-                        // 各クラスタのデータポイントを格納
-                        const datasets = {};
-                        jsonData.forEach(student => {
-                            const cluster = student.cluster;
-                            if (!datasets[cluster]) {
-                                datasets[cluster] = {
-                                    label: `Cluster ${cluster}`,
-                                    data: [],
-                                    backgroundColor: getClusterColor(cluster),
-                                    pointRadius: 6
-                                };
-                            }
-                            datasets[cluster].data.push({
-                                x: toFeatureDisplayValue(selectedFeatures[0], student[selectedFeatures[0]]),
-                                y: toFeatureDisplayValue(selectedFeatures[1], student[selectedFeatures[1]]),
-                                label: `UID: ${student.uid}`
-                            });
-                        });
-
-                        // Chart.js用のデータセット
-                        const scatterDatasets = Object.values(datasets);
-
-                        // 既存のチャートがある場合は破棄
-                        if (window.clusteringChartInstance) {
-                            window.clusteringChartInstance.destroy();
-                        }
-
-                        // Chart.jsで散布図を描画
-                        window.clusteringChartInstance = new Chart(ctx, {
-                            type: 'scatter',
-                            data: {
-                                datasets: scatterDatasets
-                            },
-                            options: {
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'top'
-                                    },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                return `${context.raw.label}: (${context.raw.x}, ${context.raw.y})`;
-                                            }
-                                        }
-                                    }
-                                },
-                                scales: {
-                                    x: {
-                                        title: {
-                                            display: true,
-                                            text: getFeatureLabelFromInput(selectedFeatures[0])
-                                        }
-                                    },
-                                    y: {
-                                        title: {
-                                            display: true,
-                                            text: getFeatureLabelFromInput(selectedFeatures[1])
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                </script>
-
-                <div class="class-data" id="group-data-container">
-                    <div class="class-card">
-                        <h3>
-                            <button
-                                onclick="openClusteringModal(0)"><?= translate('machineLearning_sample.php_1453行目_クラスタリング') ?></button>
-                        </h3>
-                        <div class="chart-row">
-                            <canvas id="result-Chart"></canvas>
-                        </div>
-                        <div id="clustering-results-container" class="clustering-results">
-                        </div>
-                    </div>
-
-                </div>
             </section>
-
-            <div id="detail-info" class="class-card">
-                <h2><?= translate('machineLearning_sample.php_1464行目_学習者の詳細情報') ?></h2>
-                <label for="uid-select"><?= translate('machineLearning_sample.php_1466行目_学習者名UID') ?></label>
-                <select id="uid-select">
-                    <option value=""><?= translate('machineLearning_sample.php_1468行目_選択してください') ?></option>
-                    <?php
-
-                    $getUsersQuery = "SELECT DISTINCT tr.uid,s.Name FROM " . teacher_hesitation_results_source('tr') . "
-                                            LEFT JOIN students s ON tr.uid = s.uid 
-                                            WHERE teacher_id = ?";
-                    $stmt = $conn->prepare($getUsersQuery);
-                    $stmt->bind_param("i", $_SESSION['MemberID']);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-
-                    while ($row = $result->fetch_assoc()) {
-                        echo '<option value="' . $row['uid'] . '">' . $row['Name'] . ' (' . $row['uid'] . ')</option>';
-                    }
-                    $stmt->close();
-                    ?>
-                </select>
-                <div id="student-details">
-                    <div id="student-details-maininfo"></div>
-                    <div id="student-details-grammar"></div>
-                </div>
-                <label for="wid-select"></label>
-                <select id="wid-select">
-                    <option value=""><?= translate('machineLearning_sample.php_1483行目_選択してください') ?></option>
-                </select>
-                <div id="wid-details">
-                    <div id="wid-details-maininfo-stu"></div>
-                    <div id="wid-details-maininfo-all"></div>
-                    <script>
-                        //uidが選択されたときにwidを表示するためのscript
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const uidSelect = document.getElementById('uid-select');
-                            const widSelect = document.getElementById('wid-select');
-                            const studentDetailsmaininfo = document.getElementById('student-details-maininfo');
-                            const widDetailsmaininfostu = document.getElementById('wid-details-maininfo-stu');
-                            const widDetailsmaininfoall = document.getElementById('wid-details-maininfo-all');
-
-                            //学習者選択時の処理
-                            uidSelect.addEventListener('change', async function() {
-                                const selectedUid = uidSelect.value;
-
-                                //プルダウンのリセット
-                                widSelect.innerHTML = `<option value = "">${<?= json_encode(translate('machineLearning_sample.php_1498行目_ロード中')) ?>}</option>`;
-                                if (!selectedUid) {
-                                    //学習者が選択されていない場合
-                                    widSelect.innerHTML = `<option value = "">${<?= json_encode(translate('machineLearning_sample.php_1501行目_学習者を選択してください')) ?>}</option>`;
-                                    studentDetailsmaininfo.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1502行目_学習者情報を選択してください')) ?>}</p>`;
-                                    return;
-                                }
-                                try {
-                                    //サーバーからデータを取得
-                                    //問題データの取得
-                                    const widResponse = await fetch(`get_wid.php?uid=${selectedUid}`);
-                                    if (!widResponse.ok) {
-                                        throw new Error(`HTTP error! status: ${widResponse.status}`);
-                                    }
-                                    const widData = await widResponse.json();
-                                    //プルダウンメニューを更新
-                                    widSelect.innerHTML = `<option value = "">${<?= json_encode(translate('machineLearning_sample.php_1511行目_選択してください')) ?>}</option>`;
-                                    widData.forEach(wid => {
-                                        widSelect.innerHTML += `<option value="${wid.WID}">
-                                                                ${wid.WID}: ${wid.Sentence}: ${<?= json_encode(translate('machineLearning_sample.php_1513行目_難易度')) ?>}${wid.level}: ${<?= json_encode(translate('machineLearning_sample.php_1513行目_迷い')) ?>}:${wid.Understand} 
-                                                                ${wid.Understand === '迷い有り' ? '(★)' : ''}
-                                                            </option>`;
-                                    });
-
-
-
-                                    //**学習者情報の取得 */
-
-                                    const studentResponse = await fetch(`get_student_info.php?uid=${selectedUid}`);
-                                    if (!studentResponse.ok) {
-                                        throw new Error(`HTTP error! status: ${studentResponse.status}`);
-                                    }
-                                    const studentData = await studentResponse.json();
-                                    const studentDatainfo = studentData.userinfo;
-                                    console.log("student", studentData);
-                                    console.log("studentinfo", studentDatainfo);
-                                    console.log("Name:", studentDatainfo.Name);
-
-                                    // 学習者情報の表示/
-                                    studentDetailsmaininfo.innerHTML = `
-                                                <div id = "student-info-title" style = "display:flex; gap: 10px;">
-                                                <h3>${<?= json_encode(translate('machineLearning_sample.php_1528行目_学習者名')) ?>}:${studentDatainfo.Name}</h3>
-                                                <h3>${<?= json_encode(translate('machineLearning_sample.php_1529行目_クラス名')) ?>}:${studentDatainfo.ClassID}</h3>
-                                                <h3>${<?= json_encode(translate('machineLearning_sample.php_1530行目_TOEICレベル')) ?>}:${studentDatainfo.toeic_level}</h3>
-                                                <h3>${<?= json_encode(translate('machineLearning_sample.php_1531行目_英検レベル')) ?>}:${studentDatainfo.eiken_level}</h3>
-                                                </div>
-
-                                                <div id = "student-info-accuracy" style = "display:flex; gap: 10px;">
-                                                <p>${<?= json_encode(translate('machineLearning_sample.php_1534行目_総解答数')) ?>}:${studentDatainfo.total_answers}</p>
-                                                <p>${<?= json_encode(translate('machineLearning_sample.php_1535行目_正解率')) ?>}:${studentDatainfo.accuracy}%</p>
-                                                <p>${<?= json_encode(translate('machineLearning_sample.php_1536行目_迷い率')) ?>}:${studentDatainfo.hesitation_rate}%</p>
-                                                </div>
-                                                `;
-                                    //文法項目データを表示する関数
-                                    displayGrammarStats(studentData.grammarStats);
-                                } catch (error) {
-                                    widSelect.innerHTML = '<option value = "">エラー</option>';
-                                    console.error(error);
-                                }
-                            });
-                            //問題選択時の処理
-                            widSelect.addEventListener('change', async function() {
-                                const selectedWid = this.value;
-                                const selectedUid = uidSelect.value;
-                                console.log("selectedWid", selectedWid);
-                                console.log("selectedUid", selectedUid);
-
-                                if (!selectedWid || !selectedUid) {
-                                    widDetailsmaininfostu.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1544行目_学習者情報を選択してください')) ?>}</p>`;
-                                    return;
-                                }
-
-                                try {
-                                    // 解答情報の取得
-                                    const answerResponse = await fetch(`get_answer_info.php?uid=${selectedUid}&wid=${selectedWid}`);
-                                    if (!answerResponse.ok) {
-                                        throw new Error(`HTTP error! status:${answerResponse.status}`);
-                                    }
-                                    const answerDetails = await answerResponse.json();
-                                    console.log("answerDetails", answerDetails);
-
-                                    // 初期データの取得
-                                    const quesaccuracy = answerDetails.quesaccuracy ?? "N/A";
-                                    const queshesitation_rate = answerDetails.queshesitation_rate ?? "N/A";
-                                    const labelinfo = answerDetails.labelinfo;
-                                    console.log("labelinfo", labelinfo);
-
-                                    const detailsArray = Object.values(answerDetails).filter(item => typeof item === "object" && Array.isArray(item) === false);
-
-                                    const attempt1 = answerDetails.widinfo.find(detail => detail.attempt == 1);
-
-                                    // attempt選択用のselect要素を作成
-                                    const attemptSelect = document.createElement('select');
-                                    attemptSelect.id = 'attempt-select';
-                                    attemptSelect.innerHTML = '<option value="">選択してください</option>';
-                                    answerDetails.widinfo.forEach(detail => {
-                                        const option = document.createElement('option');
-                                        option.value = detail.attempt;
-                                        option.textContent = `Attempt ${detail.attempt}`;
-                                        attemptSelect.appendChild(option);
-                                    });
-
-                                    // 全体表示の設定
-                                    if (attempt1) {
-                                        widDetailsmaininfoall.innerHTML = `
-                    <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; background-color: #f9f9f9;">
-                        <h3 style="color: #333; text-align: center; margin-bottom: 20px;">${<?= json_encode(translate('machineLearning_sample.php_1570行目_問題情報')) ?>}</h3>
-                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-                            <div style="flex: 1; min-width: 250px;">
-                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1573行目_正解率')) ?>}:</strong> ${quesaccuracy}%</p>
-                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1574行目_迷い率')) ?>}:</strong> ${queshesitation_rate}%</p>
-                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1575行目_正解文')) ?>}:</strong> ${attempt1.Sentence}</p>
-                            </div>
-                            <div style="flex: 1; min-width: 250px;">
-                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1578行目_日本語文')) ?>}:</strong> ${attempt1.Japanese}</p>
-                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1579行目_文法項目')) ?>}:</strong> ${attempt1.grammar}</p>
-                                <p><strong>${<?= json_encode(translate('machineLearning_sample.php_1580行目_単語数')) ?>}:</strong> ${attempt1.wordnum}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                                        // Label情報の表示
-                                        if (labelinfo && Array.isArray(labelinfo) && labelinfo.length > 0) {
-                                            const tableContainer = document.createElement('div');
-                                            tableContainer.style = 'margin-top: 20px; width: 100%; display: flex; flex-direction: row; gap: 20px;';
-
-                                            const table = document.createElement('table');
-                                            table.innerHTML = `
-                        <thead>
-                            <tr style="background-color: #f0f0f0; border-bottom: 2px solid #ccc;">
-                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1586行目_グループ化された単語')) ?>}</th>
-                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1587行目_正解数')) ?>}</th>
-                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1588行目_不正解数')) ?>}</th>
-                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1589行目_迷いあり数')) ?>}</th>
-                                <th style="padding: 10px;">${<?= json_encode(translate('machineLearning_sample.php_1590行目_迷いなし数')) ?>}</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    `;
-
-                                            const tbody = table.querySelector('tbody');
-                                            labelinfo.forEach(item => {
-                                                const row = document.createElement('tr');
-                                                row.style = "border-bottom: 1px solid #ddd;";
-
-                                                const cells = [{
-                                                        value: item.Label,
-                                                        style: "padding: 10px;"
-                                                    },
-                                                    {
-                                                        value: item.TF_1_Count,
-                                                        style: "padding: 10px; text-align: center;"
-                                                    },
-                                                    {
-                                                        value: item.TF_0_Count,
-                                                        style: "padding: 10px; text-align: center;"
-                                                    },
-                                                    {
-                                                        value: item.Understand_2_Count,
-                                                        style: "padding: 10px; text-align: center;"
-                                                    },
-                                                    {
-                                                        value: item.Understand_4_Count,
-                                                        style: "padding: 10px; text-align: center;"
-                                                    }
-                                                ];
-
-                                                cells.forEach(cellData => {
-                                                    const cell = document.createElement('td');
-                                                    cell.textContent = cellData.value;
-                                                    cell.style = cellData.style;
-                                                    row.appendChild(cell);
-                                                });
-
-                                                tbody.appendChild(row);
-                                            });
-
-                                            tableContainer.appendChild(table);
-                                            widDetailsmaininfoall.appendChild(tableContainer);
-                                        } else {
-                                            widDetailsmaininfoall.innerHTML += `<p>${<?= json_encode(translate('machineLearning_sample.php_1620行目_Label情報が見つかりませんでした')) ?>}</p>`;
-                                        }
-                                    } else {
-                                        widDetailsmaininfoall.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1623行目_初期表示用のデータが見つかりません')) ?>}</p>`;
-                                    }
-
-                                    // widDetailsmaininfostu の設定
-                                    widDetailsmaininfostu.innerHTML = ''; // 既存の内容をクリア
-
-                                    // attemptSelect を追加
-                                    widDetailsmaininfostu.appendChild(attemptSelect);
-
-                                    // attempt-details コンテナを追加
-                                    const attemptDetailsContainer = document.createElement('div');
-                                    attemptDetailsContainer.id = 'attempt-details';
-                                    widDetailsmaininfostu.appendChild(attemptDetailsContainer);
-
-                                    // ★修正: Label 表示を含む詳細を組み立てる関数を用意
-                                    function getAttemptDetailHTML(detail) {
-                                        // detail.Label があればそのまま、なければ「グルーピングが行われていません」
-                                        const labelText = detail.Label ?
-                                            detail.Label :
-                                            <?= json_encode(translate('machineLearning_sample.php_1641行目_グルーピングが行われていません')) ?>;
-
-                                        return `
-                    <p>${<?= json_encode(translate('machineLearning_sample.php_1644行目_回答日時')) ?>}: ${detail.Date}</p>
-                    <p>${<?= json_encode(translate('machineLearning_sample.php_1645行目_最終回答文')) ?>}: ${detail.EndSentence}</p>
-                    <p>${<?= json_encode(translate('machineLearning_sample.php_1646行目_解答時間')) ?>}: ${detail.Time}秒</p>
-                    <p>${<?= json_encode(translate('machineLearning_sample.php_1647行目_正誤')) ?>}: ${detail.TF}</p>
-                    <p>${<?= json_encode(translate('machineLearning_sample.php_1648行目_迷い')) ?>}: ${detail.Understand}</p>
-                    <p>${<?= json_encode(translate('machineLearning_sample.php_1649行目_Label')) ?>}: ${labelText}</p>
-                `;
-                                    }
-
-                                    // attempt=1 があれば初期表示
-                                    if (attempt1) {
-                                        attemptSelect.value = 1;
-                                        attemptDetailsContainer.innerHTML = getAttemptDetailHTML(attempt1);
-                                    } else {
-                                        attemptDetailsContainer.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1651行目_試行回数1の情報が見つかりません')) ?>}</p>`;
-                                    }
-
-                                    // attemptSelect の change イベント
-                                    attemptSelect.addEventListener('change', function() {
-                                        console.log("Attempt changed");
-                                        const selectedAttempt = this.value;
-                                        console.log("selectedAttempt", selectedAttempt);
-                                        const selectedDetail = answerDetails.widinfo.find(detail => detail.attempt == selectedAttempt);
-
-                                        if (selectedDetail) {
-                                            // ★修正: getAttemptDetailHTML() で Label を含む情報を描画
-                                            attemptDetailsContainer.innerHTML = getAttemptDetailHTML(selectedDetail);
-                                        } else {
-                                            attemptDetailsContainer.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1662行目_選択された試行回数の情報が見つかりません')) ?>}</p>`;
-                                        }
-                                    });
-
-                                } catch (error) {
-                                    console.error(error);
-                                    widDetailsmaininfostu.innerHTML = `<p>${<?= json_encode(translate('machineLearning_sample.php_1667行目_データの取得に失敗しました')) ?>}</p>`;
-                                }
-                            });
-
-                            function displayGrammarStats(grammarStats) {
-
-                                const grammarStatsDiv = document.getElementById('student-details-grammar');
-                                console.log("grammarStats :", grammarStats);
-                                //追加
-                                // 全体を横並びにするためのスタイル
-                                grammarStatsDiv.style.display = 'flex';
-                                grammarStatsDiv.style.flexDirection = 'row'; // 横並び
-                                grammarStatsDiv.style.justifyContent = 'space-between'; // 要素間のスペースを調整
-                                grammarStatsDiv.style.alignItems = 'flex-start'; // 上揃え
-
-                                //追加
-                                // テーブルHTMLの生成
-                                let tableHTML = `
-                                <div style="flex: 1; padding-right: 20px;"> <table class = "table2">
-                                        <thead>
-                                            <tr>
-                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1682行目_文法項目')) ?>}</th>
-                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1683行目_総解答数')) ?>}</th>
-                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1684行目_正解数')) ?>}</th>
-                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1685行目_迷い数')) ?>}</th>
-                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1686行目_不正解率')) ?>}</th>
-                                                <th>${<?= json_encode(translate('machineLearning_sample.php_1687行目_迷い率')) ?>}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                            `;
-                                /*
-                                // テーブルヘッダー
-                                let tableHTML = `
-                                    <table border="1">
-                                        <thead>
-                                            <tr>
-                                                <th>文法項目</th>
-                                                <th>総解答数</th>
-                                                <th>正解数</th>
-                                                <th>迷い数</th>
-                                                <th>正解率</th>
-                                                <th>迷い率</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                `;
-                                */
-                                // グラフ用のデータ準備
-                                const labels = [];
-                                const accuracyData = [];
-                                const hesitationData = [];
-
-                                // 各文法項目のデータをテーブル行として追加
-                                for (const [grammar, stats] of Object.entries(grammarStats)) {
-                                    notaccuracy_grammar = (100 - stats.accuracy).toFixed(2);
-                                    tableHTML += `
-                                    <tr>
-                                        <td>${stats.grammar}</td>
-                                        <td>${stats.total_answers}</td>
-                                        <td>${stats.correct_answers}</td>
-                                        <td>${stats.hesitate_count}</td>
-                                        <td>${notaccuracy_grammar}%</td>
-                                        <td>${stats.hesitation_rate}%</td>
-
-                                    </tr>
-                                `;
-                                    // グラフ用のデータ追加
-                                    labels.push(stats.grammar);
-                                    accuracyData.push(notaccuracy_grammar);
-                                    hesitationData.push(stats.hesitation_rate);
-                                }
-                                /*
-                                // テーブルフッター
-                                tableHTML += `
-                                        </tbody>
-                                    </table>
-                                `;
-                                */
-                                // テーブル閉じタグ
-                                tableHTML += `
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `;
-                                /*
-                                // グラフ用のキャンバス要素追加
-                            tableHTML += `
-                                <canvas id="grammarChart"></canvas>
-                            `;
-                            */
-                                // グラフ用のHTML
-                                const chartHTML = `
-        <div style="flex: 1;"> <canvas id="grammarChart"></canvas>
-        </div>
-    `;
-
-                                // HTMLに設定
-                                grammarStatsDiv.innerHTML = tableHTML + chartHTML;
-                                // グラフの描画
-                                const ctx = document.getElementById('grammarChart').getContext('2d');
-                                new Chart(ctx, {
-                                    type: 'bar', // 棒グラフを指定
-                                    data: {
-                                        labels: labels,
-                                        datasets: [{
-                                                label: <?= json_encode(translate('machineLearning_sample.php_1744行目_不正解率(%)')) ?>,
-                                                data: accuracyData,
-                                                backgroundColor: 'rgba(75, 192, 192, 0.6)', // 青系
-                                                borderColor: 'rgba(75, 192, 192, 1)',
-                                                borderWidth: 1,
-                                            },
-                                            {
-                                                label: <?= json_encode(translate('machineLearning_sample.php_1745行目_迷い率(%)')) ?>,
-                                                data: hesitationData,
-                                                backgroundColor: 'rgba(255, 99, 132, 0.6)', // 赤系
-                                                borderColor: 'rgba(255,99,132,1)',
-                                                borderWidth: 1,
-                                            }
-                                        ]
-                                    },
-                                    options: {
-                                        responsive: true,
-                                        plugins: {
-                                            title: {
-                                                display: true,
-                                                text: <?= json_encode(translate('machineLearning_sample.php_1750行目_文法項目ごとの正解率と迷い率')) ?>,
-                                                font: {
-                                                    size: 20, // フォントサイズを24pxに設定
-                                                }
-                                            },
-                                            tooltip: {
-                                                mode: 'index',
-                                                intersect: false,
-                                                callbacks: {
-                                                    label: function(context) {
-                                                        return `${context.dataset.label}: ${context.parsed.y}%`;
-                                                    }
-                                                }
-                                            },
-                                            legend: {
-                                                position: 'top',
-                                                labels: {
-                                                    font: {
-                                                        size: 20, // 凡例のフォントサイズを16pxに設定
-                                                    },
-                                                    color: '#333', // 凡例のテキストの色を設定（オプション）
-                                                }
-                                            },
-                                        },
-                                        scales: {
-                                            x: {
-                                                title: {
-                                                    display: true,
-                                                    text: <?= json_encode(translate('machineLearning_sample.php_1771行目_文法項目')) ?>,
-                                                    font: {
-                                                        size: 20, // Y軸ラベルのフォントサイズを20pxに設定
-                                                    }
-
-                                                },
-                                                stacked: false, // グループ化のために積み上げなし
-                                            },
-                                            y: {
-                                                beginAtZero: true,
-                                                max: 100,
-                                                title: {
-                                                    display: true,
-                                                    text: <?= json_encode(translate('machineLearning_sample.php_1780行目_割合(%)')) ?>,
-                                                    font: {
-                                                        size: 20, // Y軸ラベルのフォントサイズを20pxに設定
-                                                    },
-                                                    color: '#333', // Y軸ラベルの色を設定（オプション）
-                                                }
-                                            }
-                                        }
-                                    }
-                                });
-                            }
-                        });
-                    </script>
-                </div>
-
-                <div id="cluster-data"></div>
-                <script>
-                    function createDualAxisChart(ctx, labels, data1, data2, label1, label2, color1, color2, yText1, yText2, chartArray, chartIndex) {
-                        // 既存のチャートがある場合は破棄
-                        if (chartArray[chartIndex]) {
-                            chartArray[chartIndex].destroy();
-                        }
-
-                        // 新しいチャートを作成し、指定された配列に保存
-                        chartArray[chartIndex] = new Chart(ctx, {
-                            type: 'bar',
-                            data: {
-                                labels: labels,
-                                datasets: [{
-                                        label: label1,
-                                        data: data1,
-                                        backgroundColor: color1,
-                                        borderColor: color1,
-                                        yAxisID: 'y1',
-                                        borderWidth: 1
-                                    },
-                                    {
-                                        label: label2,
-                                        data: data2,
-                                        backgroundColor: color2,
-                                        borderColor: color2,
-                                        yAxisID: 'y2',
-                                        borderWidth: 1
-                                    }
-                                ]
-                            },
-                            options: {
-                                maintainAspectRatio: false,
-                                responsive: true,
-                                scales: {
-                                    x: {
-                                        title: {
-                                            display: true,
-                                            text: <?= json_encode(translate('machineLearning_sample.php_630行目_ユーザー名')) ?>,
-                                            font: {
-                                                size: 20
-                                            }
-                                        },
-                                        ticks: {
-                                            font: {
-                                                size: 16
-                                            }
-                                        }
-                                    },
-                                    y1: {
-                                        title: {
-                                            display: true,
-                                            text: yText1,
-                                            font: {
-                                                size: 20
-                                            }
-                                        },
-                                        ticks: {
-                                            font: {
-                                                size: 16
-                                            }
-                                        },
-                                        position: 'left',
-                                        beginAtZero: true
-                                    },
-                                    y2: {
-                                        title: {
-                                            display: true,
-                                            text: yText2,
-                                            font: {
-                                                size: 20
-                                            }
-                                        },
-                                        ticks: {
-                                            font: {
-                                                size: 16
-                                            }
-                                        },
-                                        position: 'right',
-                                        beginAtZero: true
-                                    }
-                                },
-                                plugins: {
-                                    legend: {
-                                        labels: {
-                                            font: {
-                                                size: 20
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    // PHPからstudentStatsを取得
-                    const studentData = <?php echo json_encode(array_values($studentStats ?? [])); ?>;
-                    //console.log(studentData); // デバッグ用
-
-                    if (studentData.length > 0) {
-                        const labels = studentData.map(data => data.name);
-                        const notAccuracyRates = studentData.map(data => parseFloat(data.notAccuracy));
-                        const hesitationRates = studentData.map(data => parseFloat(data.hesitation));
-
-                        const ctx = document.getElementById('result-Chart').getContext('2d');
-                        const chartArray = []; // チャート配列を管理
-                        createDualAxisChart(
-                            ctx,
-                            labels,
-                            notAccuracyRates,
-                            hesitationRates,
-                            <?= json_encode(translate('machineLearning_sample.php_1855行目_不正解率(%)')) ?>,
-                            <?= json_encode(translate('machineLearning_sample.php_1856行目_迷い率(%)')) ?>,
-                            'rgba(255, 99, 132, 0.6)',
-                            'rgba(54, 162, 235, 0.6)',
-                            <?= json_encode(translate('machineLearning_sample.php_1859行目_不正解率(%)')) ?>,
-                            <?= json_encode(translate('machineLearning_sample.php_1860行目_迷い率(%)')) ?>,
-                            chartArray,
-                            0 // インデックスは0で管理
-                        );
-                    } else {
-                        const resultChart = document.getElementById('result-Chart');
-                        if (resultChart) {
-                            const ctx = resultChart.getContext('2d');
-                            ctx.clearRect(0, 0, resultChart.width, resultChart.height);
-                            ctx.font = "20px Arial";
-                            ctx.textAlign = "center";
-                            ctx.fillStyle = "#888"; // テキストの色を少し薄くして見やすくする
-
-                            // 表示するテキストを取得
-                            const text = <?= json_encode(translate('machineLearning_sample.php_1861行目_まだ迷い推定が行われていません')) ?>;
-
-                            // wrapText関数に必要なパラメータを設定
-                            const maxWidth = resultChart.width - 40; // 左右に20pxずつの余白を設ける
-                            const lineHeight = 25; // 1行の高さを25pxに設定
-                            const x = resultChart.width / 2;
-                            const y = resultChart.height / 2;
-
-                            // テキスト折り返し関数を呼び出す
-                            wrapText(ctx, text, x, y, maxWidth, lineHeight);
-                        }
-                    }
-
-                    /**
-                     * Canvas内でテキストを自動的に折り返して描画する関数
-                     * @param {CanvasRenderingContext2D} context - Canvasのコンテキスト
-                     * @param {string} text - 描画するテキスト
-                     * @param {number} x - X座標
-                     * @param {number} y - Y座標
-                     * @param {number} maxWidth - 1行の最大幅
-                     * @param {number} lineHeight - 行の高さ
-                     */
-                    function wrapText(context, text, x, y, maxWidth, lineHeight) {
-                        const words = text.split(' ');
-                        let line = '';
-                        let lines = [];
-
-                        // テキストを適切な長さの行に分割する
-                        for (let n = 0; n < words.length; n++) {
-                            let testLine = line + words[n] + ' ';
-                            let metrics = context.measureText(testLine);
-                            let testWidth = metrics.width;
-                            if (testWidth > maxWidth && n > 0) {
-                                lines.push(line);
-                                line = words[n] + ' ';
-                            } else {
-                                line = testLine;
-                            }
-                        }
-                        lines.push(line);
-
-                        // 複数行になった場合でも、テキストブロック全体が中央に来るように開始Y座標を調整
-                        const startY = y - (lineHeight * (lines.length - 1)) / 2;
-
-                        // 各行を描画する
-                        for (let i = 0; i < lines.length; i++) {
-                            context.fillText(lines[i].trim(), x, startY + (i * lineHeight));
-                        }
-                    }
-                </script>
         </main>
     </div>
 
-    <div id="feature-detail-modal" class="feature-detail-modal">
+    <div id="feature-detail-modal" class="feature-detail-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="detail-feature-title">
         <div class="feature-detail-modal-content">
-            <span class="close-detail-modal">&times;</span>
+            <span class="close-detail-modal" role="button" tabindex="0" aria-label="閉じる">&times;</span>
             <h3 id="detail-feature-title"></h3>
             <p id="detail-feature-description"></p>
         </div>
@@ -3611,11 +2573,26 @@ $featureDisplayFeatureKeys = [
             const detailTitle = document.getElementById('detail-feature-title');
             const detailDescription = document.getElementById('detail-feature-description');
             const closeDetailModal = document.querySelector('#feature-detail-modal .close-detail-modal');
+            let lastFeatureInfoTrigger = null;
+
+            function hideFeatureDetailModal() {
+                detailModal.style.display = 'none';
+                detailModal.setAttribute('aria-hidden', 'true');
+                if (lastFeatureInfoTrigger) {
+                    lastFeatureInfoTrigger.focus();
+                    lastFeatureInfoTrigger = null;
+                }
+            }
 
             infoIcons.forEach(icon => {
-                icon.addEventListener('click', function(event) {
+                icon.setAttribute('role', 'button');
+                icon.setAttribute('tabindex', '0');
+                icon.setAttribute('aria-label', '特徴量の説明を表示');
+
+                function showFeatureDetailModal(event) {
                     event.stopPropagation(); // 親要素へのイベント伝播を停止
                     event.preventDefault(); // デフォルトの動作（ここではlabelのinputへのクリック伝播）をキャンセル
+                    lastFeatureInfoTrigger = this;
 
                     const featureName = this.dataset.featureName;
                     const description = featureDescriptions[featureName] || "<?= translate('machineLearning_sample.php_2000行目_この特徴量の説明はまだありません') ?>";
@@ -3639,16 +2616,36 @@ $featureDisplayFeatureKeys = [
                     detailTitle.textContent = featureLabelText;
                     detailDescription.textContent = description;
                     detailModal.style.display = 'block';
+                    detailModal.setAttribute('aria-hidden', 'false');
+                    closeDetailModal.focus();
+                }
+
+                icon.addEventListener('click', showFeatureDetailModal);
+                icon.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        showFeatureDetailModal.call(this, event);
+                    }
                 });
             });
 
-            closeDetailModal.addEventListener('click', function() {
-                detailModal.style.display = 'none';
+            closeDetailModal.addEventListener('click', hideFeatureDetailModal);
+            closeDetailModal.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    hideFeatureDetailModal();
+                }
             });
 
             window.addEventListener('click', function(event) {
                 if (event.target == detailModal) {
-                    detailModal.style.display = 'none';
+                    hideFeatureDetailModal();
+                }
+            });
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && detailModal.getAttribute('aria-hidden') === 'false') {
+                    event.preventDefault();
+                    hideFeatureDetailModal();
                 }
             });
         });
