@@ -129,8 +129,8 @@ function feature_filter_range_values(array $posted_feature_filters, string $feat
     }
     $min = trim((string)($condition['min'] ?? ''));
     $max = trim((string)($condition['max'] ?? ''));
-    $min_value = $min !== '' && is_numeric($min) ? feature_storage_numeric_value($feature, $min) : null;
-    $max_value = $max !== '' && is_numeric($max) ? feature_storage_numeric_value($feature, $max) : null;
+    $min_value = $min !== '' && is_numeric($min) ? feature_storage_numeric_value($feature, $min, 'aggregate') : null;
+    $max_value = $max !== '' && is_numeric($max) ? feature_storage_numeric_value($feature, $max, 'aggregate') : null;
     return [$min_value, $max_value];
 }
 

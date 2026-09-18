@@ -141,6 +141,20 @@ DEALLOCATE PREPARE usage_log_migration;
 
 SET @ddl := IF(
   EXISTS(
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = @schema_name
+      AND TABLE_NAME = 'hesitate_estimate_pre'
+      AND COLUMN_NAME = 'estimation_accuracy'
+  ),
+  'DO 0',
+  'ALTER TABLE `hesitate_estimate_pre` ADD COLUMN `estimation_accuracy` DECIMAL(7,6) NULL COMMENT ''Cross-validation accuracy (0..1)'' AFTER `feature_correlation_feature_pair_transition_count`'
+);
+PREPARE usage_log_migration FROM @ddl;
+EXECUTE usage_log_migration;
+DEALLOCATE PREPARE usage_log_migration;
+
+SET @ddl := IF(
+  EXISTS(
     SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
     WHERE TABLE_SCHEMA = @schema_name
       AND TABLE_NAME = 'hesitate_estimate_pre'
@@ -148,6 +162,20 @@ SET @ddl := IF(
   ),
   'DO 0',
   'ALTER TABLE `hesitate_estimate_pre` ADD INDEX `idx_hesitate_estimate_pre_teacher_correlation_created` (`teacher_id`, `from_feature_correlation`, `created_at`)'
+);
+PREPARE usage_log_migration FROM @ddl;
+EXECUTE usage_log_migration;
+DEALLOCATE PREPARE usage_log_migration;
+
+SET @ddl := IF(
+  EXISTS(
+    SELECT 1 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+    WHERE CONSTRAINT_SCHEMA = @schema_name
+      AND TABLE_NAME = 'hesitate_estimate_pre'
+      AND CONSTRAINT_NAME = 'chk_hesitate_estimate_pre_accuracy'
+  ),
+  'DO 0',
+  'ALTER TABLE `hesitate_estimate_pre` ADD CONSTRAINT `chk_hesitate_estimate_pre_accuracy` CHECK (`estimation_accuracy` IS NULL OR (`estimation_accuracy` >= 0 AND `estimation_accuracy` <= 1))'
 );
 PREPARE usage_log_migration FROM @ddl;
 EXECUTE usage_log_migration;
@@ -282,7 +310,8 @@ SELECT
   MAX(`COLUMN_NAME` = 'feature_correlation_transition_count') AS `has_transition_total`,
   MAX(`COLUMN_NAME` = 'feature_correlation_understand_transition_count') AS `has_transition_understand`,
   MAX(`COLUMN_NAME` = 'feature_correlation_hesitation_degree_transition_count') AS `has_transition_hesitation`,
-  MAX(`COLUMN_NAME` = 'feature_correlation_feature_pair_transition_count') AS `has_transition_pair`
+  MAX(`COLUMN_NAME` = 'feature_correlation_feature_pair_transition_count') AS `has_transition_pair`,
+  MAX(`COLUMN_NAME` = 'estimation_accuracy') AS `has_estimation_accuracy`
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA = @schema_name
   AND TABLE_NAME IN ('clustering_result', 'feacherml', 'hesitate_estimate_pre')

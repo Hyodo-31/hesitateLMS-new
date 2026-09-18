@@ -89,9 +89,8 @@ def generate_hesitation_feedback(shap_values, feature_names):
         "迷いが生じた際に，マウスを動作する癖を持っている可能性があります": ["distance"],
         "低いことで，迷いが生じている可能性があります。": ["averageSpeed", "maxSpeed"],
         "迷いに起因している可能性があります。これは迷いの際にレジスタを使用し，単語をチャンク単位で分割して考えている可能性があります。": [
-            "register_move_count1", "register_move_count2", "register_move_count3", 
-            "register_move_count4", "register01count1", "register01count2", 
-            "register01count3", "register01count4", "registerDDCount"],
+            "register_move_count1", "register_move_count2", "register_move_count3",
+            "register01count1", "register01count2", "register01count3", "registerDDCount"],
         "迷いの際にグループ化機能を使用した回数が多いことを示しています。グループ化された単語のチャンクを見ることで学習者の理解している単語群を知ることが出来る可能性があります。": ["groupingDDCount"],
         "迷いが発生した際はグループ化機能を使用していることが考えられます。": ["groupingCountbool"],
         "迷いが生じた際に，単語と単語の選択の間が長いことを示しています。": ["maxDDIntervalTime", "minDDIntervalTime", "totalDDIntervalTime"],
@@ -141,7 +140,7 @@ def generate_hesitation_feedback(shap_values, feature_names):
             feedback.append(f"{feature}が高いことは、迷いが生じた際に，マウスを動作する癖を持っている可能性があります")
         elif feature in ["averageSpeed","maxSpeed"]:
             feedback.append(f"{feature}が低いことで，迷いが生じている可能性があります．")
-        elif feature in ["register_move_count1","register_move_count2","register_move_count3","register_move_count4","register01count1","register01count2","register01count3","register01count4","registerDDCount"]:
+        elif feature in ["register_move_count1","register_move_count2","register_move_count3","register01count1","register01count2","register01count3","registerDDCount"]:
             feedback.append(f"{feature}が迷いに起因している可能性があります．これは迷いの際にレジスタを使用し，単語をチャンク単位で分割して考えている可能性があります．")
         elif feature in ["groupingDDCount"]:
             feedback.append(f"{feature}が高いことは，迷いの際にグループ化機能を使用した回数が多いことを示しています．グループ化された単語のチャンクを見ることで学習者の理解している単語群を知ることが出来る可能性があります．")

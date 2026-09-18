@@ -22,14 +22,12 @@ function student_feature_columns(): array
         'groupingCountbool' => 'グループ化使用率',
         'xUTurnCount' => 'X軸Uターン回数',
         'yUTurnCount' => 'Y軸Uターン回数',
-        'register_move_count1' => 'レジスタ間移動回数',
-        'register_move_count2' => 'レジスタ外への移動回数',
-        'register_move_count3' => 'レジスタ内への移動回数',
-        'register_move_count4' => 'レジスタ関連移動回数4',
-        'register01count1' => 'レジスタ間移動有無',
-        'register01count2' => 'レジスタ外移動有無',
-        'register01count3' => 'レジスタ内移動有無',
-        'register01count4' => 'レジスタ関連移動有無4',
+        'register_move_count1' => 'レジスタ➡レジスタへの移動回数',
+        'register_move_count2' => 'レジスタ➡レジスタ外への移動回数',
+        'register_move_count3' => 'レジスタ外➡レジスタへの移動回数',
+        'register01count1' => 'レジスタ➡レジスタへの移動有無の割合',
+        'register01count2' => 'レジスタ➡レジスタ外への移動有無の割合',
+        'register01count3' => 'レジスタ外➡レジスタへの移動有無の割合',
         'registerDDCount' => 'レジスタ内D&D回数',
         'stopcount' => '静止回数',
         'xUTurnCountDD' => 'X軸UターンD&D回数',
@@ -133,7 +131,7 @@ function format_student_feature_value($value): string
 
 function format_student_feature_display_value(string $feature, $value): string
 {
-    return feature_display_value($feature, $value);
+    return feature_display_value($feature, $value, 2, true, 'aggregate');
 }
 
 function render_student_tooltip(array $row, string $accuracy_label, string $hesitation_label, string $answers_label): string
@@ -155,7 +153,7 @@ function render_student_tooltip(array $row, string $accuracy_label, string $hesi
         $html .= "<span class='feature-tooltip-grid'>";
         foreach (student_feature_columns() as $column => $label) {
             $value = htmlspecialchars(format_student_feature_display_value($column, $row["avg_{$column}"] ?? null), ENT_QUOTES, 'UTF-8');
-            $safe_label = htmlspecialchars(feature_display_label($column, $label), ENT_QUOTES, 'UTF-8');
+            $safe_label = htmlspecialchars(feature_display_label($column, $label, 'aggregate'), ENT_QUOTES, 'UTF-8');
             $html .= "<span class='feature-tooltip-label'>{$safe_label}</span><span class='feature-tooltip-value'>{$value}</span>";
         }
         $html .= "</span>";
@@ -181,7 +179,7 @@ function render_feature_average_tooltip(array $row, string $title = '特徴量�
         $html .= "<span class='feature-tooltip-grid'>";
         foreach (student_feature_columns() as $column => $label) {
             $value = htmlspecialchars(format_student_feature_display_value($column, $row["avg_{$column}"] ?? null), ENT_QUOTES, 'UTF-8');
-            $safe_label = htmlspecialchars(feature_display_label($column, $label), ENT_QUOTES, 'UTF-8');
+            $safe_label = htmlspecialchars(feature_display_label($column, $label, 'aggregate'), ENT_QUOTES, 'UTF-8');
             $html .= "<span class='feature-tooltip-label'>{$safe_label}</span><span class='feature-tooltip-value'>{$value}</span>";
         }
         $html .= "</span>";

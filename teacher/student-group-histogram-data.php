@@ -237,10 +237,10 @@ try {
     }
 
     if (isset($featureModes[$mode])) {
-        $meta = feature_display_metadata([$feature])[$feature];
+        $meta = feature_display_metadata([$feature], 'aggregate')[$feature];
         $metric = [
             'key' => $feature,
-            'label' => feature_display_label($feature, $availableFeatures[$feature]),
+            'label' => feature_display_label($feature, $availableFeatures[$feature], 'aggregate'),
             'unit' => $meta['unit'],
             'displayScale' => $meta['displayScale'],
         ];

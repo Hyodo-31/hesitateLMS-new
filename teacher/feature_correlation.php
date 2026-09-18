@@ -16,8 +16,8 @@ $fallbackFeatureColumns = [
     'Time', 'distance', 'averageSpeed', 'maxSpeed', 'thinkingTime', 'answeringTime', 'totalStopTime', 'maxStopTime',
     'stopcount', 'totalDDIntervalTime', 'maxDDIntervalTime', 'maxDDTime', 'minDDTime', 'DDCount', 'groupingDDCount',
     'groupingCountbool', 'xUTurnCount', 'yUTurnCount', 'xUTurnCountDD', 'yUTurnCountDD', 'register_move_count1',
-    'register_move_count2', 'register_move_count3', 'register_move_count4', 'register01count1', 'register01count2',
-    'register01count3', 'register01count4', 'registerDDCount', 'register_notDDCount', 'register_fix_count1',
+    'register_move_count2', 'register_move_count3', 'register01count1', 'register01count2',
+    'register01count3', 'registerDDCount', 'register_notDDCount', 'register_fix_count1',
     'register_fix_count2', 'register_fix_count3', 'register_fix_count4', 'register_delete_count1',
     'register_delete_count2', 'register_delete_count3', 'register_delete_count4', 'register_allDelete_count1',
     'register_allDelete_count2', 'register_allDelete_count3', 'register_allDelete_count4', 'register_notallDelete_count1',
@@ -39,6 +39,8 @@ function getFeatureColumns(mysqli $conn, array $fallbackFeatureColumns): array
         'attempt' => true,
         'date' => true,
         'check' => true,
+        'register_move_count4' => true,
+        'register01count4' => true,
     ];
     $featureColumns = [];
     $result = $conn->query('SHOW COLUMNS FROM test_featurevalue');
@@ -295,10 +297,10 @@ function correlationUsageResultEvent(
 }
 
 $featureColumns = getFeatureColumns($conn, $fallbackFeatureColumns);
-$featureLabels = feature_display_labels_for_features($featureColumns);
-$featureDescriptions = feature_display_descriptions_for_features($featureColumns);
+$featureLabels = feature_display_labels_for_features($featureColumns, 'raw');
+$featureDescriptions = feature_display_descriptions_for_features($featureColumns, 'raw');
 $histogramFeatureLabels = feature_display_histogram_feature_labels();
-$histogramFeatureMeta = feature_display_metadata(array_keys($histogramFeatureLabels));
+$histogramFeatureMeta = feature_display_metadata(array_keys($histogramFeatureLabels), 'aggregate');
 $teacherId = $_SESSION['TID'] ?? $_SESSION['MemberID'] ?? null;
 $teacherClasses = [];
 $studentsByClass = [];
@@ -1604,7 +1606,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script>
 const featureColumns = <?= json_encode($featureColumns, JSON_UNESCAPED_UNICODE) ?>;
 const featureLabels = <?= json_encode($featureLabels, JSON_UNESCAPED_UNICODE) ?>;
-const featureDisplayMeta = <?= json_encode(feature_display_metadata($featureColumns), JSON_UNESCAPED_UNICODE) ?>;
+const featureDisplayMeta = <?= json_encode(feature_display_metadata($featureColumns, 'raw'), JSON_UNESCAPED_UNICODE) ?>;
 const featureDescriptions = <?= json_encode($featureDescriptions, JSON_UNESCAPED_UNICODE) ?>;
 const histogramFeatureLabels = <?= json_encode($histogramFeatureLabels, JSON_UNESCAPED_UNICODE) ?>;
 const histogramFeatureMeta = <?= json_encode($histogramFeatureMeta, JSON_UNESCAPED_UNICODE) ?>;

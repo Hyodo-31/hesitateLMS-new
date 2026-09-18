@@ -28,6 +28,8 @@ function clusteringFeatureColumns(mysqli $conn): array
         'attempt' => true,
         'date' => true,
         'check' => true,
+        'register_move_count4' => true,
+        'register01count4' => true,
     ];
     $columns = [];
     $result = $conn->query('SHOW COLUMNS FROM test_featurevalue');

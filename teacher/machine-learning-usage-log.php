@@ -119,8 +119,8 @@ function machine_learning_usage_allowed_features(mysqli $conn): array
         'xUTurnCountDD', 'yUTurnCountDD', 'thinkingTime', 'answeringTime',
         'maxDDTime', 'minDDTime', 'DDCount', 'maxDDIntervalTime', 'totalDDIntervalTime',
         'groupingDDCount', 'groupingCountbool',
-        'register_move_count1', 'register_move_count2', 'register_move_count3', 'register_move_count4',
-        'register01count1', 'register01count2', 'register01count3', 'register01count4',
+        'register_move_count1', 'register_move_count2', 'register_move_count3',
+        'register01count1', 'register01count2', 'register01count3',
         'registerDDCount',
     ];
 
@@ -397,8 +397,10 @@ function machine_learning_usage_log_execution(
     string $teacherId,
     array $post,
     array $selectedClassificationUids,
-    array $selectedClassificationGroupIds
+    array $selectedClassificationGroupIds,
+    ?int &$executionLogId = null
 ): array {
+    $executionLogId = null;
     machine_learning_usage_validate_teacher($conn, $teacherId);
     $training = machine_learning_usage_training_data($conn, $teacherId, $post);
     $classificationUids = machine_learning_usage_validate_classification_uids(
@@ -481,10 +483,71 @@ function machine_learning_usage_log_execution(
                 $message
             );
         }
+        $executionLogId = (int)$stmt->insert_id;
         $stmt->close();
     } catch (mysqli_sql_exception $e) {
         usage_log_throw_database_error('hesitation_estimation', 'hesitate_estimate_pre', $e, $conn);
     }
 
     return $transitionSnapshot;
+}
+
+/**
+ * Store the cross-validation accuracy for the matching machine-learning run.
+ *
+ * Accuracy is stored as the original 0..1 value returned by Python. A NULL
+ * value therefore continues to mean that accuracy could not be calculated.
+ */
+function machine_learning_usage_update_accuracy(
+    mysqli $conn,
+    string $teacherId,
+    int $executionLogId,
+    float $accuracy
+): void {
+    if ($executionLogId <= 0 || !is_finite($accuracy) || $accuracy < 0 || $accuracy > 1) {
+        throw new InvalidArgumentException('迷い推定精度が不正です。');
+    }
+
+    try {
+        $stmt = $conn->prepare(
+            'UPDATE hesitate_estimate_pre
+             SET estimation_accuracy = ?
+             WHERE id = ? AND teacher_id = ?'
+        );
+        if (!$stmt) {
+            usage_log_throw_statement_error(
+                'hesitation_estimation_accuracy',
+                'hesitate_estimate_pre',
+                $conn->errno,
+                $conn->sqlstate,
+                $conn->error
+            );
+        }
+        $stmt->bind_param('dis', $accuracy, $executionLogId, $teacherId);
+        if (!$stmt->execute()) {
+            $errno = $stmt->errno;
+            $sqlState = $stmt->sqlstate;
+            $message = $stmt->error;
+            $stmt->close();
+            usage_log_throw_statement_error(
+                'hesitation_estimation_accuracy',
+                'hesitate_estimate_pre',
+                $errno,
+                $sqlState,
+                $message
+            );
+        }
+        $affectedRows = $stmt->affected_rows;
+        $stmt->close();
+        if ($affectedRows !== 1) {
+            throw new RuntimeException('迷い推定精度の保存対象が見つかりません。');
+        }
+    } catch (mysqli_sql_exception $e) {
+        usage_log_throw_database_error(
+            'hesitation_estimation_accuracy',
+            'hesitate_estimate_pre',
+            $e,
+            $conn
+        );
+    }
 }

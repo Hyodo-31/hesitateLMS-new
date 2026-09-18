@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS `hesitate_estimate_pre` (
   `feature_correlation_understand_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
   `feature_correlation_hesitation_degree_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
   `feature_correlation_feature_pair_transition_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `estimation_accuracy` DECIMAL(7,6) DEFAULT NULL COMMENT 'Cross-validation accuracy (0..1)',
   `ML` TINYINT(1) NOT NULL DEFAULT 0 CHECK (`ML` IN (0, 1)),
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
@@ -53,6 +54,10 @@ CREATE TABLE IF NOT EXISTS `hesitate_estimate_pre` (
       + `feature_correlation_hesitation_degree_transition_count`
       + `feature_correlation_feature_pair_transition_count`
     <= `feature_correlation_transition_count`
+  ),
+  CONSTRAINT `chk_hesitate_estimate_pre_accuracy` CHECK (
+    `estimation_accuracy` IS NULL
+    OR (`estimation_accuracy` >= 0 AND `estimation_accuracy` <= 1)
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

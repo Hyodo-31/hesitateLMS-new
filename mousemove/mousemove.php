@@ -1,4 +1,16 @@
 <?php
+$mousemove_request_started_ns = hrtime(true);
+$mousemove_performance = [
+    'session_ms' => 0.0,
+    'db_connection_ms' => 0.0,
+    'teacher_context_ms' => 0.0,
+    'trajectory_ms' => 0.0,
+    'related_data_ms' => 0.0,
+    'estimated_result_ms' => 0.0,
+    'trajectory_rows' => 0,
+    'replay_rows' => 0,
+];
+
 // lang.phpでセッションが開始されるため、個別のsession_startは不要
 require "../lang.php";
 require_once __DIR__ . '/../teacher/hesitation-estimation-state.php';
@@ -8,6 +20,7 @@ $show_word_level_ml_ui = false;
 if (empty($_SESSION['mousemove_usage_csrf']) || !is_string($_SESSION['mousemove_usage_csrf'])) {
     $_SESSION['mousemove_usage_csrf'] = bin2hex(random_bytes(32));
 }
+$mousemove_performance['session_ms'] = (hrtime(true) - $mousemove_request_started_ns) / 1_000_000;
 
 function mousemove_usage_teacher_id(mysqli $conn): ?string
 {
@@ -391,6 +404,41 @@ if (!$valid_request_ids) {
 }
 
 [$uid, $wid, $attempt_num] = array_map('intval', $request_ids);
+
+// 遅いリクエストだけを匿名化した区間時間として記録する。
+// SQL本文や教師・学習者・問題のIDはログへ出力しない。
+register_shutdown_function(static function () use (&$mousemove_performance, $mousemove_request_started_ns): void {
+    $totalMs = (hrtime(true) - $mousemove_request_started_ns) / 1_000_000;
+    if ($totalMs < 1000) {
+        return;
+    }
+
+    $measuredMs = 0.0;
+    foreach ([
+        'session_ms',
+        'db_connection_ms',
+        'teacher_context_ms',
+        'trajectory_ms',
+        'related_data_ms',
+        'estimated_result_ms',
+    ] as $timingKey) {
+        $measuredMs += (float)($mousemove_performance[$timingKey] ?? 0.0);
+    }
+
+    error_log(sprintf(
+        '[mousemove performance] total_ms=%.3f session_ms=%.3f db_connection_ms=%.3f teacher_context_ms=%.3f trajectory_ms=%.3f related_data_ms=%.3f estimated_result_ms=%.3f other_php_ms=%.3f trajectory_rows=%d replay_rows=%d',
+        $totalMs,
+        (float)$mousemove_performance['session_ms'],
+        (float)$mousemove_performance['db_connection_ms'],
+        (float)$mousemove_performance['teacher_context_ms'],
+        (float)$mousemove_performance['trajectory_ms'],
+        (float)$mousemove_performance['related_data_ms'],
+        (float)$mousemove_performance['estimated_result_ms'],
+        max(0.0, $totalMs - $measuredMs),
+        (int)$mousemove_performance['trajectory_rows'],
+        (int)$mousemove_performance['replay_rows']
+    ));
+});
 ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
@@ -455,7 +503,16 @@ if (!$valid_request_ids) {
     </script>
 
     <?php
+    $mousemove_db_connection_started_ns = hrtime(true);
     require("../dbc.php");
+    $mousemove_performance['db_connection_ms'] =
+        (hrtime(true) - $mousemove_db_connection_started_ns) / 1_000_000;
+
+    // dbc.phpもセッションを開始する可能性がある。この画面では以降
+    // セッションを書き換えないため、DB取得とHTML生成の前にロックを解放する。
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
     ?>
     <style type="text/css">
         <!--
@@ -761,6 +818,7 @@ if (!$valid_request_ids) {
 
     $mousemove_usage_enabled = false;
     $mousemove_usage_teacher_id = null;
+    $mousemove_teacher_context_started_ns = hrtime(true);
     try {
         $mousemove_usage_teacher_id = mousemove_usage_teacher_id($conn);
         if ($mousemove_usage_teacher_id !== null) {
@@ -775,8 +833,11 @@ if (!$valid_request_ids) {
     } catch (Throwable $e) {
         error_log('[mousemove usage] initialization failed: ' . $e->getMessage());
     }
+    $mousemove_performance['teacher_context_ms'] =
+        (hrtime(true) - $mousemove_teacher_context_started_ns) / 1_000_000;
 
     // 軌跡は一度だけ取得し、再生用データと全ての分析処理で再利用する。
+    $mousemove_trajectory_started_ns = hrtime(true);
     $trajectory_stmt = $conn->prepare(
         'SELECT `Time`, `X`, `Y`, `DD`, `DPos`, `hLabel`, `Label`, `UTurnX`, `UTurnY`
          FROM `linedatamouse`
@@ -794,6 +855,9 @@ if (!$valid_request_ids) {
         $trajectory_rows[] = $trajectory_row;
     }
     $trajectory_stmt->close();
+    $mousemove_performance['trajectory_ms'] =
+        (hrtime(true) - $mousemove_trajectory_started_ns) / 1_000_000;
+    $mousemove_performance['trajectory_rows'] = count($trajectory_rows);
 
     // 従来の SELECT DISTINCT と同じく、再生データだけは重複行を除外する。
     $replay_rows = [];
@@ -810,7 +874,9 @@ if (!$valid_request_ids) {
             $replay_rows[] = $trajectory_row;
         }
     }
+    $mousemove_performance['replay_rows'] = count($replay_rows);
 
+    $mousemove_related_data_started_ns = hrtime(true);
     try {
         $row = mousemove_fetch_one(
             $conn,
@@ -837,6 +903,8 @@ if (!$valid_request_ids) {
         error_log('[mousemove] related data query failed: ' . $e->getMessage());
         exit('軌跡再現の関連データを取得できませんでした。');
     }
+    $mousemove_performance['related_data_ms'] =
+        (hrtime(true) - $mousemove_related_data_started_ns) / 1_000_000;
 
     if (isset($row['EndSentence'])) {
         $es = $row['EndSentence'];
@@ -894,6 +962,7 @@ if (!$valid_request_ids) {
     }
 
     $estimated_us = null;
+    $mousemove_estimated_result_started_ns = hrtime(true);
     if ($mousemove_usage_teacher_id !== null) {
         try {
             $estimated_us = mousemove_usage_estimated_understand(
@@ -907,6 +976,8 @@ if (!$valid_request_ids) {
             error_log('[mousemove] estimated result query failed: ' . $e->getMessage());
         }
     }
+    $mousemove_performance['estimated_result_ms'] =
+        (hrtime(true) - $mousemove_estimated_result_started_ns) / 1_000_000;
     $grammar_split = array();
     $grammar_print = array();
     if (isset($grammar)) {

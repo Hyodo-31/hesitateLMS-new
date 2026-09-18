@@ -9,8 +9,8 @@ $featureDisplayFeatureKeys = [
     'DDCount', 'groupingDDCount', 'groupingCountbool', 'stopcount',
     'xUturnCount', 'yUturnCount', 'xUTurnCount', 'yUTurnCount',
     'xUturnCountDD', 'yUturnCountDD', 'xUTurnCountDD', 'yUTurnCountDD',
-    'register_move_count1', 'register_move_count2', 'register_move_count3', 'register_move_count4',
-    'register01count1', 'register01count2', 'register01count3', 'register01count4',
+    'register_move_count1', 'register_move_count2', 'register_move_count3',
+    'register01count1', 'register01count2', 'register01count3',
     'registerDDCount', 'register_notDDCount',
     'register_fix_count1', 'register_fix_count2', 'register_fix_count3', 'register_fix_count4',
     'register_delete_count1', 'register_delete_count2', 'register_delete_count3', 'register_delete_count4',
@@ -18,6 +18,17 @@ $featureDisplayFeatureKeys = [
     'register_notallDelete_count1', 'register_notallDelete_count2', 'register_notallDelete_count3', 'register_notallDelete_count4',
     'FromlastdropToanswerTime',
 ];
+
+$machineLearningSelectableFeatures = [
+    'time', 'distance', 'averageSpeed', 'maxSpeed', 'totalStopTime', 'maxStopTime',
+    'stopcount', 'FromlastdropToanswerTime', 'xUTurnCount', 'yUTurnCount',
+    'xUTurnCountDD', 'yUTurnCountDD', 'thinkingTime', 'answeringTime',
+    'maxDDTime', 'minDDTime', 'DDCount', 'maxDDIntervalTime', 'totalDDIntervalTime',
+    'groupingDDCount', 'groupingCountbool', 'register_move_count1',
+    'register_move_count2', 'register_move_count3', 'register01count1',
+    'register01count2', 'register01count3', 'registerDDCount',
+];
+$machineLearningSelectableFeatureMap = array_fill_keys($machineLearningSelectableFeatures, true);
 ?>
 <!DOCTYPE html>
 <html lang="<?= $lang ?>">
@@ -32,7 +43,8 @@ $featureDisplayFeatureKeys = [
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script>
-        window.featureDisplayMeta = <?= json_encode(feature_display_metadata($featureDisplayFeatureKeys), JSON_UNESCAPED_UNICODE) ?>;
+        window.featureDisplayMeta = <?= json_encode(feature_display_metadata($featureDisplayFeatureKeys, 'raw'), JSON_UNESCAPED_UNICODE) ?>;
+        window.graphFeatureDisplayMeta = <?= json_encode(feature_display_metadata($featureDisplayFeatureKeys, 'aggregate'), JSON_UNESCAPED_UNICODE) ?>;
     </script>
 </head>
 
@@ -368,6 +380,7 @@ $featureDisplayFeatureKeys = [
             $machineLearningRunReady = false;
             $machineLearningInputError = '';
             $machineLearningTransitionAcknowledgement = null;
+            $machineLearningUsageLogId = null;
 
             // フォームからの入力を受け取る
             $UIDrange = isset($_POST['UIDrange']) ? $_POST['UIDrange'] : null;
@@ -556,11 +569,33 @@ $featureDisplayFeatureKeys = [
             ?>
             <?php
             if ($_SERVER["REQUEST_METHOD"] == "POST") {
-                if (!isset($_POST['featureLabel']) || !is_array($_POST['featureLabel']) || empty($_POST['featureLabel'])) {
+                $selectedMachineLearningFeatures = [];
+                $invalidMachineLearningFeature = false;
+                if (isset($_POST['featureLabel']) && is_array($_POST['featureLabel'])) {
+                    foreach ($_POST['featureLabel'] as $rawFeature) {
+                        if (!is_scalar($rawFeature)) {
+                            $invalidMachineLearningFeature = true;
+                            break;
+                        }
+                        $feature = trim((string)$rawFeature);
+                        if (!isset($machineLearningSelectableFeatureMap[$feature])) {
+                            $invalidMachineLearningFeature = true;
+                            break;
+                        }
+                        if (!in_array($feature, $selectedMachineLearningFeatures, true)) {
+                            $selectedMachineLearningFeatures[] = $feature;
+                        }
+                    }
+                }
+
+                if ($invalidMachineLearningFeature) {
+                    $machineLearningInputError = '許可されていない特徴量が含まれています。';
+                } elseif (empty($selectedMachineLearningFeatures)) {
                     $machineLearningInputError = translate('machineLearning_sample.php_424行目_データを選択してください');
                 } elseif (empty($selectedClassificationStudentUids)) {
                     $machineLearningInputError = '分類する学習者を1名以上選択してください。';
                 } else {
+                    $_POST['featureLabel'] = $selectedMachineLearningFeatures;
 
                     // データベース接続とセッション開始
                     require "../dbc.php";
@@ -585,10 +620,13 @@ $featureDisplayFeatureKeys = [
                     $tempwhere = array();
                     $sql = "SELECT UID,WID,Understand,attempt,";
                     $sql_test = "SELECT UID,WID,Understand,attempt,";
-                    $selectcolumn = implode(",", $_POST['featureLabel']);
+                    $selectcolumn = implode(",", array_map(
+                        static fn(string $feature): string => '`' . str_replace('`', '``', $feature) . '`',
+                        $selectedMachineLearningFeatures
+                    ));
                     $sql .= $selectcolumn . " FROM featurevalue";    // 教師データSQL (ベース)
                     $sql_test .= $selectcolumn . " FROM test_featurevalue"; // テストデータSQL (ベース)
-                    $column_name = "UID,WID,Understand,attempt," . $selectcolumn;
+                    $column_name = "UID,WID,Understand,attempt," . implode(",", $selectedMachineLearningFeatures);
 
                     // クラスタを教師データにする場合の処理 (元の実装を維持)
                     if (isset($_SESSION['group_students']) && !empty($_SESSION['group_students'])) {
@@ -670,7 +708,8 @@ $featureDisplayFeatureKeys = [
                             (string)($_SESSION['MemberID'] ?? ''),
                             $_POST,
                             $selectedClassificationStudentUids,
-                            $selectedClassificationGroupIds
+                            $selectedClassificationGroupIds,
+                            $machineLearningUsageLogId
                         );
                     } catch (Throwable $usageLogError) {
                         error_log('[machineLearning_sample usage log] ' . $usageLogError->getMessage());
@@ -776,8 +815,11 @@ $featureDisplayFeatureKeys = [
                 const groupData = <?php echo json_encode($groups); ?>;
                 console.log(groupData);
 
-                function getFeatureDisplayMeta(feature) {
-                    return window.featureDisplayMeta?.[feature] || { displayScale: 1, unit: '' };
+                function getFeatureDisplayMeta(feature, context = 'raw') {
+                    const metadata = context === 'aggregate'
+                        ? window.graphFeatureDisplayMeta
+                        : window.featureDisplayMeta;
+                    return metadata?.[feature] || { displayScale: 1, unit: '' };
                 }
 
                 function toFeatureDisplayValue(feature, value) {
@@ -800,8 +842,8 @@ $featureDisplayFeatureKeys = [
                         (lowerUnit.length > 1 && lowerLabel.includes(lowerUnit));
                 }
 
-                function appendFeatureUnit(label, feature) {
-                    const unit = getFeatureDisplayMeta(feature).unit || '';
+                function appendFeatureUnit(label, feature, context = 'raw') {
+                    const unit = getFeatureDisplayMeta(feature, context).unit || '';
                     if (!unit || featureLabelHasUnit(label, unit)) {
                         return label;
                     }
@@ -809,17 +851,17 @@ $featureDisplayFeatureKeys = [
                 }
 
                 function getFeatureLabelFromInput(feature) {
-                    const input = Array.from(document.querySelectorAll('input[name="feature"], input[name="featureLabel[]"]'))
+                    const input = Array.from(document.querySelectorAll('#feature-form input[name="feature"]'))
                         .find((candidate) => candidate.value === feature || candidate.dataset.featureName === feature);
                     const label = input?.closest('label');
                     if (!label) {
-                        return appendFeatureUnit(feature, feature);
+                        return appendFeatureUnit(feature, feature, 'aggregate');
                     }
 
                     const clone = label.cloneNode(true);
                     clone.querySelectorAll('input, .info-icon').forEach((node) => node.remove());
                     const text = clone.textContent.trim();
-                    return appendFeatureUnit(text || feature, feature);
+                    return appendFeatureUnit(text || feature, feature, 'aggregate');
                 }
 
                 function applyFeatureUnitsToLabels() {
@@ -830,7 +872,8 @@ $featureDisplayFeatureKeys = [
                         }
 
                         const feature = input.dataset.featureName || label.querySelector('.info-icon')?.dataset.featureName || input.value;
-                        const unit = getFeatureDisplayMeta(feature).unit || '';
+                        const context = input.closest('#feature-form') ? 'aggregate' : 'raw';
+                        const unit = getFeatureDisplayMeta(feature, context).unit || '';
                         if (!unit) {
                             return;
                         }
@@ -839,7 +882,7 @@ $featureDisplayFeatureKeys = [
                             if (node.nodeType !== Node.TEXT_NODE || node.textContent.trim() === '') {
                                 return false;
                             }
-                            node.textContent = appendFeatureUnit(node.textContent.trim(), feature);
+                            node.textContent = appendFeatureUnit(node.textContent.trim(), feature, context);
                             return true;
                         });
                     });
@@ -2023,12 +2066,6 @@ $featureDisplayFeatureKeys = [
                                                     class="info-icon"
                                                     data-feature-name="register_move_count3">ⓘ</span></label>
                                         </li>
-                                        <li><label for="register_move_count4"><input type="checkbox"
-                                                    class="feature-modal-checkbox" name="featureLabel[]"
-                                                    value="register_move_count4"><?= translate('machineLearning_sample.php_1028行目_レジスタ移動回数4') ?><span
-                                                    class="info-icon"
-                                                    data-feature-name="register_move_count4">ⓘ</span></label>
-                                        </li>
                                     </ul>
                                     <ul class="itemgroup">
                                         <li><label for="register01count1"><input type="checkbox"
@@ -2048,12 +2085,6 @@ $featureDisplayFeatureKeys = [
                                                     value="register01count3"><?= translate('machineLearning_sample.php_1033行目_レジスタ使用回数3') ?><span
                                                     class="info-icon"
                                                     data-feature-name="register01count3">ⓘ</span></label>
-                                        </li>
-                                        <li><label for="register01count4"><input type="checkbox"
-                                                    class="feature-modal-checkbox" name="featureLabel[]"
-                                                    value="register01count4"><?= translate('machineLearning_sample.php_1034行目_レジスタ使用回数4') ?><span
-                                                    class="info-icon"
-                                                    data-feature-name="register01count4">ⓘ</span></label>
                                         </li>
                                     </ul>
                                     <ul class="itemgroup">
@@ -2214,10 +2245,6 @@ $featureDisplayFeatureKeys = [
                                                     class="feature-modal-checkbox" name="featureLabel[]"
                                                     value="register_move_count3"><?= translate('machineLearning_sample.php_1027行目_レジスタ移動回数3') ?></label>
                                         </li>
-                                        <li><label for="register_move_count4"><input type="checkbox"
-                                                    class="feature-modal-checkbox" name="featureLabel[]"
-                                                    value="register_move_count4"><?= translate('machineLearning_sample.php_1028行目_レジスタ移動回数4') ?></label>
-                                        </li>
                                     </ul>
                                     <ul class="itemgroup">
                                         <li><label for="register01count1"><input type="checkbox"
@@ -2231,10 +2258,6 @@ $featureDisplayFeatureKeys = [
                                         <li><label for="register01count3"><input type="checkbox"
                                                     class="feature-modal-checkbox" name="featureLabel[]"
                                                     value="register01count3"><?= translate('machineLearning_sample.php_1033行目_レジスタ使用回数3') ?></label>
-                                        </li>
-                                        <li><label for="register01count4"><input type="checkbox"
-                                                    class="feature-modal-checkbox" name="featureLabel[]"
-                                                    value="register01count4"><?= translate('machineLearning_sample.php_1034行目_レジスタ使用回数4') ?></label>
                                         </li>
                                     </ul>
                                     <ul class="itemgroup">
@@ -2374,6 +2397,21 @@ $featureDisplayFeatureKeys = [
                                     && is_numeric($metrics['mean_accuracy'])
                                     && (float)$metrics['mean_accuracy'] >= 0
                                     && (float)$metrics['mean_accuracy'] <= 1;
+
+                                if ($accuracyAvailable && $machineLearningUsageLogId !== null) {
+                                    try {
+                                        require_once __DIR__ . '/machine-learning-usage-log.php';
+                                        machine_learning_usage_update_accuracy(
+                                            $conn,
+                                            (string)($_SESSION['MemberID'] ?? ''),
+                                            $machineLearningUsageLogId,
+                                            (float)$metrics['mean_accuracy']
+                                        );
+                                    } catch (Throwable $accuracyLogError) {
+                                        // Accuracy logging must not discard an otherwise successful result.
+                                        error_log('[machineLearning_sample accuracy log] ' . $accuracyLogError->getMessage());
+                                    }
+                                }
 
                                 echo '<section class="ml-accuracy-summary" aria-labelledby="ml-accuracy-title">';
                                 echo '<h3 id="ml-accuracy-title">'
@@ -2566,6 +2604,12 @@ $featureDisplayFeatureKeys = [
             "FromlastdropToanswerTime": "<?= translate('machineLearning_sample.php_description_FromlastdropToanswerTime') ?>",
             "hesitation": "<?= translate('machineLearning_sample.php_description_hesitation') ?>"
         };
+        const graphFeatureDescriptions = {
+            ...featureDescriptions,
+            "register01count1": "<?= translate('machineLearning_sample.php_graph_description_register01count1') ?>",
+            "register01count2": "<?= translate('machineLearning_sample.php_graph_description_register01count2') ?>",
+            "register01count3": "<?= translate('machineLearning_sample.php_graph_description_register01count3') ?>"
+        };
 
         document.addEventListener('DOMContentLoaded', function() {
             const infoIcons = document.querySelectorAll('.info-icon');
@@ -2595,7 +2639,10 @@ $featureDisplayFeatureKeys = [
                     lastFeatureInfoTrigger = this;
 
                     const featureName = this.dataset.featureName;
-                    const description = featureDescriptions[featureName] || "<?= translate('machineLearning_sample.php_2000行目_この特徴量の説明はまだありません') ?>";
+                    const descriptions = this.closest('#feature-form')
+                        ? graphFeatureDescriptions
+                        : featureDescriptions;
+                    const description = descriptions[featureName] || "<?= translate('machineLearning_sample.php_2000行目_この特徴量の説明はまだありません') ?>";
 
                     let featureLabelText = "";
                     const parentLabel = this.closest('label');

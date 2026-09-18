@@ -1459,7 +1459,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             const logicFilterGroups = <?= json_encode($logic_filter_groups, JSON_UNESCAPED_UNICODE) ?>;
             const logicFilterStudentsByGroup = <?= json_encode((object)$logic_filter_students_by_group, JSON_UNESCAPED_UNICODE) ?>;
             const resultHistogramFeatures = <?= json_encode(student_feature_columns(), JSON_UNESCAPED_UNICODE) ?>;
-            const resultHistogramFeatureMeta = <?= json_encode(feature_display_metadata(array_keys(student_feature_columns())), JSON_UNESCAPED_UNICODE) ?>;
+            const resultHistogramFeatureMeta = <?= json_encode(feature_display_metadata(array_keys(student_feature_columns()), 'aggregate'), JSON_UNESCAPED_UNICODE) ?>;
             const histogramBaseOptions = {
                 features: resultHistogramFeatures,
                 featureMeta: resultHistogramFeatureMeta,

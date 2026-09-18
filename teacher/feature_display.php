@@ -39,9 +39,27 @@ function feature_display_boolean_features(): array
     ];
 }
 
-function feature_display_type(string $feature): string
+function feature_display_register_presence_features(): array
+{
+    return [
+        'register01count1' => true,
+        'register01count2' => true,
+        'register01count3' => true,
+    ];
+}
+
+function feature_display_is_aggregate_context(string $context): bool
+{
+    return strtolower($context) === 'aggregate';
+}
+
+function feature_display_type(string $feature, string $context = 'raw'): string
 {
     $key = strtolower($feature);
+
+    if (isset(feature_display_register_presence_features()[$key])) {
+        return feature_display_is_aggregate_context($context) ? 'percentage' : 'boolean';
+    }
 
     if (isset(feature_display_time_features()[$key])) {
         return 'time';
@@ -76,6 +94,7 @@ function feature_display_units(): array
             'distance' => 'px',
             'speed' => 'px/s',
             'count' => 'times',
+            'percentage' => '%',
         ];
     }
 
@@ -84,13 +103,14 @@ function feature_display_units(): array
         'distance' => 'ピクセル',
         'speed' => 'ピクセル/秒',
         'count' => '回',
+        'percentage' => '%',
     ];
 }
 
-function feature_display_unit(string $feature): string
+function feature_display_unit(string $feature, string $context = 'raw'): string
 {
     $units = feature_display_units();
-    return $units[feature_display_type($feature)] ?? '';
+    return $units[feature_display_type($feature, $context)] ?? '';
 }
 
 function feature_display_label_has_unit(string $label, string $type): bool
@@ -100,6 +120,7 @@ function feature_display_label_has_unit(string $label, string $type): bool
         'distance' => ['ピクセル', '（ピクセル）', '(ピクセル)', 'px', 'pixel'],
         'speed' => ['ピクセル/秒', 'px/s', 'px/sec', 'pixel/s', 'pixel/sec'],
         'count' => ['（回）', '(回)', '(times)', ' times'],
+        'percentage' => ['%', '％', 'percent'],
     ];
 
     $lowerLabel = strtolower($label);
@@ -112,11 +133,11 @@ function feature_display_label_has_unit(string $label, string $type): bool
     return false;
 }
 
-function feature_display_label(string $feature, ?string $label = null): string
+function feature_display_label(string $feature, ?string $label = null, string $context = 'raw'): string
 {
     $label = $label ?? $feature;
-    $type = feature_display_type($feature);
-    $unit = feature_display_unit($feature);
+    $type = feature_display_type($feature, $context);
+    $unit = feature_display_unit($feature, $context);
 
     if ($unit === '' || feature_display_label_has_unit($label, $type)) {
         return $label;
@@ -125,23 +146,23 @@ function feature_display_label(string $feature, ?string $label = null): string
     return "{$label}（{$unit}）";
 }
 
-function feature_display_labels(array $featureLabels): array
+function feature_display_labels(array $featureLabels, string $context = 'raw'): array
 {
     foreach ($featureLabels as $feature => $label) {
-        $featureLabels[$feature] = feature_display_label((string)$feature, (string)$label);
+        $featureLabels[$feature] = feature_display_label((string)$feature, (string)$label, $context);
     }
 
     return $featureLabels;
 }
 
-function feature_display_numeric_value(string $feature, $value): ?float
+function feature_display_numeric_value(string $feature, $value, string $context = 'raw'): ?float
 {
     if ($value === null || $value === '' || !is_numeric($value)) {
         return null;
     }
 
     $number = (float)$value;
-    $type = feature_display_type($feature);
+    $type = feature_display_type($feature, $context);
 
     if ($type === 'time') {
         return $number / 1000;
@@ -151,17 +172,21 @@ function feature_display_numeric_value(string $feature, $value): ?float
         return $number * 1000;
     }
 
+    if ($type === 'percentage') {
+        return $number * 100;
+    }
+
     return $number;
 }
 
-function feature_storage_numeric_value(string $feature, $value): ?float
+function feature_storage_numeric_value(string $feature, $value, string $context = 'raw'): ?float
 {
     if ($value === null || $value === '' || !is_numeric($value)) {
         return null;
     }
 
     $number = (float)$value;
-    $type = feature_display_type($feature);
+    $type = feature_display_type($feature, $context);
 
     if ($type === 'time') {
         return $number * 1000;
@@ -171,27 +196,37 @@ function feature_storage_numeric_value(string $feature, $value): ?float
         return $number / 1000;
     }
 
+    if ($type === 'percentage') {
+        return $number / 100;
+    }
+
     return $number;
 }
 
-function feature_display_value(string $feature, $value, int $decimals = 2, bool $withUnit = true): string
+function feature_display_value(
+    string $feature,
+    $value,
+    int $decimals = 2,
+    bool $withUnit = true,
+    string $context = 'raw'
+): string
 {
-    $displayValue = feature_display_numeric_value($feature, $value);
+    $displayValue = feature_display_numeric_value($feature, $value, $context);
     if ($displayValue === null) {
         return '-';
     }
 
     $formatted = number_format(round($displayValue, $decimals), $decimals, '.', '');
-    $unit = $withUnit ? feature_display_unit($feature) : '';
+    $unit = $withUnit ? feature_display_unit($feature, $context) : '';
 
     return $unit === '' ? $formatted : "{$formatted}{$unit}";
 }
 
-function feature_display_metadata(array $features): array
+function feature_display_metadata(array $features, string $context = 'raw'): array
 {
     $metadata = [];
     foreach ($features as $feature) {
-        $type = feature_display_type((string)$feature);
+        $type = feature_display_type((string)$feature, $context);
         $displayScale = 1;
         $storageScale = 1;
 
@@ -201,11 +236,14 @@ function feature_display_metadata(array $features): array
         } elseif ($type === 'speed') {
             $displayScale = 1000;
             $storageScale = 0.001;
+        } elseif ($type === 'percentage') {
+            $displayScale = 100;
+            $storageScale = 0.01;
         }
 
         $metadata[(string)$feature] = [
             'type' => $type,
-            'unit' => feature_display_unit((string)$feature),
+            'unit' => feature_display_unit((string)$feature, $context),
             'displayScale' => $displayScale,
             'storageScale' => $storageScale,
         ];
@@ -214,9 +252,9 @@ function feature_display_metadata(array $features): array
     return $metadata;
 }
 
-function feature_display_name_map(): array
+function feature_display_name_map(string $context = 'raw'): array
 {
-    return [
+    $names = [
         'Time' => '解答時間',
         'distance' => '移動距離',
         'averageSpeed' => '平均速度',
@@ -238,14 +276,12 @@ function feature_display_name_map(): array
         'yUTurnCount' => 'Y軸Uターン回数',
         'xUTurnCountDD' => 'X軸UターンD&D回数',
         'yUTurnCountDD' => 'Y軸UターンD&D回数',
-        'register_move_count1' => 'レジスタからレジスタへの移動回数',
-        'register_move_count2' => 'レジスタからレジスタ外への移動回数',
-        'register_move_count3' => 'レジスタ外からレジスタへの移動回数',
-        'register_move_count4' => 'レジスタ外からレジスタ外への移動回数',
-        'register01count1' => 'レジスタからレジスタへの移動有無',
-        'register01count2' => 'レジスタからレジスタ外への移動有無',
-        'register01count3' => 'レジスタ外からレジスタへの移動有無',
-        'register01count4' => 'レジスタ外からレジスタ外への移動有無',
+        'register_move_count1' => 'レジスタ➡レジスタへの移動回数',
+        'register_move_count2' => 'レジスタ➡レジスタ外への移動回数',
+        'register_move_count3' => 'レジスタ外➡レジスタへの移動回数',
+        'register01count1' => 'レジスタ➡レジスタへの移動有無',
+        'register01count2' => 'レジスタ➡レジスタ外への移動有無',
+        'register01count3' => 'レジスタ外➡レジスタへの移動有無',
         'registerDDCount' => 'レジスタに関するD&D回数',
         'register_notDDCount' => 'レジスタ外のD&D回数',
         'register_fix_count1' => 'レジスタ1修正回数',
@@ -266,15 +302,23 @@ function feature_display_name_map(): array
         'register_notallDelete_count4' => 'レジスタ4部分削除回数',
         'FromlastdropToanswerTime' => '最終ドロップ後時間',
     ];
+
+    if (feature_display_is_aggregate_context($context)) {
+        $names['register01count1'] = 'レジスタ➡レジスタへの移動有無の割合';
+        $names['register01count2'] = 'レジスタ➡レジスタ外への移動有無の割合';
+        $names['register01count3'] = 'レジスタ外➡レジスタへの移動有無の割合';
+    }
+
+    return $names;
 }
 
-function feature_display_labels_for_features(array $features): array
+function feature_display_labels_for_features(array $features, string $context = 'raw'): array
 {
-    $names = feature_display_name_map();
+    $names = feature_display_name_map($context);
     $labels = [];
     foreach ($features as $feature) {
         $feature = (string)$feature;
-        $labels[$feature] = feature_display_label($feature, $names[$feature] ?? $feature);
+        $labels[$feature] = feature_display_label($feature, $names[$feature] ?? $feature, $context);
     }
 
     return $labels;
@@ -300,14 +344,12 @@ function feature_display_histogram_feature_labels(): array
         'groupingCountbool' => 'グループ化使用率',
         'xUTurnCount' => 'X軸Uターン回数',
         'yUTurnCount' => 'Y軸Uターン回数',
-        'register_move_count1' => 'レジスタ間移動回数',
-        'register_move_count2' => 'レジスタ外への移動回数',
-        'register_move_count3' => 'レジスタ内への移動回数',
-        'register_move_count4' => 'レジスタ関連移動回数4',
-        'register01count1' => 'レジスタ間移動有無',
-        'register01count2' => 'レジスタ外移動有無',
-        'register01count3' => 'レジスタ内移動有無',
-        'register01count4' => 'レジスタ関連移動有無4',
+        'register_move_count1' => 'レジスタ➡レジスタへの移動回数',
+        'register_move_count2' => 'レジスタ➡レジスタ外への移動回数',
+        'register_move_count3' => 'レジスタ外➡レジスタへの移動回数',
+        'register01count1' => 'レジスタ➡レジスタへの移動有無の割合',
+        'register01count2' => 'レジスタ➡レジスタ外への移動有無の割合',
+        'register01count3' => 'レジスタ外➡レジスタへの移動有無の割合',
         'registerDDCount' => 'レジスタ内D&D回数',
         'stopcount' => '静止回数',
         'xUTurnCountDD' => 'X軸UターンD&D回数',
@@ -316,7 +358,7 @@ function feature_display_histogram_feature_labels(): array
     ];
 }
 
-function feature_display_description(string $feature): string
+function feature_display_description(string $feature, string $context = 'raw'): string
 {
     $descriptions = [
         'Time' => '問題の解答開始から終了までにかかった時間です。',
@@ -340,18 +382,22 @@ function feature_display_description(string $feature): string
         'yUTurnCount' => 'マウスが縦方向に折り返した回数です。',
         'xUTurnCountDD' => 'ドラッグ中にマウスが横方向へ折り返した回数です。',
         'yUTurnCountDD' => 'ドラッグ中にマウスが縦方向へ折り返した回数です。',
-        'register_move_count1' => '単語をレジスタから別のレジスタへ移動した回数です。',
-        'register_move_count2' => '単語をレジスタからレジスタ外へ移動した回数です。',
-        'register_move_count3' => '単語をレジスタ外からレジスタへ移動した回数です。',
-        'register_move_count4' => '単語をレジスタ外の領域間で移動した回数です。',
-        'register01count1' => 'レジスタ間の移動があったかを0または1で表します。',
-        'register01count2' => 'レジスタからレジスタ外への移動があったかを0または1で表します。',
-        'register01count3' => 'レジスタ外からレジスタへの移動があったかを0または1で表します。',
-        'register01count4' => 'レジスタ外の領域間で移動があったかを0または1で表します。',
+        'register_move_count1' => 'マウスカーソルがレジスタからレジスタに移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。',
+        'register_move_count2' => 'マウスカーソルがレジスタからレジスタ外に移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。',
+        'register_move_count3' => 'マウスカーソルがレジスタ外からレジスタに移動した回数。多いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。',
+        'register01count1' => 'マウスカーソルがレジスタからレジスタに移動したかの有無。使用している場合、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。',
+        'register01count2' => 'マウスカーソルがレジスタからレジスタ外に移動したかの有無。使用している場合、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。',
+        'register01count3' => 'マウスカーソルがレジスタ外からレジスタに移動したかの有無。使用している場合、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。',
         'registerDDCount' => 'レジスタの内外をまたぐ、またはレジスタ間のドラッグ＆ドロップ回数の合計です。',
         'register_notDDCount' => 'レジスタ外で行われたドラッグ＆ドロップ回数です。',
         'FromlastdropToanswerTime' => '最後のドロップから解答終了までの時間です。',
     ];
+
+    if (feature_display_is_aggregate_context($context)) {
+        $descriptions['register01count1'] = 'マウスカーソルがレジスタからレジスタに移動したかの有無の割合。使用割合が高いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。';
+        $descriptions['register01count2'] = 'マウスカーソルがレジスタからレジスタ外に移動したかの有無の割合。使用割合が高いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。';
+        $descriptions['register01count3'] = 'マウスカーソルがレジスタ外からレジスタに移動したかの有無の割合。使用割合が高いほど、迷いに起因している可能性があります。これは迷いの際にレジスタを使用し、単語をチャンク単位で分割して考えている可能性があります。';
+    }
 
     if (isset($descriptions[$feature])) {
         return $descriptions[$feature];
@@ -369,14 +415,14 @@ function feature_display_description(string $feature): string
         return "レジスタ{$matches[1]}の単語を一部だけ削除した回数です。";
     }
 
-    return (feature_display_name_map()[$feature] ?? $feature) . 'の計測値です。';
+    return (feature_display_name_map($context)[$feature] ?? $feature) . 'の計測値です。';
 }
 
-function feature_display_descriptions_for_features(array $features): array
+function feature_display_descriptions_for_features(array $features, string $context = 'raw'): array
 {
     $descriptions = [];
     foreach ($features as $feature) {
-        $descriptions[(string)$feature] = feature_display_description((string)$feature);
+        $descriptions[(string)$feature] = feature_display_description((string)$feature, $context);
     }
 
     return $descriptions;

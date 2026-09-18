@@ -71,6 +71,9 @@ PREPARE mousemove_performance_migration FROM @ddl;
 EXECUTE mousemove_performance_migration;
 DEALLOCATE PREPARE mousemove_performance_migration;
 
+-- Refresh optimizer statistics after adding or confirming the lookup indexes.
+ANALYZE TABLE `linedatamouse`, `temporary_results`, `temporary_results_word`;
+
 SELECT `TABLE_NAME`, `INDEX_NAME`,
        GROUP_CONCAT(`COLUMN_NAME` ORDER BY `SEQ_IN_INDEX` SEPARATOR ',') AS `index_columns`
 FROM INFORMATION_SCHEMA.STATISTICS
