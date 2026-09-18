@@ -1,15 +1,30 @@
 <?php
+$mousemove_response_outer_buffer_level = ob_get_level();
+$mousemove_response_outer_handlers = ob_list_handlers();
+ob_start();
 $mousemove_request_started_ns = hrtime(true);
 $mousemove_performance = [
     'session_ms' => 0.0,
     'db_connection_ms' => 0.0,
+    'teacher_lookup_ms' => 0.0,
+    'attempt_context_ms' => 0.0,
     'teacher_context_ms' => 0.0,
     'trajectory_ms' => 0.0,
+    'linedata_ms' => 0.0,
+    'question_info_ms' => 0.0,
+    'featurevalue_ms' => 0.0,
     'related_data_ms' => 0.0,
     'estimated_result_ms' => 0.0,
+    'diagnostics_ms' => 0.0,
     'trajectory_rows' => 0,
     'replay_rows' => 0,
 ];
+$mousemove_performance_debug_requested = isset($_GET['performance_debug'])
+    && is_scalar($_GET['performance_debug'])
+    && (string)$_GET['performance_debug'] === '1';
+$mousemove_performance_debug_enabled = false;
+$mousemove_performance_schema = [];
+$mousemove_performance_snapshot = [];
 
 // lang.phpでセッションが開始されるため、個別のsession_startは不要
 require "../lang.php";
@@ -105,6 +120,77 @@ function mousemove_fetch_one(mysqli $conn, string $sql, array $params): ?array
     $row = $stmt->get_result()->fetch_assoc() ?: null;
     $stmt->close();
     return $row;
+}
+
+function mousemove_performance_schema_diagnostics(mysqli $conn): array
+{
+    $requirements = [
+        'teachers' => ['tid'],
+        'linedata' => ['uid', 'wid', 'attempt'],
+        'students' => ['uid'],
+        'classteacher' => ['classid', 'tid'],
+        'linedatamouse' => ['uid', 'wid', 'attempt', 'time'],
+        'question_info' => ['wid'],
+        'test_featurevalue' => ['uid', 'wid', 'attempt'],
+        'temporary_results' => ['teacher_id', 'uid', 'wid', 'attempt', 'created_at', 'id'],
+    ];
+    $tableNames = array_keys($requirements);
+    $quotedNames = implode(',', array_map(
+        static fn(string $name): string => "'" . $conn->real_escape_string($name) . "'",
+        $tableNames
+    ));
+    $tableStatus = [];
+    $indexes = [];
+
+    try {
+        $tableResult = $conn->query(
+            'SELECT `TABLE_NAME`, `ENGINE`, `TABLE_ROWS`'
+            . ' FROM `INFORMATION_SCHEMA`.`TABLES`'
+            . ' WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` IN (' . $quotedNames . ')'
+        );
+        while ($row = $tableResult->fetch_assoc()) {
+            $tableStatus[strtolower((string)$row['TABLE_NAME'])] = [
+                'engine' => (string)($row['ENGINE'] ?? '-'),
+                'rows' => isset($row['TABLE_ROWS']) ? (int)$row['TABLE_ROWS'] : null,
+            ];
+        }
+        $tableResult->free();
+
+        $indexResult = $conn->query(
+            'SELECT `TABLE_NAME`, `INDEX_NAME`, `SEQ_IN_INDEX`, `COLUMN_NAME`'
+            . ' FROM `INFORMATION_SCHEMA`.`STATISTICS`'
+            . ' WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` IN (' . $quotedNames . ')'
+            . ' ORDER BY `TABLE_NAME`, `INDEX_NAME`, `SEQ_IN_INDEX`'
+        );
+        while ($row = $indexResult->fetch_assoc()) {
+            $table = strtolower((string)$row['TABLE_NAME']);
+            $index = (string)$row['INDEX_NAME'];
+            $indexes[$table][$index][] = strtolower((string)$row['COLUMN_NAME']);
+        }
+        $indexResult->free();
+    } catch (Throwable $e) {
+        error_log('[mousemove performance] schema diagnostics failed');
+        return ['available' => false, 'tables' => []];
+    }
+
+    $tables = [];
+    foreach ($requirements as $table => $requiredColumns) {
+        $indexPresent = false;
+        foreach ($indexes[$table] ?? [] as $indexColumns) {
+            if (array_slice($indexColumns, 0, count($requiredColumns)) === $requiredColumns) {
+                $indexPresent = true;
+                break;
+            }
+        }
+        $tables[] = [
+            'table' => $table,
+            'engine' => $tableStatus[$table]['engine'] ?? '-',
+            'rows' => $tableStatus[$table]['rows'] ?? null,
+            'index_ok' => $indexPresent,
+        ];
+    }
+
+    return ['available' => true, 'tables' => $tables];
 }
 
 function mousemove_usage_integer(array $payload, string $key, int $min, int $max, bool $nullable = false): ?int
@@ -426,12 +512,17 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
     }
 
     error_log(sprintf(
-        '[mousemove performance] total_ms=%.3f session_ms=%.3f db_connection_ms=%.3f teacher_context_ms=%.3f trajectory_ms=%.3f related_data_ms=%.3f estimated_result_ms=%.3f other_php_ms=%.3f trajectory_rows=%d replay_rows=%d',
+        '[mousemove performance] total_ms=%.3f session_ms=%.3f db_connection_ms=%.3f teacher_lookup_ms=%.3f attempt_context_ms=%.3f teacher_context_ms=%.3f trajectory_ms=%.3f linedata_ms=%.3f question_info_ms=%.3f featurevalue_ms=%.3f related_data_ms=%.3f estimated_result_ms=%.3f other_php_ms=%.3f trajectory_rows=%d replay_rows=%d',
         $totalMs,
         (float)$mousemove_performance['session_ms'],
         (float)$mousemove_performance['db_connection_ms'],
+        (float)$mousemove_performance['teacher_lookup_ms'],
+        (float)$mousemove_performance['attempt_context_ms'],
         (float)$mousemove_performance['teacher_context_ms'],
         (float)$mousemove_performance['trajectory_ms'],
+        (float)$mousemove_performance['linedata_ms'],
+        (float)$mousemove_performance['question_info_ms'],
+        (float)$mousemove_performance['featurevalue_ms'],
         (float)$mousemove_performance['related_data_ms'],
         (float)$mousemove_performance['estimated_result_ms'],
         max(0.0, $totalMs - $measuredMs),
@@ -820,8 +911,12 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
     $mousemove_usage_teacher_id = null;
     $mousemove_teacher_context_started_ns = hrtime(true);
     try {
+        $mousemove_teacher_lookup_started_ns = hrtime(true);
         $mousemove_usage_teacher_id = mousemove_usage_teacher_id($conn);
+        $mousemove_performance['teacher_lookup_ms'] =
+            (hrtime(true) - $mousemove_teacher_lookup_started_ns) / 1_000_000;
         if ($mousemove_usage_teacher_id !== null) {
+            $mousemove_attempt_context_started_ns = hrtime(true);
             $mousemove_usage_enabled = mousemove_usage_attempt_context(
                 $conn,
                 $mousemove_usage_teacher_id,
@@ -829,12 +924,17 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
                 $wid,
                 $attempt_num
             ) !== null;
+            $mousemove_performance['attempt_context_ms'] =
+                (hrtime(true) - $mousemove_attempt_context_started_ns) / 1_000_000;
         }
     } catch (Throwable $e) {
         error_log('[mousemove usage] initialization failed: ' . $e->getMessage());
     }
     $mousemove_performance['teacher_context_ms'] =
         (hrtime(true) - $mousemove_teacher_context_started_ns) / 1_000_000;
+    $mousemove_performance_debug_enabled = $mousemove_performance_debug_requested
+        && $mousemove_usage_teacher_id !== null
+        && $mousemove_usage_enabled;
 
     // 軌跡は一度だけ取得し、再生用データと全ての分析処理で再利用する。
     $mousemove_trajectory_started_ns = hrtime(true);
@@ -878,18 +978,27 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
 
     $mousemove_related_data_started_ns = hrtime(true);
     try {
+        $mousemove_linedata_started_ns = hrtime(true);
         $row = mousemove_fetch_one(
             $conn,
             'SELECT `EndSentence`, `TF`, `Time` FROM `linedata`
              WHERE `UID` = ? AND `WID` = ? AND `attempt` = ? LIMIT 1',
             [$uid, $wid, $attempt_num]
         ) ?? [];
+        $mousemove_performance['linedata_ms'] =
+            (hrtime(true) - $mousemove_linedata_started_ns) / 1_000_000;
+
+        $mousemove_question_info_started_ns = hrtime(true);
         $row2 = mousemove_fetch_one(
             $conn,
             'SELECT `Japanese`, `Sentence`, `grammar`, `level`, `start`, `divide`
              FROM `question_info` WHERE `WID` = ? LIMIT 1',
             [$wid]
         ) ?? [];
+        $mousemove_performance['question_info_ms'] =
+            (hrtime(true) - $mousemove_question_info_started_ns) / 1_000_000;
+
+        $mousemove_featurevalue_started_ns = hrtime(true);
         $row3 = mousemove_fetch_one(
             $conn,
             'SELECT `maxStopTime`, `DDCount`, `xUTurnCount`, `yUTurnCount`,
@@ -899,6 +1008,8 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
              WHERE `UID` = ? AND `WID` = ? AND `attempt` = ? LIMIT 1',
             [$uid, $wid, $attempt_num]
         ) ?? [];
+        $mousemove_performance['featurevalue_ms'] =
+            (hrtime(true) - $mousemove_featurevalue_started_ns) / 1_000_000;
     } catch (Throwable $e) {
         error_log('[mousemove] related data query failed: ' . $e->getMessage());
         exit('軌跡再現の関連データを取得できませんでした。');
@@ -1122,6 +1233,51 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
             }
         }
     }
+
+    if ($mousemove_performance_debug_enabled) {
+        $mousemove_server_before_diagnostics_ms =
+            (hrtime(true) - $mousemove_request_started_ns) / 1_000_000;
+        $mousemove_measured_main_ms = 0.0;
+        foreach ([
+            'session_ms',
+            'db_connection_ms',
+            'teacher_context_ms',
+            'trajectory_ms',
+            'related_data_ms',
+            'estimated_result_ms',
+        ] as $timingKey) {
+            $mousemove_measured_main_ms += (float)$mousemove_performance[$timingKey];
+        }
+        $mousemove_other_php_ms = max(
+            0.0,
+            $mousemove_server_before_diagnostics_ms - $mousemove_measured_main_ms
+        );
+
+        $mousemove_diagnostics_started_ns = hrtime(true);
+        $mousemove_performance_schema = mousemove_performance_schema_diagnostics($conn);
+        $mousemove_performance['diagnostics_ms'] =
+            (hrtime(true) - $mousemove_diagnostics_started_ns) / 1_000_000;
+
+        $mousemove_performance_snapshot = [
+            'total_ms' => $mousemove_server_before_diagnostics_ms,
+            'other_php_ms' => $mousemove_other_php_ms,
+            'trajectory_rows' => (int)$mousemove_performance['trajectory_rows'],
+            'replay_rows' => (int)$mousemove_performance['replay_rows'],
+            'timings' => [
+                ['key' => 'session', 'label' => 'セッション開始・初期化', 'ms' => (float)$mousemove_performance['session_ms']],
+                ['key' => 'db_connection', 'label' => 'DB接続', 'ms' => (float)$mousemove_performance['db_connection_ms']],
+                ['key' => 'teacher_lookup', 'label' => '教師情報確認', 'ms' => (float)$mousemove_performance['teacher_lookup_ms']],
+                ['key' => 'attempt_context', 'label' => '担当学習者確認', 'ms' => (float)$mousemove_performance['attempt_context_ms']],
+                ['key' => 'trajectory', 'label' => '軌跡取得', 'ms' => (float)$mousemove_performance['trajectory_ms']],
+                ['key' => 'linedata', 'label' => '解答情報取得', 'ms' => (float)$mousemove_performance['linedata_ms']],
+                ['key' => 'question_info', 'label' => '問題情報取得', 'ms' => (float)$mousemove_performance['question_info_ms']],
+                ['key' => 'featurevalue', 'label' => '特徴量取得', 'ms' => (float)$mousemove_performance['featurevalue_ms']],
+                ['key' => 'estimated_result', 'label' => '最新推定結果取得', 'ms' => (float)$mousemove_performance['estimated_result_ms']],
+                ['key' => 'other_php', 'label' => 'その他PHP処理', 'ms' => $mousemove_other_php_ms],
+                ['key' => 'diagnostics', 'label' => '診断情報取得（合計外）', 'ms' => (float)$mousemove_performance['diagnostics_ms']],
+            ],
+        ];
+    }
     ?>
     <script type="text/javascript" src="wz_jsgraphics.js?v=<?= filemtime(__DIR__ . '/wz_jsgraphics.js') ?>"></script>
     <script type="text/javascript">
@@ -1172,9 +1328,442 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
     <script type="text/javascript" src="ui/minified/jquery.ui.widget.min.js?v=<?= filemtime(__DIR__ . '/ui/minified/jquery.ui.widget.min.js') ?>"></script>
     <script type="text/javascript" src="ui/minified/jquery.ui.mouse.min.js?v=<?= filemtime(__DIR__ . '/ui/minified/jquery.ui.mouse.min.js') ?>"></script>
     <script type="text/javascript" src="ui/minified/jquery.ui.slider.min.js?v=<?= filemtime(__DIR__ . '/ui/minified/jquery.ui.slider.min.js') ?>"></script>
+    <?php if ($mousemove_performance_debug_enabled): ?>
+        <style>
+            #mousemove-performance-debug {
+                position: fixed;
+                top: 8px;
+                right: 8px;
+                z-index: 2147483647;
+                width: min(330px, calc(100vw - 16px));
+                color: #17202a;
+                font: 10px/1.35 Consolas, "Yu Gothic UI", monospace;
+                text-align: left;
+            }
+
+            #mousemove-performance-debug details {
+                border: 1px solid #34495e;
+                border-radius: 5px;
+                background: rgba(255, 255, 255, 0.98);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            }
+
+            #mousemove-performance-debug summary {
+                padding: 6px 8px;
+                color: #fff;
+                background: #34495e;
+                cursor: pointer;
+                font-weight: 700;
+            }
+
+            #mousemove-performance-debug .mpd-content {
+                max-height: 65vh;
+                overflow: auto;
+                padding: 7px;
+            }
+
+            #mousemove-performance-debug h2 {
+                margin: 7px 0 3px;
+                font-size: 11px;
+            }
+
+            #mousemove-performance-debug table {
+                width: 100%;
+                height: auto;
+                border-collapse: collapse;
+            }
+
+            #mousemove-performance-debug th,
+            #mousemove-performance-debug td {
+                width: auto;
+                height: auto;
+                padding: 2px 3px;
+                border: 1px solid #d7dce0;
+                font-size: 10px !important;
+                overflow-wrap: anywhere;
+            }
+
+            #mousemove-performance-debug th:first-child,
+            #mousemove-performance-debug td:first-child {
+                width: 62%;
+            }
+
+            #mousemove-performance-debug .mpd-good {
+                background: #eaf7ee;
+            }
+
+            #mousemove-performance-debug .mpd-warn {
+                background: #fff5cc;
+            }
+
+            #mousemove-performance-debug .mpd-bad {
+                background: #fde2e2;
+                color: #9d1717;
+                font-weight: 700;
+            }
+
+            #mousemove-performance-debug .mpd-note {
+                margin: 5px 0;
+                padding: 5px;
+                border-left: 3px solid #2878b5;
+                background: #eef6fc;
+            }
+        </style>
+        <script>
+            (function initializeMousemovePerformanceObservers() {
+                var state = window.mousemovePerformanceDebugState = {
+                    lcp: null,
+                    longTasks: [],
+                    initialVisibility: document.visibilityState,
+                    firstVisibleAt: document.visibilityState === 'visible' ? performance.now() : null,
+                    visibilityChanges: []
+                };
+                document.addEventListener('visibilitychange', function () {
+                    var change = { state: document.visibilityState, time: performance.now() };
+                    state.visibilityChanges.push(change);
+                    if (change.state === 'visible' && state.firstVisibleAt === null) {
+                        state.firstVisibleAt = change.time;
+                    }
+                });
+                if (!window.PerformanceObserver) {
+                    return;
+                }
+
+                try {
+                    if (PerformanceObserver.supportedEntryTypes
+                        && PerformanceObserver.supportedEntryTypes.indexOf('largest-contentful-paint') !== -1) {
+                        state.lcpObserver = new PerformanceObserver(function (list) {
+                            var entries = list.getEntries();
+                            var entry = entries.length ? entries[entries.length - 1] : null;
+                            if (!entry) {
+                                return;
+                            }
+                            var element = entry.element;
+                            var elementName = '-';
+                            if (element && element.tagName) {
+                                elementName = element.tagName.toLowerCase();
+                                if (element.id) {
+                                    elementName += '#' + element.id;
+                                } else if (element.classList && element.classList.length) {
+                                    elementName += '.' + Array.prototype.slice.call(element.classList, 0, 2).join('.');
+                                }
+                            }
+                            state.lcp = { time: entry.startTime, element: elementName };
+                            if (typeof window.renderMousemovePerformanceDebug === 'function') {
+                                window.renderMousemovePerformanceDebug();
+                            }
+                        });
+                        state.lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
+                    }
+                } catch (error) {
+                    state.lcpUnavailable = true;
+                }
+
+                try {
+                    if (PerformanceObserver.supportedEntryTypes
+                        && PerformanceObserver.supportedEntryTypes.indexOf('longtask') !== -1) {
+                        state.longTaskObserver = new PerformanceObserver(function (list) {
+                            list.getEntries().forEach(function (entry) {
+                                state.longTasks.push({ start: entry.startTime, duration: entry.duration });
+                            });
+                        });
+                        state.longTaskObserver.observe({ type: 'longtask', buffered: true });
+                    }
+                } catch (error) {
+                    state.longTaskUnavailable = true;
+                }
+            })();
+        </script>
+    <?php endif; ?>
 </head>
 
 <body>
+    <?php if ($mousemove_performance_debug_enabled): ?>
+        <?php
+        $mousemove_debug_slowest = null;
+        foreach ($mousemove_performance_snapshot['timings'] as $timing) {
+            if ($timing['key'] === 'diagnostics') {
+                continue;
+            }
+            if ($mousemove_debug_slowest === null || $timing['ms'] > $mousemove_debug_slowest['ms']) {
+                $mousemove_debug_slowest = $timing;
+            }
+        }
+        ?>
+        <aside id="mousemove-performance-debug" aria-label="軌跡再現の性能診断">
+            <details>
+                <summary id="mpd-summary">
+                    性能診断: PHP <?= number_format((float)$mousemove_performance_snapshot['total_ms'], 1) ?>ms（展開）
+                </summary>
+                <div class="mpd-content">
+                    <p id="mpd-cause" class="mpd-note">
+                        <?php if ((float)$mousemove_performance_snapshot['total_ms'] >= 1000 && $mousemove_debug_slowest !== null): ?>
+                            サーバー側で「<?= htmlspecialchars((string)$mousemove_debug_slowest['label'], ENT_QUOTES, 'UTF-8') ?>」が最長です。
+                        <?php else: ?>
+                            PHP処理は1秒未満です。HTML受信後のブラウザー計測を確認してください。
+                        <?php endif; ?>
+                    </p>
+
+                    <h2>サーバー処理</h2>
+                    <table>
+                        <tbody>
+                            <?php foreach ($mousemove_performance_snapshot['timings'] as $timing): ?>
+                                <?php
+                                $timingMs = (float)$timing['ms'];
+                                $timingClass = $timingMs >= 1000 ? 'mpd-bad' : ($timingMs >= 100 ? 'mpd-warn' : 'mpd-good');
+                                ?>
+                                <tr class="<?= $timingClass ?>" data-timing-key="<?= htmlspecialchars((string)$timing['key'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <td><?= htmlspecialchars((string)$timing['label'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td class="mpd-server-value"><?= number_format($timingMs, 1) ?> ms</td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <tr>
+                                <td>軌跡行数 / 再生行数</td>
+                                <td><?= (int)$mousemove_performance_snapshot['trajectory_rows'] ?> / <?= (int)$mousemove_performance_snapshot['replay_rows'] ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>ブラウザー処理</h2>
+                    <table><tbody id="mpd-browser-body"><tr><td colspan="2">計測中...</td></tr></tbody></table>
+                    <div id="mpd-resources"></div>
+
+                    <h2>対象テーブル</h2>
+                    <?php if (!($mousemove_performance_schema['available'] ?? false)): ?>
+                        <p>スキーマ情報を取得できませんでした。</p>
+                    <?php else: ?>
+                        <table>
+                            <thead><tr><th>テーブル</th><th>状態</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($mousemove_performance_schema['tables'] as $table): ?>
+                                    <tr class="<?= $table['index_ok'] ? 'mpd-good' : 'mpd-bad' ?>">
+                                        <td><?= htmlspecialchars((string)$table['table'], ENT_QUOTES, 'UTF-8') ?></td>
+                                        <td>
+                                            <?= htmlspecialchars((string)$table['engine'], ENT_QUOTES, 'UTF-8') ?> /
+                                            約<?= $table['rows'] === null ? '-' : number_format((int)$table['rows']) ?>行 /
+                                            索引<?= $table['index_ok'] ? 'OK' : '不足' ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </details>
+        </aside>
+        <script>
+            (function configureMousemovePerformancePanel() {
+                var serverData = window.mousemovePerformanceServerData = <?= json_encode(
+                    $mousemove_performance_snapshot,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                ) ?>;
+                var browserBody = document.getElementById('mpd-browser-body');
+                var resourcesTarget = document.getElementById('mpd-resources');
+                var causeTarget = document.getElementById('mpd-cause');
+                var summaryTarget = document.getElementById('mpd-summary');
+
+                function timingClass(value, warning, bad) {
+                    if (!Number.isFinite(value)) return '';
+                    if (value >= bad) return 'mpd-bad';
+                    if (value >= warning) return 'mpd-warn';
+                    return 'mpd-good';
+                }
+
+                function formatMilliseconds(value) {
+                    return Number.isFinite(value) ? value.toFixed(1) + ' ms' : '-';
+                }
+
+                function formatBytes(value) {
+                    if (!Number.isFinite(value) || value < 0) return '-';
+                    if (value < 1024) return Math.round(value) + ' B';
+                    if (value < 1024 * 1024) return (value / 1024).toFixed(1) + ' KB';
+                    return (value / (1024 * 1024)).toFixed(2) + ' MB';
+                }
+
+                function addBrowserRow(label, value, className) {
+                    var row = document.createElement('tr');
+                    if (className) row.className = className;
+                    var labelCell = document.createElement('td');
+                    labelCell.textContent = label;
+                    var valueCell = document.createElement('td');
+                    valueCell.textContent = value;
+                    row.appendChild(labelCell);
+                    row.appendChild(valueCell);
+                    browserBody.appendChild(row);
+                }
+
+                function resourceDisplayName(name) {
+                    try {
+                        var url = new URL(name, window.location.href);
+                        var parts = url.pathname.split('/');
+                        return parts[parts.length - 1] || url.hostname;
+                    } catch (error) {
+                        return '取得資産';
+                    }
+                }
+
+                function renderServerData() {
+                    if (!serverData || !Array.isArray(serverData.timings)) return;
+                    serverData.timings.forEach(function (timing) {
+                        var row = document.querySelector('#mousemove-performance-debug [data-timing-key="' + timing.key + '"]');
+                        if (!row) return;
+                        row.className = timingClass(Number(timing.ms), 100, 1000);
+                        var valueCell = row.querySelector('.mpd-server-value');
+                        if (valueCell) valueCell.textContent = formatMilliseconds(Number(timing.ms));
+                    });
+                }
+
+                window.renderMousemovePerformanceDebug = function () {
+                    if (!browserBody) return;
+                    var state = window.mousemovePerformanceDebugState || { lcp: null, longTasks: [] };
+                    var navigation = performance.getEntriesByType('navigation')[0];
+                    browserBody.replaceChildren();
+
+                    if (!navigation) {
+                        addBrowserRow('Navigation Timing', '取得できません', 'mpd-warn');
+                        return;
+                    }
+
+                    addBrowserRow('HTML応答開始', formatMilliseconds(navigation.responseStart), timingClass(navigation.responseStart, 500, 1000));
+                    addBrowserRow(
+                        'HTML受信完了',
+                        navigation.responseEnd > 0 ? formatMilliseconds(navigation.responseEnd) : '未完了',
+                        navigation.responseEnd > 0 ? timingClass(navigation.responseEnd, 1000, 2500) : 'mpd-bad'
+                    );
+                    var htmlTransferDuration = navigation.responseEnd > 0
+                        ? Math.max(0, navigation.responseEnd - navigation.responseStart)
+                        : NaN;
+                    addBrowserRow(
+                        'HTML転送時間',
+                        Number.isFinite(htmlTransferDuration) ? formatMilliseconds(htmlTransferDuration) : '未完了',
+                        Number.isFinite(htmlTransferDuration)
+                            ? timingClass(htmlTransferDuration, 500, 1500)
+                            : 'mpd-bad'
+                    );
+                    var encodedBodySize = Number(navigation.encodedBodySize);
+                    var decodedBodySize = Number(navigation.decodedBodySize);
+                    var transferSize = Number(navigation.transferSize);
+                    var compressionRatio = encodedBodySize > 0 && decodedBodySize > 0
+                        ? Math.round((1 - (encodedBodySize / decodedBodySize)) * 100)
+                        : null;
+                    addBrowserRow(
+                        'HTML転送量',
+                        formatBytes(transferSize) + '（本文 ' + formatBytes(encodedBodySize)
+                            + ' / 展開後 ' + formatBytes(decodedBodySize)
+                            + (compressionRatio !== null ? '、圧縮 ' + compressionRatio + '%' : '') + '）',
+                        encodedBodySize > 0 && decodedBodySize > 0 && encodedBodySize < decodedBodySize
+                            ? 'mpd-good'
+                            : 'mpd-warn'
+                    );
+                    addBrowserRow(
+                        'DOMContentLoaded',
+                        navigation.domContentLoadedEventEnd > 0 ? formatMilliseconds(navigation.domContentLoadedEventEnd) : '未完了',
+                        navigation.domContentLoadedEventEnd > 0 ? timingClass(navigation.domContentLoadedEventEnd, 1500, 2500) : 'mpd-bad'
+                    );
+                    addBrowserRow(
+                        'Load',
+                        navigation.loadEventEnd > 0 ? formatMilliseconds(navigation.loadEventEnd) : '未完了',
+                        navigation.loadEventEnd > 0 ? timingClass(navigation.loadEventEnd, 2000, 4000) : 'mpd-bad'
+                    );
+                    addBrowserRow(
+                        '初期タブ状態',
+                        state.initialVisibility === 'visible'
+                            ? '表示状態'
+                            : '非表示（初回表示 ' + formatMilliseconds(Number(state.firstVisibleAt)) + '）',
+                        state.initialVisibility === 'visible' ? 'mpd-good' : 'mpd-bad'
+                    );
+
+                    var lcpTime = state.lcp ? Number(state.lcp.time) : NaN;
+                    addBrowserRow(
+                        'LCP' + (state.lcp ? ' (' + state.lcp.element + ')' : ''),
+                        formatMilliseconds(lcpTime),
+                        timingClass(lcpTime, 2500, 4000)
+                    );
+
+                    var longTasks = Array.isArray(state.longTasks) ? state.longTasks : [];
+                    var longTaskTotal = longTasks.reduce(function (sum, task) { return sum + Number(task.duration || 0); }, 0);
+                    var longTaskMax = longTasks.reduce(function (max, task) { return Math.max(max, Number(task.duration || 0)); }, 0);
+                    addBrowserRow(
+                        'Long Task',
+                        '最大 ' + formatMilliseconds(longTaskMax) + ' / 合計 ' + formatMilliseconds(longTaskTotal) + ' / ' + longTasks.length + '件',
+                        timingClass(longTaskMax, 50, 200)
+                    );
+
+                    var dclTime = navigation.domContentLoadedEventEnd || Infinity;
+                    var blockingResources = performance.getEntriesByType('resource').filter(function (entry) {
+                        return ['script', 'link', 'css'].indexOf(entry.initiatorType) !== -1
+                            && entry.responseEnd <= dclTime;
+                    }).sort(function (left, right) {
+                        return right.duration - left.duration;
+                    }).slice(0, 5);
+                    resourcesTarget.replaceChildren();
+                    if (blockingResources.length) {
+                        var heading = document.createElement('h2');
+                        heading.textContent = 'DOMContentLoaded前の資産（上位5件）';
+                        var table = document.createElement('table');
+                        var body = document.createElement('tbody');
+                        blockingResources.forEach(function (entry) {
+                            var row = document.createElement('tr');
+                            row.className = timingClass(entry.duration, 100, 1000);
+                            var nameCell = document.createElement('td');
+                            nameCell.textContent = resourceDisplayName(entry.name);
+                            var durationCell = document.createElement('td');
+                            durationCell.textContent = formatMilliseconds(entry.duration);
+                            row.appendChild(nameCell);
+                            row.appendChild(durationCell);
+                            body.appendChild(row);
+                        });
+                        table.appendChild(body);
+                        resourcesTarget.appendChild(heading);
+                        resourcesTarget.appendChild(table);
+                    }
+
+                    var serverTotal = Number(serverData.total_ms || 0);
+                    var browserLcp = Number.isFinite(lcpTime) ? lcpTime : 0;
+                    if (state.initialVisibility !== 'visible') {
+                        causeTarget.textContent = '判定: 初期状態がバックグラウンドタブのため、このLCP値は表示速度の判定に使用できません。表示中のタブで再読み込みしてください。';
+                    } else if (serverTotal >= 1000) {
+                        var serverTimings = serverData.timings.filter(function (timing) { return timing.key !== 'diagnostics'; });
+                        serverTimings.sort(function (left, right) { return right.ms - left.ms; });
+                        causeTarget.textContent = '判定: サーバー側の「' + serverTimings[0].label + '」が主な待ち時間です。';
+                    } else if (navigation.responseEnd <= 0 || navigation.domContentLoadedEventEnd <= 0) {
+                        causeTarget.textContent = '判定: HTML受信または解析が未完了です。同期スクリプトなど、完了待ちの通信を確認してください。';
+                    } else if (htmlTransferDuration >= 1000) {
+                        causeTarget.textContent = '判定: HTML本文の転送が遅いため、圧縮状態、Apache、通信経路を確認してください。';
+                    } else if (navigation.responseStart >= 1000) {
+                        causeTarget.textContent = '判定: 最初の1バイトを受信するまでが遅いため、Apacheの待ち行列または通信接続を確認してください。';
+                    } else if (browserLcp >= 2500 && longTaskMax >= 200) {
+                        causeTarget.textContent = '判定: HTML受信後のLong Taskが描画を止めています。重いJavaScript処理が原因です。';
+                    } else if (browserLcp >= 2500) {
+                        causeTarget.textContent = '判定: HTML受信後の静的ファイル待ち、または描画待ちが主因です。';
+                    } else {
+                        causeTarget.textContent = '判定: サーバー処理・ブラウザー描画とも基準内です。';
+                    }
+                    summaryTarget.textContent = '性能診断: PHP ' + serverTotal.toFixed(1) + 'ms / LCP '
+                        + (Number.isFinite(lcpTime) ? lcpTime.toFixed(1) + 'ms' : '計測中') + '（展開）';
+                };
+
+                window.updateMousemovePerformanceServerData = function (nextServerData) {
+                    if (!nextServerData || !Array.isArray(nextServerData.timings)) return;
+                    serverData = window.mousemovePerformanceServerData = nextServerData;
+                    renderServerData();
+                    window.renderMousemovePerformanceDebug();
+                };
+
+                renderServerData();
+
+                if (document.readyState === 'complete') {
+                    window.renderMousemovePerformanceDebug();
+                } else {
+                    window.addEventListener('load', function () {
+                        window.setTimeout(function () {
+                            window.renderMousemovePerformanceDebug();
+                        }, 0);
+                    }, { once: true });
+                }
+            })();
+        </script>
+    <?php endif; ?>
     <form name="myForm" action="#">
         <div>
             <input type="text" size="20" name="time" disabled>
@@ -1281,7 +1870,6 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
     </div>
     <br>
 
-    <script type="text/javascript" src="excanvas.js?v=<?= filemtime(__DIR__ . '/excanvas.js') ?>"></script>
     <canvas id="canvas" width="0" height="0" style="visibility:hidden;position:absolute;"></canvas>
 
     <table border="1" cellspacing="1" width="1000" height="500">
@@ -3691,6 +4279,85 @@ register_shutdown_function(static function () use (&$mousemove_performance, $mou
         //マウスカーソル表示用
         var jg6 = new jsGraphics("myCanvas6");
     </script>
+    <?php if ($mousemove_performance_debug_enabled): ?>
+        <?php
+        $mousemove_final_total_ms = max(
+            0.0,
+            ((hrtime(true) - $mousemove_request_started_ns) / 1_000_000)
+                - (float)$mousemove_performance['diagnostics_ms']
+        );
+        $mousemove_final_other_php_ms = max(
+            0.0,
+            $mousemove_final_total_ms - $mousemove_measured_main_ms
+        );
+        $mousemove_final_performance_snapshot = $mousemove_performance_snapshot;
+        $mousemove_final_performance_snapshot['total_ms'] = $mousemove_final_total_ms;
+        $mousemove_final_performance_snapshot['other_php_ms'] = $mousemove_final_other_php_ms;
+        foreach ($mousemove_final_performance_snapshot['timings'] as &$mousemove_final_timing) {
+            if ($mousemove_final_timing['key'] === 'other_php') {
+                $mousemove_final_timing['ms'] = $mousemove_final_other_php_ms;
+                break;
+            }
+        }
+        unset($mousemove_final_timing);
+        ?>
+        <script>
+            if (typeof window.updateMousemovePerformanceServerData === 'function') {
+                window.updateMousemovePerformanceServerData(<?= json_encode(
+                    $mousemove_final_performance_snapshot,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                ) ?>);
+            }
+        </script>
+    <?php endif; ?>
 </body>
 
 </html>
+<?php
+if (ob_get_level() > $mousemove_response_outer_buffer_level) {
+    $mousemove_html_response = ob_get_clean();
+    if ($mousemove_html_response === false) {
+        $mousemove_html_response = '';
+    }
+
+    $mousemove_accept_encoding = strtolower((string)($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''));
+    $mousemove_has_outer_compression = false;
+    foreach ($mousemove_response_outer_handlers as $mousemove_outer_handler) {
+        if (stripos((string)$mousemove_outer_handler, 'ob_gzhandler') !== false) {
+            $mousemove_has_outer_compression = true;
+            break;
+        }
+    }
+
+    $mousemove_zlib_compression_value = strtolower(trim((string)ini_get('zlib.output_compression')));
+    $mousemove_zlib_compression_enabled = !in_array(
+        $mousemove_zlib_compression_value,
+        ['', '0', 'off', 'false', 'no'],
+        true
+    );
+    $mousemove_can_manage_compression = !$mousemove_has_outer_compression
+        && !$mousemove_zlib_compression_enabled
+        && function_exists('gzencode')
+        && !headers_sent();
+    $mousemove_gzip_requested = preg_match('/(?:^|,)\s*gzip(?:\s*;\s*q=(?!0(?:\.0*)?(?:,|$))[^,]*)?(?:,|$)/i', $mousemove_accept_encoding) === 1;
+    $mousemove_encoded_response = false;
+
+    if ($mousemove_can_manage_compression) {
+        header('Vary: Accept-Encoding', false);
+        if ($mousemove_gzip_requested) {
+            $mousemove_encoded_response = gzencode($mousemove_html_response, 6);
+        }
+    }
+
+    if ($mousemove_encoded_response !== false) {
+        header('Content-Encoding: gzip');
+        header('Content-Length: ' . strlen($mousemove_encoded_response));
+        echo $mousemove_encoded_response;
+    } else {
+        if (!headers_sent() && !$mousemove_has_outer_compression && !$mousemove_zlib_compression_enabled) {
+            header('Content-Length: ' . strlen($mousemove_html_response));
+        }
+        echo $mousemove_html_response;
+    }
+}
+?>
